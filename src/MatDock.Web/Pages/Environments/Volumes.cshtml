@@ -1,0 +1,81 @@
+@page
+@model MatDock.Web.Pages.Environments.VolumesModel
+@{
+    ViewData["Title"] = $"Volumes · {Model.Environment?.Name}";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Volumes</h1>
+        <span class="page-head__subtitle">
+            @Model.Environment?.Name — <span class="mono">@Model.Environment?.Username@@@Model.Environment?.Host</span>
+        </span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Environments" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@{
+    var envId = Model.Environment?.Id;
+    var tabs = new TabBarModel
+    {
+        Tabs =
+        {
+            new TabItem { Title = "Details", Href = $"/Environments/Edit?id={envId}", Icon = "server" },
+            new TabItem { Title = "Volumes", Href = $"/Environments/Volumes?id={envId}", Icon = "volume", Active = true }
+        }
+    };
+}
+<tab-bar model="tabs" />
+
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.ErrorMessage</span></div>
+    <a class="mat-btn" href="/Environments/Volumes?id=@Model.Environment?.Id"><icon name="refresh" /><span>Erneut versuchen</span></a>
+}
+else
+{
+    <mat-table>
+        <mat-table-toolbar>
+            <div class="search">
+                <icon name="search" />
+                <input type="search" class="mat-input" placeholder="Volumes filtern…"
+                       data-filter-table="#vol-table" data-filter-count="#vol-count" />
+            </div>
+            <span class="toolbar-spacer"></span>
+            <span class="text-muted"><span id="vol-count">@Model.Volumes.Count</span> Volumes</span>
+        </mat-table-toolbar>
+
+        <mat-table-body>
+            @if (Model.Volumes.Count == 0)
+            {
+                <div class="empty-state">
+                    <div><icon name="volume" /></div>
+                    <p>Keine Volumes auf diesem Host.</p>
+                </div>
+            }
+            else
+            {
+                <table class="data" id="vol-table">
+                    <thead>
+                        <tr><th>Name</th><th>Treiber</th><th>Mountpoint</th><th>Scope</th><th class="num">Größe</th><th>Erstellt</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var vol in Model.Volumes)
+                        {
+                            <tr>
+                                <td><strong>@vol.Name</strong></td>
+                                <td>@vol.Driver</td>
+                                <td class="mono">@vol.Mountpoint</td>
+                                <td>@vol.Scope</td>
+                                <td class="num">@MatDock.Web.Pages.Environments.VolumesModel.FormatSize(vol.SizeBytes)</td>
+                                <td class="text-muted nowrap">@vol.CreatedAt</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </mat-table-body>
+    </mat-table>
+}

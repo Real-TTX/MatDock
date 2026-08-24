@@ -1,0 +1,29 @@
+# ---- .NET ----
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+artifacts/
+publish/
+*.binlog
+
+# ---- MatDock runtime data (mounted volume / local runs) ----
+/data/
+**/App_Data/
+**/matdock.db
+**/matdock.db-shm
+**/matdock.db-wal
+matdock-design.db*
+
+# ---- Rider / VS Code ----
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# ---- OS ----
+Thumbs.db
+.DS_Store

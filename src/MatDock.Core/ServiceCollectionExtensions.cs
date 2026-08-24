@@ -1,0 +1,35 @@
+using MatDock.Core.Auth;
+using MatDock.Core.Docker;
+using MatDock.Core.Environments;
+using MatDock.Core.Security;
+using MatDock.Core.Ssh;
+using MatDock.Core.Users;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace MatDock.Core;
+
+/// <summary>
+/// Registers the MatDock domain/services. The hosting layer is still responsible for the
+/// infrastructure that needs configuration: the <c>MatDockDbContext</c> (connection string),
+/// Data Protection, options binding, <c>AppPaths</c> and <c>ICurrentUserAccessor</c>.
+/// </summary>
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddMatDockCore(this IServiceCollection services)
+    {
+        // Stateless helpers.
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+        services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
+        services.AddSingleton<IDockerHostFactory, SshDockerHostFactory>();
+
+        // Per-request services (depend on the scoped DbContext).
+        services.AddScoped<AuthService>();
+        services.AddScoped<SessionService>();
+        services.AddScoped<UserService>();
+        services.AddScoped<EnvironmentService>();
+        services.AddScoped<IEnvironmentConnectionService, EnvironmentConnectionService>();
+
+        return services;
+    }
+}

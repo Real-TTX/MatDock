@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MatDock.Core/MatDock.Core.csproj" />
+    <Project Path="src/MatDock.Web/MatDock.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MatDock.Tests/MatDock.Tests.csproj" />
+  </Folder>
+</Solution>

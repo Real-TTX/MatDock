@@ -1,0 +1,77 @@
+@page
+@model MatDock.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Dashboard</h1>
+        <span class="page-head__subtitle">Willkommen zurück, @User.GetDisplayName()</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Environment</span></a>
+    </div>
+</div>
+
+<div class="stat-grid" style="margin-bottom:22px;">
+    <div class="stat">
+        <div class="stat__icon"><icon name="server" /></div>
+        <div>
+            <div class="stat__value">@Model.TotalEnvironments</div>
+            <div class="stat__label">Environments</div>
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__icon" style="background:var(--success-bg);color:var(--success);"><icon name="check-circle" /></div>
+        <div>
+            <div class="stat__value">@Model.OnlineCount</div>
+            <div class="stat__label">Online</div>
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__icon" style="background:var(--warning-bg);color:var(--warning);"><icon name="alert" /></div>
+        <div>
+            <div class="stat__value">@Model.AttentionCount</div>
+            <div class="stat__label">Prüfen</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card__header"><icon name="clock" /><span>Zuletzt geprüft</span></div>
+    <div class="card__body" style="padding:0;">
+        @if (Model.Recent.Count == 0)
+        {
+            <div class="empty-state">
+                <div><icon name="server" /></div>
+                <p>Noch keine Environments angelegt.</p>
+                <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Erstes Environment anlegen</span></a>
+            </div>
+        }
+        else
+        {
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead>
+                        <tr><th>Name</th><th>Host</th><th>Status</th><th>Zuletzt geprüft</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var env in Model.Recent)
+                        {
+                            <tr>
+                                <td><a href="/Environments/Edit?id=@env.Id">@env.Name</a></td>
+                                <td class="mono">@env.Username@@@env.Host:@env.Port</td>
+                                <td><partial name="_StatusPill" model="env.Status" /></td>
+                                <td class="text-muted">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                                <td class="actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Environments/Volumes?id=@env.Id"><icon name="volume" /><span>Volumes</span></a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,43 @@
+@page
+@model MatDock.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Anmelden";
+}
+
+<div class="login">
+    <div class="login__brand">
+        <img src="~/img/logo.svg" alt="MatDock" />
+        <span class="name">MatDock</span>
+        <span class="tagline">Docker Environment &amp; Volume Manager</span>
+    </div>
+
+    <div class="card">
+        <div class="card__body">
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert alert--error"><icon name="x-circle" /><span>@Model.ErrorMessage</span></div>
+            }
+
+            <form method="post" class="mat-form">
+                <input type="hidden" asp-for="ReturnUrl" />
+
+                <mat-field label="Benutzername" asp-for="Input.Username">
+                    <input asp-for="Input.Username" class="mat-input" autocomplete="username" autofocus />
+                </mat-field>
+
+                <mat-field label="Passwort" asp-for="Input.Password">
+                    <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="current-password" />
+                </mat-field>
+
+                <label class="mat-check">
+                    <input asp-for="Input.RememberMe" type="checkbox" />
+                    <span>Angemeldet bleiben</span>
+                </label>
+
+                <button type="submit" class="mat-btn mat-btn--primary">
+                    <icon name="login" /><span>Anmelden</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

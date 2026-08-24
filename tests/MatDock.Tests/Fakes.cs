@@ -1,0 +1,76 @@
+using MatDock.Core.Data;
+using MatDock.Core.Docker;
+using MatDock.Core.Environments;
+using MatDock.Core.Security;
+using MatDock.Core.Ssh;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+
+namespace MatDock.Tests;
+
+internal sealed class FakeCurrentUser : ICurrentUserAccessor
+{
+    public FakeCurrentUser(long? userId) => UserId = userId;
+    public long? UserId { get; }
+}
+
+/// <summary>Reversible, non-cryptographic protector for tests.</summary>
+internal sealed class FakeSecretProtector : ISecretProtector
+{
+    private const string Prefix = "enc:";
+    public string Protect(string plaintext) => Prefix + plaintext;
+    public string Unprotect(string protectedValue) => protectedValue.StartsWith(Prefix) ? protectedValue[Prefix.Length..] : protectedValue;
+    public string? ProtectNullable(string? plaintext) => string.IsNullOrEmpty(plaintext) ? null : Protect(plaintext);
+    public string? UnprotectNullable(string? protectedValue) => string.IsNullOrEmpty(protectedValue) ? null : Unprotect(protectedValue);
+}
+
+internal sealed class FakeConnectionService : IEnvironmentConnectionService
+{
+    public SshConnectionSettings? LastSettings { get; private set; }
+
+    public Task<DockerConnectionResult> TestConnectionAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult(DockerConnectionResult.Ok("ok", "27.0", "1.47", "linux/amd64"));
+    }
+
+    public Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult<IReadOnlyList<DockerVolume>>(new List<DockerVolume>());
+    }
+}
+
+/// <summary>Creates a MatDockDbContext backed by an isolated in-memory SQLite database.</summary>
+internal sealed class TestDatabase : IDisposable
+{
+    private readonly SqliteConnection _connection;
+
+    public TestDatabase(long? currentUserId = 1)
+    {
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
+        var options = new DbContextOptionsBuilder<MatDockDbContext>()
+            .UseSqlite(_connection)
+            .Options;
+        Context = new MatDockDbContext(options, new FakeCurrentUser(currentUserId));
+        Context.Database.EnsureCreated();
+    }
+
+    public MatDockDbContext Context { get; }
+
+    /// <summary>A fresh context over the same connection (to read without the first context's tracking).</summary>
+    public MatDockDbContext NewContext(long? currentUserId = 1)
+    {
+        var options = new DbContextOptionsBuilder<MatDockDbContext>()
+            .UseSqlite(_connection)
+            .Options;
+        return new MatDockDbContext(options, new FakeCurrentUser(currentUserId));
+    }
+
+    public void Dispose()
+    {
+        Context.Dispose();
+        _connection.Dispose();
+    }
+}

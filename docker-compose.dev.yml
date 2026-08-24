@@ -1,0 +1,24 @@
+# MatDock – dev override. Adds a lightweight SQLite web viewer (instead of pgAdmin) on the data volume.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# App:        http://localhost:4455
+# SQLite web: http://localhost:8085
+services:
+  matdock:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+  sqlite-web:
+    image: coleifer/sqlite-web:latest
+    container_name: matdock-sqlite-web
+    depends_on:
+      - matdock
+    ports:
+      - "8085:8080"
+    environment:
+      SQLITE_DATABASE: /data/matdock.db
+    volumes:
+      - matdock-data:/data
+    restart: unless-stopped
+
+volumes:
+  matdock-data:

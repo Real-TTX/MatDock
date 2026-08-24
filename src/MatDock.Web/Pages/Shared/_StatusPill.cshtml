@@ -1,0 +1,11 @@
+@model MatDock.Core.Entities.EnvironmentStatus
+@{
+    var (cssClass, icon, label) = Model switch
+    {
+        MatDock.Core.Entities.EnvironmentStatus.Online => ("pill--online", "check-circle", "Online"),
+        MatDock.Core.Entities.EnvironmentStatus.Offline => ("pill--offline", "clock", "Offline"),
+        MatDock.Core.Entities.EnvironmentStatus.Error => ("pill--error", "x-circle", "Fehler"),
+        _ => ("pill--unknown", "clock", "Unbekannt")
+    };
+}
+<span class="pill @cssClass"><icon name="@icon" /><span>@label</span></span>

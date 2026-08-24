@@ -1,0 +1,83 @@
+@page
+@model MatDock.Web.Pages.Environments.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Environment bearbeiten" : "Neues Environment";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">SSH-Verbindung zu einem Docker-Host</span>
+    </div>
+</div>
+
+@if (Model.TestResult is not null)
+{
+    <div class="alert @(Model.TestResult.Success ? "alert--success" : "alert--error")">
+        <icon name="@(Model.TestResult.Success ? "check-circle" : "x-circle")" />
+        <span>@Model.TestResult.Message</span>
+    </div>
+}
+
+<div class="card" style="max-width:760px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <div class="form-grid">
+                <mat-field label="Name" asp-for="Input.Name" class="span-2">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="z. B. Produktion" />
+                </mat-field>
+
+                <mat-field label="Beschreibung" asp-for="Input.Description" class="span-2">
+                    <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
+                </mat-field>
+
+                <mat-field label="Host" asp-for="Input.Host">
+                    <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com oder 10.0.0.5" />
+                </mat-field>
+
+                <mat-field label="Port" asp-for="Input.Port">
+                    <input asp-for="Input.Port" type="number" min="1" max="65535" class="mat-input" />
+                </mat-field>
+
+                <mat-field label="SSH-Benutzer" asp-for="Input.Username">
+                    <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="z. B. root" />
+                </mat-field>
+
+                <mat-field label="Authentifizierung" asp-for="Input.AuthType">
+                    <select asp-for="Input.AuthType" id="AuthType" class="mat-select">
+                        <option value="Password">Passwort</option>
+                        <option value="PrivateKey">SSH-Schlüssel</option>
+                    </select>
+                </mat-field>
+            </div>
+
+            @{
+                var secretHint = Model.IsEdit ? "Leer lassen, um das gespeicherte Geheimnis beizubehalten." : null;
+            }
+
+            <div data-show-when="AuthType=Password">
+                <mat-field label="Passwort" asp-for="Input.Password" hint="@secretHint">
+                    <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+            </div>
+
+            <div data-show-when="AuthType=PrivateKey">
+                <mat-field label="Privater SSH-Schlüssel (PEM)" asp-for="Input.PrivateKeyPem" hint="@secretHint">
+                    <textarea asp-for="Input.PrivateKeyPem" class="mat-textarea" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                </mat-field>
+                <mat-field label="Schlüssel-Passphrase" asp-for="Input.PrivateKeyPassphrase" hint="Optional, falls der Schlüssel verschlüsselt ist.">
+                    <input asp-for="Input.PrivateKeyPassphrase" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Verbindung testen</span></button>
+                <a href="/Environments" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

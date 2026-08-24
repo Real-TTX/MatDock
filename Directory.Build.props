@@ -1,0 +1,61 @@
+<Project>
+
+  <!-- ============================================================= -->
+  <!--  Shared MSBuild properties for all MatDock projects            -->
+  <!-- ============================================================= -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Company>Matthias Schmoldt</Company>
+    <Product>MatDock</Product>
+    <Authors>Matthias Schmoldt</Authors>
+  </PropertyGroup>
+
+  <!-- ============================================================= -->
+  <!--  Versioning (single source of truth: Major/Minor below)        -->
+  <!--                                                                 -->
+  <!--  BuildNumber / Channel / BuildDate are overridden by CI, e.g.  -->
+  <!--    dotnet build -p:Channel=release -p:BuildNumber=42 \          -->
+  <!--                 -p:BuildDate=20260824                           -->
+  <!--                                                                 -->
+  <!--  Resulting InformationalVersion per channel:                    -->
+  <!--    release : <major>.<minor>.<build>-<date>  e.g. 0.1.42-20260824 -->
+  <!--    nightly : nightly-<build>-<date>          e.g. nightly-42-20260824 -->
+  <!--    local   : local-<date>                    e.g. local-20260824 -->
+  <!-- ============================================================= -->
+
+  <PropertyGroup>
+    <MatDockMajor>0</MatDockMajor>
+    <MatDockMinor>1</MatDockMinor>
+
+    <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
+    <Channel Condition="'$(Channel)' == ''">local</Channel>
+    <BuildDate Condition="'$(BuildDate)' == ''">$([System.DateTime]::UtcNow.ToString('yyyyMMdd'))</BuildDate>
+
+    <!-- Numeric AssemblyVersion/FileVersion components are capped at 65534, so they are kept stable
+         at <major>.<minor>.0.0 and the (potentially large) build number lives only in the string
+         Version / InformationalVersion below. -->
+    <Version>$(MatDockMajor).$(MatDockMinor).$(BuildNumber)</Version>
+    <AssemblyVersion>$(MatDockMajor).$(MatDockMinor).0.0</AssemblyVersion>
+    <FileVersion>$(MatDockMajor).$(MatDockMinor).0.0</FileVersion>
+
+    <!-- Keep the informational version clean (no +git-sha suffix). -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Channel)' == 'release'">
+    <InformationalVersion>$(MatDockMajor).$(MatDockMinor).$(BuildNumber)-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Channel)' == 'nightly'">
+    <InformationalVersion>nightly-$(BuildNumber)-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Channel)' == 'local'">
+    <InformationalVersion>local-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+
+</Project>

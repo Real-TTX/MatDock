@@ -1,0 +1,58 @@
+@page
+@model MatDock.Web.Pages.Users.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Benutzer bearbeiten" : "Neuer Benutzer";
+    var pwHint = Model.IsEdit ? "Leer lassen, um das aktuelle Passwort beizubehalten." : null;
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">Lokales Benutzerkonto</span>
+    </div>
+</div>
+
+<div class="card" style="max-width:640px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+
+            <div class="form-grid">
+                <mat-field label="Benutzername" asp-for="Input.Username">
+                    <input asp-for="Input.Username" class="mat-input" autocomplete="off" readonly="@Model.IsEdit" />
+                </mat-field>
+
+                <mat-field label="Anzeigename" asp-for="Input.DisplayName">
+                    <input asp-for="Input.DisplayName" class="mat-input" />
+                </mat-field>
+
+                <mat-field label="Rolle" asp-for="Input.Role">
+                    <select asp-for="Input.Role" class="mat-select">
+                        <option value="Admin">Admin</option>
+                        <option value="User">User</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Status">
+                    <label class="mat-check" style="margin-top:8px;">
+                        <input asp-for="Input.IsActive" type="checkbox" />
+                        <span>Konto ist aktiv</span>
+                    </label>
+                </mat-field>
+
+                <mat-field label="Passwort" asp-for="Input.Password" hint="@pwHint">
+                    <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+
+                <mat-field label="Passwort bestätigen" asp-for="Input.ConfirmPassword">
+                    <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                <a href="/Users" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

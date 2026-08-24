@@ -1,0 +1,62 @@
+@page
+@model MatDock.Web.Pages.Account.ProfileModel
+@{
+    ViewData["Title"] = "Profil";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Profil</h1>
+        <span class="page-head__subtitle">Konto &amp; Passwort verwalten</span>
+    </div>
+</div>
+
+@if (Model.MustChange)
+{
+    <div class="alert alert--warning">
+        <icon name="alert" />
+        <span>Bitte lege ein eigenes Passwort fest, bevor du fortfährst.</span>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="form-grid">
+    <div class="card">
+        <div class="card__header"><icon name="user" /><span>Konto</span></div>
+        <div class="card__body">
+            <div class="mat-form">
+                <mat-field label="Benutzername"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
+                <mat-field label="Anzeigename"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
+                <mat-field label="Rolle"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__header"><icon name="key" /><span>Passwort ändern</span></div>
+        <div class="card__body">
+            <form method="post" class="mat-form">
+                <div asp-validation-summary="ModelOnly"></div>
+
+                <mat-field label="Aktuelles Passwort" asp-for="Input.CurrentPassword">
+                    <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
+                </mat-field>
+                <mat-field label="Neues Passwort" asp-for="Input.NewPassword">
+                    <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+                <mat-field label="Neues Passwort bestätigen" asp-for="Input.ConfirmPassword">
+                    <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </div>
+</div>

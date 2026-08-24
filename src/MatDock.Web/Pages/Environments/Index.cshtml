@@ -1,0 +1,122 @@
+@page
+@model MatDock.Web.Pages.Environments.IndexModel
+@{
+    ViewData["Title"] = "Environments";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Environments</h1>
+        <span class="page-head__subtitle">Docker-Umgebungen über SSH verwalten</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <form method="get" class="js-autosubmit" style="display:contents;">
+            <div class="search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Name, Host, Benutzer)…" />
+            </div>
+            <div class="toolbar-field">
+                <label for="filter-status"><icon name="filter" /></label>
+                <select id="filter-status" name="Status" class="mat-select">
+                    <option value="">Alle Status</option>
+                    @foreach (var st in new[] { EnvironmentStatus.Online, EnvironmentStatus.Offline, EnvironmentStatus.Error, EnvironmentStatus.Unknown })
+                    {
+                        <option value="@st" selected="@(Model.Status == st.ToString())">@st</option>
+                    }
+                </select>
+            </div>
+            <div class="toolbar-field">
+                <label for="sort-field">Sortieren</label>
+                <select id="sort-field" name="Sort" class="mat-select">
+                    <option value="name" selected="@(Model.Sort == "name")">Name</option>
+                    <option value="host" selected="@(Model.Sort == "host")">Host</option>
+                    <option value="status" selected="@(Model.Sort == "status")">Status</option>
+                    <option value="checked" selected="@(Model.Sort == "checked")">Zuletzt geprüft</option>
+                </select>
+                <select name="Dir" class="mat-select" aria-label="Richtung">
+                    <option value="asc" selected="@(Model.Dir == "asc")">↑</option>
+                    <option value="desc" selected="@(Model.Dir == "desc")">↓</option>
+                </select>
+            </div>
+        </form>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        @if (Model.Items.Count == 0)
+        {
+            <div class="empty-state">
+                <div><icon name="server" /></div>
+                <p>Keine Environments gefunden.</p>
+            </div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Verbindung</th>
+                        <th>Auth</th>
+                        <th>Status</th>
+                        <th>Docker</th>
+                        <th>Zuletzt geprüft</th>
+                        <th class="actions">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var env in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/Environments/Edit?id=@env.Id"><strong>@env.Name</strong></a>
+                                @if (!string.IsNullOrWhiteSpace(env.Description))
+                                {
+                                    <div class="text-muted" style="font-size:.8rem;">@env.Description</div>
+                                }
+                            </td>
+                            <td class="mono">@env.Username@@@env.Host:@env.Port</td>
+                            <td>@(env.AuthType == AuthType.Password ? "Passwort" : "SSH-Key")</td>
+                            <td><partial name="_StatusPill" model="env.Status" /></td>
+                            <td class="text-muted">@(env.DockerVersion ?? "–")</td>
+                            <td class="text-muted nowrap">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Environments/Volumes?id=@env.Id" title="Volumes"><icon name="volume" /></a>
+                                    <form method="post" asp-page-handler="Test" style="display:inline;">
+                                        <input type="hidden" name="id" value="@env.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <span style="width:8px;display:inline-block;"></span>
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Environment „@env.Name“ wirklich löschen?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@env.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+
+    <mat-table-pagination>
+        <pagination model="Model.Pagination" />
+    </mat-table-pagination>
+
+    <mat-table-actions>
+        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Environment</span></a>
+        <a href="/Environments" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+    </mat-table-actions>
+</mat-table>

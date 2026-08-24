@@ -1,0 +1,101 @@
+@page
+@model MatDock.Web.Pages.Users.IndexModel
+@{
+    ViewData["Title"] = "Benutzer";
+    var currentUserId = User.GetUserId();
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Benutzer</h1>
+        <span class="page-head__subtitle">Lokale Konten &amp; Rollen</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <form method="get" class="js-autosubmit" style="display:contents;">
+            <div class="search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen…" />
+            </div>
+            <div class="toolbar-field">
+                <label for="sort-field">Sortieren</label>
+                <select id="sort-field" name="Sort" class="mat-select">
+                    <option value="username" selected="@(Model.Sort == "username")">Benutzername</option>
+                    <option value="displayname" selected="@(Model.Sort == "displayname")">Anzeigename</option>
+                    <option value="role" selected="@(Model.Sort == "role")">Rolle</option>
+                    <option value="lastlogin" selected="@(Model.Sort == "lastlogin")">Letzte Anmeldung</option>
+                </select>
+                <select name="Dir" class="mat-select" aria-label="Richtung">
+                    <option value="asc" selected="@(Model.Dir == "asc")">↑</option>
+                    <option value="desc" selected="@(Model.Dir == "desc")">↓</option>
+                </select>
+            </div>
+        </form>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        @if (Model.Items.Count == 0)
+        {
+            <div class="empty-state"><div><icon name="users" /></div><p>Keine Benutzer gefunden.</p></div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr><th>Benutzername</th><th>Anzeigename</th><th>Rolle</th><th>Status</th><th>Letzte Anmeldung</th><th class="actions">Aktionen</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.Items)
+                    {
+                        <tr>
+                            <td><a href="/Users/Edit?id=@u.Id"><strong>@u.Username</strong></a></td>
+                            <td>@u.DisplayName</td>
+                            <td><span class="mat-badge">@u.Role</span></td>
+                            <td>
+                                @if (u.IsActive)
+                                {
+                                    <span class="pill pill--online"><icon name="check-circle" /><span>Aktiv</span></span>
+                                }
+                                else
+                                {
+                                    <span class="pill pill--unknown"><span>Inaktiv</span></span>
+                                }
+                            </td>
+                            <td class="text-muted nowrap">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Users/Edit?id=@u.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <span style="width:8px;display:inline-block;"></span>
+                                    @if (u.Id != currentUserId)
+                                    {
+                                        <form method="post" asp-page-handler="Delete" data-confirm="Benutzer „@u.Username“ wirklich löschen?" style="display:inline;">
+                                            <input type="hidden" name="id" value="@u.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+
+    <mat-table-pagination>
+        <pagination model="Model.Pagination" />
+    </mat-table-pagination>
+
+    <mat-table-actions>
+        <a href="/Users/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neuer Benutzer</span></a>
+    </mat-table-actions>
+</mat-table>

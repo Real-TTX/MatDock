@@ -1,0 +1,41 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MatDock">
+  <defs>
+    <linearGradient id="md-body" x1="8" y1="30" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#37a6f5"/>
+      <stop offset="1" stop-color="#1b7fd1"/>
+    </linearGradient>
+    <linearGradient id="md-sea" x1="0" y1="52" x2="0" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2496ed"/>
+      <stop offset="1" stop-color="#1567a8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- spout -->
+  <path d="M20 15c0-2.2 1.8-4 4-4M24 11c0-2 1.6-3.5 3.6-3.5" stroke="#7cc4fb" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- containers stacked on the whale's back -->
+  <g>
+    <rect x="16" y="20" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <rect x="27" y="20" width="9" height="8" rx="1.4" fill="#c9e6ff"/>
+    <rect x="38" y="20" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <rect x="21.5" y="11" width="9" height="8" rx="1.4" fill="#8fd0a6"/>
+    <rect x="32.5" y="11" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <!-- container ridges -->
+    <g stroke="#1b7fd1" stroke-width="0.7" opacity="0.35">
+      <path d="M18 21v6M20.5 21v6M23 21v6M29 21v6M31.5 21v6M34 21v6M40 21v6M42.5 21v6M45 21v6"/>
+    </g>
+  </g>
+
+  <!-- whale body -->
+  <path d="M8 30c0 0 6 2 24 2s24-2 24-2c1.2 0 2 1 1.8 2.2C56.6 41 47.4 47 32 47S7.4 41 6.2 32.2C6 31 6.8 30 8 30Z" fill="url(#md-body)"/>
+
+  <!-- tail fluke -->
+  <path d="M56 30c2.5-2.4 5.2-3 6.4-2.4 1 .5.7 2.2-.5 3.6 1.7.2 2.7 1.2 2.6 2.3-.1 1.3-2.4 2.1-5 1.7" fill="url(#md-body)" transform="translate(-6 2)"/>
+
+  <!-- eye -->
+  <circle cx="16.5" cy="36" r="1.8" fill="#0d1520"/>
+  <circle cx="15.9" cy="35.4" r="0.6" fill="#eaf4ff"/>
+
+  <!-- sea -->
+  <path d="M6 52c3 0 3 2.4 6 2.4S15 52 18 52s3 2.4 6 2.4S27 52 30 52s3 2.4 6 2.4S39 52 42 52s3 2.4 6 2.4S51 52 54 52s3 2.4 6 2.4" stroke="url(#md-sea)" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,14 @@
+@page
+@{
+    ViewData["Title"] = "Kein Zugriff";
+    Layout = User.Identity?.IsAuthenticated == true ? "_Layout" : "_Layout";
+}
+
+<div class="card" style="max-width:520px;margin:40px auto;">
+    <div class="card__body" style="text-align:center;">
+        <div style="font-size:2.4rem;color:var(--danger);"><icon name="lock" /></div>
+        <h1>Kein Zugriff</h1>
+        <p class="text-muted">Du hast nicht die nötigen Rechte, um diese Seite zu sehen.</p>
+        <a href="/" class="mat-btn mat-btn--primary"><icon name="dashboard" /><span>Zum Dashboard</span></a>
+    </div>
+</div>

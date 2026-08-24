@@ -1,0 +1,18 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Fehler";
+}
+
+<div class="card" style="max-width:560px;margin:40px auto;">
+    <div class="card__body" style="text-align:center;">
+        <div style="font-size:2.4rem;color:var(--danger);"><icon name="alert" /></div>
+        <h1>Ein Fehler ist aufgetreten</h1>
+        <p class="text-muted">Beim Verarbeiten der Anfrage ist etwas schiefgelaufen.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p class="mono text-muted">Request-ID: @Model.RequestId</p>
+        }
+        <a href="/" class="mat-btn mat-btn--primary"><icon name="dashboard" /><span>Zum Dashboard</span></a>
+    </div>
+</div>

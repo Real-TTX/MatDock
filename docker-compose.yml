@@ -1,0 +1,26 @@
+# MatDock – release stack (as simple as possible: only the app + a data volume).
+#   docker compose up -d --build
+services:
+  matdock:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        Channel: local
+    image: matdock:local
+    container_name: matdock
+    ports:
+      - "4455:4455"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MatDock__DataPath: /data
+      # Initial administrator (forced to change the password on first login).
+      # Override these, especially the password, before the first start.
+      MatDock__Admin__Username: admin
+      MatDock__Admin__Password: admin
+    volumes:
+      - matdock-data:/data
+    restart: unless-stopped
+
+volumes:
+  matdock-data:

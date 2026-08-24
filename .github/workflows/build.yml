@@ -1,0 +1,117 @@
+name: build
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Determine version metadata
+        id: ver
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            main) channel=release ;;
+            dev)  channel=nightly ;;
+            *)    channel=local ;;
+          esac
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then channel=local; fi
+          {
+            echo "channel=$channel"
+            echo "date=$(date -u +%Y%m%d)"
+            echo "build=${GITHUB_RUN_NUMBER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore MatDock.slnx
+
+      - name: Build
+        run: >
+          dotnet build MatDock.slnx -c Release --no-restore
+          -p:Channel=${{ steps.ver.outputs.channel }}
+          -p:BuildNumber=${{ steps.ver.outputs.build }}
+          -p:BuildDate=${{ steps.ver.outputs.date }}
+
+      - name: Test
+        run: dotnet test MatDock.slnx -c Release --no-build --verbosity normal
+
+      - name: Resolve version string
+        id: appver
+        shell: bash
+        run: |
+          v=$(dotnet msbuild src/MatDock.Web/MatDock.Web.csproj -getProperty:InformationalVersion \
+                -p:Channel=${{ steps.ver.outputs.channel }} \
+                -p:BuildNumber=${{ steps.ver.outputs.build }} \
+                -p:BuildDate=${{ steps.ver.outputs.date }})
+          v=$(echo "$v" | tr -d '[:space:]')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $v"
+
+      # ---- Self-contained single-file Windows EXE -------------------------------
+      - name: Publish Windows EXE
+        run: >
+          dotnet publish src/MatDock.Web/MatDock.Web.csproj -c Release
+          -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Channel=${{ steps.ver.outputs.channel }}
+          -p:BuildNumber=${{ steps.ver.outputs.build }}
+          -p:BuildDate=${{ steps.ver.outputs.date }}
+          -o publish/win-x64
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: matdock-win-x64-${{ steps.appver.outputs.version }}
+          path: publish/win-x64/**
+          if-no-files-found: error
+
+      # ---- Docker image ---------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Lowercase image name
+        id: img
+        shell: bash
+        run: echo "name=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          build-args: |
+            Channel=${{ steps.ver.outputs.channel }}
+            BuildNumber=${{ steps.ver.outputs.build }}
+            BuildDate=${{ steps.ver.outputs.date }}
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ steps.appver.outputs.version }}
+            ${{ steps.img.outputs.name }}:${{ steps.ver.outputs.channel }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

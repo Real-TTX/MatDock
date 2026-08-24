@@ -1,0 +1,108 @@
+@using System.Security.Claims
+@{
+    var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
+    bool IsActive(string prefix) => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
+        || (prefix != "/" && path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isAdmin = User.IsAdmin();
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>@ViewData["Title"] · MatDock</title>
+    <link rel="icon" href="~/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/css/matdock.css" asp-append-version="true" />
+    <script>
+        // Apply the saved theme before first paint to avoid a flash.
+        (function () {
+            try {
+                var t = localStorage.getItem('matdock-theme') || 'system';
+                var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme-pref', t);
+            } catch (e) { }
+        })();
+    </script>
+</head>
+<body class="@(isAuthenticated ? "is-app" : "is-plain")">
+    @if (isAuthenticated)
+    {
+        <div class="app">
+            <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden />
+            <aside class="sidebar">
+                <div class="sidebar__brand">
+                    <a class="brand" href="/" aria-label="MatDock Startseite">
+                        <img class="brand__logo" src="~/img/logo.svg" alt="" width="34" height="34" />
+                        <span class="brand__text">
+                            <span class="brand__name">MatDock</span>
+                            <span class="brand__version">@AppVersion.Informational</span>
+                        </span>
+                    </a>
+                </div>
+
+                <nav class="sidebar__nav" aria-label="Hauptnavigation">
+                    <a class="nav-link @(IsActive("/") && path == "/" ? "is-active" : "")" href="/">
+                        <icon name="dashboard" /><span>Dashboard</span>
+                    </a>
+                    <a class="nav-link @(IsActive("/Environments") ? "is-active" : "")" href="/Environments">
+                        <icon name="server" /><span>Environments</span>
+                    </a>
+                    @if (isAdmin)
+                    {
+                        <a class="nav-link @(IsActive("/Users") ? "is-active" : "")" href="/Users">
+                            <icon name="users" /><span>Benutzer</span>
+                        </a>
+                    }
+                </nav>
+
+                <div class="sidebar__footer">
+                    <a class="account" href="/Account/Profile" title="Profil">
+                        <span class="account__avatar"><icon name="user" /></span>
+                        <span class="account__meta">
+                            <span class="account__name">@User.GetDisplayName()</span>
+                            <span class="account__role">@User.GetRole()</span>
+                        </span>
+                    </a>
+
+                    <div class="theme-switch" role="group" aria-label="Design">
+                        <button type="button" class="theme-switch__btn" data-theme-set="system" title="System"><icon name="monitor" /></button>
+                        <button type="button" class="theme-switch__btn" data-theme-set="light" title="Hell"><icon name="sun" /></button>
+                        <button type="button" class="theme-switch__btn" data-theme-set="dark" title="Dunkel"><icon name="moon" /></button>
+                    </div>
+
+                    <form method="post" asp-page="/Account/Logout" class="logout-form">
+                        <button type="submit" class="nav-link nav-link--logout">
+                            <icon name="logout" /><span>Abmelden</span>
+                        </button>
+                    </form>
+                </div>
+            </aside>
+
+            <div class="content">
+                <header class="topbar">
+                    <label for="nav-toggle" class="topbar__menu" aria-label="Menü">
+                        <icon name="menu" />
+                    </label>
+                    <span class="topbar__title">@ViewData["Title"]</span>
+                </header>
+                <main class="main">
+                    @RenderBody()
+                </main>
+            </div>
+            <label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
+        </div>
+    }
+    else
+    {
+        <main class="plain-main">
+            @RenderBody()
+        </main>
+    }
+
+    <script src="~/js/matdock.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
