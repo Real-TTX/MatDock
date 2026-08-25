@@ -90,11 +90,28 @@ public static partial class VolumeCommands
         return PathPrefix + $"{dockerHead} run --rm -v '{volume}':/from:ro '{image}' tar -C /from -cf - .";
     }
 
-    /// <summary>Command that untars stdin into the volume (target side).</summary>
-    public static string Import(string volume, string image, string dockerHead = "docker")
+    /// <summary>
+    /// Command that untars stdin into the volume (target side). When <paramref name="clearFirst"/> is
+    /// true the target contents are wiped before extraction, so the result matches the archive exactly
+    /// (used for "overwrite").
+    /// </summary>
+    public static string Import(string volume, string image, string dockerHead = "docker", bool clearFirst = false)
     {
         EnsureValid(volume, image);
-        return PathPrefix + $"{dockerHead} run --rm -i -v '{volume}':/to '{image}' tar -C /to -xf -";
+        return clearFirst
+            ? PathPrefix + $"{dockerHead} run --rm -i -v '{volume}':/to '{image}' sh -c 'rm -rf /to/* /to/.[!.]* /to/..?* 2>/dev/null; exec tar -C /to -xf -'"
+            : PathPrefix + $"{dockerHead} run --rm -i -v '{volume}':/to '{image}' tar -C /to -xf -";
+    }
+
+    /// <summary>Verifies a volume exists (exit code 0) without creating it.</summary>
+    public static string Inspect(string volume, string dockerHead = "docker")
+    {
+        if (!IsValidVolumeName(volume))
+        {
+            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+        }
+
+        return PathPrefix + $"{dockerHead} volume inspect '{volume}'";
     }
 
     /// <summary>Counts entries in a volume; used to detect a non-empty target before overwriting.</summary>

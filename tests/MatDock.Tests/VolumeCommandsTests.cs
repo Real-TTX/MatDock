@@ -87,4 +87,26 @@ public class VolumeCommandsTests
         var cmd = VolumeCommands.ServerVersion("sudo -n docker");
         Assert.Contains("sudo -n docker version --format '{{json .Server}}'", cmd);
     }
+
+    [Fact]
+    public void Import_with_clearFirst_wipes_target_before_extract()
+    {
+        var cmd = VolumeCommands.Import("data", "busybox", "docker", clearFirst: true);
+        Assert.Contains("rm -rf /to/*", cmd);
+        Assert.Contains("exec tar -C /to -xf -", cmd);
+    }
+
+    [Fact]
+    public void Import_without_clearFirst_does_not_wipe()
+    {
+        var cmd = VolumeCommands.Import("data", "busybox");
+        Assert.DoesNotContain("rm -rf", cmd);
+    }
+
+    [Fact]
+    public void Inspect_builds_expected_and_validates()
+    {
+        Assert.Contains("docker volume inspect 'data'", VolumeCommands.Inspect("data"));
+        Assert.Throws<ArgumentException>(() => VolumeCommands.Inspect("$(evil)"));
+    }
 }

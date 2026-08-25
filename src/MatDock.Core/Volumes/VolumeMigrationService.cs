@@ -38,20 +38,27 @@ public sealed class VolumeMigrationService
             return VolumeMigrationResult.Fail("Ungültiger Volume-Name.");
         }
 
-        var sourceHead = VolumeCommands.DockerHead(request.Source.UseSudo, request.Source.DockerHost);
-        var targetHead = VolumeCommands.DockerHead(request.Target.UseSudo, request.Target.DockerHost);
-
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
+            var sourceHead = VolumeCommands.DockerHead(request.Source.UseSudo, request.Source.DockerHost);
+            var targetHead = VolumeCommands.DockerHead(request.Target.UseSudo, request.Target.DockerHost);
+
             using var source = _sshClientFactory.Create(request.Source);
             using var target = _sshClientFactory.Create(request.Target);
             await source.ConnectAsync(cts.Token);
             await target.ConnectAsync(cts.Token);
             steps.Add("Mit Quelle und Ziel verbunden.");
+
+            // 0) Verify the source volume exists (docker would otherwise auto-create an empty one).
+            var inspect = RunCommand(source, VolumeCommands.Inspect(request.SourceVolume, sourceHead));
+            if (inspect.ExitStatus != 0)
+            {
+                return VolumeMigrationResult.Fail($"Quell-Volume '{request.SourceVolume}' existiert nicht.", steps);
+            }
 
             // 1) Ensure the target volume exists.
             var create = RunCommand(target, VolumeCommands.Create(request.TargetVolume, targetHead));
@@ -61,21 +68,26 @@ public sealed class VolumeMigrationService
             }
             steps.Add($"Ziel-Volume '{request.TargetVolume}' bereit.");
 
-            // 2) Refuse to clobber a non-empty target unless explicitly allowed.
+            // 2) Refuse to clobber a non-empty target unless explicitly allowed (fail closed if unsure).
             if (!request.Overwrite)
             {
                 var count = RunCommand(target, VolumeCommands.CountEntries(request.TargetVolume, image, targetHead));
-                if (count.ExitStatus == 0 && int.TryParse(count.StdOut.Trim(), out var entries) && entries > 0)
+                if (count.ExitStatus != 0 || !int.TryParse(count.StdOut.Trim(), out var entries))
+                {
+                    return VolumeMigrationResult.Fail(
+                        $"Ziel-Volume '{request.TargetVolume}' konnte nicht geprüft werden – Migration abgebrochen: {FirstLine(count.StdErr)}", steps);
+                }
+                if (entries > 0)
                 {
                     return VolumeMigrationResult.Fail(
                         $"Ziel-Volume '{request.TargetVolume}' enthält bereits Daten. Zum Überschreiben die Option „Überschreiben“ aktivieren.", steps);
                 }
             }
 
-            // 3) Stream source -> target.
+            // 3) Stream source -> target. On overwrite, wipe the target first so it matches the source.
             var timeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
             using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead));
-            using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead));
+            using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead, clearFirst: request.Overwrite));
             exportCmd.CommandTimeout = timeout;
             importCmd.CommandTimeout = timeout;
 
@@ -89,11 +101,12 @@ public sealed class VolumeMigrationService
             exportCmd.EndExecute(exportAsync);
             importCmd.EndExecute(importAsync);
 
-            if (exportCmd.ExitStatus is not (null or 0))
+            // Require explicit success; null exit status = command killed / channel died = failure.
+            if (exportCmd.ExitStatus != 0)
             {
                 return VolumeMigrationResult.Fail($"Export der Quelle fehlgeschlagen: {FirstLine(exportCmd.Error)}", steps);
             }
-            if (importCmd.ExitStatus is not (null or 0))
+            if (importCmd.ExitStatus != 0)
             {
                 return VolumeMigrationResult.Fail($"Import ins Ziel fehlgeschlagen: {FirstLine(importCmd.Error)}", steps);
             }

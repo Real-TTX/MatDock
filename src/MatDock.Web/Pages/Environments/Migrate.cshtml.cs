@@ -32,7 +32,7 @@ public class MigrateModel : PageModel
         [Required]
         public string SourceVolume { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
         public long TargetEnvId { get; set; }
 
         [Required(ErrorMessage = "Bitte einen Ziel-Volume-Namen angeben.")]

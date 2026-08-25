@@ -90,6 +90,8 @@
                                     <form method="post" asp-page-handler="Backup" data-confirm="Backup von „@row.Volume.Name“ erstellen?" style="display:inline;">
                                         <input type="hidden" name="environmentId" value="@row.Environment.Id" />
                                         <input type="hidden" name="volume" value="@row.Volume.Name" />
+                                        <input type="hidden" name="EnvId" value="@Model.EnvId" />
+                                        <input type="hidden" name="Q" value="@Model.Q" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Backup erstellen"><icon name="save" /><span>Backup</span></button>
                                     </form>
                                     <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore aus Backup"><icon name="refresh" /><span>Restore</span></a>
@@ -103,7 +105,7 @@
     </mat-table-body>
 
     <mat-table-actions>
-        <a href="/Volumes?EnvId=@Model.EnvId&Q=@Model.Q&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+        <a href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
         <span class="text-muted" style="font-size:.8rem;">Zwischengespeichert für 60&nbsp;s – „Aktualisieren" lädt neu.</span>
     </mat-table-actions>
 </mat-table>

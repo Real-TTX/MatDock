@@ -29,7 +29,7 @@ public class RestoreModel : PageModel
     {
         public long BackupId { get; set; }
 
-        [Required(ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
         public long TargetEnvId { get; set; }
 
         [Required(ErrorMessage = "Bitte einen Ziel-Volume-Namen angeben.")]

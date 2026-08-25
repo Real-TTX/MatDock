@@ -40,7 +40,10 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             await ConnectAsync(client, settings, cancellationToken);
 
             // Auto-detect how Docker is reachable on this host and return the working access.
-            (int ExitStatus, string StdOut, string StdErr) lastProbe = (-1, string.Empty, string.Empty);
+            // Keep the FIRST (default) probe's error for the failure message — it is the most
+            // representative cause; the later sudo/rootless probes tend to mask it.
+            (int ExitStatus, string StdOut, string StdErr) primaryProbe = (-1, string.Empty, string.Empty);
+            var isFirstProbe = true;
             foreach (var (useSudo, dockerHost) in BuildCandidates(client, settings))
             {
                 var head = VolumeCommands.DockerHead(useSudo, dockerHost);
@@ -54,10 +57,14 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                         version, apiVersion, osArch, useSudo, dockerHost, label);
                 }
 
-                lastProbe = probe;
+                if (isFirstProbe)
+                {
+                    primaryProbe = probe;
+                    isFirstProbe = false;
+                }
             }
 
-            return DockerConnectionResult.Fail(InterpretDockerError(lastProbe.StdErr, lastProbe.StdOut));
+            return DockerConnectionResult.Fail(InterpretDockerError(primaryProbe.StdErr, primaryProbe.StdOut));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -223,18 +230,19 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var lower = detail.ToLowerInvariant();
 
         string? hint = null;
-        if (lower.Contains("permission denied") || lower.Contains("dial unix") || lower.Contains("got permission denied"))
+        if (lower.Contains("permission denied") || lower.Contains("got permission denied"))
         {
             hint = "Keine Berechtigung für den Docker-Socket. Der SSH-Benutzer muss den Docker-Daemon erreichen dürfen "
                  + "(Benutzer in Gruppe \"docker\", oder – bei Rootless-Docker – als der Docker-Besitzer verbinden). ";
         }
+        else if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running")
+                 || lower.Contains("connection refused"))
+        {
+            hint = "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst (ggf. Rootless-Socket)? ";
+        }
         else if (lower.Contains("not found") || lower.Contains("no such file"))
         {
             hint = "Docker wurde nicht gefunden. Ist Docker installiert und im PATH des SSH-Benutzers? ";
-        }
-        else if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running"))
-        {
-            hint = "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst (ggf. Rootless-Socket)? ";
         }
 
         // Always surface the real remote error so per-host causes are diagnosable.

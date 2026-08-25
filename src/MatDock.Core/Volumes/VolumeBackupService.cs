@@ -47,8 +47,10 @@ public sealed class VolumeBackupService
     public Task<VolumeBackup?> GetAsync(long id, CancellationToken ct = default)
         => _db.VolumeBackups.FirstOrDefaultAsync(b => b.Id == id, ct);
 
-    public static string BuildFileName(long environmentId, string volumeName, DateTime timestampUtc)
-        => $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar";
+    public static string BuildFileName(long environmentId, string volumeName, DateTime timestampUtc, string? suffix = null)
+        => suffix is null
+            ? $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar"
+            : $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}_{suffix}.tar";
 
     public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, CancellationToken ct = default)
     {
@@ -58,9 +60,8 @@ public sealed class VolumeBackupService
         }
 
         _paths.EnsureCreated();
-        var settings = _environmentService.BuildSettings(environment);
-        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var fileName = BuildFileName(environment.Id, volumeName, DateTime.UtcNow);
+        // Unique even within the same second (avoids overwriting a concurrent backup's file).
+        var fileName = BuildFileName(environment.Id, volumeName, DateTime.UtcNow, Guid.NewGuid().ToString("N")[..8]);
         var fullPath = Path.Combine(_paths.BackupsPath, fileName);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -68,8 +69,19 @@ public sealed class VolumeBackupService
 
         try
         {
+            var settings = _environmentService.BuildSettings(environment);
+            var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
             using var client = _sshClientFactory.Create(settings);
             await client.ConnectAsync(cts.Token);
+
+            // Don't rely on tar's exit code to detect a missing volume: `docker run -v name:/x` would
+            // silently CREATE an empty volume and back it up. Verify it exists first.
+            var inspect = RunCommand(client, VolumeCommands.Inspect(volumeName, head));
+            if (inspect.ExitStatus != 0)
+            {
+                return BackupResult.Fail($"Volume '{volumeName}' existiert auf dem Host nicht.");
+            }
 
             using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head));
             exportCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
@@ -82,7 +94,9 @@ public sealed class VolumeBackupService
             }
 
             exportCmd.EndExecute(async);
-            if (exportCmd.ExitStatus is not (null or 0))
+            // Require an explicit success: a null exit status means the command was killed / the channel
+            // died mid-transfer, which would otherwise persist a truncated archive as a valid backup.
+            if (exportCmd.ExitStatus != 0)
             {
                 TryDelete(fullPath);
                 return BackupResult.Fail($"Backup fehlgeschlagen: {FirstLine(exportCmd.Error)}");
@@ -133,14 +147,14 @@ public sealed class VolumeBackupService
             return RestoreResult.Fail("Die Backup-Datei existiert nicht mehr.");
         }
 
-        var settings = _environmentService.BuildSettings(target);
-        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
 
         try
         {
+            var settings = _environmentService.BuildSettings(target);
+            var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
             using var client = _sshClientFactory.Create(settings);
             await client.ConnectAsync(cts.Token);
 
@@ -152,14 +166,20 @@ public sealed class VolumeBackupService
 
             if (!overwrite)
             {
+                // Fail closed: if emptiness cannot be positively verified, do not risk overwriting data.
                 var count = RunCommand(client, VolumeCommands.CountEntries(targetVolume, _options.HelperImage, head));
-                if (count.ExitStatus == 0 && int.TryParse(count.StdOut.Trim(), out var entries) && entries > 0)
+                if (count.ExitStatus != 0 || !int.TryParse(count.StdOut.Trim(), out var entries))
+                {
+                    return RestoreResult.Fail($"Ziel-Volume '{targetVolume}' konnte nicht geprüft werden – Restore abgebrochen: {FirstLine(count.StdErr)}");
+                }
+                if (entries > 0)
                 {
                     return RestoreResult.Fail($"Ziel-Volume '{targetVolume}' enthält bereits Daten. Zum Überschreiben „Überschreiben“ aktivieren.");
                 }
             }
 
-            using var importCmd = client.CreateCommand(VolumeCommands.Import(targetVolume, _options.HelperImage, head));
+            // On overwrite, wipe the target first so the restored state matches the archive exactly.
+            using var importCmd = client.CreateCommand(VolumeCommands.Import(targetVolume, _options.HelperImage, head, clearFirst: overwrite));
             importCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
             var input = importCmd.CreateInputStream();
             var async = importCmd.BeginExecute();
@@ -173,7 +193,8 @@ public sealed class VolumeBackupService
             input.Close();
             importCmd.EndExecute(async);
 
-            if (importCmd.ExitStatus is not (null or 0))
+            // Require an explicit success; null exit status = command killed / channel died = failure.
+            if (importCmd.ExitStatus != 0)
             {
                 return RestoreResult.Fail($"Restore fehlgeschlagen: {FirstLine(importCmd.Error)}");
             }
@@ -199,9 +220,11 @@ public sealed class VolumeBackupService
             return false;
         }
 
-        TryDelete(Path.Combine(_paths.BackupsPath, backup.FileName));
+        // Commit the row removal first; only delete the file once the DB change succeeded.
+        var path = Path.Combine(_paths.BackupsPath, backup.FileName);
         _db.VolumeBackups.Remove(backup); // soft delete of the row
         await _db.SaveChangesAsync(ct);
+        TryDelete(path);
         return true;
     }
 
