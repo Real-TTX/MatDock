@@ -56,6 +56,9 @@
                     <a class="nav-link @(IsActive("/Backups") ? "is-active" : "")" href="/Backups">
                         <icon name="save" /><span>Backups</span>
                     </a>
+                    <a class="nav-link @(IsActive("/Schedules") ? "is-active" : "")" href="/Schedules">
+                        <icon name="clock" /><span>Zeitpläne</span>
+                    </a>
                     @if (isAdmin)
                     {
                         <a class="nav-link @(IsActive("/Users") ? "is-active" : "")" href="/Users">

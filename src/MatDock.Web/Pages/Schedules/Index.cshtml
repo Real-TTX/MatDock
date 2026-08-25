@@ -1,0 +1,76 @@
+@page
+@model MatDock.Web.Pages.Schedules.IndexModel
+@{
+    ViewData["Title"] = "Zeitpläne";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Backup-Zeitpläne</h1>
+        <span class="page-head__subtitle">Automatische Backups mit Retention</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-body>
+        @if (Model.Items.Count == 0)
+        {
+            <div class="empty-state"><div><icon name="clock" /></div><p>Noch keine Zeitpläne. Lege einen an.</p></div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr><th>Name</th><th>Environment</th><th>Volumes</th><th>Zeitplan (UTC)</th><th>Retention</th><th>Status</th><th>Nächster Lauf</th><th class="actions">Aktionen</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/Schedules/Edit?id=@s.Id"><strong>@s.Name</strong></a>
+                                @if (!s.Enabled)
+                                {
+                                    <span class="mat-badge">deaktiviert</span>
+                                }
+                            </td>
+                            <td>@(Model.EnvironmentNames.TryGetValue(s.EnvironmentId, out var n) ? n : $"#{s.EnvironmentId}")</td>
+                            <td>@s.Volumes.Count()</td>
+                            <td class="mono">@s.Cron</td>
+                            <td class="cell-sub">
+                                @(s.RetentionCount > 0 ? $"max {s.RetentionCount}" : "∞")@(s.RetentionDays > 0 ? $", {s.RetentionDays}d" : "")
+                            </td>
+                            <td class="cell-sub">@(s.LastStatus ?? "–")</td>
+                            <td class="text-muted nowrap">@(s.Enabled ? (s.NextRunAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "–") : "–")</td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <form method="post" asp-page-handler="Run" data-confirm="Zeitplan „@s.Name“ jetzt ausführen?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@s.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Jetzt ausführen"><icon name="refresh" /></button>
+                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Schedules/Edit?id=@s.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <span style="width:8px;display:inline-block;"></span>
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Zeitplan „@s.Name“ löschen?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@s.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+
+    <mat-table-actions>
+        <a href="/Schedules/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neuer Zeitplan</span></a>
+    </mat-table-actions>
+</mat-table>

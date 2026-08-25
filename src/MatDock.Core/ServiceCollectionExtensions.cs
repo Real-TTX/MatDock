@@ -31,6 +31,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Volumes.VolumeMigrationService>();
         services.AddScoped<Volumes.VolumeBackupService>();
         services.AddScoped<Backups.BackupTargetService>();
+        services.AddScoped<Backups.BackupScheduleRunner>();
+        services.AddScoped<Backups.BackupScheduleService>();
 
         return services;
     }

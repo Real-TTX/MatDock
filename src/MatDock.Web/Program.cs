@@ -56,6 +56,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 builder.Services.AddMatDockCore();
+builder.Services.AddHostedService<BackupSchedulerService>();
 
 // ---------------------------------------------------------------------------
 // Authentication / authorization

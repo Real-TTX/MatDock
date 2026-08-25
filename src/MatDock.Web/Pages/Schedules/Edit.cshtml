@@ -1,0 +1,101 @@
+@page
+@model MatDock.Web.Pages.Schedules.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Zeitplan bearbeiten" : "Neuer Zeitplan";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">Automatisches Backup ausgewählter Volumes</span>
+    </div>
+</div>
+
+<div class="card" style="max-width:820px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <mat-field label="Name" asp-for="Input.Name">
+                <input asp-for="Input.Name" class="mat-input" placeholder="z. B. Nächtliches Prod-Backup" />
+            </mat-field>
+
+            <div class="form-grid">
+                <mat-field label="Environment (Quelle)" asp-for="Input.EnvironmentId">
+                    <select asp-for="Input.EnvironmentId" id="EnvironmentId" class="mat-select">
+                        <option value="0">— wählen —</option>
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+                <mat-field label="Ziel">
+                    <select asp-for="Input.BackupTargetId" class="mat-select">
+                        <option value="">Lokal (MatDock)</option>
+                        @foreach (var t in Model.Targets)
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            </div>
+
+            <div class="mat-field">
+                <label class="mat-label">Volumes</label>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                    <button type="submit" asp-page-handler="LoadVolumes" class="mat-btn mat-btn--sm" formnovalidate><icon name="refresh" /><span>Volumes des Environments laden</span></button>
+                    @if (Model.VolumeLoadError is not null)
+                    {
+                        <span class="mat-validation">@Model.VolumeLoadError</span>
+                    }
+                </div>
+                @if (Model.AvailableVolumes.Count > 0)
+                {
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;">
+                        @foreach (var vol in Model.AvailableVolumes)
+                        {
+                            <label class="mat-check">
+                                <input type="checkbox" name="Input.SelectedVolumes" value="@vol"
+                                       checked="@(Model.Input.SelectedVolumes.Contains(vol))" />
+                                <span>@vol</span>
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <span class="mat-hint">Environment wählen und „Volumes laden" klicken – oder unten manuell eintragen.</span>
+                }
+            </div>
+
+            <mat-field label="Weitere Volumes (eine pro Zeile)" asp-for="Input.ExtraVolumes" hint="Für Hosts, die gerade nicht erreichbar sind.">
+                <textarea asp-for="Input.ExtraVolumes" class="mat-textarea" rows="3"></textarea>
+            </mat-field>
+
+            <div class="form-grid">
+                <mat-field label="Zeitplan (Cron, UTC)" asp-for="Input.Cron" hint="min std tag monat wochentag · z. B. 0 3 * * * = täglich 03:00">
+                    <input asp-for="Input.Cron" class="mat-input" placeholder="0 3 * * *" />
+                </mat-field>
+                <mat-field label="Aktiv">
+                    <label class="mat-check" style="margin-top:8px;">
+                        <input asp-for="Input.Enabled" type="checkbox" />
+                        <span>Zeitplan aktiv</span>
+                    </label>
+                </mat-field>
+                <mat-field label="Aufbewahren: Anzahl" asp-for="Input.RetentionCount" hint="Neueste N je Volume behalten (0 = unbegrenzt)">
+                    <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
+                </mat-field>
+                <mat-field label="Aufbewahren: Tage" asp-for="Input.RetentionDays" hint="Ältere löschen (0 = aus)">
+                    <input asp-for="Input.RetentionDays" type="number" min="0" class="mat-input" />
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

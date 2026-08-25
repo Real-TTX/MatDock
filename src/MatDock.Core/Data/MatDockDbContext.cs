@@ -24,6 +24,7 @@ public class MatDockDbContext : DbContext
     public DbSet<DockerEnvironment> Environments => Set<DockerEnvironment>();
     public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
     public DbSet<BackupTarget> BackupTargets => Set<BackupTarget>();
+    public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -89,6 +90,16 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.SmbHost).HasMaxLength(255);
             e.Property(x => x.SmbShare).HasMaxLength(255);
             e.Property(x => x.SmbDirectory).HasMaxLength(500);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<BackupSchedule>(e =>
+        {
+            e.ToTable("BackupSchedule");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Cron).HasMaxLength(120).IsRequired();
+            e.Ignore(x => x.Volumes);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }
