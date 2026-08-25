@@ -80,7 +80,15 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
     public async Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         using var client = _sshClientFactory.Create(settings);
-        await ConnectAsync(client, settings, cancellationToken);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (ex is SshException or System.Net.Sockets.SocketException)
+        {
+            // Turn raw SSH errors (e.g. "Permission denied (password)") into an actionable message.
+            throw new InvalidOperationException(DescribeSshError(ex));
+        }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         var result = RunCommand(client, VolumeCommands.VolumeList(head), settings);
@@ -253,7 +261,9 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
     private static string DescribeSshError(Exception ex) => ex switch
     {
-        SshAuthenticationException => "Authentifizierung fehlgeschlagen (Benutzer, Passwort oder Schlüssel prüfen).",
+        SshAuthenticationException => "Authentifizierung fehlgeschlagen. Bei Benutzer 'root' ist der Passwort-Login "
+            + "oft gesperrt (sshd: PermitRootLogin prohibit-password / PasswordAuthentication no) – dann SSH-Key "
+            + "verwenden oder einen Benutzer der Gruppe 'docker'.",
         SshConnectionException => "SSH-Verbindung fehlgeschlagen.",
         System.Net.Sockets.SocketException => "Host nicht erreichbar (Adresse/Port prüfen).",
         _ => $"Fehler: {Innermost(ex).Message}"

@@ -65,12 +65,23 @@
             </div>
 
             <div data-show-when="AuthType=PrivateKey">
+                @if (!string.IsNullOrEmpty(Model.GeneratedPublicKey))
+                {
+                    <div class="alert alert--success" style="flex-direction:column;align-items:stretch;gap:8px;">
+                        <div><icon name="key" /> <strong>Öffentlichen Schlüssel auf dem Host hinterlegen:</strong> auf <code>@Model.Input.Host</code> als <code>@Model.Input.Username</code> einmalig ausführen (dann unten <em>Speichern</em>):</div>
+                        <textarea class="mat-textarea" rows="2" readonly onclick="this.select()">mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
+                    </div>
+                }
                 <mat-field label="Privater SSH-Schlüssel (PEM)" asp-for="Input.PrivateKeyPem" hint="@secretHint">
                     <textarea asp-for="Input.PrivateKeyPem" class="mat-textarea" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
                 </mat-field>
                 <mat-field label="Schlüssel-Passphrase" asp-for="Input.PrivateKeyPassphrase" hint="Optional, falls der Schlüssel verschlüsselt ist.">
                     <input asp-for="Input.PrivateKeyPassphrase" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
+                <mat-form-buttons>
+                    <button type="submit" asp-page-handler="GenerateKey" class="mat-btn" formnovalidate><icon name="key" /><span>Schlüsselpaar erzeugen</span></button>
+                </mat-form-buttons>
+                <p class="mat-hint">Für Hosts, die Root-Login nur per Schlüssel erlauben (<code>PermitRootLogin prohibit-password</code>). MatDock erzeugt das Paar, du hinterlegst den öffentlichen Schlüssel auf dem Host.</p>
             </div>
 
             <mat-form-buttons>

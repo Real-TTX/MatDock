@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Ssh;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -24,6 +25,9 @@ public class EditModel : PageModel
     public bool IsEdit => Input.Id is > 0;
 
     public DockerConnectionResult? TestResult { get; private set; }
+
+    /// <summary>Set after "Schlüsselpaar erzeugen"; shown so the user can install it on the host.</summary>
+    public string? GeneratedPublicKey { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
@@ -114,6 +118,21 @@ public class EditModel : PageModel
 
         IsError = false;
         return RedirectToPage("/Environments/Index");
+    }
+
+    public IActionResult OnPostGenerateKey()
+    {
+        var comment = string.IsNullOrWhiteSpace(Input.Host) ? "matdock" : $"matdock@{Input.Host.Trim()}";
+        var keyPair = SshKeygen.Generate(comment);
+
+        Input.AuthType = AuthType.PrivateKey;
+        Input.PrivateKeyPem = keyPair.PrivateKeyPem;
+        Input.Password = null;
+        GeneratedPublicKey = keyPair.PublicKeyOpenSsh;
+
+        // Re-render the form with the freshly generated values (drop the posted-back ModelState).
+        ModelState.Clear();
+        return Page();
     }
 
     public async Task<IActionResult> OnPostTestAsync()
