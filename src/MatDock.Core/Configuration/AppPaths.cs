@@ -19,6 +19,7 @@ public sealed class AppPaths
         ConfigPath = Path.Combine(dataPath, "config");
         KeysPath = Path.Combine(dataPath, "dataprotection-keys");
         LogsPath = Path.Combine(dataPath, "logs");
+        BackupsPath = Path.Combine(dataPath, "backups");
         DatabasePath = Path.Combine(dataPath, "matdock.db");
     }
 
@@ -26,6 +27,7 @@ public sealed class AppPaths
     public string ConfigPath { get; }
     public string KeysPath { get; }
     public string LogsPath { get; }
+    public string BackupsPath { get; }
     public string DatabasePath { get; }
 
     public string SqliteConnectionString => $"Data Source={DatabasePath}";
@@ -37,5 +39,6 @@ public sealed class AppPaths
         Directory.CreateDirectory(ConfigPath);
         Directory.CreateDirectory(KeysPath);
         Directory.CreateDirectory(LogsPath);
+        Directory.CreateDirectory(BackupsPath);
     }
 }

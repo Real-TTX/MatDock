@@ -9,7 +9,17 @@
         <h1>Volumes</h1>
         <span class="page-head__subtitle">Alle Docker-Volumes über alle Environments</span>
     </div>
+    <div class="mat-buttons">
+        <a href="/Backups" class="mat-btn"><icon name="save" /><span>Backups</span></a>
+    </div>
 </div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
 
 @if (Model.Errors.Count > 0)
 {
@@ -77,8 +87,12 @@
                                     <a class="mat-btn mat-btn--sm"
                                        href="/Environments/Migrate?sourceId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"
                                        title="Migrieren"><icon name="server" /><span>Migrieren</span></a>
-                                    <button type="button" class="mat-btn mat-btn--sm" disabled title="Backup – kommt im nächsten Build"><icon name="save" /><span>Backup</span></button>
-                                    <button type="button" class="mat-btn mat-btn--sm" disabled title="Restore – kommt im nächsten Build"><icon name="refresh" /><span>Restore</span></button>
+                                    <form method="post" asp-page-handler="Backup" data-confirm="Backup von „@row.Volume.Name“ erstellen?" style="display:inline;">
+                                        <input type="hidden" name="environmentId" value="@row.Environment.Id" />
+                                        <input type="hidden" name="volume" value="@row.Volume.Name" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Backup erstellen"><icon name="save" /><span>Backup</span></button>
+                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore aus Backup"><icon name="refresh" /><span>Restore</span></a>
                                 </div>
                             </td>
                         </tr>

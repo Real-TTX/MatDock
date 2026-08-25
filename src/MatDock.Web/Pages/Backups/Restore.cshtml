@@ -1,0 +1,84 @@
+@page
+@using MatDock.Core.Volumes
+@model MatDock.Web.Pages.Backups.RestoreModel
+@{
+    ViewData["Title"] = "Restore";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Restore</h1>
+        <span class="page-head__subtitle">Ein Backup in ein Volume zurückspielen</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (Model.Result is not null)
+{
+    <div class="result-banner @(Model.Result.Success ? "result-banner--ok" : "result-banner--fail")">
+        <icon name="@(Model.Result.Success ? "check-circle" : "x-circle")" />
+        <div>
+            <div class="result-banner__big">@(Model.Result.Success ? "Restore erfolgreich" : "Restore fehlgeschlagen")</div>
+            <div class="result-banner__sub">@Model.Result.Message</div>
+        </div>
+    </div>
+}
+
+@if (Model.Backup is null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>Backup nicht gefunden.</span></div>
+}
+else if (Model.Environments.Count == 0)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Kein Ziel-Environment vorhanden.</span></div>
+}
+else
+{
+    <form method="post" data-confirm="Restore jetzt starten?">
+        <input type="hidden" asp-for="Input.BackupId" />
+        <div asp-validation-summary="ModelOnly"></div>
+
+        <div class="migrate">
+            <div class="migrate__side migrate__side--source">
+                <h3><icon name="save" /><span>Backup</span></h3>
+                <div class="migrate__env">@Model.Backup.VolumeName</div>
+                <div class="migrate__host">aus @Model.Backup.SourceEnvironmentName · @VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes) · @Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+            </div>
+
+            <div class="migrate__arrow"><icon name="chevron-right" /></div>
+
+            <div class="migrate__side migrate__side--target">
+                <h3><icon name="server" /><span>Ziel</span></h3>
+                <div class="mat-form">
+                    <mat-field label="Ziel-Environment" asp-for="Input.TargetEnvId">
+                        <select asp-for="Input.TargetEnvId" class="mat-select">
+                            @foreach (var env in Model.Environments)
+                            {
+                                <option value="@env.Id">@env.Name — @env.Host</option>
+                            }
+                        </select>
+                    </mat-field>
+                    <mat-field label="Ziel-Volume" asp-for="Input.TargetVolume">
+                        <input asp-for="Input.TargetVolume" class="mat-input" />
+                    </mat-field>
+                    <label class="mat-check">
+                        <input asp-for="Input.Overwrite" type="checkbox" />
+                        <span>Überschreiben, falls das Ziel-Volume bereits Daten enthält</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert--info">
+            <icon name="alert" />
+            <span>Das Backup wird per <code>tar</code> über SSH in das Ziel-Volume zurückgespielt. Voraussetzung: Docker + <code>busybox</code> auf dem Ziel-Host.</span>
+        </div>
+
+        <mat-form-buttons>
+            <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Restore starten</span></button>
+            <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+        </mat-form-buttons>
+    </form>
+}

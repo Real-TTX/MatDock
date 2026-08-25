@@ -1,6 +1,7 @@
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Volumes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
@@ -14,14 +15,23 @@ public class IndexModel : PageModel
 
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
+    private readonly VolumeBackupService _backupService;
     private readonly IMemoryCache _cache;
 
-    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, IMemoryCache cache)
+    public IndexModel(
+        EnvironmentService environmentService,
+        IEnvironmentConnectionService connectionService,
+        VolumeBackupService backupService,
+        IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
+        _backupService = backupService;
         _cache = cache;
     }
+
+    [TempData] public string? StatusMessage { get; set; }
+    [TempData] public bool IsError { get; set; }
 
     [BindProperty(SupportsGet = true)]
     public string? Q { get; set; }
@@ -109,5 +119,21 @@ public class IndexModel : PageModel
             .OrderBy(r => r.Environment.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(r => r.Volume.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public async Task<IActionResult> OnPostBackupAsync(long environmentId, string volume)
+    {
+        var env = await _environmentService.GetAsync(environmentId, HttpContext.RequestAborted);
+        if (env is null)
+        {
+            StatusMessage = "Environment nicht gefunden.";
+            IsError = true;
+            return RedirectToPage(new { EnvId, Q });
+        }
+
+        var result = await _backupService.BackupAsync(env, volume, HttpContext.RequestAborted);
+        StatusMessage = $"{volume}: {result.Message}";
+        IsError = !result.Success;
+        return RedirectToPage(new { EnvId, Q });
     }
 }

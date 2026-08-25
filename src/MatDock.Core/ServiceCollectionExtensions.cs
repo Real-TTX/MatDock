@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<EnvironmentService>();
         services.AddScoped<IEnvironmentConnectionService, EnvironmentConnectionService>();
         services.AddScoped<Volumes.VolumeMigrationService>();
+        services.AddScoped<Volumes.VolumeBackupService>();
 
         return services;
     }

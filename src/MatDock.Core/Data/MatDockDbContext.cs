@@ -22,6 +22,7 @@ public class MatDockDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DockerEnvironment> Environments => Set<DockerEnvironment>();
+    public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,17 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.AuthType).HasConversion<int>();
             e.Property(x => x.Status).HasConversion<int>();
             e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<VolumeBackup>(e =>
+        {
+            e.ToTable("VolumeBackup");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.SourceEnvironmentName).HasMaxLength(200);
+            e.Property(x => x.VolumeName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.FileName).HasMaxLength(300).IsRequired();
+            e.HasIndex(x => x.VolumeName);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }
