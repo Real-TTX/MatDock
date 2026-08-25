@@ -65,7 +65,7 @@
                                 <td><partial name="_StatusPill" model="env.Status" /></td>
                                 <td class="text-muted">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                                 <td class="actions">
-                                    <a class="mat-btn mat-btn--sm" href="/Environments/Volumes?id=@env.Id"><icon name="volume" /><span>Volumes</span></a>
+                                    <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id"><icon name="volume" /><span>Volumes</span></a>
                                 </td>
                             </tr>
                         }

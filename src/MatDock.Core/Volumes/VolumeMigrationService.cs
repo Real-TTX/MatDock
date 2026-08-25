@@ -38,6 +38,9 @@ public sealed class VolumeMigrationService
             return VolumeMigrationResult.Fail("Ungültiger Volume-Name.");
         }
 
+        var sourceHead = VolumeCommands.DockerHead(request.Source.UseSudo, request.Source.DockerHost);
+        var targetHead = VolumeCommands.DockerHead(request.Target.UseSudo, request.Target.DockerHost);
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
         var stopwatch = Stopwatch.StartNew();
@@ -51,7 +54,7 @@ public sealed class VolumeMigrationService
             steps.Add("Mit Quelle und Ziel verbunden.");
 
             // 1) Ensure the target volume exists.
-            var create = RunCommand(target, VolumeCommands.Create(request.TargetVolume));
+            var create = RunCommand(target, VolumeCommands.Create(request.TargetVolume, targetHead));
             if (create.ExitStatus != 0)
             {
                 return VolumeMigrationResult.Fail($"Ziel-Volume konnte nicht angelegt werden: {FirstLine(create.StdErr)}", steps);
@@ -61,7 +64,7 @@ public sealed class VolumeMigrationService
             // 2) Refuse to clobber a non-empty target unless explicitly allowed.
             if (!request.Overwrite)
             {
-                var count = RunCommand(target, VolumeCommands.CountEntries(request.TargetVolume, image));
+                var count = RunCommand(target, VolumeCommands.CountEntries(request.TargetVolume, image, targetHead));
                 if (count.ExitStatus == 0 && int.TryParse(count.StdOut.Trim(), out var entries) && entries > 0)
                 {
                     return VolumeMigrationResult.Fail(
@@ -71,8 +74,8 @@ public sealed class VolumeMigrationService
 
             // 3) Stream source -> target.
             var timeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-            using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image));
-            using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image));
+            using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead));
+            using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead));
             exportCmd.CommandTimeout = timeout;
             importCmd.CommandTimeout = timeout;
 

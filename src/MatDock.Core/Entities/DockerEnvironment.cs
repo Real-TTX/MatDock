@@ -30,6 +30,12 @@ public class DockerEnvironment : AuditableEntity
 
     public EnvironmentStatus Status { get; set; } = EnvironmentStatus.Unknown;
 
+    /// <summary>How to reach Docker on this host (auto-detected by the connection test).</summary>
+    public bool UseSudo { get; set; }
+
+    /// <summary>Optional DOCKER_HOST (e.g. a rootless socket <c>unix:///run/user/1000/docker.sock</c>); auto-detected.</summary>
+    public string? DockerHost { get; set; }
+
     public DateTime? LastCheckedAt { get; set; }
 
     public string? LastCheckMessage { get; set; }

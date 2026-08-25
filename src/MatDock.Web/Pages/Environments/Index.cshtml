@@ -91,7 +91,7 @@
                             <td class="text-muted nowrap">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
                                 <div class="row-actions">
-                                    <a class="mat-btn mat-btn--sm" href="/Environments/Volumes?id=@env.Id" title="Volumes"><icon name="volume" /></a>
+                                    <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                                     <form method="post" asp-page-handler="Test" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>

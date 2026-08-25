@@ -50,6 +50,9 @@
                     <a class="nav-link @(IsActive("/Environments") ? "is-active" : "")" href="/Environments">
                         <icon name="server" /><span>Environments</span>
                     </a>
+                    <a class="nav-link @(IsActive("/Volumes") ? "is-active" : "")" href="/Volumes">
+                        <icon name="volume" /><span>Volumes</span>
+                    </a>
                     @if (isAdmin)
                     {
                         <a class="nav-link @(IsActive("/Users") ? "is-active" : "")" href="/Users">

@@ -1,0 +1,94 @@
+@page
+@model MatDock.Web.Pages.Volumes.IndexModel
+@{
+    ViewData["Title"] = "Volumes";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Volumes</h1>
+        <span class="page-head__subtitle">Alle Docker-Volumes über alle Environments</span>
+    </div>
+</div>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert--warning">
+        <icon name="alert" />
+        <span>
+            Nicht erreichbar:
+            @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))
+        </span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <form method="get" class="js-autosubmit" style="display:contents;">
+            <div class="search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Volume, Treiber, Mountpoint, Environment)…" />
+            </div>
+            <div class="toolbar-field">
+                <label for="filter-env"><icon name="filter" /></label>
+                <select id="filter-env" name="EnvId" class="mat-select">
+                    <option value="0">Alle Environments</option>
+                    @foreach (var env in Model.Environments)
+                    {
+                        <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
+                    }
+                </select>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <span class="text-muted"><strong>@Model.Rows.Count</strong> Volumes</span>
+        </form>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="empty-state">
+                <div><icon name="volume" /></div>
+                <p>Keine Volumes gefunden.@(Model.Environments.Count == 0 ? " Lege zuerst ein Environment an." : "")</p>
+            </div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Environment</th>
+                        <th>Volume</th>
+                        <th>Treiber</th>
+                        <th>Mountpoint</th>
+                        <th class="actions">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td><span class="mat-badge"><icon name="server" /> @row.Environment.Name</span></td>
+                            <td><strong>@row.Volume.Name</strong></td>
+                            <td>@row.Volume.Driver</td>
+                            <td class="mono">@row.Volume.Mountpoint</td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <a class="mat-btn mat-btn--sm"
+                                       href="/Environments/Migrate?sourceId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"
+                                       title="Migrieren"><icon name="server" /><span>Migrieren</span></a>
+                                    <button type="button" class="mat-btn mat-btn--sm" disabled title="Backup – kommt im nächsten Build"><icon name="save" /><span>Backup</span></button>
+                                    <button type="button" class="mat-btn mat-btn--sm" disabled title="Restore – kommt im nächsten Build"><icon name="refresh" /><span>Restore</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+
+    <mat-table-actions>
+        <a href="/Volumes" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+    </mat-table-actions>
+</mat-table>

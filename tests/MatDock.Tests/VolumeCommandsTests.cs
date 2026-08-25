@@ -51,4 +51,25 @@ public class VolumeCommandsTests
         Assert.Throws<ArgumentException>(() => VolumeCommands.Import("data", "busybox; evil"));
         Assert.Throws<ArgumentException>(() => VolumeCommands.Create("$(evil)"));
     }
+
+    [Theory]
+    [InlineData(false, null, "docker")]
+    [InlineData(true, null, "sudo -n docker")]
+    [InlineData(false, "unix:///run/user/1000/docker.sock", "DOCKER_HOST=unix:///run/user/1000/docker.sock docker")]
+    [InlineData(true, "unix:///run/user/1000/docker.sock", "sudo -n DOCKER_HOST=unix:///run/user/1000/docker.sock docker")]
+    public void DockerHead_composes_expected(bool sudo, string? host, string expected)
+        => Assert.Equal(expected, VolumeCommands.DockerHead(sudo, host));
+
+    [Theory]
+    [InlineData("unix:///run/user/1000/docker.sock", true)]
+    [InlineData("tcp://10.0.0.5:2375", true)]
+    [InlineData("unix:///run/docker.sock; rm -rf /", false)]
+    [InlineData("$(evil)", false)]
+    [InlineData("http://x", false)]
+    public void IsValidDockerHost_validates(string host, bool expected)
+        => Assert.Equal(expected, VolumeCommands.IsValidDockerHost(host));
+
+    [Fact]
+    public void DockerHead_throws_on_injection_host()
+        => Assert.Throws<ArgumentException>(() => VolumeCommands.DockerHead(false, "unix:///x`id`"));
 }

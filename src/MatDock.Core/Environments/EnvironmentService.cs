@@ -85,7 +85,9 @@ public sealed class EnvironmentService
             Password = _secrets.UnprotectNullable(env.EncryptedPassword),
             PrivateKeyPem = _secrets.UnprotectNullable(env.EncryptedPrivateKey),
             PrivateKeyPassphrase = _secrets.UnprotectNullable(env.EncryptedPrivateKeyPassphrase),
-            TimeoutSeconds = _options.SshTimeoutSeconds
+            TimeoutSeconds = _options.SshTimeoutSeconds,
+            UseSudo = env.UseSudo,
+            DockerHost = env.DockerHost
         };
     }
 
@@ -163,6 +165,12 @@ public sealed class EnvironmentService
         entity.LastCheckedAt = DateTime.UtcNow;
         entity.LastCheckMessage = result.Message;
         entity.DockerVersion = result.DockerVersion;
+        if (result.Success)
+        {
+            // Remember how Docker was reached, so volume/migration operations use the same access.
+            entity.UseSudo = result.UseSudo;
+            entity.DockerHost = result.DockerHost;
+        }
         await _db.SaveChangesAsync(ct);
 
         return result;

@@ -23,4 +23,10 @@ public sealed class SshConnectionSettings
     public string? PrivateKeyPassphrase { get; init; }
 
     public int TimeoutSeconds { get; init; } = 20;
+
+    /// <summary>Prefix docker with <c>sudo -n</c> (auto-detected).</summary>
+    public bool UseSudo { get; init; }
+
+    /// <summary>Optional DOCKER_HOST value, e.g. a rootless socket (auto-detected).</summary>
+    public string? DockerHost { get; init; }
 }

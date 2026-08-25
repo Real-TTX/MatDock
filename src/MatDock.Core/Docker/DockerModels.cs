@@ -18,14 +18,28 @@ public sealed class DockerConnectionResult
 
     public string? OsArch { get; init; }
 
-    public static DockerConnectionResult Ok(string message, string? dockerVersion, string? apiVersion, string? osArch) => new()
+    /// <summary>Detected access: prefix docker with <c>sudo -n</c>.</summary>
+    public bool UseSudo { get; init; }
+
+    /// <summary>Detected access: DOCKER_HOST (e.g. a rootless socket), or null for the default.</summary>
+    public string? DockerHost { get; init; }
+
+    /// <summary>Human-readable access label, e.g. "Standard", "sudo", "rootless (/run/user/1000/docker.sock)".</summary>
+    public string? AccessLabel { get; init; }
+
+    public static DockerConnectionResult Ok(
+        string message, string? dockerVersion, string? apiVersion, string? osArch,
+        bool useSudo = false, string? dockerHost = null, string? accessLabel = null) => new()
     {
         Success = true,
         Status = EnvironmentStatus.Online,
         Message = message,
         DockerVersion = dockerVersion,
         ApiVersion = apiVersion,
-        OsArch = osArch
+        OsArch = osArch,
+        UseSudo = useSudo,
+        DockerHost = dockerHost,
+        AccessLabel = accessLabel
     };
 
     public static DockerConnectionResult Fail(string message, EnvironmentStatus status = EnvironmentStatus.Error) => new()

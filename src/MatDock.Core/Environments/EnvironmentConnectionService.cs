@@ -3,6 +3,7 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Ssh;
+using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Renci.SshNet;
@@ -43,15 +44,25 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             using var client = _sshClientFactory.Create(settings);
             await ConnectAsync(client, settings, cancellationToken);
 
-            var probe = RunCommand(client, "docker version --format '{{json .Server}}'", settings);
-            if (probe.ExitStatus != 0 || string.IsNullOrWhiteSpace(probe.StdOut))
+            // Auto-detect how Docker is reachable on this host and return the working access.
+            (int ExitStatus, string StdOut, string StdErr) lastProbe = (-1, string.Empty, string.Empty);
+            foreach (var (useSudo, dockerHost) in BuildCandidates(client, settings))
             {
-                return DockerConnectionResult.Fail(InterpretDockerError(probe.StdErr, probe.StdOut));
+                var head = VolumeCommands.DockerHead(useSudo, dockerHost);
+                var probe = RunCommand(client, $"{head} version --format '{{json .Server}}'", settings);
+                if (probe.ExitStatus == 0 && !string.IsNullOrWhiteSpace(probe.StdOut))
+                {
+                    var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
+                    var label = AccessLabel(useSudo, dockerHost);
+                    return DockerConnectionResult.Ok(
+                        $"Verbunden mit Docker {version} (API {apiVersion}) · Zugriff: {label}.",
+                        version, apiVersion, osArch, useSudo, dockerHost, label);
+                }
+
+                lastProbe = probe;
             }
 
-            var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
-            return DockerConnectionResult.Ok(
-                $"Verbunden mit Docker {version} (API {apiVersion}).", version, apiVersion, osArch);
+            return DockerConnectionResult.Fail(InterpretDockerError(lastProbe.StdErr, lastProbe.StdOut));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -69,13 +80,57 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         using var client = _sshClientFactory.Create(settings);
         await ConnectAsync(client, settings, cancellationToken);
 
-        var result = RunCommand(client, "docker volume ls --format '{{json .}}'", settings);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, $"{head} volume ls --format '{{json .}}'", settings);
         if (result.ExitStatus != 0)
         {
             throw new InvalidOperationException(InterpretDockerError(result.StdErr, result.StdOut));
         }
 
         return ParseVolumes(result.StdOut);
+    }
+
+    /// <summary>Ordered access strategies to probe: default, sudo, then any discovered rootless sockets.</summary>
+    private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(SshClient client, SshConnectionSettings settings)
+    {
+        var candidates = new List<(bool, string?)>
+        {
+            (false, null),
+            (true, null),
+        };
+
+        var listed = RunCommand(client, "ls -d /run/user/*/docker.sock 2>/dev/null", settings);
+        if (listed.ExitStatus == 0)
+        {
+            foreach (var line in listed.StdOut.Split('\n'))
+            {
+                var path = line.Trim();
+                if (path.Length == 0)
+                {
+                    continue;
+                }
+
+                var host = $"unix://{path}";
+                if (VolumeCommands.IsValidDockerHost(host))
+                {
+                    candidates.Add((false, host));
+                    candidates.Add((true, host));
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    private static string AccessLabel(bool useSudo, string? dockerHost)
+    {
+        if (dockerHost is not null)
+        {
+            var path = dockerHost.StartsWith("unix://", StringComparison.Ordinal) ? dockerHost[7..] : dockerHost;
+            return useSudo ? $"rootless+sudo ({path})" : $"rootless ({path})";
+        }
+
+        return useSudo ? "sudo" : "Standard";
     }
 
     private async Task ConnectAsync(SshClient client, SshConnectionSettings settings, CancellationToken cancellationToken)
