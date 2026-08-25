@@ -89,6 +89,7 @@
     </mat-table-body>
 
     <mat-table-actions>
-        <a href="/Volumes" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+        <a href="/Volumes?EnvId=@Model.EnvId&Q=@Model.Q&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+        <span class="text-muted" style="font-size:.8rem;">Zwischengespeichert für 60&nbsp;s – „Aktualisieren" lädt neu.</span>
     </mat-table-actions>
 </mat-table>

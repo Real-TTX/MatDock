@@ -3,20 +3,24 @@ using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MatDock.Web.Pages.Volumes;
 
 public class IndexModel : PageModel
 {
     private static readonly StringComparison Ic = StringComparison.OrdinalIgnoreCase;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
+    private readonly IMemoryCache _cache;
 
-    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService)
+    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
+        _cache = cache;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -25,45 +29,70 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public long EnvId { get; set; }
 
+    /// <summary>Force a fresh query, bypassing the short-lived cache (the "Aktualisieren" button).</summary>
+    [BindProperty(SupportsGet = true)]
+    public bool Refresh { get; set; }
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<VolumeRow> Rows { get; private set; } = new();
     public List<(string Environment, string Message)> Errors { get; private set; } = new();
 
     public sealed record VolumeRow(DockerEnvironment Environment, DockerVolume Volume);
 
+    private sealed record CachedVolumes(IReadOnlyList<DockerVolume> Volumes, string? Error);
+
     public async Task OnGetAsync()
     {
         Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
 
         var targets = (EnvId > 0 ? Environments.Where(e => e.Id == EnvId) : Environments).ToList();
-
-        // Build settings up front (uses the scoped DbContext), then fan out the SSH calls in parallel.
         var prepared = targets.Select(e => (Env: e, Settings: _environmentService.BuildSettings(e))).ToList();
+
+        // Limit concurrent SSH connections so opening the page never triggers an auth storm / lockout.
+        using var gate = new SemaphoreSlim(4);
         var tasks = prepared.Select(async p =>
         {
+            var cacheKey = $"volumes:{p.Env.Id}";
+            if (!Refresh && _cache.TryGetValue(cacheKey, out CachedVolumes? cached) && cached is not null)
+            {
+                return (p.Env, cached);
+            }
+
+            await gate.WaitAsync(HttpContext.RequestAborted);
             try
             {
-                var volumes = await _connectionService.ListVolumesAsync(p.Settings, HttpContext.RequestAborted);
-                return (p.Env, Volumes: volumes, Error: (string?)null);
+                CachedVolumes entry;
+                try
+                {
+                    var volumes = await _connectionService.ListVolumesAsync(p.Settings, HttpContext.RequestAborted);
+                    entry = new CachedVolumes(volumes, null);
+                }
+                catch (Exception ex)
+                {
+                    entry = new CachedVolumes(Array.Empty<DockerVolume>(), ex.Message);
+                }
+
+                _cache.Set(cacheKey, entry, CacheTtl);
+                return (p.Env, entry);
             }
-            catch (Exception ex)
+            finally
             {
-                return (p.Env, Volumes: (IReadOnlyList<DockerVolume>)Array.Empty<DockerVolume>(), Error: (string?)ex.Message);
+                gate.Release();
             }
         });
 
         var results = await Task.WhenAll(tasks);
 
         var rows = new List<VolumeRow>();
-        foreach (var (env, volumes, error) in results)
+        foreach (var (env, entry) in results)
         {
-            if (error is not null)
+            if (entry.Error is not null)
             {
-                Errors.Add((env.Name, error));
+                Errors.Add((env.Name, entry.Error));
                 continue;
             }
 
-            rows.AddRange(volumes.Select(v => new VolumeRow(env, v)));
+            rows.AddRange(entry.Volumes.Select(v => new VolumeRow(env, v)));
         }
 
         if (!string.IsNullOrWhiteSpace(Q))

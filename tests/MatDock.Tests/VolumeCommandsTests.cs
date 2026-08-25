@@ -72,4 +72,19 @@ public class VolumeCommandsTests
     [Fact]
     public void DockerHead_throws_on_injection_host()
         => Assert.Throws<ArgumentException>(() => VolumeCommands.DockerHead(false, "unix:///x`id`"));
+
+    [Fact]
+    public void VolumeList_keeps_doubled_go_template_braces()
+    {
+        var cmd = VolumeCommands.VolumeList("docker");
+        Assert.Contains("--format '{{json .}}'", cmd);   // must stay doubled for the remote shell
+        Assert.DoesNotContain("'{json .}'", cmd);         // the collapsed form would break docker
+    }
+
+    [Fact]
+    public void ServerVersion_keeps_doubled_go_template_braces()
+    {
+        var cmd = VolumeCommands.ServerVersion("sudo -n docker");
+        Assert.Contains("sudo -n docker version --format '{{json .Server}}'", cmd);
+    }
 }

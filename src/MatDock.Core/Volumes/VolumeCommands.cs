@@ -103,4 +103,12 @@ public static partial class VolumeCommands
         EnsureValid(volume, image);
         return PathPrefix + $"{dockerHead} run --rm -v '{volume}':/data:ro '{image}' sh -c 'ls -A /data | wc -l'";
     }
+
+    // NOTE: the Go-template braces below are built by concatenation (not string interpolation) on
+    // purpose — in an interpolated string "{{json .}}" collapses to "{json .}" and breaks the command.
+    public static string ServerVersion(string dockerHead = "docker")
+        => PathPrefix + dockerHead + " version --format '{{json .Server}}'";
+
+    public static string VolumeList(string dockerHead = "docker")
+        => PathPrefix + dockerHead + " volume ls --format '{{json .}}'";
 }

@@ -43,6 +43,7 @@ builder.Services.AddDbContext<MatDockDbContext>(options =>
     options.UseSqlite(appPaths.SqliteConnectionString));
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpCurrentUserAccessor>();
 
 // Honour X-Forwarded-* from a TLS-terminating reverse proxy so Request.IsHttps is correct and the

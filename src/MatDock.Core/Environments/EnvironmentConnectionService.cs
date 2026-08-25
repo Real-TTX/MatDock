@@ -18,11 +18,6 @@ namespace MatDock.Core.Environments;
 /// </summary>
 public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 {
-    // Non-interactive SSH sessions often have a minimal PATH; make sure the usual Docker locations
-    // are searched so "works in my terminal but not here" does not happen.
-    private const string PathPrefix =
-        "export PATH=\"$PATH:/usr/local/bin:/usr/bin:/bin:/snap/bin:/usr/sbin:/sbin\"; ";
-
     private readonly ISshClientFactory _sshClientFactory;
     private readonly MatDockOptions _options;
     private readonly ILogger<EnvironmentConnectionService> _logger;
@@ -49,7 +44,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             foreach (var (useSudo, dockerHost) in BuildCandidates(client, settings))
             {
                 var head = VolumeCommands.DockerHead(useSudo, dockerHost);
-                var probe = RunCommand(client, $"{head} version --format '{{json .Server}}'", settings);
+                var probe = RunCommand(client, VolumeCommands.ServerVersion(head), settings);
                 if (probe.ExitStatus == 0 && !string.IsNullOrWhiteSpace(probe.StdOut))
                 {
                     var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
@@ -81,7 +76,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         await ConnectAsync(client, settings, cancellationToken);
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var result = RunCommand(client, $"{head} volume ls --format '{{json .}}'", settings);
+        var result = RunCommand(client, VolumeCommands.VolumeList(head), settings);
         if (result.ExitStatus != 0)
         {
             throw new InvalidOperationException(InterpretDockerError(result.StdErr, result.StdOut));
@@ -140,12 +135,12 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         await client.ConnectAsync(cts.Token);
     }
 
-    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string dockerCommand, SshConnectionSettings settings)
+    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string command, SshConnectionSettings settings)
     {
-        using var command = client.CreateCommand(PathPrefix + dockerCommand);
-        command.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));
-        var stdout = command.Execute();
-        return (command.ExitStatus ?? -1, stdout ?? string.Empty, command.Error ?? string.Empty);
+        using var sshCommand = client.CreateCommand(command);
+        sshCommand.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));
+        var stdout = sshCommand.Execute();
+        return (sshCommand.ExitStatus ?? -1, stdout ?? string.Empty, sshCommand.Error ?? string.Empty);
     }
 
     private static (string Version, string ApiVersion, string OsArch) ParseServerVersion(string json)
