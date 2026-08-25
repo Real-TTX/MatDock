@@ -143,9 +143,17 @@ public sealed class VolumeBackupService
             return RestoreResult.Fail("Backup nicht gefunden.");
         }
 
-        var storageTarget = backup.BackupTargetId is { } stid
-            ? await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == stid, ct)
-            : null;
+        // Resolve the archive's target even if it was soft-deleted; fail loudly rather than silently
+        // falling back to local storage (which would look in the wrong place).
+        BackupTarget? storageTarget = null;
+        if (backup.BackupTargetId is { } stid)
+        {
+            storageTarget = await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == stid, ct);
+            if (storageTarget is null)
+            {
+                return RestoreResult.Fail("Das Backup-Ziel dieses Backups wurde gelöscht – Restore nicht möglich.");
+            }
+        }
         var storage = _storageFactory.Create(storageTarget);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -158,6 +166,10 @@ public sealed class VolumeBackupService
 
             using var client = _sshClientFactory.Create(settings);
             await client.ConnectAsync(cts.Token);
+
+            // Open (and thereby verify) the archive BEFORE any destructive step, so a source failure
+            // aborts the restore before the target volume is wiped.
+            await using var source = await storage.OpenReadAsync(backup.FileName, cts.Token);
 
             var create = RunCommand(client, VolumeCommands.Create(targetVolume, head));
             if (create.ExitStatus != 0)
@@ -185,11 +197,7 @@ public sealed class VolumeBackupService
             var input = importCmd.CreateInputStream();
             var async = importCmd.BeginExecute();
 
-            long bytes;
-            await using (var file = await storage.OpenReadAsync(backup.FileName, cts.Token))
-            {
-                bytes = await StreamPump.CopyAsync(file, input, cts.Token);
-            }
+            var bytes = await StreamPump.CopyAsync(source, input, cts.Token);
 
             input.Close();
             importCmd.EndExecute(async);
@@ -226,7 +234,7 @@ public sealed class VolumeBackupService
         }
 
         var storageTarget = backup.BackupTargetId is { } stid
-            ? await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == stid, ct)
+            ? await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == stid, ct)
             : null;
         var fileName = backup.FileName;
 

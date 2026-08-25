@@ -93,7 +93,8 @@ public sealed class SmbBackupStorage : IBackupStorage
     }
 
     private static int ChunkSize(uint negotiated)
-        => (int)Math.Clamp(negotiated == 0 ? 65536u : negotiated, 65536u, 1_048_576u);
+        // Never exceed the negotiated maximum; only cap the upper bound for memory.
+        => negotiated == 0 ? 65536 : (int)Math.Min(negotiated, 1_048_576u);
 
     private static string BuildPath(string? directory, string fileName)
     {

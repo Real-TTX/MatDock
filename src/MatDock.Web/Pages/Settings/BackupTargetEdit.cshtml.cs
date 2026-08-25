@@ -82,11 +82,6 @@ public class BackupTargetEditModel : PageModel
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
-        if (!IsEdit && string.IsNullOrEmpty(Input.SmbPassword))
-        {
-            // A NAS usually needs credentials; allow empty only intentionally (guest) — no hard error.
-        }
-
         if (!ModelState.IsValid)
         {
             return Page();

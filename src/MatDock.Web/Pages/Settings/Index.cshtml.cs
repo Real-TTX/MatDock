@@ -61,9 +61,9 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
-        var deleted = await _targetService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Ziel gelöscht." : "Ziel nicht gefunden.";
-        IsError = !deleted;
+        var (ok, message) = await _targetService.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
         return RedirectToPage();
     }
 }

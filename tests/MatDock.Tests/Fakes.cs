@@ -1,5 +1,7 @@
+using MatDock.Core.Backups;
 using MatDock.Core.Data;
 using MatDock.Core.Docker;
+using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Security;
 using MatDock.Core.Ssh;
@@ -38,6 +40,20 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
     {
         LastSettings = settings;
         return Task.FromResult<IReadOnlyList<DockerVolume>>(new List<DockerVolume>());
+    }
+}
+
+/// <summary>No-op storage factory for service tests that don't touch real storage.</summary>
+internal sealed class FakeBackupStorageFactory : IBackupStorageFactory
+{
+    public IBackupStorage Create(BackupTarget? target) => new NoopStorage();
+
+    private sealed class NoopStorage : IBackupStorage
+    {
+        public Task<Stream> OpenWriteAsync(string fileName, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
+        public Task<Stream> OpenReadAsync(string fileName, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
+        public Task DeleteAsync(string fileName, CancellationToken ct = default) => Task.CompletedTask;
+        public Task TestAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 }
 

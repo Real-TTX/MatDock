@@ -61,17 +61,25 @@ public sealed class BackupTargetService
         return true;
     }
 
-    public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public async Task<(bool Success, string Message)> DeleteAsync(long id, CancellationToken ct = default)
     {
         var target = await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (target is null)
         {
-            return false;
+            return (false, "Ziel nicht gefunden.");
+        }
+
+        // Do not orphan backups: a target that still holds archives must not be removed, otherwise those
+        // backups become unrestorable (the historical target row would be gone).
+        var referencing = await _db.VolumeBackups.CountAsync(b => b.BackupTargetId == id, ct);
+        if (referencing > 0)
+        {
+            return (false, $"Ziel wird noch von {referencing} Backup(s) verwendet – diese zuerst löschen.");
         }
 
         _db.BackupTargets.Remove(target);
         await _db.SaveChangesAsync(ct);
-        return true;
+        return (true, "Ziel gelöscht.");
     }
 
     /// <summary>Marks a target as default (<paramref name="id"/> null = local is default, clears all).</summary>
@@ -115,14 +123,22 @@ public sealed class BackupTargetService
             SmbDomain = input.SmbDomain
         };
 
-        var password = input.SmbPassword;
-        if (string.IsNullOrEmpty(password) && existingId is { } id)
+        try
         {
-            var stored = await GetAsync(id, ct);
-            password = stored is null ? null : _secrets.UnprotectNullable(stored.EncryptedSmbPassword);
+            var password = input.SmbPassword;
+            if (string.IsNullOrEmpty(password) && existingId is { } id)
+            {
+                var stored = await GetAsync(id, ct);
+                password = stored is null ? null : _secrets.UnprotectNullable(stored.EncryptedSmbPassword);
+            }
+
+            probe.EncryptedSmbPassword = string.IsNullOrEmpty(password) ? null : _secrets.Protect(password);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Zugangsdaten konnten nicht gelesen werden: {ex.Message}");
         }
 
-        probe.EncryptedSmbPassword = string.IsNullOrEmpty(password) ? null : _secrets.Protect(password);
         return await TestAsync(probe, ct);
     }
 
