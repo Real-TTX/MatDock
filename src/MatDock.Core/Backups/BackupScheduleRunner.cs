@@ -57,7 +57,7 @@ public sealed class BackupScheduleRunner
         foreach (var volume in volumes)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await _backupService.BackupAsync(env, volume, target, ct);
+            var result = await _backupService.BackupAsync(env, volume, target, schedule.Id, ct);
             if (result.Success)
             {
                 ok++;
@@ -86,12 +86,11 @@ public sealed class BackupScheduleRunner
             return;
         }
 
-        var query = _db.VolumeBackups.Where(b => b.SourceEnvironmentId == schedule.EnvironmentId && b.VolumeName == volume);
-        query = schedule.BackupTargetId is { } tid
-            ? query.Where(b => b.BackupTargetId == tid)
-            : query.Where(b => b.BackupTargetId == null);
-
-        var backups = await query.OrderByDescending(b => b.CreateDate).ToListAsync(ct);
+        // Only prune this schedule's OWN archives — never manual backups or other schedules' backups.
+        var backups = await _db.VolumeBackups
+            .Where(b => b.BackupScheduleId == schedule.Id && b.VolumeName == volume)
+            .OrderByDescending(b => b.CreateDate)
+            .ToListAsync(ct);
 
         var toDelete = new HashSet<long>();
         if (schedule.RetentionCount > 0 && backups.Count > schedule.RetentionCount)

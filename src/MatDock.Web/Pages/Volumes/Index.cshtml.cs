@@ -136,7 +136,7 @@ public class IndexModel : PageModel
         }
 
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
-        var result = await _backupService.BackupAsync(env, volume, target, HttpContext.RequestAborted);
+        var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, HttpContext.RequestAborted);
         var where = target is null ? "Lokal" : target.Name;
         StatusMessage = $"{volume} → {where}: {result.Message}";
         IsError = !result.Success;

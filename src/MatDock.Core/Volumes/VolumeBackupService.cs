@@ -53,7 +53,7 @@ public sealed class VolumeBackupService
             ? $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar"
             : $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}_{suffix}.tar";
 
-    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, CancellationToken ct = default)
+    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
@@ -110,7 +110,8 @@ public sealed class VolumeBackupService
                 FileName = fileName,
                 SizeBytes = bytes,
                 BackupTargetId = target?.Id,
-                BackupTargetName = target?.Name ?? "Lokal"
+                BackupTargetName = target?.Name ?? "Lokal",
+                BackupScheduleId = scheduleId
             };
             _db.VolumeBackups.Add(backup);
             await _db.SaveChangesAsync(ct);
