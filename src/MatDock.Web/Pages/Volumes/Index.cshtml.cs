@@ -1,3 +1,4 @@
+using MatDock.Core.Backups;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
@@ -16,17 +17,20 @@ public class IndexModel : PageModel
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
     private readonly VolumeBackupService _backupService;
+    private readonly BackupTargetService _backupTargetService;
     private readonly IMemoryCache _cache;
 
     public IndexModel(
         EnvironmentService environmentService,
         IEnvironmentConnectionService connectionService,
         VolumeBackupService backupService,
+        BackupTargetService backupTargetService,
         IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
         _backupService = backupService;
+        _backupTargetService = backupTargetService;
         _cache = cache;
     }
 
@@ -131,8 +135,10 @@ public class IndexModel : PageModel
             return RedirectToPage(new { EnvId, Q });
         }
 
-        var result = await _backupService.BackupAsync(env, volume, HttpContext.RequestAborted);
-        StatusMessage = $"{volume}: {result.Message}";
+        var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
+        var result = await _backupService.BackupAsync(env, volume, target, HttpContext.RequestAborted);
+        var where = target is null ? "Lokal" : target.Name;
+        StatusMessage = $"{volume} → {where}: {result.Message}";
         IsError = !result.Success;
         return RedirectToPage(new { EnvId, Q });
     }

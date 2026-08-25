@@ -91,6 +91,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/Logout");
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AuthorizeFolder("/Users", "AdminOnly");
+    options.Conventions.AuthorizeFolder("/Settings", "AdminOnly");
 });
 
 var app = builder.Build();

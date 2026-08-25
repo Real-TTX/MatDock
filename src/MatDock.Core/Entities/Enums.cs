@@ -31,3 +31,13 @@ public enum EnvironmentStatus
     Offline = 2,
     Error = 3
 }
+
+/// <summary>Where backup archives are stored.</summary>
+public enum BackupTargetType
+{
+    /// <summary>MatDock's own data volume (/data/backups).</summary>
+    Local = 0,
+
+    /// <summary>A network share via SMB/CIFS (e.g. a NAS).</summary>
+    Smb = 1
+}

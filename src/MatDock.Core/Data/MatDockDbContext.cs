@@ -23,6 +23,7 @@ public class MatDockDbContext : DbContext
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DockerEnvironment> Environments => Set<DockerEnvironment>();
     public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
+    public DbSet<BackupTarget> BackupTargets => Set<BackupTarget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +77,18 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.VolumeName).HasMaxLength(255).IsRequired();
             e.Property(x => x.FileName).HasMaxLength(300).IsRequired();
             e.HasIndex(x => x.VolumeName);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<BackupTarget>(e =>
+        {
+            e.ToTable("BackupTarget");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Type).HasConversion<int>();
+            e.Property(x => x.SmbHost).HasMaxLength(255);
+            e.Property(x => x.SmbShare).HasMaxLength(255);
+            e.Property(x => x.SmbDirectory).HasMaxLength(500);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

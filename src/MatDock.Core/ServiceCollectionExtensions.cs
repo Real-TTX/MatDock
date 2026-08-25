@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
+        services.AddSingleton<Backups.IBackupStorageFactory, Backups.BackupStorageFactory>();
 
         // Per-request services (depend on the scoped DbContext).
         services.AddScoped<AuthService>();
@@ -29,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEnvironmentConnectionService, EnvironmentConnectionService>();
         services.AddScoped<Volumes.VolumeMigrationService>();
         services.AddScoped<Volumes.VolumeBackupService>();
+        services.AddScoped<Backups.BackupTargetService>();
 
         return services;
     }

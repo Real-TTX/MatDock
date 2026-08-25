@@ -14,8 +14,13 @@ public class VolumeBackup : AuditableEntity
 
     public string VolumeName { get; set; } = string.Empty;
 
-    /// <summary>File name (not full path) of the archive inside the backups directory.</summary>
+    /// <summary>File name (not full path) of the archive inside the target's backups location.</summary>
     public string FileName { get; set; } = string.Empty;
+
+    /// <summary>Which target holds this archive; <c>null</c> = local (/data/backups).</summary>
+    public long? BackupTargetId { get; set; }
+
+    public string? BackupTargetName { get; set; }
 
     public long SizeBytes { get; set; }
 

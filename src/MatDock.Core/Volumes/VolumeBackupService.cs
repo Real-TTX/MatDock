@@ -1,3 +1,4 @@
+using MatDock.Core.Backups;
 using MatDock.Core.Configuration;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
@@ -21,7 +22,7 @@ public sealed class VolumeBackupService
     private readonly MatDockDbContext _db;
     private readonly ISshClientFactory _sshClientFactory;
     private readonly EnvironmentService _environmentService;
-    private readonly AppPaths _paths;
+    private readonly IBackupStorageFactory _storageFactory;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeBackupService> _logger;
 
@@ -29,14 +30,14 @@ public sealed class VolumeBackupService
         MatDockDbContext db,
         ISshClientFactory sshClientFactory,
         EnvironmentService environmentService,
-        AppPaths paths,
+        IBackupStorageFactory storageFactory,
         IOptions<MatDockOptions> options,
         ILogger<VolumeBackupService> logger)
     {
         _db = db;
         _sshClientFactory = sshClientFactory;
         _environmentService = environmentService;
-        _paths = paths;
+        _storageFactory = storageFactory;
         _options = options.Value;
         _logger = logger;
     }
@@ -52,17 +53,16 @@ public sealed class VolumeBackupService
             ? $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar"
             : $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}_{suffix}.tar";
 
-    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, CancellationToken ct = default)
+    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, CancellationToken ct = default)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
             return BackupResult.Fail($"Ungültiger Volume-Name: '{volumeName}'.");
         }
 
-        _paths.EnsureCreated();
         // Unique even within the same second (avoids overwriting a concurrent backup's file).
         var fileName = BuildFileName(environment.Id, volumeName, DateTime.UtcNow, Guid.NewGuid().ToString("N")[..8]);
-        var fullPath = Path.Combine(_paths.BackupsPath, fileName);
+        var storage = _storageFactory.Create(target);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
@@ -88,9 +88,9 @@ public sealed class VolumeBackupService
             var async = exportCmd.BeginExecute();
 
             long bytes;
-            await using (var file = File.Create(fullPath))
+            await using (var destination = await storage.OpenWriteAsync(fileName, cts.Token))
             {
-                bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, file, cts.Token);
+                bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, destination, cts.Token);
             }
 
             exportCmd.EndExecute(async);
@@ -98,7 +98,7 @@ public sealed class VolumeBackupService
             // died mid-transfer, which would otherwise persist a truncated archive as a valid backup.
             if (exportCmd.ExitStatus != 0)
             {
-                TryDelete(fullPath);
+                await TryDeleteAsync(storage, fileName);
                 return BackupResult.Fail($"Backup fehlgeschlagen: {FirstLine(exportCmd.Error)}");
             }
 
@@ -108,7 +108,9 @@ public sealed class VolumeBackupService
                 SourceEnvironmentName = environment.Name,
                 VolumeName = volumeName,
                 FileName = fileName,
-                SizeBytes = bytes
+                SizeBytes = bytes,
+                BackupTargetId = target?.Id,
+                BackupTargetName = target?.Name ?? "Lokal"
             };
             _db.VolumeBackups.Add(backup);
             await _db.SaveChangesAsync(ct);
@@ -117,12 +119,12 @@ public sealed class VolumeBackupService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            TryDelete(fullPath);
+            await TryDeleteAsync(storage, fileName);
             return BackupResult.Fail("Zeitüberschreitung beim Backup.");
         }
         catch (Exception ex)
         {
-            TryDelete(fullPath);
+            await TryDeleteAsync(storage, fileName);
             _logger.LogInformation(ex, "Backup of {Volume} on env {Env} failed.", volumeName, environment.Id);
             return BackupResult.Fail($"Fehler: {Innermost(ex).Message}");
         }
@@ -141,11 +143,10 @@ public sealed class VolumeBackupService
             return RestoreResult.Fail("Backup nicht gefunden.");
         }
 
-        var fullPath = Path.Combine(_paths.BackupsPath, backup.FileName);
-        if (!File.Exists(fullPath))
-        {
-            return RestoreResult.Fail("Die Backup-Datei existiert nicht mehr.");
-        }
+        var storageTarget = backup.BackupTargetId is { } stid
+            ? await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == stid, ct)
+            : null;
+        var storage = _storageFactory.Create(storageTarget);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
@@ -185,7 +186,7 @@ public sealed class VolumeBackupService
             var async = importCmd.BeginExecute();
 
             long bytes;
-            await using (var file = File.OpenRead(fullPath))
+            await using (var file = await storage.OpenReadAsync(backup.FileName, cts.Token))
             {
                 bytes = await StreamPump.CopyAsync(file, input, cts.Token);
             }
@@ -205,6 +206,10 @@ public sealed class VolumeBackupService
         {
             return RestoreResult.Fail("Zeitüberschreitung beim Restore.");
         }
+        catch (FileNotFoundException)
+        {
+            return RestoreResult.Fail("Die Backup-Datei existiert am Ziel nicht mehr.");
+        }
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Restore of backup {Id} failed.", backupId);
@@ -220,11 +225,15 @@ public sealed class VolumeBackupService
             return false;
         }
 
+        var storageTarget = backup.BackupTargetId is { } stid
+            ? await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == stid, ct)
+            : null;
+        var fileName = backup.FileName;
+
         // Commit the row removal first; only delete the file once the DB change succeeded.
-        var path = Path.Combine(_paths.BackupsPath, backup.FileName);
         _db.VolumeBackups.Remove(backup); // soft delete of the row
         await _db.SaveChangesAsync(ct);
-        TryDelete(path);
+        await TryDeleteAsync(_storageFactory.Create(storageTarget), fileName);
         return true;
     }
 
@@ -236,9 +245,9 @@ public sealed class VolumeBackupService
         return (cmd.ExitStatus ?? -1, stdout ?? string.Empty, cmd.Error ?? string.Empty);
     }
 
-    private static void TryDelete(string path)
+    private static async Task TryDeleteAsync(Backups.IBackupStorage storage, string fileName)
     {
-        try { if (File.Exists(path)) { File.Delete(path); } } catch { /* best effort */ }
+        try { await storage.DeleteAsync(fileName); } catch { /* best effort cleanup */ }
     }
 
     private static Exception Innermost(Exception ex)

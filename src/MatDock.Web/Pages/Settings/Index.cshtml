@@ -1,0 +1,94 @@
+@page
+@model MatDock.Web.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "System";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>System</h1>
+        <span class="page-head__subtitle">Backup-Ziele &amp; Einstellungen</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <strong>Backup-Ziele</strong>
+        <span class="toolbar-spacer"></span>
+        <span class="text-muted">Wohin Backups geschrieben werden</span>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        <table class="data">
+            <thead>
+                <tr><th>Name</th><th>Typ</th><th>Details</th><th>Standard</th><th class="actions">Aktionen</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Lokal (MatDock)</strong></td>
+                    <td>Local</td>
+                    <td class="cell-sub">@Model.LocalPath</td>
+                    <td>
+                        @if (Model.LocalIsDefault)
+                        {
+                            <span class="pill pill--online"><icon name="check-circle" /><span>Standard</span></span>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="LocalDefault" style="display:inline;">
+                                <button type="submit" class="mat-btn mat-btn--sm">Als Standard</button>
+                            </form>
+                        }
+                    </td>
+                    <td class="actions"><span class="text-muted">–</span></td>
+                </tr>
+                @foreach (var t in Model.Targets)
+                {
+                    <tr>
+                        <td><strong>@t.Name</strong></td>
+                        <td>@t.Type</td>
+                        <td class="cell-sub">@(t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "")</td>
+                        <td>
+                            @if (t.IsDefault)
+                            {
+                                <span class="pill pill--online"><icon name="check-circle" /><span>Standard</span></span>
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="Default" style="display:inline;">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="mat-btn mat-btn--sm">Als Standard</button>
+                                </form>
+                            }
+                        </td>
+                        <td class="actions">
+                            <div class="row-actions">
+                                <form method="post" asp-page-handler="Test" style="display:inline;">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Testen"><icon name="plug" /></button>
+                                </form>
+                                <a class="mat-btn mat-btn--sm" href="/Settings/BackupTargetEdit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                <span style="width:8px;display:inline-block;"></span>
+                                <form method="post" asp-page-handler="Delete" data-confirm="Ziel „@t.Name“ löschen?" style="display:inline;">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </mat-table-body>
+
+    <mat-table-actions>
+        <a href="/Settings/BackupTargetEdit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Backup-Ziel (NAS/SMB)</span></a>
+    </mat-table-actions>
+</mat-table>
