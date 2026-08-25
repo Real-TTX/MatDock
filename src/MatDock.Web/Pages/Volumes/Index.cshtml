@@ -70,7 +70,6 @@
                         <th>Environment</th>
                         <th>Volume</th>
                         <th>Treiber</th>
-                        <th>Mountpoint</th>
                         <th class="actions">Aktionen</th>
                     </tr>
                 </thead>
@@ -79,9 +78,14 @@
                     {
                         <tr>
                             <td><span class="mat-badge"><icon name="server" /> @row.Environment.Name</span></td>
-                            <td><strong>@row.Volume.Name</strong></td>
+                            <td class="wrap">
+                                <strong>@row.Volume.Name</strong>
+                                @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
+                                {
+                                    <div class="cell-sub">@row.Volume.Mountpoint</div>
+                                }
+                            </td>
                             <td>@row.Volume.Driver</td>
-                            <td class="mono">@row.Volume.Mountpoint</td>
                             <td class="actions">
                                 <div class="row-actions">
                                     <a class="mat-btn mat-btn--sm"
