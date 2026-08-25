@@ -3,6 +3,7 @@ using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Users;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace MatDock.Web.Infrastructure;
@@ -20,6 +21,7 @@ public static class DbBootstrapper
 
         var users = provider.GetRequiredService<UserService>();
         var options = provider.GetRequiredService<IOptions<MatDockOptions>>().Value;
+        var environment = provider.GetRequiredService<IHostEnvironment>();
 
         // Seed the initial administrator only on a fresh database.
         if (await users.CountAsync() == 0)
@@ -31,15 +33,12 @@ public static class DbBootstrapper
                 admin.Username);
         }
 
-        // Dev-only: seed a ready-to-use test account so testing never touches the real admin.
-        if (options.SeedTestUser)
+        // Local/dev only (never in Production): a ready-to-use test account so testing never touches
+        // the real admin. Automatic — no configuration flag needed.
+        if (environment.IsDevelopment() && !await users.UsernameExistsAsync("tester"))
         {
-            var test = options.TestUser;
-            if (!await users.UsernameExistsAsync(test.Username))
-            {
-                await users.CreateAsync(test.Username, test.DisplayName, test.Password, UserRole.Admin, mustChangePassword: false);
-                logger.LogWarning("Seeded DEV test account '{Username}'. Do not enable MatDock:SeedTestUser in production.", test.Username);
-            }
+            await users.CreateAsync("tester", "Test-Benutzer", "Tester123!", UserRole.Admin, mustChangePassword: false);
+            logger.LogWarning("Seeded local test account 'tester' / 'Tester123!' (Development only).");
         }
     }
 }
