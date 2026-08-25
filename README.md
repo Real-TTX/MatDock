@@ -38,6 +38,10 @@ Restore, Microsoft Entra ID, Anonym-Link-Freigaben.
 |-------|-------|
 | ![Login](docs/images/login.png) | <img src="docs/images/mobile-dashboard.png" width="220" alt="Mobil"> |
 
+**Volume-Migration A→B** (Streaming per `tar` über SSH, ohne Zwischenspeicher):
+
+![Volume migrieren](docs/images/volume-migrate.png)
+
 ## Tech-Stack
 
 | Bereich        | Technologie |
