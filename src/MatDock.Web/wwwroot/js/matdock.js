@@ -82,10 +82,13 @@
         var counter = input.getAttribute("data-filter-count")
             ? document.querySelector(input.getAttribute("data-filter-count"))
             : null;
+        // Works for both tables (tbody tr) and card grids (elements marked [data-filter-row]).
+        var rows = table.querySelectorAll("[data-filter-row]");
+        if (!rows.length) { rows = table.querySelectorAll("tbody tr"); }
         input.addEventListener("input", function () {
             var term = input.value.trim().toLowerCase();
             var shown = 0;
-            table.querySelectorAll("tbody tr").forEach(function (row) {
+            rows.forEach(function (row) {
                 if (row.hasAttribute("data-no-filter")) { return; }
                 var match = row.textContent.toLowerCase().indexOf(term) !== -1;
                 row.style.display = match ? "" : "none";

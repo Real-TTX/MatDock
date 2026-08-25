@@ -1,0 +1,99 @@
+@page
+@model MatDock.Web.Pages.Environments.MigrateModel
+@{
+    ViewData["Title"] = "Volume migrieren";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Volume migrieren</h1>
+        <span class="page-head__subtitle">Ein Volume von einem Environment auf ein anderes übertragen</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Environments/Volumes?id=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (Model.Result is not null)
+{
+    <div class="result-banner @(Model.Result.Success ? "result-banner--ok" : "result-banner--fail")">
+        <icon name="@(Model.Result.Success ? "check-circle" : "x-circle")" />
+        <div>
+            <div class="result-banner__big">@(Model.Result.Success ? "Migration erfolgreich" : "Migration fehlgeschlagen")</div>
+            <div class="result-banner__sub">@Model.Result.Message</div>
+        </div>
+    </div>
+    @if (Model.Result.Steps.Count > 0)
+    {
+        <ul class="result-steps">
+            @foreach (var step in Model.Result.Steps)
+            {
+                <li><icon name="check-circle" /><span>@step</span></li>
+            }
+        </ul>
+    }
+}
+
+@if (Model.SourceEnvironment is null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>Quell-Environment nicht gefunden.</span></div>
+}
+else if (Model.TargetEnvironments.Count == 0)
+{
+    <div class="alert alert--warning">
+        <icon name="alert" />
+        <span>Für eine Migration werden mindestens zwei Environments benötigt. Lege zuerst ein weiteres Environment an.</span>
+    </div>
+}
+else
+{
+    <form method="post" data-confirm="Migration jetzt starten?">
+        <input type="hidden" asp-for="Input.SourceEnvId" />
+        <input type="hidden" asp-for="Input.SourceVolume" />
+        <div asp-validation-summary="ModelOnly"></div>
+
+        <div class="migrate">
+            <div class="migrate__side migrate__side--source">
+                <h3><icon name="server" /><span>Quelle</span></h3>
+                <div class="migrate__env">@Model.SourceEnvironment.Name</div>
+                <div class="migrate__host">@Model.SourceEnvironment.Username@@@Model.SourceEnvironment.Host</div>
+                <div class="migrate__vol"><icon name="volume" /><span>@Model.Input.SourceVolume</span></div>
+            </div>
+
+            <div class="migrate__arrow"><icon name="chevron-right" /></div>
+
+            <div class="migrate__side migrate__side--target">
+                <h3><icon name="server" /><span>Ziel</span></h3>
+                <div class="mat-form">
+                    <mat-field label="Ziel-Environment" asp-for="Input.TargetEnvId">
+                        <select asp-for="Input.TargetEnvId" class="mat-select">
+                            @foreach (var env in Model.TargetEnvironments)
+                            {
+                                <option value="@env.Id">@env.Name — @env.Host</option>
+                            }
+                        </select>
+                    </mat-field>
+                    <mat-field label="Ziel-Volume" asp-for="Input.TargetVolume">
+                        <input asp-for="Input.TargetVolume" class="mat-input" />
+                    </mat-field>
+                    <label class="mat-check">
+                        <input asp-for="Input.Overwrite" type="checkbox" />
+                        <span>Überschreiben, falls das Ziel-Volume bereits Daten enthält</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert--info">
+            <icon name="alert" />
+            <span>Die Daten werden per <code>tar</code> direkt über SSH gestreamt (Quelle → Ziel), ohne Zwischenspeicher. Voraussetzung: Docker + das Helfer-Image (<code>busybox</code>) auf beiden Hosts.</span>
+        </div>
+
+        <mat-form-buttons>
+            <button type="submit" class="mat-btn mat-btn--primary">
+                <icon name="server" /><span>Migration starten</span>
+            </button>
+            <a href="/Environments/Volumes?id=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+        </mat-form-buttons>
+    </form>
+}

@@ -36,46 +36,47 @@
 }
 else
 {
-    <mat-table>
-        <mat-table-toolbar>
-            <div class="search">
-                <icon name="search" />
-                <input type="search" class="mat-input" placeholder="Volumes filtern…"
-                       data-filter-table="#vol-table" data-filter-count="#vol-count" />
-            </div>
-            <span class="toolbar-spacer"></span>
-            <span class="text-muted"><span id="vol-count">@Model.Volumes.Count</span> Volumes</span>
-        </mat-table-toolbar>
+    <div class="mat-table__toolbar" style="border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);margin-bottom:16px;">
+        <div class="search">
+            <icon name="search" />
+            <input type="search" class="mat-input" placeholder="Volumes filtern…"
+                   data-filter-table="#vol-grid" data-filter-count="#vol-count" />
+        </div>
+        <span class="toolbar-spacer"></span>
+        <span class="text-muted"><strong id="vol-count">@Model.Volumes.Count</strong> Volumes</span>
+    </div>
 
-        <mat-table-body>
-            @if (Model.Volumes.Count == 0)
+    @if (Model.Volumes.Count == 0)
+    {
+        <div class="card"><div class="empty-state">
+            <div><icon name="volume" /></div>
+            <p>Keine Volumes auf diesem Host.</p>
+        </div></div>
+    }
+    else
+    {
+        <div class="vol-grid" id="vol-grid">
+            @foreach (var vol in Model.Volumes)
             {
-                <div class="empty-state">
-                    <div><icon name="volume" /></div>
-                    <p>Keine Volumes auf diesem Host.</p>
+                <div class="vol-card" data-filter-row>
+                    <div class="vol-card__head">
+                        <div class="vol-card__icon"><icon name="volume" /></div>
+                        <div>
+                            <div class="vol-card__name">@vol.Name</div>
+                            <div class="vol-card__meta">@vol.Driver · @vol.Scope</div>
+                        </div>
+                    </div>
+                    <div class="vol-card__rows">
+                        <div><span class="k">Mountpoint</span><br><span class="v">@vol.Mountpoint</span></div>
+                    </div>
+                    <div class="vol-card__foot">
+                        <a class="mat-btn mat-btn--primary mat-btn--sm"
+                           href="/Environments/Migrate?sourceId=@Model.Environment?.Id&volume=@Uri.EscapeDataString(vol.Name)">
+                            <icon name="server" /><span>Migrieren</span>
+                        </a>
+                    </div>
                 </div>
             }
-            else
-            {
-                <table class="data" id="vol-table">
-                    <thead>
-                        <tr><th>Name</th><th>Treiber</th><th>Mountpoint</th><th>Scope</th><th class="num">Größe</th><th>Erstellt</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var vol in Model.Volumes)
-                        {
-                            <tr>
-                                <td><strong>@vol.Name</strong></td>
-                                <td>@vol.Driver</td>
-                                <td class="mono">@vol.Mountpoint</td>
-                                <td>@vol.Scope</td>
-                                <td class="num">@MatDock.Web.Pages.Environments.VolumesModel.FormatSize(vol.SizeBytes)</td>
-                                <td class="text-muted nowrap">@vol.CreatedAt</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
-        </mat-table-body>
-    </mat-table>
+        </div>
+    }
 }

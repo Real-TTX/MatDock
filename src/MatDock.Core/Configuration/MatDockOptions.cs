@@ -18,6 +18,12 @@ public sealed class MatDockOptions
     /// <summary>Default timeout (seconds) for SSH connect / command operations.</summary>
     public int SshTimeoutSeconds { get; set; } = 20;
 
+    /// <summary>Timeout (seconds) for a full volume migration; migrations can take a while.</summary>
+    public int MigrationTimeoutSeconds { get; set; } = 3600;
+
+    /// <summary>Tiny helper image used on the remote hosts to tar/untar volume contents.</summary>
+    public string HelperImage { get; set; } = "busybox";
+
     public AdminSeedOptions Admin { get; set; } = new();
 }
 

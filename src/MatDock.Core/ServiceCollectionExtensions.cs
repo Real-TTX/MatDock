@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<UserService>();
         services.AddScoped<EnvironmentService>();
         services.AddScoped<IEnvironmentConnectionService, EnvironmentConnectionService>();
+        services.AddScoped<Volumes.VolumeMigrationService>();
 
         return services;
     }
