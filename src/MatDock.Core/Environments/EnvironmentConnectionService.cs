@@ -169,25 +169,28 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
     private static string InterpretDockerError(string stderr, string stdout)
     {
-        var message = FirstLine(stderr) ?? FirstLine(stdout) ?? "Unbekannter Fehler bei der Docker-Prüfung.";
-        var lower = message.ToLowerInvariant();
+        var detail = FirstLine(stderr) ?? FirstLine(stdout) ?? "keine Fehlerausgabe";
+        var lower = detail.ToLowerInvariant();
 
+        string? hint = null;
         if (lower.Contains("permission denied") || lower.Contains("dial unix") || lower.Contains("got permission denied"))
         {
-            return "Keine Berechtigung für den Docker-Daemon. Den SSH-Benutzer zur Gruppe \"docker\" hinzufügen (oder sudo einrichten).";
+            hint = "Keine Berechtigung für den Docker-Socket. Der SSH-Benutzer muss den Docker-Daemon erreichen dürfen "
+                 + "(Benutzer in Gruppe \"docker\", oder – bei Rootless-Docker – als der Docker-Besitzer verbinden). ";
         }
-
-        if (lower.Contains("not found") || lower.Contains("no such file"))
+        else if (lower.Contains("not found") || lower.Contains("no such file"))
         {
-            return "Docker wurde auf dem Host nicht gefunden. Ist Docker installiert und im PATH des SSH-Benutzers?";
+            hint = "Docker wurde nicht gefunden. Ist Docker installiert und im PATH des SSH-Benutzers? ";
         }
-
-        if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running"))
+        else if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running"))
         {
-            return "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst auf dem Host?";
+            hint = "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst (ggf. Rootless-Socket)? ";
         }
 
-        return $"Docker-Prüfung fehlgeschlagen: {message}";
+        // Always surface the real remote error so per-host causes are diagnosable.
+        return hint is null
+            ? $"Docker-Fehler: {detail}"
+            : $"{hint}Details: {detail}";
     }
 
     private static string DescribeSshError(Exception ex) => ex switch
