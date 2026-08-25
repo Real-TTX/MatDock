@@ -45,7 +45,7 @@ Restore, Microsoft Entra ID, Anonym-Link-Freigaben.
 | Backend/UI     | ASP.NET Core 10 **Razor Pages** (C#) |
 | Datenbank      | **SQLite** (Logik) + JSON (Config), EF Core 10 |
 | SSH            | SSH.NET |
-| Docker         | Docker Engine API über SSH (`docker system dial-stdio`) via Docker.DotNet |
+| Docker         | Docker-CLI über SSH (strukturierte `--format '{{json .}}'`-Ausgabe) |
 | Secrets        | ASP.NET Core Data Protection (Schlüssel auf dem Datenvolume) |
 
 ## Schnellstart (Docker)

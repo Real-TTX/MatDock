@@ -1,5 +1,4 @@
 using MatDock.Core.Auth;
-using MatDock.Core.Docker;
 using MatDock.Core.Environments;
 using MatDock.Core.Security;
 using MatDock.Core.Ssh;
@@ -21,7 +20,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
-        services.AddSingleton<IDockerHostFactory, SshDockerHostFactory>();
 
         // Per-request services (depend on the scoped DbContext).
         services.AddScoped<AuthService>();
