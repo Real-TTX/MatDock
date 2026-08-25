@@ -265,7 +265,23 @@ table.data tbody tr:hover { background: var(--surface-2); }
 table.data tbody tr:last-child td { border-bottom: none; }
 table.data td.wrap { white-space: normal; }
 table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
-table.data td.actions { text-align: right; }
+table.data td.actions, table.data th.actions { text-align: right; }
+
+/* Sticky actions column: keep the row actions pinned on the right while the rest scrolls left/right. */
+table.data th.actions,
+table.data td.actions {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: -8px 0 8px -8px rgba(0, 0, 0, .2);
+}
+table.data thead th.actions {
+    z-index: 2;
+    background: var(--surface-2);
+}
+table.data tbody tr:hover td.actions { background: var(--surface-2); }
+
 .row-actions { display: inline-flex; gap: 6px; }
 
 .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); }
