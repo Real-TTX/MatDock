@@ -24,6 +24,11 @@ public class SshClientFactoryTests
         Assert.Equal("example.com", client.ConnectionInfo.Host);
         Assert.Equal(2222, client.ConnectionInfo.Port);
         Assert.Equal("root", client.ConnectionInfo.Username);
+
+        // Password auth must offer both "password" and "keyboard-interactive" (PAM servers).
+        var methodNames = client.ConnectionInfo.AuthenticationMethods.Select(m => m.Name).ToList();
+        Assert.Contains("password", methodNames);
+        Assert.Contains("keyboard-interactive", methodNames);
     }
 
     [Fact]

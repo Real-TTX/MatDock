@@ -17,14 +17,14 @@ public sealed class SshNetClientFactory : ISshClientFactory
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var authMethod = settings.AuthType switch
+        var authMethods = settings.AuthType switch
         {
-            AuthType.Password => BuildPasswordAuth(settings),
-            AuthType.PrivateKey => BuildPrivateKeyAuth(settings),
+            AuthType.Password => BuildPasswordAuths(settings),
+            AuthType.PrivateKey => new[] { BuildPrivateKeyAuth(settings) },
             _ => throw new NotSupportedException($"Unsupported auth type: {settings.AuthType}")
         };
 
-        var connectionInfo = new ConnectionInfo(settings.Host, settings.Port, settings.Username, authMethod)
+        var connectionInfo = new ConnectionInfo(settings.Host, settings.Port, settings.Username, authMethods)
         {
             Timeout = TimeSpan.FromSeconds(Math.Max(1, settings.TimeoutSeconds))
         };
@@ -32,14 +32,28 @@ public sealed class SshNetClientFactory : ISshClientFactory
         return new SshClient(connectionInfo);
     }
 
-    private static AuthenticationMethod BuildPasswordAuth(SshConnectionSettings settings)
+    // Offer both "password" and "keyboard-interactive": many servers (PAM) only accept passwords via
+    // keyboard-interactive, so PasswordAuthenticationMethod alone fails even with the correct password.
+    private static AuthenticationMethod[] BuildPasswordAuths(SshConnectionSettings settings)
     {
         if (string.IsNullOrEmpty(settings.Password))
         {
             throw new InvalidOperationException("Password authentication selected but no password was provided.");
         }
 
-        return new PasswordAuthenticationMethod(settings.Username, settings.Password);
+        var password = settings.Password;
+        var passwordAuth = new PasswordAuthenticationMethod(settings.Username, password);
+
+        var keyboardInteractive = new KeyboardInteractiveAuthenticationMethod(settings.Username);
+        keyboardInteractive.AuthenticationPrompt += (_, e) =>
+        {
+            foreach (var prompt in e.Prompts)
+            {
+                prompt.Response = password;
+            }
+        };
+
+        return new AuthenticationMethod[] { passwordAuth, keyboardInteractive };
     }
 
     private static AuthenticationMethod BuildPrivateKeyAuth(SshConnectionSettings settings)
