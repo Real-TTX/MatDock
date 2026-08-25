@@ -71,6 +71,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 - App: <http://localhost:4455>
 - SQLite-Web: <http://localhost:8085>
+- **Dev-Test-Konto** (nur im Dev-Stack, `MatDock__SeedTestUser=true`): `tester` / `Tester123!`
+  (Rolle Admin, kein Passwortzwang) — zum Testen, ohne das Admin-Konto anzufassen.
 
 ### Live-Reload / Testen
 

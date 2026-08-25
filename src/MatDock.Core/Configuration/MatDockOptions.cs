@@ -19,6 +19,24 @@ public sealed class MatDockOptions
     public int SshTimeoutSeconds { get; set; } = 20;
 
     public AdminSeedOptions Admin { get; set; } = new();
+
+    /// <summary>
+    /// Dev-only: seed a ready-to-use test account (no forced password change) so testing never has to
+    /// touch the real admin. Enabled in <c>docker-compose.dev.yml</c>; off by default (never in release).
+    /// </summary>
+    public bool SeedTestUser { get; set; }
+
+    public TestUserSeedOptions TestUser { get; set; } = new();
+}
+
+/// <summary>Credentials for the optional dev test account.</summary>
+public sealed class TestUserSeedOptions
+{
+    public string Username { get; set; } = "tester";
+
+    public string DisplayName { get; set; } = "Test-Benutzer";
+
+    public string Password { get; set; } = "Tester123!";
 }
 
 /// <summary>Credentials used to seed the first administrator on an empty database.</summary>

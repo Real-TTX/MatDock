@@ -6,6 +6,8 @@ services:
   matdock:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      # Dev-only test account (login: tester / Tester123!, Rolle Admin, kein Passwortzwang).
+      MatDock__SeedTestUser: "true"
 
   sqlite-web:
     image: coleifer/sqlite-web:latest

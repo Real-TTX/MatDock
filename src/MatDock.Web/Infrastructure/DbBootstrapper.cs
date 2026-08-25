@@ -19,21 +19,27 @@ public static class DbBootstrapper
         await db.Database.MigrateAsync();
 
         var users = provider.GetRequiredService<UserService>();
-        if (await users.CountAsync() > 0)
+        var options = provider.GetRequiredService<IOptions<MatDockOptions>>().Value;
+
+        // Seed the initial administrator only on a fresh database.
+        if (await users.CountAsync() == 0)
         {
-            return;
+            var admin = options.Admin;
+            await users.CreateAsync(admin.Username, admin.DisplayName, admin.Password, UserRole.Admin, mustChangePassword: true);
+            logger.LogWarning(
+                "Seeded initial administrator '{Username}'. The initial password must be changed on first login.",
+                admin.Username);
         }
 
-        var admin = provider.GetRequiredService<IOptions<MatDockOptions>>().Value.Admin;
-        await users.CreateAsync(
-            admin.Username,
-            admin.DisplayName,
-            admin.Password,
-            UserRole.Admin,
-            mustChangePassword: true);
-
-        logger.LogWarning(
-            "Seeded initial administrator '{Username}'. The initial password must be changed on first login.",
-            admin.Username);
+        // Dev-only: seed a ready-to-use test account so testing never touches the real admin.
+        if (options.SeedTestUser)
+        {
+            var test = options.TestUser;
+            if (!await users.UsernameExistsAsync(test.Username))
+            {
+                await users.CreateAsync(test.Username, test.DisplayName, test.Password, UserRole.Admin, mustChangePassword: false);
+                logger.LogWarning("Seeded DEV test account '{Username}'. Do not enable MatDock:SeedTestUser in production.", test.Username);
+            }
+        }
     }
 }
