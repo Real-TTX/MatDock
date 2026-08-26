@@ -91,9 +91,13 @@ public sealed class VolumeMigrationService
             exportCmd.CommandTimeout = timeout;
             importCmd.CommandTimeout = timeout;
 
-            var importInput = importCmd.CreateInputStream();
+            // SSH.NET 2026: CreateInputStream() requires the channel to be OPEN, and BeginExecute()
+            // opens the channel synchronously before it returns — so the input stream must be created
+            // AFTER BeginExecute(), never before (otherwise: "input stream can be used only during
+            // execution"). OutputStream is likewise (re)created by BeginExecute for this run.
             var exportAsync = exportCmd.BeginExecute();
             var importAsync = importCmd.BeginExecute();
+            var importInput = importCmd.CreateInputStream();
 
             long bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, importInput, cts.Token);
             importInput.Close(); // signal EOF so the remote tar finishes

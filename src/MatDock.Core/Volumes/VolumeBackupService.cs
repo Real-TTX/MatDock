@@ -195,8 +195,10 @@ public sealed class VolumeBackupService
             // On overwrite, wipe the target first so the restored state matches the archive exactly.
             using var importCmd = client.CreateCommand(VolumeCommands.Import(targetVolume, _options.HelperImage, head, clearFirst: overwrite));
             importCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-            var input = importCmd.CreateInputStream();
+            // SSH.NET 2026: CreateInputStream() requires an open channel, which BeginExecute() opens
+            // synchronously — so it must be called AFTER BeginExecute(), never before.
             var async = importCmd.BeginExecute();
+            var input = importCmd.CreateInputStream();
 
             var bytes = await StreamPump.CopyAsync(source, input, cts.Token);
 
