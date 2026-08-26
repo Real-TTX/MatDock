@@ -64,47 +64,54 @@
         }
         else
         {
-            <table class="data">
-                <thead>
-                    <tr>
-                        <th>Environment</th>
-                        <th>Volume</th>
-                        <th>Treiber</th>
-                        <th class="actions">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.Rows)
-                    {
+            <form method="post" id="bulk-form">
+                <input type="hidden" name="EnvId" value="@Model.EnvId" />
+                <input type="hidden" name="Q" value="@Model.Q" />
+                <div class="bulk-bar">
+                    <span class="bulk-bar__count"><strong id="sel-count">0</strong> ausgewählt</span>
+                    <button type="submit" asp-page-handler="BulkBackup" class="mat-btn mat-btn--sm" data-bulk disabled
+                            data-confirm="Ausgewählte Volumes jetzt sichern?"><icon name="save" /><span>Backup (Auswahl)</span></button>
+                    <button type="submit" formaction="/Volumes/BulkMigrate" formmethod="post" class="mat-btn mat-btn--sm" data-bulk disabled><icon name="server" /><span>Migrieren (Auswahl)</span></button>
+                </div>
+                <table class="data">
+                    <thead>
                         <tr>
-                            <td><span class="mat-badge"><icon name="server" /> @row.Environment.Name</span></td>
-                            <td class="wrap">
-                                <strong>@row.Volume.Name</strong>
-                                @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
-                                {
-                                    <div class="cell-sub">@row.Volume.Mountpoint</div>
-                                }
-                            </td>
-                            <td>@row.Volume.Driver</td>
-                            <td class="actions">
-                                <div class="row-actions">
-                                    <a class="mat-btn mat-btn--sm"
-                                       href="/Environments/Migrate?sourceId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"
-                                       title="Migrieren"><icon name="server" /><span>Migrieren</span></a>
-                                    <form method="post" asp-page-handler="Backup" data-confirm="Backup von „@row.Volume.Name“ erstellen?" style="display:inline;">
-                                        <input type="hidden" name="environmentId" value="@row.Environment.Id" />
-                                        <input type="hidden" name="volume" value="@row.Volume.Name" />
-                                        <input type="hidden" name="EnvId" value="@Model.EnvId" />
-                                        <input type="hidden" name="Q" value="@Model.Q" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Backup erstellen"><icon name="save" /><span>Backup</span></button>
-                                    </form>
-                                    <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore aus Backup"><icon name="refresh" /><span>Restore</span></a>
-                                </div>
-                            </td>
+                            <th style="width:36px;"><input type="checkbox" id="select-all" aria-label="Alle auswählen" /></th>
+                            <th>Environment</th>
+                            <th>Volume</th>
+                            <th>Treiber</th>
+                            <th class="actions">Aktionen</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr>
+                                <td><input type="checkbox" class="row-check" name="selected" value="@row.Environment.Id|@row.Volume.Name" aria-label="auswählen" /></td>
+                                <td><span class="mat-badge"><icon name="server" /> @row.Environment.Name</span></td>
+                                <td class="wrap">
+                                    <strong>@row.Volume.Name</strong>
+                                    @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
+                                    {
+                                        <div class="cell-sub">@row.Volume.Mountpoint</div>
+                                    }
+                                </td>
+                                <td>@row.Volume.Driver</td>
+                                <td class="actions">
+                                    <div class="row-actions">
+                                        <a class="mat-btn mat-btn--sm"
+                                           href="/Environments/Migrate?sourceId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"
+                                           title="Migrieren"><icon name="server" /><span>Migrieren</span></a>
+                                        <button type="submit" asp-page-handler="Backup" name="single" value="@row.Environment.Id|@row.Volume.Name"
+                                                class="mat-btn mat-btn--sm" title="Backup erstellen"><icon name="save" /><span>Backup</span></button>
+                                        <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore aus Backup"><icon name="refresh" /><span>Restore</span></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
         }
     </mat-table-body>
 

@@ -98,6 +98,31 @@
         });
     });
 
+    /* ---------------- Bulk selection (tables with .row-check) ---------------- */
+    (function () {
+        var checks = Array.prototype.slice.call(document.querySelectorAll(".row-check"));
+        if (!checks.length) { return; }
+        var selectAll = document.getElementById("select-all");
+        var countEl = document.getElementById("sel-count");
+        var bulkButtons = Array.prototype.slice.call(document.querySelectorAll("[data-bulk]"));
+
+        function update() {
+            var n = checks.filter(function (c) { return c.checked; }).length;
+            if (countEl) { countEl.textContent = n; }
+            bulkButtons.forEach(function (b) { b.disabled = n === 0; });
+            if (selectAll) { selectAll.checked = n > 0 && n === checks.length; }
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener("change", function () {
+                checks.forEach(function (c) { c.checked = selectAll.checked; });
+                update();
+            });
+        }
+        checks.forEach(function (c) { c.addEventListener("change", update); });
+        update();
+    })();
+
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
         var form = e.target;

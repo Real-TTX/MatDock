@@ -125,9 +125,45 @@ public class IndexModel : PageModel
             .ToList();
     }
 
-    public async Task<IActionResult> OnPostBackupAsync(long environmentId, string volume)
+    public async Task<IActionResult> OnPostBulkBackupAsync(string[] selected)
     {
-        var env = await _environmentService.GetAsync(environmentId, HttpContext.RequestAborted);
+        var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
+        var envCache = new Dictionary<long, DockerEnvironment?>();
+        int ok = 0, fail = 0;
+
+        foreach (var (envId, volume) in VolumeSelection.Parse(selected))
+        {
+            if (!envCache.TryGetValue(envId, out var env))
+            {
+                env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+                envCache[envId] = env;
+            }
+            if (env is null)
+            {
+                fail++;
+                continue;
+            }
+
+            var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, HttpContext.RequestAborted);
+            if (result.Success) { ok++; } else { fail++; }
+        }
+
+        StatusMessage = $"Bulk-Backup → {(target?.Name ?? "Lokal")}: {ok} ok, {fail} Fehler.";
+        IsError = fail > 0;
+        return RedirectToPage(new { EnvId, Q });
+    }
+
+    public async Task<IActionResult> OnPostBackupAsync(string single)
+    {
+        var (envId, volume) = VolumeSelection.Parse(new[] { single }).FirstOrDefault();
+        if (volume is null)
+        {
+            StatusMessage = "Ungültige Auswahl.";
+            IsError = true;
+            return RedirectToPage(new { EnvId, Q });
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null)
         {
             StatusMessage = "Environment nicht gefunden.";
@@ -137,8 +173,7 @@ public class IndexModel : PageModel
 
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
         var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, HttpContext.RequestAborted);
-        var where = target is null ? "Lokal" : target.Name;
-        StatusMessage = $"{volume} → {where}: {result.Message}";
+        StatusMessage = $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}";
         IsError = !result.Success;
         return RedirectToPage(new { EnvId, Q });
     }

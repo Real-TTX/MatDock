@@ -1,0 +1,96 @@
+@page
+@model MatDock.Web.Pages.Volumes.BulkMigrateModel
+@{
+    ViewData["Title"] = "Volumes migrieren (Auswahl)";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Volumes migrieren</h1>
+        <span class="page-head__subtitle">@Model.Selection.Count Volume(s) auf ein Ziel-Environment übertragen</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (Model.Results is not null)
+{
+    var okCount = Model.Results.Count(r => r.Ok);
+    <div class="result-banner @(okCount == Model.Results.Count ? "result-banner--ok" : "result-banner--fail")">
+        <icon name="@(okCount == Model.Results.Count ? "check-circle" : "alert")" />
+        <div>
+            <div class="result-banner__big">@okCount / @Model.Results.Count migriert</div>
+            <div class="result-banner__sub">Ergebnis der Sammel-Migration</div>
+        </div>
+    </div>
+    <ul class="result-steps">
+        @foreach (var r in Model.Results)
+        {
+            <li><icon name="@(r.Ok ? "check-circle" : "x-circle")" /><span>@r.Label — @r.Message</span></li>
+        }
+    </ul>
+    <a href="/Volumes" class="mat-btn mat-btn--primary"><icon name="volume" /><span>Zu den Volumes</span></a>
+}
+else if (Model.Selection.Count == 0)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Keine Volumes ausgewählt.</span></div>
+}
+else
+{
+    <form method="post">
+        @foreach (var item in Model.Items)
+        {
+            <input type="hidden" name="Items" value="@item" />
+        }
+        <div asp-validation-summary="ModelOnly"></div>
+
+        <div class="card" style="max-width:820px;">
+            <div class="card__body">
+                <div class="mat-field">
+                    <label class="mat-label">Ausgewählte Volumes (@Model.Selection.Count)</label>
+                    <div class="mat-table__scroll" style="max-height:240px;">
+                        <table class="data">
+                            <thead><tr><th>Environment</th><th>Volume</th></tr></thead>
+                            <tbody>
+                                @foreach (var s in Model.Selection)
+                                {
+                                    <tr><td><span class="mat-badge">@s.EnvName</span></td><td class="mono">@s.Volume</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mat-field">
+                    <label class="mat-label" for="TargetEnvId">Ziel-Environment</label>
+                    <select name="TargetEnvId" id="TargetEnvId" class="mat-select">
+                        <option value="0">— wählen —</option>
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name — @env.Host</option>
+                        }
+                    </select>
+                    <span asp-validation-for="TargetEnvId" class="mat-validation"></span>
+                </div>
+
+                <label class="mat-check">
+                    <input name="Overwrite" type="checkbox" value="true" />
+                    <span>Überschreiben, falls Ziel-Volumes bereits Daten enthalten</span>
+                </label>
+
+                <div class="alert alert--info">
+                    <icon name="alert" />
+                    <span>Jedes Volume wird per <code>tar</code> über SSH auf das Ziel-Environment mit gleichem Namen übertragen.</span>
+                </div>
+
+                <mat-form-buttons>
+                    <button type="submit" asp-page-handler="Run" class="mat-btn mat-btn--primary" data-confirm="@(Model.Selection.Count) Volume(s) jetzt migrieren?">
+                        <icon name="server" /><span>Migration starten</span>
+                    </button>
+                    <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+                </mat-form-buttons>
+            </div>
+        </div>
+    </form>
+}

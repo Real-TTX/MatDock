@@ -286,6 +286,10 @@ table.data tbody tr:hover td.actions { background: var(--surface-2); }
 
 .row-actions { display: inline-flex; gap: 6px; }
 
+.bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap; }
+.bulk-bar__count { font-size: .85rem; color: var(--text-muted); }
+.mat-btn[disabled] { opacity: .5; cursor: not-allowed; }
+
 .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); }
 .empty-state .mat-icon { font-size: 2rem; opacity: .5; }
 
