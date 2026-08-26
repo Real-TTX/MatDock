@@ -21,7 +21,7 @@
         var collapsed = rowClass.Contains("stack-child", StringComparison.Ordinal);
         <tr class="@rowClass" data-search="@SearchKey(c)" hidden="@(collapsed ? "hidden" : null)">
             <td class="wrap">
-                <strong>@c.Name</strong>
+                <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
                 @if (!string.IsNullOrEmpty(c.Service))
                 {
                     <div class="cell-sub">@c.Service</div>
@@ -168,10 +168,25 @@ else if (Model.IsStacksTab)
                 @foreach (var g in groups)
                 {
                     var running = g.Count(c => c.IsRunning);
+                    var total = g.Count();
                     var label = g.Key == "" ? "Einzelne Container" : g.Key;
+                    var stackPill = running == total ? "pill--online" : running == 0 ? "pill--unknown" : "pill--offline";
                     <tr class="stack-head">
-                        <td><span class="caret"><icon name="chevron-right" /></span> <strong>@label</strong></td>
-                        <td colspan="6" class="cell-sub">@g.Count() Container · @running laufen</td>
+                        <td>
+                            <span class="caret"><icon name="chevron-right" /></span>
+                            @if (g.Key.Length > 0)
+                            {
+                                <a href="/Containers/Stack?envId=@Model.EnvId&project=@Uri.EscapeDataString(g.Key)"><strong>@label</strong></a>
+                            }
+                            else
+                            {
+                                <strong>@label</strong>
+                            }
+                        </td>
+                        <td>
+                            <span class="pill @stackPill">@running/@total laufen</span>
+                        </td>
+                        <td colspan="5" class="cell-sub">@total Container</td>
                     </tr>
                     foreach (var c in g.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
                     {

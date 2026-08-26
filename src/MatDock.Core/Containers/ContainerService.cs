@@ -89,6 +89,101 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>All containers of a compose project (stack), with live stats merged. Empty on failure.</summary>
+    public async Task<IReadOnlyList<DockerContainer>> ListByProjectAsync(DockerEnvironment environment, string project, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(project))
+        {
+            return Array.Empty<DockerContainer>();
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _sshClientFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var result = await RunCommandAsync(client, ContainerCommands.ListByProject(head, project), ct);
+            if (result.ExitStatus != 0)
+            {
+                return Array.Empty<DockerContainer>();
+            }
+
+            var containers = ParseContainers(result.StdOut);
+            try
+            {
+                var stats = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
+                if (stats.ExitStatus == 0)
+                {
+                    ApplyStats(containers, stats.StdOut);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+            }
+
+            return containers;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ListByProject {Project} on env {Env} failed.", project, environment.Id);
+            return Array.Empty<DockerContainer>();
+        }
+    }
+
+    /// <summary>One container by id plus its mounts and live stats. Container is null if not found / unreachable.</summary>
+    public async Task<(DockerContainer? Container, IReadOnlyList<ContainerMount> Mounts)> GetDetailAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return (null, Array.Empty<ContainerMount>());
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        using var client = _sshClientFactory.Create(settings);
+        await ConnectAsync(client, settings, ct);
+
+        var psResult = await RunCommandAsync(client, ContainerCommands.Get(head, id), ct);
+        var container = psResult.ExitStatus == 0 ? ParseContainers(psResult.StdOut).FirstOrDefault() : null;
+        if (container is null)
+        {
+            return (null, Array.Empty<ContainerMount>());
+        }
+
+        try
+        {
+            var stats = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
+            if (stats.ExitStatus == 0)
+            {
+                ApplyStats(new[] { container }, stats.StdOut);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+        }
+
+        IReadOnlyList<ContainerMount> mounts = Array.Empty<ContainerMount>();
+        try
+        {
+            var inspect = await RunCommandAsync(client, ContainerCommands.InspectMounts(head, container.Id.Length > 0 ? container.Id : id), ct);
+            if (inspect.ExitStatus == 0)
+            {
+                mounts = ParseMounts(inspect.StdOut);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "inspect mounts unavailable for {Id}.", id);
+        }
+
+        return (container, mounts);
+    }
+
     public async Task<(bool Success, string Message)> ActionAsync(DockerEnvironment environment, string id, ContainerAction action, CancellationToken ct = default)
     {
         if (!ContainerCommands.IsValidId(id))
@@ -223,6 +318,49 @@ public sealed class ContainerService
     /// <summary>Merges <c>docker stats --format json</c> output into the matching containers (by id).</summary>
     public static void ApplyStats(IReadOnlyList<DockerContainer> containers, string statsOutput)
         => MergeStats(containers, ParseStats(statsOutput));
+
+    /// <summary>Parses the JSON array from <c>docker inspect --format '{{json .Mounts}}'</c>.</summary>
+    public static IReadOnlyList<ContainerMount> ParseMounts(string json)
+    {
+        var line = json.Trim();
+        if (line.Length == 0)
+        {
+            return Array.Empty<ContainerMount>();
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return Array.Empty<ContainerMount>();
+            }
+
+            var mounts = new List<ContainerMount>();
+            foreach (var m in doc.RootElement.EnumerateArray())
+            {
+                if (m.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? Get(string name) => m.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+                var rw = !m.TryGetProperty("RW", out var rwv) || rwv.ValueKind != JsonValueKind.False;
+                mounts.Add(new ContainerMount(
+                    Get("Type") ?? string.Empty,
+                    Get("Name"),
+                    Get("Source"),
+                    Get("Destination") ?? string.Empty,
+                    rw));
+            }
+
+            return mounts;
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<ContainerMount>();
+        }
+    }
 
     private sealed record StatsEntry(double? Cpu, double? Mem, string? Usage);
 

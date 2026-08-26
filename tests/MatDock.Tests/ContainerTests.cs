@@ -42,6 +42,29 @@ public class ContainerTests
     }
 
     [Fact]
+    public void ParseMounts_reads_volumes_and_binds()
+    {
+        var json = "[{\"Type\":\"volume\",\"Name\":\"data\",\"Source\":\"/var/lib/docker/volumes/data/_data\",\"Destination\":\"/data\",\"RW\":true},"
+                 + "{\"Type\":\"bind\",\"Source\":\"/etc/x\",\"Destination\":\"/etc/x\",\"RW\":false}]";
+        var mounts = ContainerService.ParseMounts(json);
+
+        Assert.Equal(2, mounts.Count);
+        Assert.True(mounts[0].IsVolume);
+        Assert.Equal("data", mounts[0].Name);
+        Assert.True(mounts[0].ReadWrite);
+        Assert.False(mounts[1].IsVolume);
+        Assert.False(mounts[1].ReadWrite);
+        Assert.Equal("/etc/x", mounts[1].Destination);
+    }
+
+    [Fact]
+    public void ParseMounts_handles_empty_or_null()
+    {
+        Assert.Empty(ContainerService.ParseMounts(""));
+        Assert.Empty(ContainerService.ParseMounts("null"));
+    }
+
+    [Fact]
     public void ParseContainers_without_compose_labels_has_null_project()
     {
         var line = "{\"ID\":\"z1\",\"Names\":\"solo\",\"Image\":\"redis\",\"State\":\"exited\",\"Status\":\"Exited (0)\",\"Ports\":\"\",\"Labels\":\"foo=bar\"}";

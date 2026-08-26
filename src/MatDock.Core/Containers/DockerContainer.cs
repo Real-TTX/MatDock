@@ -30,3 +30,9 @@ public enum ContainerAction
     Stop,
     Restart
 }
+
+/// <summary>A mount of a container (from <c>docker inspect .Mounts</c>): a named volume or a bind.</summary>
+public sealed record ContainerMount(string Type, string? Name, string? Source, string Destination, bool ReadWrite)
+{
+    public bool IsVolume => string.Equals(Type, "volume", StringComparison.OrdinalIgnoreCase);
+}

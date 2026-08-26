@@ -1,0 +1,104 @@
+@page
+@using MatDock.Core.Containers
+@model MatDock.Web.Pages.Containers.ContainerDetailModel
+@{
+    ViewData["Title"] = "Container";
+    var c = Model.Container;
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@(c?.Name ?? Model.Id)</h1>
+        <span class="page-head__subtitle mono">@Model.Environment?.Name @(c?.Project is { Length: > 0 } ? "· Stack " + c.Project : "")</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Containers?EnvId=@Model.EnvId&Tab=container" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span></div>
+}
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+else if (c is not null)
+{
+    <div class="mat-buttons" style="margin-bottom:16px;">
+        <a class="mat-btn" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
+        @if (c.IsRunning)
+        {
+            <form method="post" asp-page-handler="Action" style="display:inline;">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
+                <button type="submit" class="mat-btn"><icon name="refresh" /><span>Neustart</span></button>
+            </form>
+            <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
+                <button type="submit" class="mat-btn mat-btn--danger"><icon name="x-circle" /><span>Stop</span></button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Action" style="display:inline;">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Start</span></button>
+            </form>
+        }
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="box" /><span>Details</span></div>
+        <div class="mat-table__scroll">
+            <table class="data">
+                <tbody>
+                    <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="pill pill--unknown">@c.Status</span>}</td></tr>
+                    <tr><th>Image</th><td class="mono">@c.Image</td></tr>
+                    <tr><th>Stack</th><td>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</td></tr>
+                    <tr><th>Ports</th><td class="mono">@(string.IsNullOrEmpty(c.Ports) ? "–" : c.Ports)</td></tr>
+                    <tr><th>CPU</th><td>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</td></tr>
+                    <tr><th>RAM</th><td>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td></tr>
+                    <tr><th>ID</th><td class="mono">@c.Id</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__header"><icon name="volume" /><span>Volumes &amp; Mounts</span><span class="mat-badge">@Model.Mounts.Count</span></div>
+        @if (Model.Mounts.Count == 0)
+        {
+            <div class="empty-state"><p>Keine Mounts.</p></div>
+        }
+        else
+        {
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th>Typ</th><th>Quelle</th><th>Ziel (im Container)</th><th>Modus</th></tr></thead>
+                    <tbody>
+                        @foreach (var m in Model.Mounts)
+                        {
+                            <tr>
+                                <td>@(m.IsVolume ? "Volume" : m.Type)</td>
+                                <td class="wrap mono">
+                                    @if (m.IsVolume && !string.IsNullOrEmpty(m.Name))
+                                    {
+                                        <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(m.Name)">@m.Name</a>
+                                    }
+                                    else
+                                    {
+                                        @(m.Source ?? "–")
+                                    }
+                                </td>
+                                <td class="mono">@m.Destination</td>
+                                <td>@(m.ReadWrite ? "rw" : "ro")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

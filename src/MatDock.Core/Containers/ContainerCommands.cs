@@ -33,6 +33,39 @@ public static partial class ContainerCommands
         return VolumeCommands.PathPrefix + dockerHead + " ps " + all + "--filter volume='" + volume + "' --format '{{json .}}'";
     }
 
+    /// <summary>All containers of a compose project (stack). Project name is validated like a container id.</summary>
+    public static string ListByProject(string dockerHead, string project)
+    {
+        if (!IsValidId(project))
+        {
+            throw new ArgumentException($"Ungültiger Projektname: '{project}'.", nameof(project));
+        }
+
+        return VolumeCommands.PathPrefix + dockerHead + " ps -a --filter label=com.docker.compose.project='" + project + "' --format '{{json .}}'";
+    }
+
+    /// <summary>One container by id (as a docker ps JSON line).</summary>
+    public static string Get(string dockerHead, string id)
+    {
+        if (!IsValidId(id))
+        {
+            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+        }
+
+        return VolumeCommands.PathPrefix + dockerHead + " ps -a --filter id='" + id + "' --format '{{json .}}'";
+    }
+
+    /// <summary>The mounts (volumes/binds) of one container as a JSON array.</summary>
+    public static string InspectMounts(string dockerHead, string id)
+    {
+        if (!IsValidId(id))
+        {
+            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+        }
+
+        return VolumeCommands.PathPrefix + dockerHead + " inspect --format '{{json .Mounts}}' '" + id + "'";
+    }
+
     public static string Action(string dockerHead, ContainerAction action, string id)
     {
         if (!IsValidId(id))
