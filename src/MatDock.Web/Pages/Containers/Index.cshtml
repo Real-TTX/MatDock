@@ -1,0 +1,125 @@
+@page
+@using MatDock.Core.Containers
+@model MatDock.Web.Pages.Containers.IndexModel
+@{
+    ViewData["Title"] = "Container";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Container &amp; Stacks</h1>
+        <span class="page-head__subtitle">Container je Environment verwalten</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:16px;">
+    <form method="get" class="js-autosubmit" style="display:contents;">
+        <div class="toolbar-field">
+            <label for="env"><icon name="server" /> Environment</label>
+            <select id="env" name="EnvId" class="mat-select">
+                <option value="0">— wählen —</option>
+                @foreach (var env in Model.Environments)
+                {
+                    <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
+                }
+            </select>
+        </div>
+        <span class="toolbar-spacer"></span>
+        @if (Model.SelectedEnvironment is not null)
+        {
+            <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@Model.EnvId"><icon name="refresh" /><span>Aktualisieren</span></a>
+        }
+    </form>
+</div>
+
+@if (Model.SelectedEnvironment is null)
+{
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Environment wählen, um Container anzuzeigen.</p></div></div>
+}
+else if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>Container konnten nicht geladen werden: @Model.Error</span></div>
+}
+else if (Model.Containers.Count == 0)
+{
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Keine Container auf diesem Host.</p></div></div>
+}
+else
+{
+    @foreach (var group in Model.Containers.GroupBy(c => c.Project).OrderBy(g => g.Key ?? "￿"))
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__header">
+                <icon name="box" />
+                <span>@(group.Key ?? "Einzelne Container")</span>
+                <span class="mat-badge">@group.Count()</span>
+            </div>
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead>
+                        <tr><th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th class="actions">Aktionen</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in group.OrderBy(x => x.Service ?? x.Name))
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@c.Name</strong>
+                                    @if (!string.IsNullOrEmpty(c.Service))
+                                    {
+                                        <div class="cell-sub">@c.Service</div>
+                                    }
+                                </td>
+                                <td class="cell-sub">@c.Image</td>
+                                <td>
+                                    @if (c.IsRunning)
+                                    {
+                                        <span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="pill pill--unknown"><span>@c.Status</span></span>
+                                    }
+                                </td>
+                                <td class="cell-sub">@c.Ports</td>
+                                <td class="actions">
+                                    <div class="row-actions">
+                                        <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                                        @if (c.IsRunning)
+                                        {
+                                            <form method="post" asp-page-handler="Action" style="display:inline;">
+                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                                                <input type="hidden" name="action" value="Restart" />
+                                                <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
+                                            </form>
+                                            <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
+                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                                                <input type="hidden" name="action" value="Stop" />
+                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" asp-page-handler="Action" style="display:inline;">
+                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                                                <input type="hidden" name="action" value="Start" />
+                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}

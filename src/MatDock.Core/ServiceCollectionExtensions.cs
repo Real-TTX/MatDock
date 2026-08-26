@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Backups.BackupTargetService>();
         services.AddScoped<Backups.BackupScheduleRunner>();
         services.AddScoped<Backups.BackupScheduleService>();
+        services.AddScoped<Containers.ContainerService>();
 
         return services;
     }

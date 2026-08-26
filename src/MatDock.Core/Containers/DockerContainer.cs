@@ -1,0 +1,27 @@
+namespace MatDock.Core.Containers;
+
+/// <summary>A container as reported by <c>docker ps -a --format '{{json .}}'</c>.</summary>
+public sealed class DockerContainer
+{
+    public string Id { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string Image { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;   // running, exited, paused, created, ...
+    public string Status { get; init; } = string.Empty;  // human text, e.g. "Up 3 hours"
+    public string? Ports { get; init; }
+
+    /// <summary>docker-compose project (label com.docker.compose.project), or null for standalone.</summary>
+    public string? Project { get; init; }
+
+    /// <summary>docker-compose service name (label com.docker.compose.service).</summary>
+    public string? Service { get; init; }
+
+    public bool IsRunning => string.Equals(State, "running", StringComparison.OrdinalIgnoreCase);
+}
+
+public enum ContainerAction
+{
+    Start,
+    Stop,
+    Restart
+}

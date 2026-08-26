@@ -1,0 +1,34 @@
+@page
+@model MatDock.Web.Pages.Containers.LogsModel
+@{
+    ViewData["Title"] = "Container-Logs";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Logs</h1>
+        <span class="page-head__subtitle mono">@Model.Id · @Model.Environment?.Name</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+<div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:12px;">
+    <span class="text-muted">Zeilen:</span>
+    @foreach (var n in new[] { 100, 200, 500, 1000 })
+    {
+        <a class="mat-btn mat-btn--sm @(Model.Tail == n ? "mat-btn--primary" : "")" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(Model.Id)&tail=@n">@n</a>
+    }
+    <span class="toolbar-spacer"></span>
+    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(Model.Id)&tail=@Model.Tail"><icon name="refresh" /><span>Aktualisieren</span></a>
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+else
+{
+    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;overflow:auto;max-height:70vh;font-family:var(--mono);font-size:.82rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;">@Model.Log</pre>
+}
