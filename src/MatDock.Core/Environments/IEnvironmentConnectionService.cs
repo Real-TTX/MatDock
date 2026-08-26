@@ -17,5 +17,8 @@ public interface IEnvironmentConnectionService
     /// <summary>Full detail (incl. driver options / remote share) of one volume, or null if it does not exist.</summary>
     Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a named volume (docker volume create). Returns an actionable message on failure.</summary>
+    Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, CancellationToken cancellationToken = default);
+
     Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 }

@@ -126,6 +126,23 @@ public class IndexModel : PageModel
             .ToList();
     }
 
+    public async Task<IActionResult> OnPostCreateVolumeAsync(long createEnvId, string newVolumeName)
+    {
+        var env = await _environmentService.GetAsync(createEnvId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
+            IsError = true;
+            return RedirectToPage(new { EnvId, Q });
+        }
+
+        var (ok, message) = await _connectionService.CreateVolumeAsync(_environmentService.BuildSettings(env), newVolumeName ?? string.Empty, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        // Switch to that env and bypass the cache so the new volume shows immediately.
+        return RedirectToPage(new { EnvId = createEnvId, Q, Refresh = true });
+    }
+
     public async Task<IActionResult> OnPostBulkBackupAsync(string[] selected, bool stopContainers)
     {
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);

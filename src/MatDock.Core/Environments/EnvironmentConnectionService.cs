@@ -176,6 +176,30 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
     }
 
+    public async Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, CancellationToken cancellationToken = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(name))
+        {
+            return (false, "Ungültiger Volume-Name (Buchstaben, Zahlen und . _ - erlaubt, Beginn alphanumerisch).");
+        }
+
+        using var client = _sshClientFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, VolumeCommands.Create(name, head), settings);
+        return result.ExitStatus == 0
+            ? (true, $"Volume „{name}“ erstellt.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
     public async Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         using var client = _sshClientFactory.Create(settings);
