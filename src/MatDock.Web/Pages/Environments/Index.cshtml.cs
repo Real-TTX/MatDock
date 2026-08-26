@@ -97,7 +97,8 @@ public class IndexModel : PageModel
     private async Task LoadStatsAsync(IReadOnlyList<DockerEnvironment> environments)
     {
         using var gate = new SemaphoreSlim(4);
-        var tasks = environments.Select(async env =>
+        // Never open SSH to a deactivated host — its card renders with muted gauges instead.
+        var tasks = environments.Where(e => e.IsEnabled).Select(async env =>
         {
             var cacheKey = $"hoststats:{env.Id}";
             if (_cache.TryGetValue(cacheKey, out HostStats? cached) && cached is not null)

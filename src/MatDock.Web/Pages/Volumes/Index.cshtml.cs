@@ -139,7 +139,7 @@ public class IndexModel : PageModel
                 env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
                 envCache[envId] = env;
             }
-            if (env is null)
+            if (env is null || !env.IsEnabled)
             {
                 fail++;
                 continue;
@@ -165,9 +165,9 @@ public class IndexModel : PageModel
         }
 
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
-        if (env is null)
+        if (env is null || !env.IsEnabled)
         {
-            StatusMessage = "Environment nicht gefunden.";
+            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
             IsError = true;
             return RedirectToPage(new { EnvId, Q });
         }

@@ -57,7 +57,7 @@ public class MigrateModel : PageModel
     public async Task<IActionResult> OnGetAsync(long sourceId, string volume)
     {
         var source = await _environmentService.GetAsync(sourceId, HttpContext.RequestAborted);
-        if (source is null)
+        if (source is null || !source.IsEnabled)
         {
             return NotFound();
         }
@@ -75,7 +75,7 @@ public class MigrateModel : PageModel
     public async Task<IActionResult> OnPostAsync()
     {
         await LoadAsync();
-        if (SourceEnvironment is null)
+        if (SourceEnvironment is null || !SourceEnvironment.IsEnabled)
         {
             return NotFound();
         }
@@ -96,9 +96,9 @@ public class MigrateModel : PageModel
         }
 
         var target = await _environmentService.GetAsync(Input.TargetEnvId, HttpContext.RequestAborted);
-        if (target is null)
+        if (target is null || !target.IsEnabled)
         {
-            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht gefunden.");
+            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
             return Page();
         }
 

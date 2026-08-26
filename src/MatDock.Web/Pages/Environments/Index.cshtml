@@ -82,12 +82,15 @@
                             <span class="text-muted" style="font-size:.78rem;">Docker @env.DockerVersion</span>
                         }
                         <span style="flex:1 1 auto;"></span>
-                        <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
-                        <form method="post" asp-page-handler="Test" style="display:inline;">
+                        @if (env.IsEnabled)
+                        {
+                            <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                        }
+                        <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                             <input type="hidden" name="id" value="@env.Id" />
                             <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
                         </form>
-                        <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                        <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
                             <input type="hidden" name="id" value="@env.Id" />
                             <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
                             <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">
@@ -180,12 +183,15 @@
                             <td class="text-muted nowrap">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
                                 <div class="row-actions">
-                                    <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
-                                    <form method="post" asp-page-handler="Test" style="display:inline;">
+                                    @if (env.IsEnabled)
+                        {
+                            <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                        }
+                                    <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
                                     </form>
-                                    <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                                    <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
                                         <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">

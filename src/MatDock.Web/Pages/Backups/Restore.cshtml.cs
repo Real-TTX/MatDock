@@ -74,9 +74,9 @@ public class RestoreModel : PageModel
         }
 
         var target = await _environmentService.GetAsync(Input.TargetEnvId, HttpContext.RequestAborted);
-        if (target is null)
+        if (target is null || !target.IsEnabled)
         {
-            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht gefunden.");
+            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
             return Page();
         }
 

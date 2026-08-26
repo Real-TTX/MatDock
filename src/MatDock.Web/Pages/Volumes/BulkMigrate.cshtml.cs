@@ -70,9 +70,9 @@ public class BulkMigrateModel : PageModel
         }
 
         var targetEnv = await _environmentService.GetAsync(TargetEnvId, HttpContext.RequestAborted);
-        if (targetEnv is null)
+        if (targetEnv is null || !targetEnv.IsEnabled)
         {
-            ModelState.AddModelError(nameof(TargetEnvId), "Ziel-Environment nicht gefunden.");
+            ModelState.AddModelError(nameof(TargetEnvId), "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
             return Page();
         }
 
@@ -107,9 +107,9 @@ public class BulkMigrateModel : PageModel
                 srcEnv = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
                 envCache[envId] = srcEnv;
             }
-            if (srcEnv is null)
+            if (srcEnv is null || !srcEnv.IsEnabled)
             {
-                results.Add(($"{envName}/{volume}", false, "Quell-Environment nicht gefunden."));
+                results.Add(($"{envName}/{volume}", false, "Quell-Environment nicht verfügbar (deaktiviert oder gelöscht)."));
                 continue;
             }
 
