@@ -93,6 +93,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AuthorizeFolder("/Users", "AdminOnly");
     options.Conventions.AuthorizeFolder("/Settings", "AdminOnly");
+    // The volume file explorer can read/write arbitrary files inside volumes → admins only.
+    options.Conventions.AuthorizePage("/Volumes/Files", "AdminOnly");
+    options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");
 });
 
 var app = builder.Build();

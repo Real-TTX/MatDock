@@ -1,0 +1,49 @@
+@page
+@model MatDock.Web.Pages.Volumes.FileEditModel
+@{
+    ViewData["Title"] = "Datei bearbeiten";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@Model.FileName</h1>
+        <span class="page-head__subtitle mono">@Model.Volume · @Model.Environment?.Name</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+else if (Model.IsBinary)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Binärdatei – kann hier nicht bearbeitet werden.</span></div>
+}
+else
+{
+    @if (Model.Truncated)
+    {
+        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist größer als @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB und wurde zum Bearbeiten abgeschnitten – Speichern würde den Rest verwerfen.</span></div>
+    }
+    <form method="post" asp-page-handler="Save">
+        <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Path" />
+        <textarea name="FileContent" class="mat-textarea mono" rows="24" spellcheck="false" style="width:100%;font-size:.85rem;" readonly="@(Model.Truncated ? "readonly" : null)">@Model.FileContent</textarea>
+        <mat-form-buttons>
+            @if (!Model.Truncated)
+            {
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+            }
+            <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+        </mat-form-buttons>
+    </form>
+}

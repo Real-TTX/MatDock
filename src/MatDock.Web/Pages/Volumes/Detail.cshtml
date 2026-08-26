@@ -55,6 +55,10 @@ else
     var d = Model.Detail;
 
     <div class="mat-buttons" style="margin-bottom:16px;">
+        @if (User.IsAdmin())
+        {
+            <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Dateien</span></a>
+        }
         <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrieren</span></a>
         <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
     </div>

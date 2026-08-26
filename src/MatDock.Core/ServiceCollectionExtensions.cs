@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEnvironmentConnectionService, EnvironmentConnectionService>();
         services.AddScoped<Volumes.VolumeMigrationService>();
         services.AddScoped<Volumes.VolumeBackupService>();
+        services.AddScoped<Volumes.VolumeFileService>();
         services.AddScoped<Backups.BackupTargetService>();
         services.AddScoped<Backups.BackupScheduleRunner>();
         services.AddScoped<Backups.BackupScheduleService>();
