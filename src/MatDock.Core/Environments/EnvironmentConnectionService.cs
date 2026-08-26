@@ -99,6 +99,83 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return ParseVolumes(result.StdOut);
     }
 
+    public async Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(volume))
+        {
+            return null;
+        }
+
+        using var client = _sshClientFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, VolumeCommands.InspectJson(volume, head), settings);
+        return result.ExitStatus != 0 ? null : ParseVolumeDetail(result.StdOut);
+    }
+
+    private static DockerVolumeDetail? ParseVolumeDetail(string json)
+    {
+        var line = DockerErrorMessages.FirstLine(json);
+        if (line is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString()
+                : null;
+
+            IReadOnlyDictionary<string, string> Obj(string name)
+            {
+                var map = new Dictionary<string, string>();
+                if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var p in v.EnumerateObject())
+                    {
+                        if (p.Value.ValueKind == JsonValueKind.String)
+                        {
+                            map[p.Name] = p.Value.GetString()!;
+                        }
+                    }
+                }
+
+                return map;
+            }
+
+            return new DockerVolumeDetail
+            {
+                Name = Get("Name") ?? string.Empty,
+                Driver = Get("Driver") ?? string.Empty,
+                Mountpoint = Get("Mountpoint"),
+                Scope = Get("Scope"),
+                CreatedAt = Get("CreatedAt"),
+                Options = Obj("Options"),
+                Labels = Obj("Labels"),
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     public async Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         using var client = _sshClientFactory.Create(settings);

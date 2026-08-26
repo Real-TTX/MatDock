@@ -89,7 +89,7 @@
                                 <td><input type="checkbox" class="row-check" name="selected" value="@row.Environment.Id|@row.Volume.Name" aria-label="auswählen" /></td>
                                 <td><span class="mat-badge">@row.Environment.Name</span></td>
                                 <td class="wrap">
-                                    <strong>@row.Volume.Name</strong>
+                                    <a href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"><strong>@row.Volume.Name</strong></a>
                                     @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
                                     {
                                         <div class="cell-sub">@row.Volume.Mountpoint</div>

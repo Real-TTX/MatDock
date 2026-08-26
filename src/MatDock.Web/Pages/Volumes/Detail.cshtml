@@ -1,0 +1,152 @@
+@page
+@model MatDock.Web.Pages.Volumes.DetailModel
+@{
+    ViewData["Title"] = "Volume-Detail";
+    var oic = StringComparison.OrdinalIgnoreCase;
+    bool IsSecret(string k) => k.Contains("pass", oic) || k.Contains("secret", oic) || k.Contains("cred", oic) || k.Contains("token", oic);
+    string Redact(string key, string value)
+    {
+        // The CIFS/NFS "o" option is a comma-list that may carry password=… — never render secrets.
+        if (key.Equals("o", oic))
+        {
+            var parts = value.Split(',').Select(p =>
+            {
+                var eq = p.IndexOf('=');
+                var k = eq > 0 ? p[..eq] : p;
+                return eq > 0 && IsSecret(k) ? k + "=***" : p;
+            });
+            return string.Join(",", parts);
+        }
+        return IsSecret(key) ? "***" : value;
+    }
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@Model.VolumeName</h1>
+        <span class="page-head__subtitle">Volume auf @Model.Environment?.Name</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Volumes?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+else if (Model.Detail is null)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Volume „@Model.VolumeName" wurde auf diesem Host nicht gefunden.</span></div>
+}
+else
+{
+    var d = Model.Detail;
+
+    <div class="mat-buttons" style="margin-bottom:16px;">
+        <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrieren</span></a>
+        <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
+    </div>
+
+    @if (d.IsRemote)
+    {
+        <div class="alert alert--info">
+            <icon name="volume" />
+            <span>Remote-Freigabe (@(d.Options.TryGetValue("type", out var t) ? t : "remote")): <strong class="mono">@d.Device</strong></span>
+        </div>
+    }
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="volume" /><span>Details</span></div>
+        <div class="mat-table__scroll">
+            <table class="data">
+                <tbody>
+                    <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
+                    <tr><th>Treiber</th><td>@d.Driver</td></tr>
+                    <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
+                    <tr><th>Erstellt</th><td>@(d.CreatedAt ?? "–")</td></tr>
+                    <tr><th>Mountpoint (lokal)</th><td class="mono">@(d.Mountpoint ?? "–")</td></tr>
+                    @if (d.Device is not null)
+                    {
+                        <tr><th>Remote-Share</th><td class="mono">@d.Device</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (d.Options.Count > 0)
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__header"><icon name="settings" /><span>Treiber-Optionen</span></div>
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th style="width:180px;">Schlüssel</th><th>Wert</th></tr></thead>
+                    <tbody>
+                        @foreach (var kv in d.Options)
+                        {
+                            <tr><td class="mono">@kv.Key</td><td class="mono">@Redact(kv.Key, kv.Value)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (d.Labels.Count > 0)
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__header"><icon name="filter" /><span>Labels</span></div>
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th style="width:280px;">Schlüssel</th><th>Wert</th></tr></thead>
+                    <tbody>
+                        @foreach (var kv in d.Labels)
+                        {
+                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card__header"><icon name="box" /><span>Wird verwendet von</span><span class="mat-badge">@Model.UsedBy.Count</span></div>
+        @if (Model.UsedBy.Count == 0)
+        {
+            <div class="empty-state"><div><icon name="box" /></div><p>Kein Container nutzt dieses Volume.</p></div>
+        }
+        else
+        {
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th>Container</th><th>Stack</th><th>Status</th><th>Ports</th><th class="actions"></th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.UsedBy)
+                        {
+                            <tr>
+                                <td><strong>@c.Name</strong>@if (!string.IsNullOrEmpty(c.Service)) {<div class="cell-sub">@c.Service</div>}</td>
+                                <td class="cell-sub">@(c.Project ?? "–")</td>
+                                <td>
+                                    @if (c.IsRunning)
+                                    {
+                                        <span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="pill pill--unknown"><span>@c.Status</span></span>
+                                    }
+                                </td>
+                                <td class="cell-sub">@c.Ports</td>
+                                <td class="actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

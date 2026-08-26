@@ -117,6 +117,18 @@ public static partial class VolumeCommands
         return PathPrefix + $"{dockerHead} volume inspect '{volume}'";
     }
 
+    /// <summary>Full volume detail as a single JSON object (driver, mountpoint, options, labels).</summary>
+    public static string InspectJson(string volume, string dockerHead = "docker")
+    {
+        if (!IsValidVolumeName(volume))
+        {
+            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+        }
+
+        // Braces built by concatenation so the Go template survives (see note below).
+        return PathPrefix + dockerHead + " volume inspect '" + volume + "' --format '{{json .}}'";
+    }
+
     /// <summary>Counts entries in a volume; used to detect a non-empty target before overwriting.</summary>
     public static string CountEntries(string volume, string image, string dockerHead = "docker")
     {

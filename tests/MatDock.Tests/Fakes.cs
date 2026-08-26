@@ -47,6 +47,12 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
         LastSettings = settings;
         return Task.FromResult(new HostStats());
     }
+
+    public Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult<DockerVolumeDetail?>(new DockerVolumeDetail { Name = volume, Driver = "local" });
+    }
 }
 
 /// <summary>No-op storage factory for service tests that don't touch real storage.</summary>

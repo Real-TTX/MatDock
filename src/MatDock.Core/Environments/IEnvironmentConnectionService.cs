@@ -14,5 +14,8 @@ public interface IEnvironmentConnectionService
 
     Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 
+    /// <summary>Full detail (incl. driver options / remote share) of one volume, or null if it does not exist.</summary>
+    Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default);
+
     Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 }

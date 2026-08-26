@@ -67,3 +67,28 @@ public sealed class DockerVolume
 
     public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
 }
+
+/// <summary>Full detail of a Docker volume from <c>docker volume inspect</c> (incl. driver options).</summary>
+public sealed class DockerVolumeDetail
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string Driver { get; init; } = string.Empty;
+
+    public string? Mountpoint { get; init; }
+
+    public string? Scope { get; init; }
+
+    public string? CreatedAt { get; init; }
+
+    /// <summary>Driver options; for CIFS/NFS volumes this holds the remote share (device), o, type.</summary>
+    public IReadOnlyDictionary<string, string> Options { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The remote share/device for CIFS/NFS volumes (<c>Options["device"]</c>), otherwise null.</summary>
+    public string? Device => Options.TryGetValue("device", out var d) && !string.IsNullOrEmpty(d) ? d : null;
+
+    /// <summary>True when the volume is a remote mount (has a device option), e.g. SMB/CIFS or NFS.</summary>
+    public bool IsRemote => Device is not null;
+}
