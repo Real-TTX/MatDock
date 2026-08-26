@@ -81,10 +81,14 @@ public static class VolumeFileCommands
            + "sh -c " + ShellQuote("[ -f \"$1\" ] || { echo NOTAFILE >&2; exit 9; }; head -c " + (MaxReadBytes + 1) + " -- \"$1\"")
            + " sh " + ShellQuote(ContainerPath(relPath));
 
-    /// <summary>Writes stdin to the file (creating or overwriting).</summary>
+    /// <summary>
+    /// Writes stdin to the file atomically: stream into a temp file in the same dir, then <c>mv</c> it
+    /// into place, so an interrupted transfer leaves the original intact instead of truncating it.
+    /// </summary>
     public static string Write(string dockerHead, string image, string volume, string relPath)
         => Head(dockerHead, image, volume, readOnly: false, stdin: true)
-           + "sh -c " + ShellQuote("cat > \"$1\"") + " sh " + ShellQuote(ContainerPath(relPath));
+           + "sh -c " + ShellQuote("tmp=\"$1.$$.matdock.tmp\"; cat > \"$tmp\" && mv -- \"$tmp\" \"$1\"")
+           + " sh " + ShellQuote(ContainerPath(relPath));
 
     public static string MakeDir(string dockerHead, string image, string volume, string relPath)
         => Head(dockerHead, image, volume, readOnly: false, stdin: false)

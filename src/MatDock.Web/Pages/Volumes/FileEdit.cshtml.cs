@@ -28,6 +28,7 @@ public class FileEditModel : PageModel
     public string ParentPath => Path.Contains('/') ? Path[..Path.LastIndexOf('/')] : string.Empty;
     public bool IsBinary { get; private set; }
     public bool Truncated { get; private set; }
+    public bool NonUtf8 { get; private set; }
     public string? Error { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -50,6 +51,7 @@ public class FileEditModel : PageModel
         {
             IsBinary = file.IsBinary;
             Truncated = file.Truncated;
+            NonUtf8 = file.NonUtf8;
             FileContent = file.IsBinary ? string.Empty : file.Content;
         }
 
@@ -62,6 +64,25 @@ public class FileEditModel : PageModel
         if (Environment is not { IsEnabled: true })
         {
             return NotFound();
+        }
+
+        // Server-side guard: re-read the current file and refuse to save anything that the editor may
+        // only have shown partially/lossily (large, binary, or non-UTF-8) — never clobber it.
+        var (current, error) = await _fileService.ReadAsync(Environment, Volume, Path, HttpContext.RequestAborted);
+        if (error is not null)
+        {
+            Error = error;
+            return Page();
+        }
+
+        if (current is null || !current.Editable)
+        {
+            IsBinary = current?.IsBinary ?? false;
+            Truncated = current?.Truncated ?? false;
+            NonUtf8 = current?.NonUtf8 ?? false;
+            StatusMessage = "Datei kann nicht gespeichert werden (zu groß, binär oder keine UTF-8-Textdatei).";
+            IsError = true;
+            return Page();
         }
 
         var (ok, message) = await _fileService.WriteAsync(Environment, Volume, Path, FileContent, HttpContext.RequestAborted);

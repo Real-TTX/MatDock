@@ -31,15 +31,20 @@ else if (Model.IsBinary)
 }
 else
 {
+    var editable = !Model.Truncated && !Model.NonUtf8;
     @if (Model.Truncated)
     {
-        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist größer als @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB und wurde zum Bearbeiten abgeschnitten – Speichern würde den Rest verwerfen.</span></div>
+        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist größer als @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB – nur der Anfang wird angezeigt, Speichern ist deaktiviert (kein Datenverlust).</span></div>
+    }
+    else if (Model.NonUtf8)
+    {
+        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist nicht UTF-8-kodiert – schreibgeschützt, um Beschädigung zu vermeiden.</span></div>
     }
     <form method="post" asp-page-handler="Save">
         <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Path" />
-        <textarea name="FileContent" class="mat-textarea mono" rows="24" spellcheck="false" style="width:100%;font-size:.85rem;" readonly="@(Model.Truncated ? "readonly" : null)">@Model.FileContent</textarea>
+        <textarea name="FileContent" class="mat-textarea mono" rows="24" spellcheck="false" style="width:100%;font-size:.85rem;" readonly="@(editable ? null : "readonly")">@Model.FileContent</textarea>
         <mat-form-buttons>
-            @if (!Model.Truncated)
+            @if (editable)
             {
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
             }
