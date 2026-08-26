@@ -126,7 +126,7 @@ public class IndexModel : PageModel
             .ToList();
     }
 
-    public async Task<IActionResult> OnPostBulkBackupAsync(string[] selected)
+    public async Task<IActionResult> OnPostBulkBackupAsync(string[] selected, bool stopContainers)
     {
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
         var envCache = new Dictionary<long, DockerEnvironment?>();
@@ -145,7 +145,7 @@ public class IndexModel : PageModel
                 continue;
             }
 
-            var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, HttpContext.RequestAborted);
+            var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
             if (result.Success) { ok++; } else { fail++; }
         }
 
@@ -154,7 +154,7 @@ public class IndexModel : PageModel
         return RedirectToPage(new { EnvId, Q });
     }
 
-    public async Task<IActionResult> OnPostBackupAsync(string single)
+    public async Task<IActionResult> OnPostBackupAsync(string single, bool stopContainers)
     {
         var (envId, volume) = VolumeSelection.Parse(new[] { single }).FirstOrDefault();
         if (volume is null)
@@ -173,7 +173,7 @@ public class IndexModel : PageModel
         }
 
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
-        var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, HttpContext.RequestAborted);
+        var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
         StatusMessage = $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}";
         IsError = !result.Success;
         return RedirectToPage(new { EnvId, Q });

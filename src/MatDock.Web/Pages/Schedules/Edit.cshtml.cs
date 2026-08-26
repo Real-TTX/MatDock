@@ -63,6 +63,8 @@ public class EditModel : PageModel
         public int RetentionDays { get; set; }
 
         public bool Enabled { get; set; } = true;
+
+        public bool StopContainers { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -87,7 +89,8 @@ public class EditModel : PageModel
                 Cron = s.Cron,
                 RetentionCount = s.RetentionCount,
                 RetentionDays = s.RetentionDays,
-                Enabled = s.Enabled
+                Enabled = s.Enabled,
+                StopContainers = s.StopContainers
             };
 
             await LoadVolumesAsync(s.EnvironmentId);
@@ -134,7 +137,8 @@ public class EditModel : PageModel
             Cron = Input.Cron,
             RetentionCount = Input.RetentionCount,
             RetentionDays = Input.RetentionDays,
-            Enabled = Input.Enabled
+            Enabled = Input.Enabled,
+            StopContainers = Input.StopContainers
         };
 
         if (IsEdit)

@@ -62,7 +62,7 @@ public sealed class BackupScheduleRunner
         foreach (var volume in volumes)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await _backupService.BackupAsync(env, volume, target, schedule.Id, ct);
+            var result = await _backupService.BackupAsync(env, volume, target, schedule.Id, ct, stopContainers: schedule.StopContainers);
             if (result.Success)
             {
                 ok++;

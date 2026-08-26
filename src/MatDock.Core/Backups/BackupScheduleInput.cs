@@ -14,4 +14,7 @@ public sealed class BackupScheduleInput
     public int RetentionCount { get; set; }
     public int RetentionDays { get; set; }
     public bool Enabled { get; set; } = true;
+
+    /// <summary>Stop the volume's containers during each run, then restart them (consistency).</summary>
+    public bool StopContainers { get; set; }
 }

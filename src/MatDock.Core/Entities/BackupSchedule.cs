@@ -27,6 +27,9 @@ public class BackupSchedule : AuditableEntity
 
     public bool Enabled { get; set; } = true;
 
+    /// <summary>Stop the volume's containers during each scheduled backup, then restart them (consistency).</summary>
+    public bool StopContainers { get; set; }
+
     public DateTime? LastRunAt { get; set; }
 
     public string? LastStatus { get; set; }

@@ -93,6 +93,12 @@
                         <span>Zeitplan aktiv</span>
                     </label>
                 </mat-field>
+                <mat-field label="Container">
+                    <label class="mat-check" style="margin-top:8px;">
+                        <input asp-for="Input.StopContainers" type="checkbox" />
+                        <span>Container während des Backups stoppen und danach wieder starten (konsistenter Snapshot)</span>
+                    </label>
+                </mat-field>
                 <mat-field label="Aufbewahren: Anzahl" asp-for="Input.RetentionCount" hint="Neueste N je Volume behalten (0 = unbegrenzt)">
                     <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
                 </mat-field>

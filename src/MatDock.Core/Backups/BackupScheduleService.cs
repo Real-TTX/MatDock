@@ -132,6 +132,7 @@ public sealed class BackupScheduleService
         schedule.RetentionCount = Math.Max(0, input.RetentionCount);
         schedule.RetentionDays = Math.Max(0, input.RetentionDays);
         schedule.Enabled = input.Enabled;
+        schedule.StopContainers = input.StopContainers;
         schedule.NextRunAt = input.Enabled ? SafeNext(schedule.Cron, DateTime.UtcNow) : null;
     }
 
