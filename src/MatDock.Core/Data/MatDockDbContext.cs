@@ -25,6 +25,7 @@ public class MatDockDbContext : DbContext
     public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
     public DbSet<BackupTarget> BackupTargets => Set<BackupTarget>();
     public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
+    public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,0 +1,95 @@
+@page
+@model MatDock.Web.Pages.Settings.NotificationsModel
+@{
+    ViewData["Title"] = "Benachrichtigungen";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Benachrichtigungen</h1>
+        <span class="page-head__subtitle">E-Mail (SMTP) und Webhook bei Backup-/Zeitplan-Ergebnissen</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="All" class="mat-validation"></div>
+
+    <div class="card" style="margin-bottom:16px;max-width:820px;">
+        <div class="card__header"><icon name="alert" /><span>Auslöser</span></div>
+        <div class="card__body">
+            <label class="mat-check">
+                <input asp-for="Input.NotifyOnFailure" type="checkbox" />
+                <span>Bei Fehlern benachrichtigen</span>
+            </label>
+            <label class="mat-check">
+                <input asp-for="Input.NotifyOnSuccess" type="checkbox" />
+                <span>Auch bei Erfolg benachrichtigen</span>
+            </label>
+            <p class="text-muted" style="font-size:.82rem;margin-top:6px;">Gilt für Zeitplan-Backups (Ergebnis je Lauf).</p>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;max-width:820px;">
+        <div class="card__header"><icon name="server" /><span>E-Mail (SMTP)</span></div>
+        <div class="card__body">
+            <label class="mat-check">
+                <input asp-for="Input.SmtpEnabled" type="checkbox" />
+                <span>E-Mail-Benachrichtigung aktiv</span>
+            </label>
+            <div class="mat-form">
+                <mat-field label="SMTP-Host" asp-for="Input.SmtpHost">
+                    <input asp-for="Input.SmtpHost" class="mat-input" placeholder="smtp.example.com" autocomplete="off" />
+                </mat-field>
+                <mat-field label="Port" asp-for="Input.SmtpPort">
+                    <input asp-for="Input.SmtpPort" type="number" min="1" max="65535" class="mat-input" />
+                </mat-field>
+                <label class="mat-check">
+                    <input asp-for="Input.SmtpUseTls" type="checkbox" />
+                    <span>TLS/STARTTLS verwenden</span>
+                </label>
+                <mat-field label="Benutzer" asp-for="Input.SmtpUsername">
+                    <input asp-for="Input.SmtpUsername" class="mat-input" autocomplete="off" />
+                </mat-field>
+                <mat-field label="Passwort" asp-for="Input.SmtpPassword" hint="@(Model.HasStoredPassword ? "Leer lassen, um das gespeicherte Passwort zu behalten." : null)">
+                    <input asp-for="Input.SmtpPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+                <mat-field label="Absender (From)" asp-for="Input.SmtpFrom">
+                    <input asp-for="Input.SmtpFrom" class="mat-input" placeholder="matdock@example.com" autocomplete="off" />
+                </mat-field>
+                <mat-field label="Empfänger (To)" asp-for="Input.SmtpTo" hint="Mehrere durch Komma trennen.">
+                    <input asp-for="Input.SmtpTo" class="mat-input" placeholder="admin@example.com" autocomplete="off" />
+                </mat-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;max-width:820px;">
+        <div class="card__header"><icon name="plug" /><span>Webhook</span></div>
+        <div class="card__body">
+            <label class="mat-check">
+                <input asp-for="Input.WebhookEnabled" type="checkbox" />
+                <span>Webhook-Benachrichtigung aktiv</span>
+            </label>
+            <mat-field label="Webhook-URL" asp-for="Input.WebhookUrl" hint="Es wird ein JSON-POST gesendet.">
+                <input asp-for="Input.WebhookUrl" class="mat-input" placeholder="https://hooks.example.com/…" autocomplete="off" />
+            </mat-field>
+        </div>
+    </div>
+
+    <mat-form-buttons>
+        <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+        <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Test senden</span></button>
+        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+    </mat-form-buttons>
+    <p class="text-muted" style="font-size:.82rem;margin-top:8px;">„Test senden" verwendet die zuletzt gespeicherten Einstellungen.</p>
+</form>

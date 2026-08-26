@@ -13,17 +13,20 @@ public sealed class BackupScheduleRunner
     private readonly MatDockDbContext _db;
     private readonly EnvironmentService _environmentService;
     private readonly VolumeBackupService _backupService;
+    private readonly Notifications.INotificationService _notifications;
     private readonly ILogger<BackupScheduleRunner> _logger;
 
     public BackupScheduleRunner(
         MatDockDbContext db,
         EnvironmentService environmentService,
         VolumeBackupService backupService,
+        Notifications.INotificationService notifications,
         ILogger<BackupScheduleRunner> logger)
     {
         _db = db;
         _environmentService = environmentService;
         _backupService = backupService;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -81,6 +84,18 @@ public sealed class BackupScheduleRunner
         }
 
         _logger.LogInformation("Schedule '{Name}' run: {Summary}", schedule.Name, summary);
+
+        // Notify on the actual backup result (best-effort; config-error early returns above are only
+        // recorded as LastStatus to avoid alerting on every run of a misconfigured schedule).
+        try
+        {
+            await _notifications.NotifyScheduleResultAsync(schedule.Name, summary, failures.Count == 0, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Notification for schedule {Name} failed.", schedule.Name);
+        }
+
         return summary;
     }
 
