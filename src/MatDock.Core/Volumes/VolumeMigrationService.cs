@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using MatDock.Core.Configuration;
+using MatDock.Core.Entities;
 using MatDock.Core.Ssh;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,15 +16,18 @@ namespace MatDock.Core.Volumes;
 public sealed class VolumeMigrationService
 {
     private readonly ISshClientFactory _sshClientFactory;
+    private readonly VolumeBackupService _backupService;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeMigrationService> _logger;
 
     public VolumeMigrationService(
         ISshClientFactory sshClientFactory,
+        VolumeBackupService backupService,
         IOptions<MatDockOptions> options,
         ILogger<VolumeMigrationService> logger)
     {
         _sshClientFactory = sshClientFactory;
+        _backupService = backupService;
         _options = options.Value;
         _logger = logger;
     }
@@ -128,6 +132,63 @@ public sealed class VolumeMigrationService
             _logger.LogInformation(ex, "Volume migration {Src} -> {Dst} failed.", request.SourceVolume, request.TargetVolume);
             return VolumeMigrationResult.Fail($"Fehler: {Innermost(ex).Message}", steps);
         }
+    }
+
+    /// <summary>
+    /// Migrates by backing the source volume up to a backup target and then restoring that backup into
+    /// the target host — reusing the tested backup/restore pipeline. The intermediate backup is a durable
+    /// safety net: it is kept on any failure, and on success only removed when <paramref name="keepBackup"/>
+    /// is false.
+    /// </summary>
+    public async Task<VolumeMigrationResult> MigrateViaBackupAsync(
+        DockerEnvironment source,
+        string sourceVolume,
+        DockerEnvironment target,
+        string targetVolume,
+        bool overwrite,
+        BackupTarget? backupTarget,
+        bool keepBackup,
+        CancellationToken cancellationToken = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(sourceVolume) || !VolumeCommands.IsValidVolumeName(targetVolume))
+        {
+            return VolumeMigrationResult.Fail("Ungültiger Volume-Name.");
+        }
+
+        var steps = new List<string>();
+        var stopwatch = Stopwatch.StartNew();
+
+        // 1) Back the source up (safety net + transport artifact).
+        var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, cancellationToken);
+        if (!backup.Success || backup.BackupId is not { } backupId)
+        {
+            return VolumeMigrationResult.Fail($"Backup der Quelle fehlgeschlagen: {backup.Message}", steps);
+        }
+        steps.Add($"Backup erstellt ({VolumeMigrationResult.FormatBytes(backup.BytesTransferred)}) auf „{backupTarget?.Name ?? "Lokal"}“.");
+
+        // 2) Restore that backup into the target. On failure the backup is intentionally KEPT so the
+        //    restore can be retried without touching the source again.
+        var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, cancellationToken);
+        if (!restore.Success)
+        {
+            steps.Add("Backup bleibt erhalten – Restore kann daraus wiederholt werden.");
+            return VolumeMigrationResult.Fail($"Restore ins Ziel fehlgeschlagen: {restore.Message}", steps);
+        }
+        steps.Add($"Restore ins Ziel „{target.Name}/{targetVolume}“ erfolgreich.");
+
+        // 3) Optionally remove the intermediate backup (default is to keep it).
+        if (keepBackup)
+        {
+            steps.Add("Zwischen-Backup als Sicherung behalten.");
+        }
+        else
+        {
+            var deleted = await _backupService.DeleteAsync(backupId, cancellationToken);
+            steps.Add(deleted ? "Zwischen-Backup entfernt." : "Zwischen-Backup konnte nicht entfernt werden.");
+        }
+
+        stopwatch.Stop();
+        return VolumeMigrationResult.Ok(restore.BytesTransferred, stopwatch.Elapsed.TotalSeconds, steps);
     }
 
     private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string commandText)

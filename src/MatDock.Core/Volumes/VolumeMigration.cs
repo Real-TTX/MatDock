@@ -2,6 +2,16 @@ using MatDock.Core.Ssh;
 
 namespace MatDock.Core.Volumes;
 
+/// <summary>How a volume migration transfers the data.</summary>
+public enum MigrationMode
+{
+    /// <summary>tar streamed straight from source into target over SSH — fast, no intermediate storage.</summary>
+    Direct = 0,
+
+    /// <summary>Back the source up to a backup target, then restore into the target — leaves a safety-net backup.</summary>
+    ViaBackup = 1,
+}
+
 /// <summary>Everything needed to move one volume from a source host to a target host.</summary>
 public sealed class VolumeMigrationRequest
 {

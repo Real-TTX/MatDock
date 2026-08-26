@@ -79,9 +79,40 @@ else
                     <span>Überschreiben, falls Ziel-Volumes bereits Daten enthalten</span>
                 </label>
 
-                <div class="alert alert--info">
-                    <icon name="alert" />
-                    <span>Jedes Volume wird per <code>tar</code> über SSH auf das Ziel-Environment mit gleichem Namen übertragen.</span>
+                <div class="mat-field">
+                    <label class="mat-label" for="MigrationMode">Migrationsart</label>
+                    <select name="Mode" id="MigrationMode" class="mat-select">
+                        <option value="Direct">Direkt (Streaming) — schnell, kein Zwischenspeicher</option>
+                        <option value="ViaBackup">Über Backup (mit Sicherung) — Backup → Restore</option>
+                    </select>
+                </div>
+
+                <div data-show-when="MigrationMode=Direct">
+                    <div class="alert alert--info">
+                        <icon name="alert" />
+                        <span>Jedes Volume wird per <code>tar</code> direkt über SSH auf das Ziel-Environment mit gleichem Namen übertragen (kein Zwischenspeicher).</span>
+                    </div>
+                </div>
+
+                <div data-show-when="MigrationMode=ViaBackup">
+                    <div class="mat-field">
+                        <label class="mat-label" for="BackupTargetId">Backup-Ziel (Zwischenspeicher)</label>
+                        <select name="BackupTargetId" id="BackupTargetId" class="mat-select">
+                            <option value="0">Lokal (MatDock /data)</option>
+                            @foreach (var t in Model.BackupTargets)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <label class="mat-check">
+                        <input asp-for="KeepBackup" type="checkbox" />
+                        <span>Backups nach erfolgreicher Migration behalten (Sicherheitsnetz)</span>
+                    </label>
+                    <div class="alert alert--info">
+                        <icon name="save" />
+                        <span>Jedes Volume wird zuerst gesichert und dann ins Ziel zurückgespielt. Bei einem Fehler bleibt das Backup erhalten. Benötigt freien Platz (~Volumengröße) am Backup-Ziel.</span>
+                    </div>
                 </div>
 
                 <mat-form-buttons>

@@ -84,9 +84,42 @@ else
             </div>
         </div>
 
-        <div class="alert alert--info">
-            <icon name="alert" />
-            <span>Die Daten werden per <code>tar</code> direkt über SSH gestreamt (Quelle → Ziel), ohne Zwischenspeicher. Voraussetzung: Docker + das Helfer-Image (<code>busybox</code>) auf beiden Hosts.</span>
+        <div class="mat-form" style="margin-top:20px;">
+            <mat-field label="Migrationsart" asp-for="Input.Mode">
+                <select asp-for="Input.Mode" id="MigrationMode" class="mat-select">
+                    <option value="Direct">Direkt (Streaming) — schnell, kein Zwischenspeicher</option>
+                    <option value="ViaBackup">Über Backup (mit Sicherung) — Backup → Restore</option>
+                </select>
+            </mat-field>
+        </div>
+
+        <div data-show-when="MigrationMode=Direct">
+            <div class="alert alert--info">
+                <icon name="alert" />
+                <span>Die Daten werden per <code>tar</code> direkt über SSH gestreamt (Quelle → Ziel), ohne Zwischenspeicher. Die Quelle wird nur lesend gemountet. Voraussetzung: Docker + das Helfer-Image (<code>busybox</code>) auf beiden Hosts.</span>
+            </div>
+        </div>
+
+        <div data-show-when="MigrationMode=ViaBackup">
+            <div class="mat-form">
+                <mat-field label="Backup-Ziel (Zwischenspeicher)" asp-for="Input.BackupTargetId">
+                    <select asp-for="Input.BackupTargetId" class="mat-select">
+                        <option value="0">Lokal (MatDock /data)</option>
+                        @foreach (var t in Model.BackupTargets)
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
+                </mat-field>
+                <label class="mat-check">
+                    <input asp-for="Input.KeepBackup" type="checkbox" />
+                    <span>Backup nach erfolgreicher Migration behalten (Sicherheitsnetz)</span>
+                </label>
+            </div>
+            <div class="alert alert--info">
+                <icon name="save" />
+                <span>Die Quelle wird zuerst als Backup gesichert und dann ins Ziel zurückgespielt. Das Backup bleibt bei einem Fehler immer erhalten und kann erneut restauriert werden. Benötigt freien Platz (~Volumengröße) am Backup-Ziel.</span>
+            </div>
         </div>
 
         <mat-form-buttons>

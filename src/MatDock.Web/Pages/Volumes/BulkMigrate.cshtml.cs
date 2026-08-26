@@ -1,3 +1,4 @@
+using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Volumes;
@@ -10,11 +11,13 @@ public class BulkMigrateModel : PageModel
 {
     private readonly EnvironmentService _environmentService;
     private readonly VolumeMigrationService _migrationService;
+    private readonly BackupTargetService _backupTargetService;
 
-    public BulkMigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService)
+    public BulkMigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService, BackupTargetService backupTargetService)
     {
         _environmentService = environmentService;
         _migrationService = migrationService;
+        _backupTargetService = backupTargetService;
     }
 
     [BindProperty]
@@ -26,7 +29,17 @@ public class BulkMigrateModel : PageModel
     [BindProperty]
     public bool Overwrite { get; set; }
 
+    [BindProperty]
+    public MigrationMode Mode { get; set; } = MigrationMode.Direct;
+
+    [BindProperty]
+    public long BackupTargetId { get; set; }
+
+    [BindProperty]
+    public bool KeepBackup { get; set; } = true;
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
+    public List<BackupTarget> BackupTargets { get; private set; } = new();
     public List<(long EnvId, string EnvName, string Volume)> Selection { get; private set; } = new();
     public List<(string Label, bool Ok, string Message)>? Results { get; private set; }
 
@@ -63,6 +76,17 @@ public class BulkMigrateModel : PageModel
             return Page();
         }
 
+        BackupTarget? backupTarget = null;
+        if (Mode == MigrationMode.ViaBackup && BackupTargetId > 0)
+        {
+            backupTarget = await _backupTargetService.GetAsync(BackupTargetId, HttpContext.RequestAborted);
+            if (backupTarget is null)
+            {
+                ModelState.AddModelError(nameof(BackupTargetId), "Backup-Ziel nicht gefunden.");
+                return Page();
+            }
+        }
+
         var targetSettings = _environmentService.BuildSettings(targetEnv);
         var results = new List<(string, bool, string)>();
         var envCache = new Dictionary<long, DockerEnvironment?>();
@@ -86,16 +110,25 @@ public class BulkMigrateModel : PageModel
                 continue;
             }
 
-            var request = new VolumeMigrationRequest
+            VolumeMigrationResult result;
+            if (Mode == MigrationMode.ViaBackup)
             {
-                Source = _environmentService.BuildSettings(srcEnv),
-                SourceVolume = volume,
-                Target = targetSettings,
-                TargetVolume = volume,
-                Overwrite = Overwrite
-            };
+                result = await _migrationService.MigrateViaBackupAsync(
+                    srcEnv, volume, targetEnv, volume, Overwrite, backupTarget, KeepBackup, HttpContext.RequestAborted);
+            }
+            else
+            {
+                var request = new VolumeMigrationRequest
+                {
+                    Source = _environmentService.BuildSettings(srcEnv),
+                    SourceVolume = volume,
+                    Target = targetSettings,
+                    TargetVolume = volume,
+                    Overwrite = Overwrite
+                };
+                result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
+            }
 
-            var result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
             results.Add(($"{envName}/{volume} → {targetEnv.Name}", result.Success, result.Message));
         }
 
@@ -106,6 +139,7 @@ public class BulkMigrateModel : PageModel
     private async Task LoadAsync()
     {
         Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
         var names = Environments.ToDictionary(e => e.Id, e => e.Name);
         Selection = VolumeSelection.Parse(Items)
             .Select(s => (s.EnvId, names.TryGetValue(s.EnvId, out var n) ? n : $"#{s.EnvId}", s.Volume))

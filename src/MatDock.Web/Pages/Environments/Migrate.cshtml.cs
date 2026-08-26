@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Volumes;
@@ -11,11 +12,13 @@ public class MigrateModel : PageModel
 {
     private readonly EnvironmentService _environmentService;
     private readonly VolumeMigrationService _migrationService;
+    private readonly BackupTargetService _backupTargetService;
 
-    public MigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService)
+    public MigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService, BackupTargetService backupTargetService)
     {
         _environmentService = environmentService;
         _migrationService = migrationService;
+        _backupTargetService = backupTargetService;
     }
 
     [BindProperty]
@@ -23,6 +26,7 @@ public class MigrateModel : PageModel
 
     public DockerEnvironment? SourceEnvironment { get; private set; }
     public List<DockerEnvironment> TargetEnvironments { get; private set; } = new();
+    public List<BackupTarget> BackupTargets { get; private set; } = new();
     public VolumeMigrationResult? Result { get; private set; }
 
     public class InputModel
@@ -39,6 +43,15 @@ public class MigrateModel : PageModel
         public string TargetVolume { get; set; } = string.Empty;
 
         public bool Overwrite { get; set; }
+
+        /// <summary>Direct streaming, or via a safety-net backup.</summary>
+        public MigrationMode Mode { get; set; } = MigrationMode.Direct;
+
+        /// <summary>0 = local MatDock storage; otherwise a configured backup target. Used only for ViaBackup.</summary>
+        public long BackupTargetId { get; set; }
+
+        /// <summary>Keep the intermediate backup after a successful ViaBackup migration.</summary>
+        public bool KeepBackup { get; set; } = true;
     }
 
     public async Task<IActionResult> OnGetAsync(long sourceId, string volume)
@@ -52,6 +65,7 @@ public class MigrateModel : PageModel
         Input.SourceEnvId = sourceId;
         Input.SourceVolume = volume;
         Input.TargetVolume = volume;
+        Input.KeepBackup = true;
 
         await LoadAsync();
         Input.TargetEnvId = TargetEnvironments.FirstOrDefault()?.Id ?? 0;
@@ -88,12 +102,32 @@ public class MigrateModel : PageModel
             return Page();
         }
 
+        var targetVolume = Input.TargetVolume.Trim();
+        if (Input.Mode == MigrationMode.ViaBackup)
+        {
+            BackupTarget? backupTarget = null;
+            if (Input.BackupTargetId > 0)
+            {
+                backupTarget = await _backupTargetService.GetAsync(Input.BackupTargetId, HttpContext.RequestAborted);
+                if (backupTarget is null)
+                {
+                    ModelState.AddModelError("Input.BackupTargetId", "Backup-Ziel nicht gefunden.");
+                    return Page();
+                }
+            }
+
+            Result = await _migrationService.MigrateViaBackupAsync(
+                SourceEnvironment, Input.SourceVolume, target, targetVolume,
+                Input.Overwrite, backupTarget, Input.KeepBackup, HttpContext.RequestAborted);
+            return Page();
+        }
+
         var request = new VolumeMigrationRequest
         {
             Source = _environmentService.BuildSettings(SourceEnvironment),
             SourceVolume = Input.SourceVolume,
             Target = _environmentService.BuildSettings(target),
-            TargetVolume = Input.TargetVolume.Trim(),
+            TargetVolume = targetVolume,
             Overwrite = Input.Overwrite
         };
 
@@ -106,5 +140,6 @@ public class MigrateModel : PageModel
         SourceEnvironment = await _environmentService.GetAsync(Input.SourceEnvId, HttpContext.RequestAborted);
         var all = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
         TargetEnvironments = all.Where(e => e.Id != Input.SourceEnvId).ToList();
+        BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
     }
 }
