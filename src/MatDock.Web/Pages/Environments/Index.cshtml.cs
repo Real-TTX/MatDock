@@ -88,10 +88,8 @@ public class IndexModel : PageModel
             .Take(PageSize)
             .ToList();
 
-        if (string.Equals(View, "gallery", Ic))
-        {
-            await LoadStatsAsync(Items);
-        }
+        // Both views show the same info now, so load host stats for either (cached, disabled envs skipped).
+        await LoadStatsAsync(Items);
     }
 
     private async Task LoadStatsAsync(IReadOnlyList<DockerEnvironment> environments)

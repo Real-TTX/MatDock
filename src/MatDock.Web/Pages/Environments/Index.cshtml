@@ -4,6 +4,7 @@
     ViewData["Title"] = "Environments";
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     string GaugeClass(double p) => p >= 90 ? "gauge__fill--crit" : p >= 70 ? "gauge__fill--warn" : "";
+    string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
     string ViewUrl(string v) => $"/Environments?view={v}"
         + $"&Q={Uri.EscapeDataString(Model.Q ?? string.Empty)}"
         + $"&Status={Uri.EscapeDataString(Model.Status ?? string.Empty)}"
@@ -118,6 +119,7 @@
                             {
                                 <span class="text-muted" style="font-size:.78rem;">Docker @env.DockerVersion</span>
                             }
+                            <span class="text-muted" style="font-size:.72rem;">geprüft @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "nie")</span>
                             <span style="flex:1 1 auto;"></span>
                             @if (env.IsEnabled)
                             {
@@ -147,8 +149,11 @@
                     <tr>
                         <th>Name</th>
                         <th>Verbindung</th>
-                        <th>Auth</th>
                         <th>Status</th>
+                        <th>CPU</th>
+                        <th>RAM</th>
+                        <th>Disk</th>
+                        <th>Container</th>
                         <th>Docker</th>
                         <th>Zuletzt geprüft</th>
                         <th class="actions">Aktionen</th>
@@ -157,6 +162,7 @@
                 <tbody>
                     @foreach (var env in Model.Items)
                     {
+                        var st = Model.Stats.TryGetValue(env.Id, out var s) ? s : new MatDock.Core.Docker.HostStats();
                         <tr>
                             <td>
                                 <a href="/Environments/Edit?id=@env.Id"><strong>@env.Name</strong></a>
@@ -170,8 +176,32 @@
                                 }
                             </td>
                             <td class="mono">@env.Username@@@env.Host:@env.Port</td>
-                            <td>@(env.AuthType == AuthType.Password ? "Passwort" : "SSH-Key")</td>
                             <td><partial name="_StatusPill" model="env.Status" /></td>
+                            <td class="num">
+                                @if (st.Cores is not null)
+                                {
+                                    <div>@((int)Math.Round(st.CpuPercent))%</div>
+                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.CpuPercent))%"></span></span>
+                                }
+                                else { <span class="text-muted">–</span> }
+                            </td>
+                            <td class="num">
+                                @if (st.MemTotalBytes is not null)
+                                {
+                                    <div class="cell-sub" style="white-space:nowrap;">@Fb(st.MemUsedBytes ?? 0) / @Fb(st.MemTotalBytes.Value)</div>
+                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.MemPercent))%"></span></span>
+                                }
+                                else { <span class="text-muted">–</span> }
+                            </td>
+                            <td class="num">
+                                @if (st.DiskTotalBytes is not null)
+                                {
+                                    <div class="cell-sub" style="white-space:nowrap;">@Fb(st.DiskUsedBytes ?? 0) / @Fb(st.DiskTotalBytes.Value)</div>
+                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.DiskPercent))%"></span></span>
+                                }
+                                else { <span class="text-muted">–</span> }
+                            </td>
+                            <td class="num">@(st.RunningContainers?.ToString() ?? "–")</td>
                             <td class="text-muted">@(env.DockerVersion ?? "–")</td>
                             <td class="text-muted nowrap">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
