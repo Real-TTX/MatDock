@@ -7,15 +7,26 @@
     string Redact(string key, string value)
     {
         // The CIFS/NFS "o" option is a comma-list that may carry password=… — never render secrets.
+        // Track the current sub-key so a comma INSIDE a secret value is redacted too, not just the head.
         if (key.Equals("o", oic))
         {
-            var parts = value.Split(',').Select(p =>
+            var outParts = new List<string>();
+            var lastWasSecret = false;
+            foreach (var p in value.Split(','))
             {
                 var eq = p.IndexOf('=');
-                var k = eq > 0 ? p[..eq] : p;
-                return eq > 0 && IsSecret(k) ? k + "=***" : p;
-            });
-            return string.Join(",", parts);
+                if (eq > 0)
+                {
+                    var k = p[..eq];
+                    lastWasSecret = IsSecret(k);
+                    outParts.Add(lastWasSecret ? k + "=***" : p);
+                }
+                else
+                {
+                    outParts.Add(lastWasSecret ? "***" : p);
+                }
+            }
+            return string.Join(",", outParts);
         }
         return IsSecret(key) ? "***" : value;
     }
@@ -103,7 +114,7 @@ else
                     <tbody>
                         @foreach (var kv in d.Labels)
                         {
-                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                            <tr><td class="mono">@kv.Key</td><td class="mono">@Redact(kv.Key, kv.Value)</td></tr>
                         }
                     </tbody>
                 </table>
