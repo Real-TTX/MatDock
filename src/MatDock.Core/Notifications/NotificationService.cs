@@ -39,8 +39,10 @@ public sealed class NotificationService : INotificationService
             return;
         }
 
-        var subject = $"MatDock Backup: {scheduleName} – {(success ? "OK" : "Fehler")}";
-        await DispatchAsync(s, subject, summary, scheduleName, success, ct);
+        // Strip CR/LF: a line break would make MailMessage.Subject throw (and silently drop the e-mail).
+        var safeName = scheduleName.Replace('\r', ' ').Replace('\n', ' ');
+        var subject = $"MatDock Backup: {safeName} – {(success ? "OK" : "Fehler")}";
+        await DispatchAsync(s, subject, summary, safeName, success, ct);
     }
 
     public async Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default)

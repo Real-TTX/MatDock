@@ -124,7 +124,8 @@ public sealed class BackupScheduleService
 
     private void ApplyInput(BackupSchedule schedule, BackupScheduleInput input)
     {
-        schedule.Name = input.Name.Trim();
+        // Collapse any line breaks so the name is always single-line (used in e-mail subjects, lists).
+        schedule.Name = input.Name.Replace('\r', ' ').Replace('\n', ' ').Trim();
         schedule.EnvironmentId = input.EnvironmentId;
         schedule.VolumesCsv = (input.VolumesCsv ?? string.Empty).Replace("\r", string.Empty).Trim();
         schedule.BackupTargetId = input.BackupTargetId;
