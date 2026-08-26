@@ -69,6 +69,25 @@ public class ContainerTests
     }
 
     [Fact]
+    public void QuiesceResult_reports_incompleteness_and_warning()
+    {
+        Assert.False(QuiesceResult.None.Incomplete);
+        Assert.Null(QuiesceResult.None.Warning);
+
+        var complete = new QuiesceResult(new[] { "a", "b" }, RunningFound: 2, ListFailed: false);
+        Assert.False(complete.Incomplete);
+        Assert.Null(complete.Warning);
+
+        var partial = new QuiesceResult(new[] { "a" }, RunningFound: 3, ListFailed: false);
+        Assert.True(partial.Incomplete);
+        Assert.Contains("2 von 3", partial.Warning);
+
+        var listFailed = new QuiesceResult(Array.Empty<string>(), RunningFound: 0, ListFailed: true);
+        Assert.True(listFailed.Incomplete);
+        Assert.NotNull(listFailed.Warning);
+    }
+
+    [Fact]
     public void ApplyStats_matches_short_ps_id_against_full_stats_id()
     {
         // docker ps reports the 12-char short id; docker stats may report the full 64-char id.

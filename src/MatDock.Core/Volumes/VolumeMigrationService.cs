@@ -89,12 +89,16 @@ public sealed class VolumeMigrationService
             }
 
             // 3) Optionally quiesce the source volume's containers so the archive is consistent.
-            var stopped = request.StopContainers
+            var quiesce = request.StopContainers
                 ? Containers.ContainerQuiesce.StopRunning(source, sourceHead, request.SourceVolume, _options.SshTimeoutSeconds)
-                : Array.Empty<string>();
-            if (stopped.Count > 0)
+                : Containers.QuiesceResult.None;
+            if (quiesce.StoppedIds.Count > 0)
             {
-                steps.Add($"{stopped.Count} Container an der Quelle gestoppt.");
+                steps.Add($"{quiesce.StoppedIds.Count} Container an der Quelle gestoppt.");
+            }
+            if (quiesce.Warning is not null)
+            {
+                steps.Add($"⚠ {quiesce.Warning}");
             }
 
             long bytes = 0;
@@ -134,7 +138,7 @@ public sealed class VolumeMigrationService
             finally
             {
                 // Always restart the source containers we stopped, even on failure.
-                Containers.ContainerQuiesce.Start(source, sourceHead, stopped, _options.SshTimeoutSeconds);
+                Containers.ContainerQuiesce.Start(source, sourceHead, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }
 
             steps.Add($"{VolumeMigrationResult.FormatBytes(bytes)} übertragen.");

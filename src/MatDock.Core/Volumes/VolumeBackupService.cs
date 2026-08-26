@@ -84,9 +84,9 @@ public sealed class VolumeBackupService
             }
 
             // Optionally quiesce the volume's containers so the archive is a consistent snapshot.
-            var stopped = stopContainers
+            var quiesce = stopContainers
                 ? Containers.ContainerQuiesce.StopRunning(client, head, volumeName, _options.SshTimeoutSeconds)
-                : Array.Empty<string>();
+                : Containers.QuiesceResult.None;
 
             long bytes = 0;
             try
@@ -112,7 +112,7 @@ public sealed class VolumeBackupService
             finally
             {
                 // Always restart whatever we stopped, even if the export failed.
-                Containers.ContainerQuiesce.Start(client, head, stopped, _options.SshTimeoutSeconds);
+                Containers.ContainerQuiesce.Start(client, head, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }
 
             var backup = new VolumeBackup
@@ -129,7 +129,7 @@ public sealed class VolumeBackupService
             _db.VolumeBackups.Add(backup);
             await _db.SaveChangesAsync(ct);
 
-            return BackupResult.Ok(bytes, backup.Id);
+            return BackupResult.Ok(bytes, backup.Id, quiesce.Warning);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -206,9 +206,9 @@ public sealed class VolumeBackupService
             }
 
             // Optionally stop the target volume's containers so the wipe/extract is not fought by writers.
-            var stopped = stopContainers
+            var quiesce = stopContainers
                 ? Containers.ContainerQuiesce.StopRunning(client, head, targetVolume, _options.SshTimeoutSeconds)
-                : Array.Empty<string>();
+                : Containers.QuiesceResult.None;
 
             long bytes = 0;
             try
@@ -234,10 +234,10 @@ public sealed class VolumeBackupService
             }
             finally
             {
-                Containers.ContainerQuiesce.Start(client, head, stopped, _options.SshTimeoutSeconds);
+                Containers.ContainerQuiesce.Start(client, head, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }
 
-            return RestoreResult.Ok(bytes);
+            return RestoreResult.Ok(bytes, quiesce.Warning);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
