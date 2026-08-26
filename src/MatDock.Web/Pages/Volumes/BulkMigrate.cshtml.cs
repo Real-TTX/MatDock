@@ -90,6 +90,9 @@ public class BulkMigrateModel : PageModel
         var targetSettings = _environmentService.BuildSettings(targetEnv);
         var results = new List<(string, bool, string)>();
         var envCache = new Dictionary<long, DockerEnvironment?>();
+        // Every volume migrates to targetEnv/<same-name>; two selected volumes sharing a name would
+        // resolve to the same target and could silently overwrite each other. Skip the later collision.
+        var targetNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (envId, envName, volume) in Selection)
         {
@@ -110,26 +113,41 @@ public class BulkMigrateModel : PageModel
                 continue;
             }
 
-            VolumeMigrationResult result;
-            if (Mode == MigrationMode.ViaBackup)
+            if (!targetNames.Add(volume))
             {
-                result = await _migrationService.MigrateViaBackupAsync(
-                    srcEnv, volume, targetEnv, volume, Overwrite, backupTarget, KeepBackup, HttpContext.RequestAborted);
-            }
-            else
-            {
-                var request = new VolumeMigrationRequest
-                {
-                    Source = _environmentService.BuildSettings(srcEnv),
-                    SourceVolume = volume,
-                    Target = targetSettings,
-                    TargetVolume = volume,
-                    Overwrite = Overwrite
-                };
-                result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
+                results.Add(($"{envName}/{volume}", false,
+                    $"Ziel-Volumename „{volume}“ ist mehrfach in der Auswahl – übersprungen, um Überschreiben zu vermeiden."));
+                continue;
             }
 
-            results.Add(($"{envName}/{volume} → {targetEnv.Name}", result.Success, result.Message));
+            try
+            {
+                VolumeMigrationResult result;
+                if (Mode == MigrationMode.ViaBackup)
+                {
+                    result = await _migrationService.MigrateViaBackupAsync(
+                        srcEnv, volume, targetEnv, volume, Overwrite, backupTarget, KeepBackup, HttpContext.RequestAborted);
+                }
+                else
+                {
+                    var request = new VolumeMigrationRequest
+                    {
+                        Source = _environmentService.BuildSettings(srcEnv),
+                        SourceVolume = volume,
+                        Target = targetSettings,
+                        TargetVolume = volume,
+                        Overwrite = Overwrite
+                    };
+                    result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
+                }
+
+                results.Add(($"{envName}/{volume} → {targetEnv.Name}", result.Success, result.Message));
+            }
+            catch (Exception ex)
+            {
+                // One item's failure must not discard the whole batch's per-item report.
+                results.Add(($"{envName}/{volume} → {targetEnv.Name}", false, $"Fehler: {ex.Message}"));
+            }
         }
 
         Results = results;

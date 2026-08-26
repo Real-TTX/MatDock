@@ -75,13 +75,13 @@ else
                 </div>
 
                 <label class="mat-check">
-                    <input name="Overwrite" type="checkbox" value="true" />
+                    <input asp-for="Overwrite" type="checkbox" />
                     <span>Überschreiben, falls Ziel-Volumes bereits Daten enthalten</span>
                 </label>
 
                 <div class="mat-field">
                     <label class="mat-label" for="MigrationMode">Migrationsart</label>
-                    <select name="Mode" id="MigrationMode" class="mat-select">
+                    <select asp-for="Mode" id="MigrationMode" class="mat-select">
                         <option value="Direct">Direkt (Streaming) — schnell, kein Zwischenspeicher</option>
                         <option value="ViaBackup">Über Backup (mit Sicherung) — Backup → Restore</option>
                     </select>
@@ -97,13 +97,14 @@ else
                 <div data-show-when="MigrationMode=ViaBackup">
                     <div class="mat-field">
                         <label class="mat-label" for="BackupTargetId">Backup-Ziel (Zwischenspeicher)</label>
-                        <select name="BackupTargetId" id="BackupTargetId" class="mat-select">
+                        <select asp-for="BackupTargetId" id="BackupTargetId" class="mat-select">
                             <option value="0">Lokal (MatDock /data)</option>
                             @foreach (var t in Model.BackupTargets)
                             {
                                 <option value="@t.Id">@t.Name</option>
                             }
                         </select>
+                        <span asp-validation-for="BackupTargetId" class="mat-validation"></span>
                     </div>
                     <label class="mat-check">
                         <input asp-for="KeepBackup" type="checkbox" />

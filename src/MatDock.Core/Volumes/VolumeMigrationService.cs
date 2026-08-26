@@ -158,37 +158,63 @@ public sealed class VolumeMigrationService
         var steps = new List<string>();
         var stopwatch = Stopwatch.StartNew();
 
-        // 1) Back the source up (safety net + transport artifact).
-        var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, cancellationToken);
-        if (!backup.Success || backup.BackupId is not { } backupId)
-        {
-            return VolumeMigrationResult.Fail($"Backup der Quelle fehlgeschlagen: {backup.Message}", steps);
-        }
-        steps.Add($"Backup erstellt ({VolumeMigrationResult.FormatBytes(backup.BytesTransferred)}) auf „{backupTarget?.Name ?? "Lokal"}“.");
+        // One wall-clock budget for the whole two-phase operation (like the Direct path), instead of a
+        // fresh full timeout per sub-call.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
 
-        // 2) Restore that backup into the target. On failure the backup is intentionally KEPT so the
-        //    restore can be retried without touching the source again.
-        var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, cancellationToken);
-        if (!restore.Success)
+        try
         {
-            steps.Add("Backup bleibt erhalten – Restore kann daraus wiederholt werden.");
-            return VolumeMigrationResult.Fail($"Restore ins Ziel fehlgeschlagen: {restore.Message}", steps);
-        }
-        steps.Add($"Restore ins Ziel „{target.Name}/{targetVolume}“ erfolgreich.");
+            // 1) Back the source up (safety net + transport artifact).
+            var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, cts.Token);
+            if (!backup.Success || backup.BackupId is not { } backupId)
+            {
+                return VolumeMigrationResult.Fail($"Backup der Quelle fehlgeschlagen: {backup.Message}", steps);
+            }
+            steps.Add($"Backup erstellt ({VolumeMigrationResult.FormatBytes(backup.BytesTransferred)}) auf „{backupTarget?.Name ?? "Lokal"}“.");
 
-        // 3) Optionally remove the intermediate backup (default is to keep it).
-        if (keepBackup)
-        {
-            steps.Add("Zwischen-Backup als Sicherung behalten.");
-        }
-        else
-        {
-            var deleted = await _backupService.DeleteAsync(backupId, cancellationToken);
-            steps.Add(deleted ? "Zwischen-Backup entfernt." : "Zwischen-Backup konnte nicht entfernt werden.");
-        }
+            // 2) Restore that backup into the target. On failure the backup is intentionally KEPT so the
+            //    restore can be retried without touching the source again.
+            var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, cts.Token);
+            if (!restore.Success)
+            {
+                steps.Add("Backup bleibt erhalten – Restore kann daraus wiederholt werden.");
+                return VolumeMigrationResult.Fail($"Restore ins Ziel fehlgeschlagen: {restore.Message}", steps);
+            }
+            steps.Add($"Restore ins Ziel „{target.Name}/{targetVolume}“ erfolgreich.");
 
-        stopwatch.Stop();
-        return VolumeMigrationResult.Ok(restore.BytesTransferred, stopwatch.Elapsed.TotalSeconds, steps);
+            // 3) The data is already at the target now — a cleanup failure must NOT turn a completed
+            //    migration into a reported failure. Keep by default; on delete, downgrade errors to a note.
+            if (keepBackup)
+            {
+                steps.Add("Zwischen-Backup als Sicherung behalten.");
+            }
+            else
+            {
+                try
+                {
+                    var deleted = await _backupService.DeleteAsync(backupId, cts.Token);
+                    steps.Add(deleted ? "Zwischen-Backup entfernt." : "Zwischen-Backup konnte nicht entfernt werden (bleibt erhalten).");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation(ex, "Cleanup of intermediate backup {Id} after migration failed.", backupId);
+                    steps.Add("Zwischen-Backup konnte nicht entfernt werden (bleibt erhalten).");
+                }
+            }
+
+            stopwatch.Stop();
+            return VolumeMigrationResult.Ok(restore.BytesTransferred, stopwatch.Elapsed.TotalSeconds, steps);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return VolumeMigrationResult.Fail("Zeitüberschreitung bei der Migration.", steps);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation(ex, "Backup-based migration {Src} -> {Dst} failed.", sourceVolume, targetVolume);
+            return VolumeMigrationResult.Fail($"Fehler: {Innermost(ex).Message}", steps);
+        }
     }
 
     private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string commandText)
