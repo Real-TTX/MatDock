@@ -10,15 +10,18 @@ namespace MatDock.Core.Volumes;
 public static partial class VolumeCommands
 {
     // Docker volume naming rules: start alphanumeric, then [a-zA-Z0-9_.-].
-    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,254}$")]
+    // \z (not $) so a trailing newline is rejected — $ would match just before a final \n.
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,254}\z")]
     private static partial Regex VolumeNameRegex();
 
     // Conservative image reference (name[:tag] with optional registry/path); no shell metacharacters.
-    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_./-]*(:[a-zA-Z0-9_.-]+)?$")]
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_./-]*(:[a-zA-Z0-9_.-]+)?\z")]
     private static partial Regex ImageRegex();
 
     // A DOCKER_HOST value: unix:///path or tcp://host[:port]; no shell metacharacters.
-    [GeneratedRegex(@"^(unix://\/[a-zA-Z0-9_./-]+|tcp://[a-zA-Z0-9_.:-]+)$")]
+    // This value is embedded UNQUOTED (DOCKER_HOST=...), so \z is important: $ would accept a
+    // trailing newline that could split the shell line.
+    [GeneratedRegex(@"^(unix://\/[a-zA-Z0-9_./-]+|tcp://[a-zA-Z0-9_.:-]+)\z")]
     private static partial Regex DockerHostRegex();
 
     // Non-interactive SSH sessions often have a minimal PATH; make sure docker is found.

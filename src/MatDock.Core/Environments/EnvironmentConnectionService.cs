@@ -7,7 +7,6 @@ using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Renci.SshNet;
-using Renci.SshNet.Common;
 
 namespace MatDock.Core.Environments;
 
@@ -64,7 +63,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                 }
             }
 
-            return DockerConnectionResult.Fail(InterpretDockerError(primaryProbe.StdErr, primaryProbe.StdOut));
+            return DockerConnectionResult.Fail(DockerErrorMessages.InterpretDockerError(primaryProbe.StdErr, primaryProbe.StdOut));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -73,7 +72,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Connection test to {Host}:{Port} failed.", settings.Host, settings.Port);
-            return DockerConnectionResult.Fail(DescribeSshError(ex), EnvironmentStatus.Error);
+            return DockerConnectionResult.Fail(DockerErrorMessages.DescribeSshError(ex), EnvironmentStatus.Error);
         }
     }
 
@@ -84,17 +83,17 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         {
             await ConnectAsync(client, settings, cancellationToken);
         }
-        catch (Exception ex) when (ex is SshException or System.Net.Sockets.SocketException)
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
         {
             // Turn raw SSH errors (e.g. "Permission denied (password)") into an actionable message.
-            throw new InvalidOperationException(DescribeSshError(ex));
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
         }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         var result = RunCommand(client, VolumeCommands.VolumeList(head), settings);
         if (result.ExitStatus != 0)
         {
-            throw new InvalidOperationException(InterpretDockerError(result.StdErr, result.StdOut));
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
         }
 
         return ParseVolumes(result.StdOut);
@@ -107,9 +106,9 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         {
             await ConnectAsync(client, settings, cancellationToken);
         }
-        catch (Exception ex) when (ex is SshException or System.Net.Sockets.SocketException)
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
         {
-            throw new InvalidOperationException(DescribeSshError(ex));
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
         }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
@@ -207,7 +206,14 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             {
                 using var doc = JsonDocument.Parse(trimmed);
                 var root = doc.RootElement;
-                string? Get(string name) => root.TryGetProperty(name, out var v) ? v.GetString() : null;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString()
+                    : null;
 
                 volumes.Add(new DockerVolume
                 {
@@ -247,71 +253,5 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         return result;
-    }
-
-    private static string InterpretDockerError(string stderr, string stdout)
-    {
-        var detail = FirstLine(stderr) ?? FirstLine(stdout) ?? "keine Fehlerausgabe";
-        var lower = detail.ToLowerInvariant();
-
-        string? hint = null;
-        if (lower.Contains("permission denied") || lower.Contains("got permission denied"))
-        {
-            hint = "Keine Berechtigung für den Docker-Socket. Der SSH-Benutzer muss den Docker-Daemon erreichen dürfen "
-                 + "(Benutzer in Gruppe \"docker\", oder – bei Rootless-Docker – als der Docker-Besitzer verbinden). ";
-        }
-        else if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running")
-                 || lower.Contains("connection refused"))
-        {
-            hint = "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst (ggf. Rootless-Socket)? ";
-        }
-        else if (lower.Contains("not found") || lower.Contains("no such file"))
-        {
-            hint = "Docker wurde nicht gefunden. Ist Docker installiert und im PATH des SSH-Benutzers? ";
-        }
-
-        // Always surface the real remote error so per-host causes are diagnosable.
-        return hint is null
-            ? $"Docker-Fehler: {detail}"
-            : $"{hint}Details: {detail}";
-    }
-
-    private static string DescribeSshError(Exception ex) => ex switch
-    {
-        SshAuthenticationException => "Authentifizierung fehlgeschlagen. Bei Benutzer 'root' ist der Passwort-Login "
-            + "oft gesperrt (sshd: PermitRootLogin prohibit-password / PasswordAuthentication no) – dann SSH-Key "
-            + "verwenden oder einen Benutzer der Gruppe 'docker'.",
-        SshConnectionException => "SSH-Verbindung fehlgeschlagen.",
-        System.Net.Sockets.SocketException => "Host nicht erreichbar (Adresse/Port prüfen).",
-        _ => $"Fehler: {Innermost(ex).Message}"
-    };
-
-    private static Exception Innermost(Exception ex)
-    {
-        while (ex.InnerException is not null)
-        {
-            ex = ex.InnerException;
-        }
-
-        return ex;
-    }
-
-    private static string? FirstLine(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        foreach (var line in text.Split('\n'))
-        {
-            var trimmed = line.Trim();
-            if (trimmed.Length > 0)
-            {
-                return trimmed;
-            }
-        }
-
-        return null;
     }
 }

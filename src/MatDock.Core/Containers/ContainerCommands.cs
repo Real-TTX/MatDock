@@ -7,7 +7,8 @@ namespace MatDock.Core.Containers;
 public static partial class ContainerCommands
 {
     // Container id or name: start alphanumeric, then [a-zA-Z0-9_.-].
-    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")]
+    // \z (not $) so a trailing newline is rejected — $ would match just before a final \n.
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}\z")]
     private static partial Regex IdRegex();
 
     public static bool IsValidId(string? id) => !string.IsNullOrEmpty(id) && IdRegex().IsMatch(id);

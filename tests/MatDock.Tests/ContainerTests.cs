@@ -11,6 +11,8 @@ public class ContainerTests
     [InlineData("evil; rm -rf /", false)]
     [InlineData("$(id)", false)]
     [InlineData("", false)]
+    [InlineData("abc\n", false)]        // trailing newline must be rejected (\z not $)
+    [InlineData("abc\nrm -rf /", false)]
     public void IsValidId_validates(string id, bool expected)
         => Assert.Equal(expected, ContainerCommands.IsValidId(id));
 
@@ -37,5 +39,35 @@ public class ContainerTests
         Assert.True(c.IsRunning);
         Assert.Equal("shop", c.Project);
         Assert.Equal("web", c.Service);
+    }
+
+    [Fact]
+    public void ParseContainers_without_compose_labels_has_null_project()
+    {
+        var line = "{\"ID\":\"z1\",\"Names\":\"solo\",\"Image\":\"redis\",\"State\":\"exited\",\"Status\":\"Exited (0)\",\"Ports\":\"\",\"Labels\":\"foo=bar\"}";
+        var c = ContainerService.ParseContainers(line).Single();
+
+        Assert.False(c.IsRunning);
+        Assert.Null(c.Project);
+        Assert.Null(c.Service);
+    }
+
+    [Fact]
+    public void ParseContainers_skips_malformed_and_non_object_lines_but_keeps_valid()
+    {
+        // A stray non-object JSON line and a non-string field must NOT abort the whole list.
+        var output = string.Join('\n', new[]
+        {
+            "5",
+            "not json at all",
+            "{\"ID\":\"good\",\"Names\":\"web\",\"Image\":\"nginx\",\"State\":\"running\",\"Status\":\"Up\",\"Labels\":123}",
+        });
+
+        var list = ContainerService.ParseContainers(output);
+
+        var c = Assert.Single(list);
+        Assert.Equal("good", c.Id);
+        Assert.True(c.IsRunning);
+        Assert.Null(c.Project); // Labels was a number, treated as absent
     }
 }

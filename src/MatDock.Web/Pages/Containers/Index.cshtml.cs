@@ -54,6 +54,15 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action)
     {
+        // An unbindable action (crafted POST) leaves the enum at its default (Start); reject it
+        // instead of silently starting the container.
+        if (!ModelState.IsValid)
+        {
+            StatusMessage = "Ungültige Aktion.";
+            IsError = true;
+            return RedirectToPage(new { EnvId = envId });
+        }
+
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null)
         {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MatDock.Core.Configuration;
+using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Ssh;
@@ -38,10 +39,10 @@ public sealed class ContainerService
         using var client = _sshClientFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
 
-        var result = RunCommand(client, ContainerCommands.List(head));
+        var result = await RunCommandAsync(client, ContainerCommands.List(head), ct);
         if (result.ExitStatus != 0)
         {
-            throw new InvalidOperationException(FirstLine(result.StdErr));
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
         }
 
         return ParseContainers(result.StdOut);
@@ -62,10 +63,10 @@ public sealed class ContainerService
             using var client = _sshClientFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
 
-            var result = RunCommand(client, ContainerCommands.Action(head, action, id));
+            var result = await RunCommandAsync(client, ContainerCommands.Action(head, action, id), ct);
             return result.ExitStatus == 0
                 ? (true, $"{action}: OK")
-                : (false, FirstLine(result.StdErr));
+                : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
         }
         catch (Exception ex)
         {
@@ -87,7 +88,15 @@ public sealed class ContainerService
         using var client = _sshClientFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
 
-        var result = RunCommand(client, ContainerCommands.Logs(head, id, tail));
+        // stderr is merged into stdout (2>&1) because containers legitimately log to stderr, so the
+        // exit status is the only reliable failure signal — a non-zero exit means the merged output
+        // is a docker error (e.g. "No such container"), not real log content.
+        var result = await RunCommandAsync(client, ContainerCommands.Logs(head, id, tail), ct);
+        if (result.ExitStatus != 0)
+        {
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdOut, result.StdOut));
+        }
+
         return string.IsNullOrWhiteSpace(result.StdOut) ? "(keine Logausgabe)" : result.StdOut;
     }
 
@@ -95,15 +104,32 @@ public sealed class ContainerService
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, settings.TimeoutSeconds)));
-        await client.ConnectAsync(cts.Token);
+        try
+        {
+            await client.ConnectAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("Zeitüberschreitung beim Verbindungsaufbau.");
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            // Turn raw SSH errors (e.g. "Permission denied (password)") into an actionable message.
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
     }
 
-    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string command)
+    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunCommandAsync(SshClient client, string command, CancellationToken ct)
     {
         using var cmd = client.CreateCommand(command);
-        cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
-        var stdout = cmd.Execute();
-        return (cmd.ExitStatus ?? -1, stdout ?? string.Empty, cmd.Error ?? string.Empty);
+        var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
+        cmd.CommandTimeout = timeout;
+
+        // Honor request cancellation/shutdown and still bound the command by the configured timeout.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+        await cmd.ExecuteAsync(cts.Token);
+        return (cmd.ExitStatus ?? -1, cmd.Result ?? string.Empty, cmd.Error ?? string.Empty);
     }
 
     public static IReadOnlyList<DockerContainer> ParseContainers(string output)
@@ -121,7 +147,15 @@ public sealed class ContainerService
             {
                 using var doc = JsonDocument.Parse(trimmed);
                 var root = doc.RootElement;
-                string? Get(string name) => root.TryGetProperty(name, out var v) ? v.GetString() : null;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    // Valid JSON but not an object (stray number/array/null line) — skip it.
+                    continue;
+                }
+
+                string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString()
+                    : null;
 
                 var labels = Get("Labels") ?? string.Empty;
                 list.Add(new DockerContainer
@@ -157,24 +191,5 @@ public sealed class ContainerService
         }
 
         return null;
-    }
-
-    private static string FirstLine(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return "Unbekannter Fehler.";
-        }
-
-        foreach (var line in text.Split('\n'))
-        {
-            var t = line.Trim();
-            if (t.Length > 0)
-            {
-                return t;
-            }
-        }
-
-        return "Unbekannter Fehler.";
     }
 }
