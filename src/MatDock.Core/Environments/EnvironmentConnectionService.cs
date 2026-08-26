@@ -100,6 +100,23 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return ParseVolumes(result.StdOut);
     }
 
+    public async Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _sshClientFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (ex is SshException or System.Net.Sockets.SocketException)
+        {
+            throw new InvalidOperationException(DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, HostStats.BuildCommand(head), settings);
+        return HostStats.Parse(result.StdOut);
+    }
+
     /// <summary>Ordered access strategies to probe: default, sudo, then any discovered rootless sockets.</summary>
     private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(SshClient client, SshConnectionSettings settings)
     {

@@ -1,8 +1,10 @@
+using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Web.Controls;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MatDock.Web.Pages.Environments;
 
@@ -10,13 +12,23 @@ public class IndexModel : PageModel
 {
     private const int PageSize = 15;
     private static readonly StringComparison Ic = StringComparison.OrdinalIgnoreCase;
+    private static readonly TimeSpan StatsTtl = TimeSpan.FromSeconds(30);
 
     private readonly EnvironmentService _environmentService;
+    private readonly IEnvironmentConnectionService _connectionService;
+    private readonly IMemoryCache _cache;
 
-    public IndexModel(EnvironmentService environmentService)
+    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, IMemoryCache cache)
     {
         _environmentService = environmentService;
+        _connectionService = connectionService;
+        _cache = cache;
     }
+
+    [BindProperty(SupportsGet = true)]
+    public string View { get; set; } = "list";
+
+    public Dictionary<long, HostStats> Stats { get; } = new();
 
     [BindProperty(SupportsGet = true)]
     public string? Q { get; set; }
@@ -75,6 +87,50 @@ public class IndexModel : PageModel
             .Skip((Pagination.Page - 1) * PageSize)
             .Take(PageSize)
             .ToList();
+
+        if (string.Equals(View, "gallery", Ic))
+        {
+            await LoadStatsAsync(Items);
+        }
+    }
+
+    private async Task LoadStatsAsync(IReadOnlyList<DockerEnvironment> environments)
+    {
+        using var gate = new SemaphoreSlim(4);
+        var tasks = environments.Select(async env =>
+        {
+            var cacheKey = $"hoststats:{env.Id}";
+            if (_cache.TryGetValue(cacheKey, out HostStats? cached) && cached is not null)
+            {
+                return (env.Id, cached);
+            }
+
+            await gate.WaitAsync(HttpContext.RequestAborted);
+            try
+            {
+                HostStats stats;
+                try
+                {
+                    stats = await _connectionService.GetHostStatsAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
+                }
+                catch
+                {
+                    stats = new HostStats(); // unreachable → empty gauges
+                }
+
+                _cache.Set(cacheKey, stats, StatsTtl);
+                return (env.Id, stats);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        });
+
+        foreach (var (id, stats) in await Task.WhenAll(tasks))
+        {
+            Stats[id] = stats;
+        }
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)

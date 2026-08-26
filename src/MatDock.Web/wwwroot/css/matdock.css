@@ -290,6 +290,29 @@ table.data tbody tr:hover td.actions { background: var(--surface-2); }
 .bulk-bar__count { font-size: .85rem; color: var(--text-muted); }
 .mat-btn[disabled] { opacity: .5; cursor: not-allowed; }
 
+/* ---- Environment gallery + gauges ---- */
+.view-toggle { display: inline-flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: var(--radius-sm); }
+.view-toggle a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 5px; color: var(--text-muted); font-size: .85rem; font-weight: 600; }
+.view-toggle a:hover { color: var(--text); text-decoration: none; }
+.view-toggle a.is-active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-1); }
+
+.env-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); }
+.env-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.env-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.env-card__name { font-weight: 700; font-size: 1.05rem; }
+.env-card__host { font-family: var(--mono); font-size: .78rem; color: var(--text-muted); }
+.env-card__gauges { display: flex; flex-direction: column; gap: 10px; }
+.env-card__foot { margin-top: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.gauge { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; font-size: .8rem; }
+.gauge__label { color: var(--text-muted); }
+.gauge__track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.gauge__fill { height: 100%; border-radius: 999px; background: var(--success); transition: width .3s; }
+.gauge__fill--warn { background: var(--warning); }
+.gauge__fill--crit { background: var(--danger); }
+.gauge__value { font-variant-numeric: tabular-nums; color: var(--text); min-width: 86px; text-align: right; }
+.gauge__value--muted { color: var(--text-muted); }
+
 .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); }
 .empty-state .mat-icon { font-size: 2rem; opacity: .5; }
 

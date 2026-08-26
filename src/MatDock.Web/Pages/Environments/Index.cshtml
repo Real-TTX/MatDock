@@ -4,10 +4,18 @@
     ViewData["Title"] = "Environments";
 }
 
+@{
+    var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
+    string GaugeClass(double p) => p >= 90 ? "gauge__fill--crit" : p >= 70 ? "gauge__fill--warn" : "";
+}
 <div class="page-head">
     <div class="page-head__title">
         <h1>Environments</h1>
         <span class="page-head__subtitle">Docker-Umgebungen über SSH verwalten</span>
+    </div>
+    <div class="view-toggle" role="group" aria-label="Ansicht">
+        <a href="/Environments?view=list" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>Liste</span></a>
+        <a href="/Environments?view=gallery" class="@(isGallery ? "is-active" : "")"><icon name="dashboard" /><span>Gallery</span></a>
     </div>
 </div>
 
@@ -16,6 +24,70 @@
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
         <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
     </div>
+}
+
+@if (isGallery)
+{
+    if (Model.Items.Count == 0)
+    {
+        <div class="card"><div class="empty-state"><div><icon name="server" /></div><p>Keine Environments.</p>
+            <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Environment</span></a></div></div>
+    }
+    else
+    {
+        <div class="env-gallery">
+            @foreach (var env in Model.Items)
+            {
+                var st = Model.Stats.TryGetValue(env.Id, out var s) ? s : new MatDock.Core.Docker.HostStats();
+                var cpuPct = (int)Math.Round(st.CpuPercent);
+                var memPct = (int)Math.Round(st.MemPercent);
+                var diskPct = (int)Math.Round(st.DiskPercent);
+                <div class="env-card">
+                    <div class="env-card__head">
+                        <div>
+                            <div class="env-card__name"><a href="/Environments/Edit?id=@env.Id">@env.Name</a></div>
+                            <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
+                        </div>
+                        <partial name="_StatusPill" model="env.Status" />
+                    </div>
+
+                    <div class="env-card__gauges">
+                        <div class="gauge">
+                            <span class="gauge__label">CPU</span>
+                            <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.CpuPercent)" style="width:@(cpuPct)%"></span></span>
+                            <span class="gauge__value @(st.Cores is null ? "gauge__value--muted" : "")">@(st.Cores is null ? "–" : $"Load {st.Load1:0.00}/{st.Cores}")</span>
+                        </div>
+                        <div class="gauge">
+                            <span class="gauge__label">RAM</span>
+                            <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.MemPercent)" style="width:@(memPct)%"></span></span>
+                            <span class="gauge__value @(st.MemTotalBytes is null ? "gauge__value--muted" : "")">@(st.MemTotalBytes is null ? "–" : $"{MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(st.MemUsedBytes ?? 0)}/{MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(st.MemTotalBytes.Value)}")</span>
+                        </div>
+                        <div class="gauge">
+                            <span class="gauge__label">Disk</span>
+                            <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.DiskPercent)" style="width:@(diskPct)%"></span></span>
+                            <span class="gauge__value @(st.DiskTotalBytes is null ? "gauge__value--muted" : "")">@(st.DiskTotalBytes is null ? "–" : $"{MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(st.DiskUsedBytes ?? 0)}/{MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(st.DiskTotalBytes.Value)}")</span>
+                        </div>
+                    </div>
+
+                    <div class="env-card__foot">
+                        <span class="mat-badge"><icon name="box" /> @(st.RunningContainers?.ToString() ?? "–") Container</span>
+                        @if (!string.IsNullOrEmpty(env.DockerVersion))
+                        {
+                            <span class="text-muted" style="font-size:.78rem;">Docker @env.DockerVersion</span>
+                        }
+                        <span style="flex:1 1 auto;"></span>
+                        <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                        <form method="post" asp-page-handler="Test" style="display:inline;">
+                            <input type="hidden" name="id" value="@env.Id" />
+                            <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                        </form>
+                        <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    return;
 }
 
 <mat-table>
