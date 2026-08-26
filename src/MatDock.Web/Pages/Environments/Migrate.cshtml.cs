@@ -138,8 +138,9 @@ public class MigrateModel : PageModel
     private async Task LoadAsync()
     {
         SourceEnvironment = await _environmentService.GetAsync(Input.SourceEnvId, HttpContext.RequestAborted);
-        var all = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
-        TargetEnvironments = all.Where(e => e.Id != Input.SourceEnvId).ToList();
+        // Only active environments are valid migration targets.
+        var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+        TargetEnvironments = enabled.Where(e => e.Id != Input.SourceEnvId).ToList();
         BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
     }
 }

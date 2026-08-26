@@ -107,6 +107,49 @@ public class EnvironmentServiceTests
     }
 
     [Fact]
+    public async Task New_environment_is_enabled_by_default()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+        var env = await service.CreateAsync(new EnvironmentInput
+        {
+            Name = "P", Host = "h", Username = "root", AuthType = AuthType.Password, Password = "pw"
+        });
+
+        Assert.True(env.IsEnabled);
+    }
+
+    [Fact]
+    public async Task SetEnabled_and_GetEnabled_filter_disabled_environments()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+        var a = await service.CreateAsync(new EnvironmentInput { Name = "A", Host = "h", Username = "root", AuthType = AuthType.Password, Password = "pw" });
+        var b = await service.CreateAsync(new EnvironmentInput { Name = "B", Host = "h", Username = "root", AuthType = AuthType.Password, Password = "pw" });
+
+        Assert.True(await service.SetEnabledAsync(a.Id, false));
+
+        var enabled = await service.GetEnabledAsync();
+        var all = await service.GetAllAsync();
+
+        Assert.Equal(2, all.Count);
+        Assert.DoesNotContain(enabled, e => e.Id == a.Id);
+        Assert.Contains(enabled, e => e.Id == b.Id);
+
+        // Re-enabling brings it back.
+        Assert.True(await service.SetEnabledAsync(a.Id, true));
+        Assert.Contains(await service.GetEnabledAsync(), e => e.Id == a.Id);
+    }
+
+    [Fact]
+    public async Task SetEnabled_returns_false_for_missing_environment()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+        Assert.False(await service.SetEnabledAsync(9999, false));
+    }
+
+    [Fact]
     public async Task TestAndPersist_updates_status()
     {
         using var db = new TestDatabase();

@@ -66,7 +66,7 @@ else
                     <label class="mat-label" for="TargetEnvId">Ziel-Environment</label>
                     <select name="TargetEnvId" id="TargetEnvId" class="mat-select">
                         <option value="0">— wählen —</option>
-                        @foreach (var env in Model.Environments)
+                        @foreach (var env in Model.Environments.Where(e => e.IsEnabled))
                         {
                             <option value="@env.Id">@env.Name — @env.Host</option>
                         }

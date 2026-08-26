@@ -57,7 +57,8 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        // Deactivated environments are excluded (not queried, not shown in the picker).
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
 
         var targets = (EnvId > 0 ? Environments.Where(e => e.Id == EnvId) : Environments).ToList();
         var prepared = targets.Select(e => (Env: e, Settings: _environmentService.BuildSettings(e))).ToList();

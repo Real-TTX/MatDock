@@ -45,7 +45,13 @@
                 <div class="env-card">
                     <div class="env-card__head">
                         <div>
-                            <div class="env-card__name"><a href="/Environments/Edit?id=@env.Id">@env.Name</a></div>
+                            <div class="env-card__name">
+                                <a href="/Environments/Edit?id=@env.Id">@env.Name</a>
+                                @if (!env.IsEnabled)
+                                {
+                                    <span class="pill pill--unknown" style="margin-left:6px;">Deaktiviert</span>
+                                }
+                            </div>
                             <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
                         </div>
                         <partial name="_StatusPill" model="env.Status" />
@@ -80,6 +86,13 @@
                         <form method="post" asp-page-handler="Test" style="display:inline;">
                             <input type="hidden" name="id" value="@env.Id" />
                             <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                        </form>
+                        <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                            <input type="hidden" name="id" value="@env.Id" />
+                            <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
+                            <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">
+                                <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
+                            </button>
                         </form>
                         <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
                     </div>
@@ -151,6 +164,10 @@
                         <tr>
                             <td>
                                 <a href="/Environments/Edit?id=@env.Id"><strong>@env.Name</strong></a>
+                                @if (!env.IsEnabled)
+                                {
+                                    <span class="pill pill--unknown" style="margin-left:6px;">Deaktiviert</span>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(env.Description))
                                 {
                                     <div class="text-muted" style="font-size:.8rem;">@env.Description</div>
@@ -167,6 +184,13 @@
                                     <form method="post" asp-page-handler="Test" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                                        <input type="hidden" name="id" value="@env.Id" />
+                                        <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">
+                                            <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
+                                        </button>
                                     </form>
                                     <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
                                     <span style="width:8px;display:inline-block;"></span>

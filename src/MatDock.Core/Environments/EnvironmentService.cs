@@ -35,8 +35,26 @@ public sealed class EnvironmentService
     public Task<List<DockerEnvironment>> GetAllAsync(CancellationToken ct = default)
         => _db.Environments.AsNoTracking().OrderBy(e => e.Name).ToListAsync(ct);
 
+    /// <summary>Only active environments — for operational lists (migration/restore targets, pickers, schedules).</summary>
+    public Task<List<DockerEnvironment>> GetEnabledAsync(CancellationToken ct = default)
+        => _db.Environments.AsNoTracking().Where(e => e.IsEnabled).OrderBy(e => e.Name).ToListAsync(ct);
+
     public Task<DockerEnvironment?> GetAsync(long id, CancellationToken ct = default)
         => _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    /// <summary>Activates or deactivates an environment. Returns false if it does not exist.</summary>
+    public async Task<bool> SetEnabledAsync(long id, bool enabled, CancellationToken ct = default)
+    {
+        var entity = await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.IsEnabled = enabled;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 
     public async Task<DockerEnvironment> CreateAsync(EnvironmentInput input, CancellationToken ct = default)
     {

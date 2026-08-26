@@ -19,6 +19,12 @@ public class DockerEnvironment : AuditableEntity
 
     public AuthType AuthType { get; set; } = AuthType.Password;
 
+    /// <summary>
+    /// When false the environment is deactivated: skipped by scheduled/automated runs and hidden from
+    /// operational selection lists, but retained (config + secrets) and re-enableable in the admin list.
+    /// </summary>
+    public bool IsEnabled { get; set; } = true;
+
     /// <summary>Data-Protection-encrypted SSH password (used when <see cref="AuthType"/> is Password).</summary>
     public string? EncryptedPassword { get; set; }
 

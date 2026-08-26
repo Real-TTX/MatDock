@@ -36,6 +36,16 @@
             <div class="stat__label">Prüfen</div>
         </div>
     </div>
+    @if (Model.DisabledCount > 0)
+    {
+        <div class="stat">
+            <div class="stat__icon"><icon name="lock" /></div>
+            <div>
+                <div class="stat__value">@Model.DisabledCount</div>
+                <div class="stat__label">Deaktiviert</div>
+            </div>
+        </div>
+    }
 </div>
 
 <div class="card">
@@ -60,7 +70,13 @@
                         @foreach (var env in Model.Recent)
                         {
                             <tr>
-                                <td><a href="/Environments/Edit?id=@env.Id">@env.Name</a></td>
+                                <td>
+                                    <a href="/Environments/Edit?id=@env.Id">@env.Name</a>
+                                    @if (!env.IsEnabled)
+                                    {
+                                        <span class="pill pill--unknown" style="margin-left:6px;">Deaktiviert</span>
+                                    }
+                                </td>
                                 <td class="mono">@env.Username@@@env.Host:@env.Port</td>
                                 <td><partial name="_StatusPill" model="env.Status" /></td>
                                 <td class="text-muted">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>

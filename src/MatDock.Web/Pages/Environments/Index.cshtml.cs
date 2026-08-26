@@ -146,7 +146,17 @@ public class IndexModel : PageModel
         var result = await _environmentService.TestAndPersistAsync(id, HttpContext.RequestAborted);
         StatusMessage = result.Message;
         IsError = !result.Success;
-        return RedirectToPage();
+        return RedirectToPage(new { View });
+    }
+
+    public async Task<IActionResult> OnPostToggleAsync(long id, bool enable)
+    {
+        var ok = await _environmentService.SetEnabledAsync(id, enable, HttpContext.RequestAborted);
+        StatusMessage = ok
+            ? (enable ? "Environment aktiviert." : "Environment deaktiviert – wird von automatischen Läufen und Auswahllisten ausgeschlossen.")
+            : "Environment nicht gefunden.";
+        IsError = !ok;
+        return RedirectToPage(new { View });
     }
 
     private static IEnumerable<DockerEnvironment> Order<TKey>(IEnumerable<DockerEnvironment> source, Func<DockerEnvironment, TKey> key, bool descending)

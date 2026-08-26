@@ -46,7 +46,7 @@ public class RestoreModel : PageModel
             return NotFound();
         }
 
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         Input.BackupId = id;
         Input.TargetVolume = Backup.VolumeName;
         Input.TargetEnvId = Environments.FirstOrDefault(e => e.Id == Backup.SourceEnvironmentId)?.Id
@@ -57,7 +57,7 @@ public class RestoreModel : PageModel
     public async Task<IActionResult> OnPostAsync()
     {
         Backup = await _backupService.GetAsync(Input.BackupId, HttpContext.RequestAborted);
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         if (Backup is null)
         {
             return NotFound();

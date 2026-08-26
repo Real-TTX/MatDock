@@ -30,7 +30,7 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         if (EnvId <= 0)
         {
             return;

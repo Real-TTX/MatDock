@@ -36,6 +36,11 @@ public sealed class BackupScheduleRunner
             return "Environment nicht gefunden.";
         }
 
+        if (!env.IsEnabled)
+        {
+            return "Environment ist deaktiviert – übersprungen.";
+        }
+
         BackupTarget? target = null;
         if (schedule.BackupTargetId is { } tid)
         {
