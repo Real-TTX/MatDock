@@ -18,7 +18,8 @@
 
     async Task Row(DockerContainer c, string rowClass)
     {
-        <tr class="@rowClass" data-search="@SearchKey(c)">
+        var collapsed = rowClass.Contains("stack-child", StringComparison.Ordinal);
+        <tr class="@rowClass" data-search="@SearchKey(c)" hidden="@(collapsed ? "hidden" : null)">
             <td class="wrap">
                 <strong>@c.Name</strong>
                 @if (!string.IsNullOrEmpty(c.Service))
