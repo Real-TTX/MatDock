@@ -3,6 +3,91 @@
 @model MatDock.Web.Pages.Containers.IndexModel
 @{
     ViewData["Title"] = "Container";
+    var ci = System.Globalization.CultureInfo.InvariantCulture;
+    string SearchKey(DockerContainer c) => $"{c.Name} {c.Image} {c.Service} {c.Project} {c.Ports}".ToLowerInvariant();
+    string CpuText(DockerContainer c) => c.CpuPercent is { } v ? $"{v.ToString("0.0", ci)}%" : "–";
+    string Pct(double? v) => Math.Clamp(v ?? 0, 0, 100).ToString(ci);
+
+    void ColGroup()
+    {
+        <colgroup>
+            <col style="width:20%" /><col style="width:18%" /><col style="width:12%" />
+            <col style="width:16%" /><col style="width:9%" /><col style="width:12%" /><col style="width:13%" />
+        </colgroup>
+    }
+
+    async Task Row(DockerContainer c, string rowClass)
+    {
+        <tr class="@rowClass" data-search="@SearchKey(c)">
+            <td class="wrap">
+                <strong>@c.Name</strong>
+                @if (!string.IsNullOrEmpty(c.Service))
+                {
+                    <div class="cell-sub">@c.Service</div>
+                }
+            </td>
+            <td class="cell-sub" title="@c.Image">@c.Image</td>
+            <td>
+                @if (c.IsRunning)
+                {
+                    <span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>
+                }
+                else
+                {
+                    <span class="pill pill--unknown"><span>@c.Status</span></span>
+                }
+            </td>
+            <td class="ports cell-sub">@c.Ports</td>
+            <td class="num">
+                @if (c.CpuPercent is not null)
+                {
+                    <div>@CpuText(c)</div>
+                    <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.CpuPercent))%"></span></span>
+                }
+                else
+                {
+                    <span class="text-muted">–</span>
+                }
+            </td>
+            <td class="num">
+                @if (!string.IsNullOrEmpty(c.MemUsage))
+                {
+                    <div class="cell-sub" style="white-space:nowrap;">@c.MemUsage</div>
+                    <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.MemPercent))%"></span></span>
+                }
+                else
+                {
+                    <span class="text-muted">–</span>
+                }
+            </td>
+            <td class="actions">
+                <div class="row-actions">
+                    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                    @if (c.IsRunning)
+                    {
+                        <form method="post" asp-page-handler="Action" style="display:inline;">
+                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="action" value="Restart" /><input type="hidden" name="Tab" value="@Model.Tab" />
+                            <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
+                        </form>
+                        <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
+                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="action" value="Stop" /><input type="hidden" name="Tab" value="@Model.Tab" />
+                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="Action" style="display:inline;">
+                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="action" value="Start" /><input type="hidden" name="Tab" value="@Model.Tab" />
+                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
+                        </form>
+                    }
+                </div>
+            </td>
+        </tr>
+    }
 }
 
 <div class="page-head">
@@ -11,6 +96,11 @@
         <span class="page-head__subtitle">Container je Environment verwalten</span>
     </div>
 </div>
+
+<nav class="mat-tabs">
+    <a class="mat-tabs__tab @(Model.IsStacksTab ? "is-active" : "")" href="/Containers?EnvId=@Model.EnvId&Tab=stacks"><icon name="box" /><span>Stacks</span></a>
+    <a class="mat-tabs__tab @(!Model.IsStacksTab ? "is-active" : "")" href="/Containers?EnvId=@Model.EnvId&Tab=container"><icon name="box" /><span>Container</span></a>
+</nav>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -21,6 +111,7 @@
 
 <div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:16px;">
     <form method="get" class="js-autosubmit" style="display:contents;">
+        <input type="hidden" name="Tab" value="@Model.Tab" />
         <div class="toolbar-field">
             <label for="env"><icon name="server" /> Environment</label>
             <select id="env" name="EnvId" class="mat-select">
@@ -31,12 +122,20 @@
                 }
             </select>
         </div>
-        <span class="toolbar-spacer"></span>
-        @if (Model.SelectedEnvironment is not null)
-        {
-            <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@Model.EnvId"><icon name="refresh" /><span>Aktualisieren</span></a>
-        }
     </form>
+    @if (Model.SelectedEnvironment is not null)
+    {
+        <div class="search">
+            <icon name="search" />
+            <input type="search" id="container-filter" class="mat-input" placeholder="Filtern (Name, Image, Port)…" autocomplete="off" />
+        </div>
+    }
+    <span class="toolbar-spacer"></span>
+    @if (Model.SelectedEnvironment is not null)
+    {
+        <span class="text-muted"><strong>@Model.Containers.Count</strong> Container</span>
+        <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@Model.EnvId&Tab=@Model.Tab"><icon name="refresh" /><span>Aktualisieren</span></a>
+    }
 </div>
 
 @if (Model.SelectedEnvironment is null)
@@ -51,75 +150,89 @@ else if (Model.Containers.Count == 0)
 {
     <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Keine Container auf diesem Host.</p></div></div>
 }
+else if (Model.IsStacksTab)
+{
+    var groups = Model.Containers
+        .GroupBy(c => string.IsNullOrEmpty(c.Project) ? "" : c.Project!)
+        .OrderBy(g => g.Key == "" ? "￿" : g.Key, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    <div class="card" style="padding:0;">
+        <table class="data ctable" id="stacks-table">
+            @{ ColGroup(); }
+            <thead>
+                <tr><th>Stack / Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var g in groups)
+                {
+                    var running = g.Count(c => c.IsRunning);
+                    var label = g.Key == "" ? "Einzelne Container" : g.Key;
+                    <tr class="stack-head">
+                        <td><span class="caret"><icon name="chevron-right" /></span> <strong>@label</strong></td>
+                        <td colspan="6" class="cell-sub">@g.Count() Container · @running laufen</td>
+                    </tr>
+                    foreach (var c in g.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        await Row(c, "stack-child");
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
 else
 {
-    @foreach (var group in Model.Containers.GroupBy(c => c.Project).OrderBy(g => g.Key ?? "￿"))
-    {
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card__header">
-                <icon name="box" />
-                <span>@(group.Key ?? "Einzelne Container")</span>
-                <span class="mat-badge">@group.Count()</span>
-            </div>
-            <div class="mat-table__scroll">
-                <table class="data">
-                    <thead>
-                        <tr><th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th class="actions">Aktionen</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var c in group.OrderBy(x => x.Service ?? x.Name))
-                        {
-                            <tr>
-                                <td>
-                                    <strong>@c.Name</strong>
-                                    @if (!string.IsNullOrEmpty(c.Service))
-                                    {
-                                        <div class="cell-sub">@c.Service</div>
-                                    }
-                                </td>
-                                <td class="cell-sub">@c.Image</td>
-                                <td>
-                                    @if (c.IsRunning)
-                                    {
-                                        <span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>
-                                    }
-                                    else
-                                    {
-                                        <span class="pill pill--unknown"><span>@c.Status</span></span>
-                                    }
-                                </td>
-                                <td class="cell-sub">@c.Ports</td>
-                                <td class="actions">
-                                    <div class="row-actions">
-                                        <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
-                                        @if (c.IsRunning)
-                                        {
-                                            <form method="post" asp-page-handler="Action" style="display:inline;">
-                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
-                                                <input type="hidden" name="action" value="Restart" />
-                                                <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
-                                            </form>
-                                            <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
-                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
-                                                <input type="hidden" name="action" value="Stop" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
-                                            </form>
-                                        }
-                                        else
-                                        {
-                                            <form method="post" asp-page-handler="Action" style="display:inline;">
-                                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
-                                                <input type="hidden" name="action" value="Start" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
-                                            </form>
-                                        }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    }
+    <div class="card" style="padding:0;">
+        <table class="data ctable" id="container-table">
+            @{ ColGroup(); }
+            <thead>
+                <tr><th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Containers.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    await Row(c, "");
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var input = document.getElementById('container-filter');
+
+            function childrenOf(head) {
+                var rows = [], n = head.nextElementSibling;
+                while (n && n.classList.contains('stack-child')) { rows.push(n); n = n.nextElementSibling; }
+                return rows;
+            }
+            function render() {
+                var q = input ? input.value.trim().toLowerCase() : '';
+                document.querySelectorAll('#container-table tbody tr[data-search]').forEach(function (tr) {
+                    tr.hidden = q && tr.dataset.search.indexOf(q) === -1;
+                });
+                document.querySelectorAll('#stacks-table tr.stack-head').forEach(function (head) {
+                    var kids = childrenOf(head), any = false;
+                    kids.forEach(function (tr) {
+                        var m = !q || tr.dataset.search.indexOf(q) !== -1;
+                        tr.hidden = q ? !m : !head.classList.contains('is-open');
+                        if (m) { any = true; }
+                    });
+                    head.hidden = q ? !any : false;
+                });
+            }
+            document.querySelectorAll('#stacks-table tr.stack-head').forEach(function (head) {
+                head.addEventListener('click', function (e) {
+                    if (e.target.closest('a,button,form')) { return; }
+                    head.classList.toggle('is-open');
+                    render();
+                });
+            });
+            if (input) { input.addEventListener('input', render); }
+            render();
+        })();
+    </script>
 }

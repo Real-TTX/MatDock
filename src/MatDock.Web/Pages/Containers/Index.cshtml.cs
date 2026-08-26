@@ -20,10 +20,16 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public long EnvId { get; set; }
 
+    /// <summary>"stacks" (grouped by compose project, default) or "container" (flat list).</summary>
+    [BindProperty(SupportsGet = true)]
+    public string Tab { get; set; } = "stacks";
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public DockerEnvironment? SelectedEnvironment { get; private set; }
     public List<DockerContainer> Containers { get; private set; } = new();
     public string? Error { get; private set; }
+
+    public bool IsStacksTab => !string.Equals(Tab, "container", StringComparison.OrdinalIgnoreCase);
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
@@ -60,7 +66,7 @@ public class IndexModel : PageModel
         {
             StatusMessage = "Ungültige Aktion.";
             IsError = true;
-            return RedirectToPage(new { EnvId = envId });
+            return RedirectToPage(new { EnvId = envId, Tab });
         }
 
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
@@ -68,12 +74,12 @@ public class IndexModel : PageModel
         {
             StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
             IsError = true;
-            return RedirectToPage(new { EnvId = envId });
+            return RedirectToPage(new { EnvId = envId, Tab });
         }
 
         var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
         StatusMessage = $"{action} {id}: {message}";
         IsError = !ok;
-        return RedirectToPage(new { EnvId = envId });
+        return RedirectToPage(new { EnvId = envId, Tab });
     }
 }

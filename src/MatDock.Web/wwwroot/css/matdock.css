@@ -286,6 +286,21 @@ table.data tbody tr:hover td.actions { background: var(--surface-2); }
 
 .row-actions { display: inline-flex; gap: 6px; }
 
+/* Container / Stacks table: equal-width fixed columns, collapsible stack rows, usage bars. */
+table.ctable { table-layout: fixed; }
+table.ctable td { overflow: hidden; text-overflow: ellipsis; }
+table.ctable td.wrap { white-space: normal; word-break: break-word; }
+table.ctable td.ports { white-space: normal; word-break: break-word; font-size: .8rem; }
+table.ctable td.num { text-align: left; }
+.stack-head { cursor: pointer; }
+.stack-head td { background: var(--surface-2); font-weight: 650; }
+.stack-head:hover td { background: var(--surface-3); }
+.stack-head .caret { color: var(--text-muted); display: inline-flex; vertical-align: middle; transition: transform .15s ease; }
+.stack-head.is-open .caret { transform: rotate(90deg); }
+.stack-child td:first-child { padding-left: 34px; }
+.ubar { display: block; width: 100%; height: 4px; margin-top: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+.ubar__fill { display: block; height: 100%; background: var(--accent); }
+
 .bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap; }
 .bulk-bar__count { font-size: .85rem; color: var(--text-muted); }
 .mat-btn[disabled] { opacity: .5; cursor: not-allowed; }

@@ -16,6 +16,10 @@ public static partial class ContainerCommands
     public static string List(string dockerHead)
         => VolumeCommands.PathPrefix + dockerHead + " ps -a --format '{{json .}}'";
 
+    /// <summary>Per-container live usage (running containers only). Concatenated to keep the Go template braces intact.</summary>
+    public static string Stats(string dockerHead)
+        => VolumeCommands.PathPrefix + dockerHead + " stats --no-stream --format '{{json .}}'";
+
     public static string Action(string dockerHead, ContainerAction action, string id)
     {
         if (!IsValidId(id))

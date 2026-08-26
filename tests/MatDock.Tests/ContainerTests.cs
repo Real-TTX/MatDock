@@ -53,6 +53,34 @@ public class ContainerTests
     }
 
     [Fact]
+    public void ApplyStats_merges_cpu_and_mem_by_id()
+    {
+        var line = "{\"ID\":\"abc123\",\"Names\":\"web-1\",\"Image\":\"nginx\",\"State\":\"running\",\"Status\":\"Up\",\"Labels\":\"\"}";
+        var containers = ContainerService.ParseContainers(line).ToList();
+
+        var stats = "{\"ID\":\"abc123\",\"CPUPerc\":\"12.5%\",\"MemPerc\":\"3.25%\",\"MemUsage\":\"100MiB / 7.8GiB\"}\n"
+                  + "{\"ID\":\"other\",\"CPUPerc\":\"99%\",\"MemPerc\":\"99%\",\"MemUsage\":\"x\"}";
+        ContainerService.ApplyStats(containers, stats);
+
+        var c = containers.Single();
+        Assert.Equal(12.5, c.CpuPercent);
+        Assert.Equal(3.25, c.MemPercent);
+        Assert.Equal("100MiB / 7.8GiB", c.MemUsage);
+    }
+
+    [Fact]
+    public void ApplyStats_leaves_unmatched_containers_untouched()
+    {
+        var line = "{\"ID\":\"noStats\",\"Names\":\"db\",\"Image\":\"pg\",\"State\":\"exited\",\"Status\":\"Exited\",\"Labels\":\"\"}";
+        var containers = ContainerService.ParseContainers(line).ToList();
+
+        ContainerService.ApplyStats(containers, "{\"ID\":\"zzz\",\"CPUPerc\":\"1%\",\"MemPerc\":\"1%\",\"MemUsage\":\"x\"}");
+
+        Assert.Null(containers.Single().CpuPercent);
+        Assert.Null(containers.Single().MemUsage);
+    }
+
+    [Fact]
     public void ParseContainers_skips_malformed_and_non_object_lines_but_keeps_valid()
     {
         // A stray non-object JSON line and a non-string field must NOT abort the whole list.

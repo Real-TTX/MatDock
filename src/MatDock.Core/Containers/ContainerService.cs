@@ -45,7 +45,23 @@ public sealed class ContainerService
             throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
         }
 
-        return ParseContainers(result.StdOut);
+        var containers = ParseContainers(result.StdOut);
+
+        // Best-effort live usage on the same connection; never fail the listing if stats are unavailable.
+        try
+        {
+            var statsResult = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
+            if (statsResult.ExitStatus == 0)
+            {
+                ApplyStats(containers, statsResult.StdOut);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+        }
+
+        return containers;
     }
 
     public async Task<(bool Success, string Message)> ActionAsync(DockerEnvironment environment, string id, ContainerAction action, CancellationToken ct = default)
@@ -177,6 +193,77 @@ public sealed class ContainerService
         }
 
         return list;
+    }
+
+    /// <summary>Merges <c>docker stats --format json</c> output into the matching containers (by id).</summary>
+    public static void ApplyStats(IReadOnlyList<DockerContainer> containers, string statsOutput)
+        => MergeStats(containers, ParseStats(statsOutput));
+
+    private sealed record StatsEntry(double? Cpu, double? Mem, string? Usage);
+
+    private static Dictionary<string, StatsEntry> ParseStats(string output)
+    {
+        var map = new Dictionary<string, StatsEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in output.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString()
+                    : null;
+
+                var id = Get("ID");
+                if (!string.IsNullOrEmpty(id))
+                {
+                    map[id] = new StatsEntry(ParsePercent(Get("CPUPerc")), ParsePercent(Get("MemPerc")), Get("MemUsage"));
+                }
+            }
+            catch (JsonException)
+            {
+                // skip malformed line
+            }
+        }
+
+        return map;
+    }
+
+    private static void MergeStats(IReadOnlyList<DockerContainer> containers, Dictionary<string, StatsEntry> stats)
+    {
+        foreach (var c in containers)
+        {
+            if (c.Id.Length > 0 && stats.TryGetValue(c.Id, out var s))
+            {
+                c.CpuPercent = s.Cpu;
+                c.MemPercent = s.Mem;
+                c.MemUsage = s.Usage;
+            }
+        }
+    }
+
+    private static double? ParsePercent(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var t = text.Trim().TrimEnd('%').Trim();
+        return double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v
+            : null;
     }
 
     private static string? ExtractLabel(string labels, string key)

@@ -16,6 +16,11 @@ public sealed class DockerContainer
     /// <summary>docker-compose service name (label com.docker.compose.service).</summary>
     public string? Service { get; init; }
 
+    // Live usage, merged from `docker stats` (only present for running containers).
+    public double? CpuPercent { get; set; }
+    public double? MemPercent { get; set; }
+    public string? MemUsage { get; set; }  // e.g. "100MiB / 7.8GiB"
+
     public bool IsRunning => string.Equals(State, "running", StringComparison.OrdinalIgnoreCase);
 }
 
