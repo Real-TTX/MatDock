@@ -67,6 +67,10 @@ else
                         <input asp-for="Input.Overwrite" type="checkbox" />
                         <span>Überschreiben, falls das Ziel-Volume bereits Daten enthält</span>
                     </label>
+                    <label class="mat-check">
+                        <input asp-for="Input.StopContainers" type="checkbox" />
+                        <span>Container am Ziel-Volume während des Restores stoppen und danach wieder starten</span>
+                    </label>
                 </div>
             </div>
         </div>

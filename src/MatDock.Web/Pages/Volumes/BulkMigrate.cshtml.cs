@@ -38,6 +38,9 @@ public class BulkMigrateModel : PageModel
     [BindProperty]
     public bool KeepBackup { get; set; } = true;
 
+    [BindProperty]
+    public bool StopContainers { get; set; }
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<BackupTarget> BackupTargets { get; private set; } = new();
     public List<(long EnvId, string EnvName, string Volume)> Selection { get; private set; } = new();
@@ -126,7 +129,7 @@ public class BulkMigrateModel : PageModel
                 if (Mode == MigrationMode.ViaBackup)
                 {
                     result = await _migrationService.MigrateViaBackupAsync(
-                        srcEnv, volume, targetEnv, volume, Overwrite, backupTarget, KeepBackup, HttpContext.RequestAborted);
+                        srcEnv, volume, targetEnv, volume, Overwrite, backupTarget, KeepBackup, StopContainers, HttpContext.RequestAborted);
                 }
                 else
                 {
@@ -136,7 +139,8 @@ public class BulkMigrateModel : PageModel
                         SourceVolume = volume,
                         Target = targetSettings,
                         TargetVolume = volume,
-                        Overwrite = Overwrite
+                        Overwrite = Overwrite,
+                        StopContainers = StopContainers
                     };
                     result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
                 }

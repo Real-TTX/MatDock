@@ -122,6 +122,25 @@ else
             </div>
         </div>
 
+        <div class="mat-form" style="margin-top:16px;">
+            @if (Model.AffectedContainers.Count > 0)
+            {
+                <div class="alert alert--info" style="flex-direction:column;align-items:stretch;gap:8px;">
+                    <div><icon name="box" /> <strong>@Model.AffectedContainers.Count Container</strong> nutzen dieses Volume:</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        @foreach (var c in Model.AffectedContainers)
+                        {
+                            <span class="pill @(c.IsRunning ? "pill--online" : "pill--unknown")">@c.Name</span>
+                        }
+                    </div>
+                </div>
+            }
+            <label class="mat-check">
+                <input asp-for="Input.StopContainers" type="checkbox" />
+                <span>Container während des Vorgangs stoppen und danach wieder starten (konsistenter Snapshot)</span>
+            </label>
+        </div>
+
         <mat-form-buttons>
             <button type="submit" class="mat-btn mat-btn--primary">
                 <icon name="server" /><span>Migration starten</span>

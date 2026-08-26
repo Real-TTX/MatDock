@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Backups;
+using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Volumes;
@@ -13,12 +14,14 @@ public class MigrateModel : PageModel
     private readonly EnvironmentService _environmentService;
     private readonly VolumeMigrationService _migrationService;
     private readonly BackupTargetService _backupTargetService;
+    private readonly ContainerService _containerService;
 
-    public MigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService, BackupTargetService backupTargetService)
+    public MigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService, BackupTargetService backupTargetService, ContainerService containerService)
     {
         _environmentService = environmentService;
         _migrationService = migrationService;
         _backupTargetService = backupTargetService;
+        _containerService = containerService;
     }
 
     [BindProperty]
@@ -27,6 +30,7 @@ public class MigrateModel : PageModel
     public DockerEnvironment? SourceEnvironment { get; private set; }
     public List<DockerEnvironment> TargetEnvironments { get; private set; } = new();
     public List<BackupTarget> BackupTargets { get; private set; } = new();
+    public IReadOnlyList<DockerContainer> AffectedContainers { get; private set; } = new List<DockerContainer>();
     public VolumeMigrationResult? Result { get; private set; }
 
     public class InputModel
@@ -52,6 +56,9 @@ public class MigrateModel : PageModel
 
         /// <summary>Keep the intermediate backup after a successful ViaBackup migration.</summary>
         public bool KeepBackup { get; set; } = true;
+
+        /// <summary>Stop the source volume's containers during the transfer, then restart them.</summary>
+        public bool StopContainers { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long sourceId, string volume)
@@ -118,7 +125,7 @@ public class MigrateModel : PageModel
 
             Result = await _migrationService.MigrateViaBackupAsync(
                 SourceEnvironment, Input.SourceVolume, target, targetVolume,
-                Input.Overwrite, backupTarget, Input.KeepBackup, HttpContext.RequestAborted);
+                Input.Overwrite, backupTarget, Input.KeepBackup, Input.StopContainers, HttpContext.RequestAborted);
             return Page();
         }
 
@@ -128,7 +135,8 @@ public class MigrateModel : PageModel
             SourceVolume = Input.SourceVolume,
             Target = _environmentService.BuildSettings(target),
             TargetVolume = targetVolume,
-            Overwrite = Input.Overwrite
+            Overwrite = Input.Overwrite,
+            StopContainers = Input.StopContainers
         };
 
         Result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
@@ -142,5 +150,11 @@ public class MigrateModel : PageModel
         var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         TargetEnvironments = enabled.Where(e => e.Id != Input.SourceEnvId).ToList();
         BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
+
+        // Show which containers on the source use this volume (for the "stop during transfer" option).
+        if (SourceEnvironment is { IsEnabled: true } && VolumeCommands.IsValidVolumeName(Input.SourceVolume))
+        {
+            AffectedContainers = await _containerService.ListByVolumeAsync(SourceEnvironment, Input.SourceVolume, HttpContext.RequestAborted);
+        }
     }
 }

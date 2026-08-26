@@ -88,35 +88,53 @@ public sealed class VolumeMigrationService
                 }
             }
 
-            // 3) Stream source -> target. On overwrite, wipe the target first so it matches the source.
-            var timeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-            using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead));
-            using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead, clearFirst: request.Overwrite));
-            exportCmd.CommandTimeout = timeout;
-            importCmd.CommandTimeout = timeout;
-
-            // SSH.NET 2026: CreateInputStream() requires the channel to be OPEN, and BeginExecute()
-            // opens the channel synchronously before it returns — so the input stream must be created
-            // AFTER BeginExecute(), never before (otherwise: "input stream can be used only during
-            // execution"). OutputStream is likewise (re)created by BeginExecute for this run.
-            var exportAsync = exportCmd.BeginExecute();
-            var importAsync = importCmd.BeginExecute();
-            var importInput = importCmd.CreateInputStream();
-
-            long bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, importInput, cts.Token);
-            importInput.Close(); // signal EOF so the remote tar finishes
-
-            exportCmd.EndExecute(exportAsync);
-            importCmd.EndExecute(importAsync);
-
-            // Require explicit success; null exit status = command killed / channel died = failure.
-            if (exportCmd.ExitStatus != 0)
+            // 3) Optionally quiesce the source volume's containers so the archive is consistent.
+            var stopped = request.StopContainers
+                ? Containers.ContainerQuiesce.StopRunning(source, sourceHead, request.SourceVolume, _options.SshTimeoutSeconds)
+                : Array.Empty<string>();
+            if (stopped.Count > 0)
             {
-                return VolumeMigrationResult.Fail($"Export der Quelle fehlgeschlagen: {FirstLine(exportCmd.Error)}", steps);
+                steps.Add($"{stopped.Count} Container an der Quelle gestoppt.");
             }
-            if (importCmd.ExitStatus != 0)
+
+            long bytes = 0;
+            try
             {
-                return VolumeMigrationResult.Fail($"Import ins Ziel fehlgeschlagen: {FirstLine(importCmd.Error)}", steps);
+                // Stream source -> target. On overwrite, wipe the target first so it matches the source.
+                var timeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
+                using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead));
+                using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead, clearFirst: request.Overwrite));
+                exportCmd.CommandTimeout = timeout;
+                importCmd.CommandTimeout = timeout;
+
+                // SSH.NET 2026: CreateInputStream() requires the channel to be OPEN, and BeginExecute()
+                // opens the channel synchronously before it returns — so the input stream must be created
+                // AFTER BeginExecute(), never before (otherwise: "input stream can be used only during
+                // execution"). OutputStream is likewise (re)created by BeginExecute for this run.
+                var exportAsync = exportCmd.BeginExecute();
+                var importAsync = importCmd.BeginExecute();
+                var importInput = importCmd.CreateInputStream();
+
+                bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, importInput, cts.Token);
+                importInput.Close(); // signal EOF so the remote tar finishes
+
+                exportCmd.EndExecute(exportAsync);
+                importCmd.EndExecute(importAsync);
+
+                // Require explicit success; null exit status = command killed / channel died = failure.
+                if (exportCmd.ExitStatus != 0)
+                {
+                    return VolumeMigrationResult.Fail($"Export der Quelle fehlgeschlagen: {FirstLine(exportCmd.Error)}", steps);
+                }
+                if (importCmd.ExitStatus != 0)
+                {
+                    return VolumeMigrationResult.Fail($"Import ins Ziel fehlgeschlagen: {FirstLine(importCmd.Error)}", steps);
+                }
+            }
+            finally
+            {
+                // Always restart the source containers we stopped, even on failure.
+                Containers.ContainerQuiesce.Start(source, sourceHead, stopped, _options.SshTimeoutSeconds);
             }
 
             steps.Add($"{VolumeMigrationResult.FormatBytes(bytes)} übertragen.");
@@ -148,6 +166,7 @@ public sealed class VolumeMigrationService
         bool overwrite,
         BackupTarget? backupTarget,
         bool keepBackup,
+        bool stopContainers = false,
         CancellationToken cancellationToken = default)
     {
         if (!VolumeCommands.IsValidVolumeName(sourceVolume) || !VolumeCommands.IsValidVolumeName(targetVolume))
@@ -166,7 +185,7 @@ public sealed class VolumeMigrationService
         try
         {
             // 1) Back the source up (safety net + transport artifact).
-            var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, cts.Token);
+            var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, ct: cts.Token, stopContainers: stopContainers);
             if (!backup.Success || backup.BackupId is not { } backupId)
             {
                 return VolumeMigrationResult.Fail($"Backup der Quelle fehlgeschlagen: {backup.Message}", steps);
@@ -175,7 +194,7 @@ public sealed class VolumeMigrationService
 
             // 2) Restore that backup into the target. On failure the backup is intentionally KEPT so the
             //    restore can be retried without touching the source again.
-            var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, cts.Token);
+            var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, ct: cts.Token, stopContainers: stopContainers);
             if (!restore.Success)
             {
                 steps.Add("Backup bleibt erhalten – Restore kann daraus wiederholt werden.");

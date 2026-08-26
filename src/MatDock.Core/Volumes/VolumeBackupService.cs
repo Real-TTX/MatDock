@@ -53,7 +53,7 @@ public sealed class VolumeBackupService
             ? $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar"
             : $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}_{suffix}.tar";
 
-    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default)
+    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
@@ -83,23 +83,36 @@ public sealed class VolumeBackupService
                 return BackupResult.Fail($"Volume '{volumeName}' existiert auf dem Host nicht.");
             }
 
-            using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head));
-            exportCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-            var async = exportCmd.BeginExecute();
+            // Optionally quiesce the volume's containers so the archive is a consistent snapshot.
+            var stopped = stopContainers
+                ? Containers.ContainerQuiesce.StopRunning(client, head, volumeName, _options.SshTimeoutSeconds)
+                : Array.Empty<string>();
 
-            long bytes;
-            await using (var destination = await storage.OpenWriteAsync(fileName, cts.Token))
+            long bytes = 0;
+            try
             {
-                bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, destination, cts.Token);
+                using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head));
+                exportCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
+                var async = exportCmd.BeginExecute();
+
+                await using (var destination = await storage.OpenWriteAsync(fileName, cts.Token))
+                {
+                    bytes = await StreamPump.CopyAsync(exportCmd.OutputStream, destination, cts.Token);
+                }
+
+                exportCmd.EndExecute(async);
+                // Require an explicit success: a null exit status means the command was killed / the channel
+                // died mid-transfer, which would otherwise persist a truncated archive as a valid backup.
+                if (exportCmd.ExitStatus != 0)
+                {
+                    await TryDeleteAsync(storage, fileName);
+                    return BackupResult.Fail($"Backup fehlgeschlagen: {FirstLine(exportCmd.Error)}");
+                }
             }
-
-            exportCmd.EndExecute(async);
-            // Require an explicit success: a null exit status means the command was killed / the channel
-            // died mid-transfer, which would otherwise persist a truncated archive as a valid backup.
-            if (exportCmd.ExitStatus != 0)
+            finally
             {
-                await TryDeleteAsync(storage, fileName);
-                return BackupResult.Fail($"Backup fehlgeschlagen: {FirstLine(exportCmd.Error)}");
+                // Always restart whatever we stopped, even if the export failed.
+                Containers.ContainerQuiesce.Start(client, head, stopped, _options.SshTimeoutSeconds);
             }
 
             var backup = new VolumeBackup
@@ -131,7 +144,7 @@ public sealed class VolumeBackupService
         }
     }
 
-    public async Task<RestoreResult> RestoreAsync(long backupId, DockerEnvironment target, string targetVolume, bool overwrite, CancellationToken ct = default)
+    public async Task<RestoreResult> RestoreAsync(long backupId, DockerEnvironment target, string targetVolume, bool overwrite, CancellationToken ct = default, bool stopContainers = false)
     {
         if (!VolumeCommands.IsValidVolumeName(targetVolume))
         {
@@ -192,23 +205,36 @@ public sealed class VolumeBackupService
                 }
             }
 
-            // On overwrite, wipe the target first so the restored state matches the archive exactly.
-            using var importCmd = client.CreateCommand(VolumeCommands.Import(targetVolume, _options.HelperImage, head, clearFirst: overwrite));
-            importCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-            // SSH.NET 2026: CreateInputStream() requires an open channel, which BeginExecute() opens
-            // synchronously — so it must be called AFTER BeginExecute(), never before.
-            var async = importCmd.BeginExecute();
-            var input = importCmd.CreateInputStream();
+            // Optionally stop the target volume's containers so the wipe/extract is not fought by writers.
+            var stopped = stopContainers
+                ? Containers.ContainerQuiesce.StopRunning(client, head, targetVolume, _options.SshTimeoutSeconds)
+                : Array.Empty<string>();
 
-            var bytes = await StreamPump.CopyAsync(source, input, cts.Token);
-
-            input.Close();
-            importCmd.EndExecute(async);
-
-            // Require an explicit success; null exit status = command killed / channel died = failure.
-            if (importCmd.ExitStatus != 0)
+            long bytes = 0;
+            try
             {
-                return RestoreResult.Fail($"Restore fehlgeschlagen: {FirstLine(importCmd.Error)}");
+                // On overwrite, wipe the target first so the restored state matches the archive exactly.
+                using var importCmd = client.CreateCommand(VolumeCommands.Import(targetVolume, _options.HelperImage, head, clearFirst: overwrite));
+                importCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
+                // SSH.NET 2026: CreateInputStream() requires an open channel, which BeginExecute() opens
+                // synchronously — so it must be called AFTER BeginExecute(), never before.
+                var async = importCmd.BeginExecute();
+                var input = importCmd.CreateInputStream();
+
+                bytes = await StreamPump.CopyAsync(source, input, cts.Token);
+
+                input.Close();
+                importCmd.EndExecute(async);
+
+                // Require an explicit success; null exit status = command killed / channel died = failure.
+                if (importCmd.ExitStatus != 0)
+                {
+                    return RestoreResult.Fail($"Restore fehlgeschlagen: {FirstLine(importCmd.Error)}");
+                }
+            }
+            finally
+            {
+                Containers.ContainerQuiesce.Start(client, head, stopped, _options.SshTimeoutSeconds);
             }
 
             return RestoreResult.Ok(bytes);

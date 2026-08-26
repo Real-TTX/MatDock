@@ -36,6 +36,9 @@ public class RestoreModel : PageModel
         public string TargetVolume { get; set; } = string.Empty;
 
         public bool Overwrite { get; set; }
+
+        /// <summary>Stop the target volume's containers during the restore, then restart them.</summary>
+        public bool StopContainers { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long id)
@@ -81,7 +84,8 @@ public class RestoreModel : PageModel
         }
 
         Result = await _backupService.RestoreAsync(
-            Input.BackupId, target, Input.TargetVolume.Trim(), Input.Overwrite, HttpContext.RequestAborted);
+            Input.BackupId, target, Input.TargetVolume.Trim(), Input.Overwrite,
+            ct: HttpContext.RequestAborted, stopContainers: Input.StopContainers);
         return Page();
     }
 }

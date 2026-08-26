@@ -69,6 +69,21 @@ public class ContainerTests
     }
 
     [Fact]
+    public void ApplyStats_matches_short_ps_id_against_full_stats_id()
+    {
+        // docker ps reports the 12-char short id; docker stats may report the full 64-char id.
+        var shortId = "3f4a9c8b1d2e";
+        var fullId = shortId + new string('0', 52); // 64 chars
+        var line = $"{{\"ID\":\"{shortId}\",\"Names\":\"web\",\"Image\":\"nginx\",\"State\":\"running\",\"Status\":\"Up\",\"Labels\":\"\"}}";
+        var containers = ContainerService.ParseContainers(line).ToList();
+
+        ContainerService.ApplyStats(containers, $"{{\"ID\":\"{fullId}\",\"CPUPerc\":\"5.0%\",\"MemPerc\":\"1.0%\",\"MemUsage\":\"10MiB / 1GiB\"}}");
+
+        Assert.Equal(5.0, containers.Single().CpuPercent);
+        Assert.Equal("10MiB / 1GiB", containers.Single().MemUsage);
+    }
+
+    [Fact]
     public void ApplyStats_leaves_unmatched_containers_untouched()
     {
         var line = "{\"ID\":\"noStats\",\"Names\":\"db\",\"Image\":\"pg\",\"State\":\"exited\",\"Status\":\"Exited\",\"Labels\":\"\"}";

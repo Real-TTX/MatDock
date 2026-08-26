@@ -64,6 +64,31 @@ public sealed class ContainerService
         return containers;
     }
 
+    /// <summary>Containers that mount the given volume on this host (running and stopped). Empty on failure.</summary>
+    public async Task<IReadOnlyList<DockerContainer>> ListByVolumeAsync(DockerEnvironment environment, string volume, CancellationToken ct = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(volume))
+        {
+            return Array.Empty<DockerContainer>();
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _sshClientFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var result = await RunCommandAsync(client, ContainerCommands.ListByVolume(head, volume, runningOnly: false), ct);
+            return result.ExitStatus == 0 ? ParseContainers(result.StdOut) : Array.Empty<DockerContainer>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ListByVolume for {Volume} on env {Env} failed.", volume, environment.Id);
+            return Array.Empty<DockerContainer>();
+        }
+    }
+
     public async Task<(bool Success, string Message)> ActionAsync(DockerEnvironment environment, string id, ContainerAction action, CancellationToken ct = default)
     {
         if (!ContainerCommands.IsValidId(id))
@@ -228,7 +253,9 @@ public sealed class ContainerService
                 var id = Get("ID");
                 if (!string.IsNullOrEmpty(id))
                 {
-                    map[id] = new StatsEntry(ParsePercent(Get("CPUPerc")), ParsePercent(Get("MemPerc")), Get("MemUsage"));
+                    // `docker stats` may report the full 64-char id while `docker ps` reports the 12-char
+                    // short id — normalize both to the short form so the merge matches across versions.
+                    map[ShortId(id)] = new StatsEntry(ParsePercent(Get("CPUPerc")), ParsePercent(Get("MemPerc")), Get("MemUsage"));
                 }
             }
             catch (JsonException)
@@ -244,7 +271,7 @@ public sealed class ContainerService
     {
         foreach (var c in containers)
         {
-            if (c.Id.Length > 0 && stats.TryGetValue(c.Id, out var s))
+            if (c.Id.Length > 0 && stats.TryGetValue(ShortId(c.Id), out var s))
             {
                 c.CpuPercent = s.Cpu;
                 c.MemPercent = s.Mem;
@@ -252,6 +279,8 @@ public sealed class ContainerService
             }
         }
     }
+
+    private static string ShortId(string id) => id.Length > 12 ? id[..12] : id;
 
     private static double? ParsePercent(string? text)
     {

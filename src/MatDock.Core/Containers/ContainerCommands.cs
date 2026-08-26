@@ -20,6 +20,19 @@ public static partial class ContainerCommands
     public static string Stats(string dockerHead)
         => VolumeCommands.PathPrefix + dockerHead + " stats --no-stream --format '{{json .}}'";
 
+    /// <summary>Containers that mount the given (validated) volume. <paramref name="runningOnly"/> false = include stopped.</summary>
+    public static string ListByVolume(string dockerHead, string volume, bool runningOnly)
+    {
+        if (!VolumeCommands.IsValidVolumeName(volume))
+        {
+            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+        }
+
+        var all = runningOnly ? string.Empty : "-a ";
+        // volume is validated (no shell metacharacters) and single-quoted; braces built by concatenation.
+        return VolumeCommands.PathPrefix + dockerHead + " ps " + all + "--filter volume='" + volume + "' --format '{{json .}}'";
+    }
+
     public static string Action(string dockerHead, ContainerAction action, string id)
     {
         if (!IsValidId(id))

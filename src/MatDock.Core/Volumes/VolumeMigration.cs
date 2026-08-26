@@ -25,6 +25,9 @@ public sealed class VolumeMigrationRequest
 
     /// <summary>When false, the migration aborts if the target volume already contains data.</summary>
     public bool Overwrite { get; init; }
+
+    /// <summary>Stop the source volume's containers during the transfer (consistency), then restart them.</summary>
+    public bool StopContainers { get; init; }
 }
 
 /// <summary>Outcome of a volume migration.</summary>

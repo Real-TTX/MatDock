@@ -78,6 +78,10 @@ else
                     <input asp-for="Overwrite" type="checkbox" />
                     <span>Überschreiben, falls Ziel-Volumes bereits Daten enthalten</span>
                 </label>
+                <label class="mat-check">
+                    <input asp-for="StopContainers" type="checkbox" />
+                    <span>Container während des Vorgangs stoppen und danach wieder starten (konsistenter Snapshot)</span>
+                </label>
 
                 <div class="mat-field">
                     <label class="mat-label" for="MigrationMode">Migrationsart</label>
