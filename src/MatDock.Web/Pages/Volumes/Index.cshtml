@@ -35,12 +35,8 @@
 <mat-table>
     <mat-table-toolbar>
         <form method="get" class="js-autosubmit" style="display:contents;">
-            <div class="search">
-                <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Volume, Mountpoint, Environment)…" />
-            </div>
             <div class="toolbar-field">
-                <label for="filter-env"><icon name="filter" /></label>
+                <label for="filter-env"><icon name="server" /> Environment</label>
                 <select id="filter-env" name="EnvId" class="mat-select">
                     <option value="0">Alle Environments</option>
                     @foreach (var env in Model.Environments)
@@ -48,6 +44,10 @@
                         <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
                     }
                 </select>
+            </div>
+            <div class="search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Volume, Mountpoint, Environment)…" />
             </div>
             <span class="toolbar-spacer"></span>
             <span class="text-muted"><strong>@Model.Rows.Count</strong> Volumes</span>
