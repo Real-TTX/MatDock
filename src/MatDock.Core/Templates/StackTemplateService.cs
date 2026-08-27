@@ -19,13 +19,18 @@ public sealed class StackTemplateService
         => _db.StackTemplates.AsNoTracking().OrderBy(t => t.Name).ToListAsync(ct);
 
     public Task<StackTemplate?> GetAsync(long id, CancellationToken ct = default)
-        => _db.StackTemplates.FirstOrDefaultAsync(t => t.Id == id, ct);
+        => _db.StackTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
 
     public async Task<(bool Ok, string Message, long Id)> CreateAsync(StackTemplateInput input, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(input.Name))
         {
             return (false, "Name ist erforderlich.", 0);
+        }
+
+        if (string.IsNullOrWhiteSpace(input.ComposeYaml))
+        {
+            return (false, "Compose-YAML ist erforderlich.", 0);
         }
 
         var template = new StackTemplate();
@@ -40,6 +45,11 @@ public sealed class StackTemplateService
         if (string.IsNullOrWhiteSpace(input.Name))
         {
             return (false, "Name ist erforderlich.");
+        }
+
+        if (string.IsNullOrWhiteSpace(input.ComposeYaml))
+        {
+            return (false, "Compose-YAML ist erforderlich.");
         }
 
         var template = await _db.StackTemplates.FirstOrDefaultAsync(t => t.Id == id, ct);
