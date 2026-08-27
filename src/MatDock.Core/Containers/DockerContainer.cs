@@ -16,6 +16,9 @@ public sealed class DockerContainer
     /// <summary>docker-compose service name (label com.docker.compose.service).</summary>
     public string? Service { get; init; }
 
+    /// <summary>Per-container "open in browser" URL override (label <c>matdock.openurl</c>); may be unvalidated.</summary>
+    public string? OpenUrlOverride { get; init; }
+
     // Live usage, merged from `docker stats` (only present for running containers).
     public double? CpuPercent { get; set; }
     public double? MemPercent { get; set; }

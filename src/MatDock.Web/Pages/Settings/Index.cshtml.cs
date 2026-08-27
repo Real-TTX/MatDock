@@ -17,6 +17,11 @@ public class IndexModel : PageModel
         _paths = paths;
     }
 
+    [BindProperty(SupportsGet = true)]
+    public string Tab { get; set; } = "general";
+
+    public bool IsBackupTab => string.Equals(Tab, "backup", StringComparison.OrdinalIgnoreCase);
+
     public List<BackupTarget> Targets { get; private set; } = new();
     public string LocalPath => _paths.BackupsPath;
     public bool LocalIsDefault => !Targets.Any(t => t.IsDefault);
@@ -36,27 +41,27 @@ public class IndexModel : PageModel
         {
             StatusMessage = "Ziel nicht gefunden.";
             IsError = true;
-            return RedirectToPage();
+            return RedirectToPage(new { Tab = "backup" });
         }
 
         var (ok, message) = await _targetService.TestAsync(target, HttpContext.RequestAborted);
         StatusMessage = $"{target.Name}: {message}";
         IsError = !ok;
-        return RedirectToPage();
+        return RedirectToPage(new { Tab = "backup" });
     }
 
     public async Task<IActionResult> OnPostDefaultAsync(long id)
     {
         await _targetService.SetDefaultAsync(id, HttpContext.RequestAborted);
         StatusMessage = "Standard-Ziel gesetzt.";
-        return RedirectToPage();
+        return RedirectToPage(new { Tab = "backup" });
     }
 
     public async Task<IActionResult> OnPostLocalDefaultAsync()
     {
         await _targetService.SetDefaultAsync(null, HttpContext.RequestAborted);
         StatusMessage = "Lokaler Speicher ist jetzt Standard.";
-        return RedirectToPage();
+        return RedirectToPage(new { Tab = "backup" });
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)
@@ -64,6 +69,6 @@ public class IndexModel : PageModel
         var (ok, message) = await _targetService.DeleteAsync(id, HttpContext.RequestAborted);
         StatusMessage = message;
         IsError = !ok;
-        return RedirectToPage();
+        return RedirectToPage(new { Tab = "backup" });
     }
 }

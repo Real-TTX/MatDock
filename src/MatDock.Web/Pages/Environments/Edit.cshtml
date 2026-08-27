@@ -34,6 +34,10 @@
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
+                <mat-field label="Basis-URL" asp-for="Input.BaseUrl" class="span-2" hint="Optional, z. B. https://host – Öffnen-Link bei Containern; pro Container per Label matdock.openurl überschreibbar.">
+                    <input asp-for="Input.BaseUrl" class="mat-input" placeholder="https://host.example.com" />
+                </mat-field>
+
                 <mat-field label="Host" asp-for="Input.Host">
                     <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com oder 10.0.0.5" />
                 </mat-field>

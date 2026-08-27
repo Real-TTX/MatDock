@@ -201,6 +201,7 @@ public sealed class EnvironmentService
     {
         entity.Name = input.Name.Trim();
         entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
+        entity.BaseUrl = string.IsNullOrWhiteSpace(input.BaseUrl) ? null : input.BaseUrl.Trim();
         entity.Host = input.Host.Trim();
         entity.Port = input.Port;
         entity.Username = input.Username.Trim();

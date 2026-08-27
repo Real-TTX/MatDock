@@ -13,6 +13,8 @@ public sealed class EnvironmentInput
 
     public string? Description { get; set; }
 
+    public string? BaseUrl { get; set; }
+
     public string Host { get; set; } = string.Empty;
 
     public int Port { get; set; } = 22;

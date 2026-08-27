@@ -27,7 +27,12 @@
 }
 else if (c is not null)
 {
+    var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
     <div class="mat-buttons" style="margin-bottom:16px;">
+        @if (openUrl is not null)
+        {
+            <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Öffnen</span></a>
+        }
         <a class="mat-btn" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
         @if (c.IsRunning)
         {

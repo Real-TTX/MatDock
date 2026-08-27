@@ -11,6 +11,9 @@ public class DockerEnvironment : AuditableEntity
 
     public string? Description { get; set; }
 
+    /// <summary>Optional base URL to open services on this host (e.g. https://host); containers can override via the <c>matdock.openurl</c> label.</summary>
+    public string? BaseUrl { get; set; }
+
     public string Host { get; set; } = string.Empty;
 
     public int Port { get; set; } = 22;

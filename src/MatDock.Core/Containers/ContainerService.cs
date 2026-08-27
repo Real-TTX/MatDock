@@ -304,6 +304,7 @@ public sealed class ContainerService
                     Ports = Get("Ports"),
                     Project = ExtractLabel(labels, "com.docker.compose.project"),
                     Service = ExtractLabel(labels, "com.docker.compose.service"),
+                    OpenUrlOverride = ExtractLabel(labels, "matdock.openurl"),
                 });
             }
             catch (JsonException)

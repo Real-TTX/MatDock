@@ -40,6 +40,7 @@ else
             <tbody>
                 @foreach (var c in Model.Containers.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
                 {
+                    var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
                     <tr>
                         <td class="wrap">
                             <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
@@ -51,6 +52,10 @@ else
                         <td class="num cell-sub">@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td>
                         <td class="actions">
                             <div class="row-actions">
+                                @if (openUrl is not null)
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Öffnen"><icon name="external" /></a>
+                                }
                                 <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                                 @if (c.IsRunning)
                                 {

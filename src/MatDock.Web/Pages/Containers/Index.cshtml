@@ -19,6 +19,7 @@
     async Task Row(DockerContainer c, string rowClass)
     {
         var collapsed = rowClass.Contains("stack-child", StringComparison.Ordinal);
+        var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.SelectedEnvironment?.BaseUrl);
         <tr class="@rowClass" data-search="@SearchKey(c)" hidden="@(collapsed ? "hidden" : null)">
             <td class="wrap">
                 <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
@@ -63,6 +64,10 @@
             </td>
             <td class="actions">
                 <div class="row-actions">
+                    @if (openUrl is not null)
+                    {
+                        <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Öffnen"><icon name="external" /></a>
+                    }
                     <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                     @if (c.IsRunning)
                     {

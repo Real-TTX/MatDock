@@ -45,6 +45,10 @@ public class EditModel : PageModel
         [Display(Name = "Beschreibung")]
         public string? Description { get; set; }
 
+        [StringLength(500)]
+        [Display(Name = "Basis-URL")]
+        public string? BaseUrl { get; set; }
+
         [Required(ErrorMessage = "Bitte den Host angeben.")]
         [StringLength(255)]
         [Display(Name = "Host")]
@@ -163,6 +167,7 @@ public class EditModel : PageModel
     {
         Name = Input.Name,
         Description = Input.Description,
+        BaseUrl = Input.BaseUrl,
         Host = Input.Host,
         Port = Input.Port,
         Username = Input.Username,
@@ -179,6 +184,7 @@ public class EditModel : PageModel
             Id = entity.Id,
             Name = entity.Name,
             Description = entity.Description,
+            BaseUrl = entity.BaseUrl,
             Host = entity.Host,
             Port = entity.Port,
             Username = entity.Username,

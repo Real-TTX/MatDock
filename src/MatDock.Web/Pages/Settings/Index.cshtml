@@ -7,12 +7,14 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>System</h1>
-        <span class="page-head__subtitle">Backup-Ziele &amp; Einstellungen</span>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Settings/Notifications" class="mat-btn"><icon name="alert" /><span>Benachrichtigungen</span></a>
+        <span class="page-head__subtitle">Allgemeine Einstellungen &amp; Backup-Ziele</span>
     </div>
 </div>
+
+<nav class="mat-tabs">
+    <a class="mat-tabs__tab @(Model.IsBackupTab ? "" : "is-active")" href="/Settings?tab=general"><icon name="settings" /><span>Allgemein</span></a>
+    <a class="mat-tabs__tab @(Model.IsBackupTab ? "is-active" : "")" href="/Settings?tab=backup"><icon name="save" /><span>Backup</span></a>
+</nav>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -21,77 +23,102 @@
     </div>
 }
 
-<mat-table>
-    <mat-table-toolbar>
-        <strong>Backup-Ziele</strong>
-        <span class="toolbar-spacer"></span>
-        <span class="text-muted">Wohin Backups geschrieben werden</span>
-    </mat-table-toolbar>
+@if (!Model.IsBackupTab)
+{
+    <div class="card" style="margin-bottom:16px;max-width:820px;">
+        <div class="card__header"><icon name="whale" /><span>MatDock</span></div>
+        <div class="mat-table__scroll">
+            <table class="data">
+                <tbody>
+                    <tr><th style="width:200px;">Version</th><td class="mono">@AppVersion.Informational</td></tr>
+                    <tr><th>Lokaler Backup-Pfad</th><td class="mono">@Model.LocalPath</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-    <mat-table-body>
-        <table class="data">
-            <thead>
-                <tr><th>Name</th><th>Typ</th><th>Details</th><th>Standard</th><th class="actions">Aktionen</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Lokal (MatDock)</strong></td>
-                    <td>Local</td>
-                    <td class="cell-sub">@Model.LocalPath</td>
-                    <td>
-                        @if (Model.LocalIsDefault)
-                        {
-                            <span class="pill pill--online"><icon name="check-circle" /><span>Standard</span></span>
-                        }
-                        else
-                        {
-                            <form method="post" asp-page-handler="LocalDefault" style="display:inline;">
-                                <button type="submit" class="mat-btn mat-btn--sm">Als Standard</button>
-                            </form>
-                        }
-                    </td>
-                    <td class="actions"><span class="text-muted">–</span></td>
-                </tr>
-                @foreach (var t in Model.Targets)
-                {
+    <div class="card" style="max-width:820px;">
+        <div class="card__header"><icon name="alert" /><span>Benachrichtigungen</span></div>
+        <div class="card__body">
+            <p class="text-muted" style="margin-bottom:10px;">E-Mail (SMTP) und Webhook bei Backup-/Zeitplan-Ergebnissen.</p>
+            <a href="/Settings/Notifications" class="mat-btn"><icon name="alert" /><span>Benachrichtigungen konfigurieren</span></a>
+        </div>
+    </div>
+}
+else
+{
+    <mat-table>
+        <mat-table-toolbar>
+            <strong>Backup-Ziele</strong>
+            <span class="toolbar-spacer"></span>
+            <span class="text-muted">Wohin Backups geschrieben werden</span>
+        </mat-table-toolbar>
+
+        <mat-table-body>
+            <table class="data">
+                <thead>
+                    <tr><th>Name</th><th>Typ</th><th>Details</th><th>Standard</th><th class="actions">Aktionen</th></tr>
+                </thead>
+                <tbody>
                     <tr>
-                        <td><strong>@t.Name</strong></td>
-                        <td>@t.Type</td>
-                        <td class="cell-sub">@(t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "")</td>
+                        <td><strong>Lokal (MatDock)</strong></td>
+                        <td>Local</td>
+                        <td class="cell-sub">@Model.LocalPath</td>
                         <td>
-                            @if (t.IsDefault)
+                            @if (Model.LocalIsDefault)
                             {
                                 <span class="pill pill--online"><icon name="check-circle" /><span>Standard</span></span>
                             }
                             else
                             {
-                                <form method="post" asp-page-handler="Default" style="display:inline;">
-                                    <input type="hidden" name="id" value="@t.Id" />
+                                <form method="post" asp-page-handler="LocalDefault" style="display:inline;">
                                     <button type="submit" class="mat-btn mat-btn--sm">Als Standard</button>
                                 </form>
                             }
                         </td>
-                        <td class="actions">
-                            <div class="row-actions">
-                                <form method="post" asp-page-handler="Test" style="display:inline;">
-                                    <input type="hidden" name="id" value="@t.Id" />
-                                    <button type="submit" class="mat-btn mat-btn--sm" title="Testen"><icon name="plug" /></button>
-                                </form>
-                                <a class="mat-btn mat-btn--sm" href="/Settings/BackupTargetEdit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
-                                <span style="width:8px;display:inline-block;"></span>
-                                <form method="post" asp-page-handler="Delete" data-confirm="Ziel „@t.Name“ löschen?" style="display:inline;">
-                                    <input type="hidden" name="id" value="@t.Id" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
-                                </form>
-                            </div>
-                        </td>
+                        <td class="actions"><span class="text-muted">–</span></td>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </mat-table-body>
+                    @foreach (var t in Model.Targets)
+                    {
+                        <tr>
+                            <td><strong>@t.Name</strong></td>
+                            <td>@t.Type</td>
+                            <td class="cell-sub">@(t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "")</td>
+                            <td>
+                                @if (t.IsDefault)
+                                {
+                                    <span class="pill pill--online"><icon name="check-circle" /><span>Standard</span></span>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="Default" style="display:inline;">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm">Als Standard</button>
+                                    </form>
+                                }
+                            </td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <form method="post" asp-page-handler="Test" style="display:inline;">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Testen"><icon name="plug" /></button>
+                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Settings/BackupTargetEdit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <span style="width:8px;display:inline-block;"></span>
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Ziel „@t.Name“ löschen?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </mat-table-body>
 
-    <mat-table-actions>
-        <a href="/Settings/BackupTargetEdit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Backup-Ziel (NAS/SMB)</span></a>
-    </mat-table-actions>
-</mat-table>
+        <mat-table-actions>
+            <a href="/Settings/BackupTargetEdit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Backup-Ziel (NAS/SMB)</span></a>
+        </mat-table-actions>
+    </mat-table>
+}
