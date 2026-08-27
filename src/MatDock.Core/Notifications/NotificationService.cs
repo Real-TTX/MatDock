@@ -10,8 +10,9 @@ namespace MatDock.Core.Notifications;
 
 public interface INotificationService
 {
-    /// <summary>Sends a backup/schedule result notification via the configured channels (respecting the on-success/on-failure prefs).</summary>
-    Task NotifyScheduleResultAsync(string scheduleName, string summary, bool success, CancellationToken ct = default);
+    /// <summary>Sends a backup result notification via the configured channels (respecting the on-success/on-failure prefs).
+    /// <paramref name="title"/> labels the source — a schedule name, "Manuelles Backup: …" or "Sammel-Backup".</summary>
+    Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default);
 
     /// <summary>Sends a test notification via all enabled channels; returns an aggregated result.</summary>
     Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default);
@@ -31,7 +32,7 @@ public sealed class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task NotifyScheduleResultAsync(string scheduleName, string summary, bool success, CancellationToken ct = default)
+    public async Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default)
     {
         var s = await _settingsService.GetAsync(ct);
         if (success ? !s.NotifyOnSuccess : !s.NotifyOnFailure)
@@ -40,7 +41,7 @@ public sealed class NotificationService : INotificationService
         }
 
         // Strip CR/LF: a line break would make MailMessage.Subject throw (and silently drop the e-mail).
-        var safeName = scheduleName.Replace('\r', ' ').Replace('\n', ' ');
+        var safeName = title.Replace('\r', ' ').Replace('\n', ' ');
         var subject = $"MatDock Backup: {safeName} – {(success ? "OK" : "Fehler")}";
         await DispatchAsync(s, subject, summary, safeName, success, ct);
     }
@@ -120,7 +121,8 @@ public sealed class NotificationService : INotificationService
         var payload = JsonSerializer.Serialize(new
         {
             source = "MatDock",
-            schedule = scheduleName,
+            title = scheduleName,
+            schedule = scheduleName, // kept for backward compatibility with existing webhook consumers
             success,
             subject,
             message = body,

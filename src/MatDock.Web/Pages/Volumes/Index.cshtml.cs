@@ -2,6 +2,7 @@ using MatDock.Core.Backups;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Notifications;
 using MatDock.Core.Volumes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -18,6 +19,7 @@ public class IndexModel : PageModel
     private readonly IEnvironmentConnectionService _connectionService;
     private readonly VolumeBackupService _backupService;
     private readonly BackupTargetService _backupTargetService;
+    private readonly INotificationService _notifications;
     private readonly IMemoryCache _cache;
 
     public IndexModel(
@@ -25,12 +27,14 @@ public class IndexModel : PageModel
         IEnvironmentConnectionService connectionService,
         VolumeBackupService backupService,
         BackupTargetService backupTargetService,
+        INotificationService notifications,
         IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
         _backupService = backupService;
         _backupTargetService = backupTargetService;
+        _notifications = notifications;
         _cache = cache;
     }
 
@@ -168,6 +172,7 @@ public class IndexModel : PageModel
 
         StatusMessage = $"Bulk-Backup → {(target?.Name ?? "Lokal")}: {ok} ok, {fail} Fehler.";
         IsError = fail > 0;
+        await NotifyBackupAsync("Sammel-Backup", $"{ok} ok, {fail} Fehler → {(target?.Name ?? "Lokal")}.", fail == 0);
         return RedirectToPage(new { EnvId, Q });
     }
 
@@ -193,6 +198,20 @@ public class IndexModel : PageModel
         var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
         StatusMessage = $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}";
         IsError = !result.Success;
+        await NotifyBackupAsync($"Manuelles Backup: {volume}", $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}", result.Success);
         return RedirectToPage(new { EnvId, Q });
+    }
+
+    /// <summary>Best-effort backup notification for manual/bulk runs; never fails the request.</summary>
+    private async Task NotifyBackupAsync(string title, string summary, bool success)
+    {
+        try
+        {
+            await _notifications.NotifyBackupResultAsync(title, summary, success, HttpContext.RequestAborted);
+        }
+        catch
+        {
+            // notifications are best-effort; a delivery failure must not affect the backup result page.
+        }
     }
 }

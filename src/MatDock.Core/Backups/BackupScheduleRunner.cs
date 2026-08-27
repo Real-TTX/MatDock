@@ -89,7 +89,7 @@ public sealed class BackupScheduleRunner
         // recorded as LastStatus to avoid alerting on every run of a misconfigured schedule).
         try
         {
-            await _notifications.NotifyScheduleResultAsync(schedule.Name, summary, failures.Count == 0, ct);
+            await _notifications.NotifyBackupResultAsync(schedule.Name, summary, failures.Count == 0, ct);
         }
         catch (Exception ex)
         {
