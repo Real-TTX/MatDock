@@ -1,0 +1,65 @@
+@page
+@model MatDock.Web.Pages.Stacks.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Stack bearbeiten" : "Neuer Stack";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">Compose-Stack anlegen &amp; via <code>docker compose</code> deployen</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.DeployOutput))
+{
+    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:.8rem;white-space:pre-wrap;word-break:break-word;margin-bottom:16px;">@Model.DeployOutput</pre>
+}
+
+<div class="card" style="max-width:900px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <div class="form-grid">
+                <mat-field label="Name" asp-for="Input.Name" hint="Compose-Projektname (bestimmt den Verzeichnis- und Container-Präfix). Nach dem ersten Deploy nicht mehr ändern.">
+                    @if (Model.IsEdit)
+                    {
+                        <input asp-for="Input.Name" class="mat-input" readonly />
+                    }
+                    else
+                    {
+                        <input asp-for="Input.Name" class="mat-input" placeholder="z. B. media-stack" />
+                    }
+                </mat-field>
+
+                <mat-field label="Environment" asp-for="Input.EnvironmentId">
+                    <select asp-for="Input.EnvironmentId" class="mat-select">
+                        <option value="">– wählen –</option>
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            </div>
+
+            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Wird auf dem Host unter ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml abgelegt und mit „docker compose up -d“ deployt.">
+                <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="18" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
+            </mat-field>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Speichern &amp; Deployen</span></button>
+                <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Speichern</span></button>
+                <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

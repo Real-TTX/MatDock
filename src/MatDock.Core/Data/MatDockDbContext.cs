@@ -26,6 +26,7 @@ public class MatDockDbContext : DbContext
     public DbSet<BackupTarget> BackupTargets => Set<BackupTarget>();
     public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+    public DbSet<Stack> Stacks => Set<Stack>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,6 +102,17 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Cron).HasMaxLength(120).IsRequired();
             e.Ignore(x => x.Volumes);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<Stack>(e =>
+        {
+            e.ToTable("Stack");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.LastStatus).HasMaxLength(200);
+            e.HasIndex(x => x.Name);
+            e.HasIndex(x => x.EnvironmentId);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

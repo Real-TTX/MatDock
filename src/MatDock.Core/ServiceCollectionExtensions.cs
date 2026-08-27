@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Backups.BackupScheduleRunner>();
         services.AddScoped<Backups.BackupScheduleService>();
         services.AddScoped<Containers.ContainerService>();
+        services.AddScoped<Stacks.StackService>();
         services.AddScoped<Notifications.NotificationSettingsService>();
         services.AddScoped<Notifications.INotificationService, Notifications.NotificationService>();
         services.AddHttpClient();

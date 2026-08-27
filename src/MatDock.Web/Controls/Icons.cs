@@ -42,6 +42,7 @@ public static class Icons
         ["clock"] = "<circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/>",
         ["whale"] = "<path d='M2 13c2 0 2.5-2 4.5-2S9 13 11 13s2.5-2 4.5-2 2.5 2 4.5 2'/><path d='M3 13c0 4 3.5 7 9 7 4.5 0 7-2.5 8-5.5'/><path d='M20 14.5c1-.2 2-1 2-2.5'/><circle cx='8' cy='10' r='.6' fill='currentColor'/>",
         ["box"] = "<path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><polyline points='3.27 6.96 12 12.01 20.73 6.96'/><line x1='12' y1='22.08' x2='12' y2='12'/>",
+        ["layers"] = "<polygon points='12 2 2 7 12 12 22 7 12 2'/><polyline points='2 17 12 22 22 17'/><polyline points='2 12 12 17 22 12'/>",
     };
 
     public static bool TryGet(string name, out string innerSvg)

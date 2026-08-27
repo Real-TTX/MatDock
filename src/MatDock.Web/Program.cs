@@ -96,6 +96,8 @@ builder.Services.AddRazorPages(options =>
     // The volume file explorer can read/write arbitrary files inside volumes → admins only.
     options.Conventions.AuthorizePage("/Volumes/Files", "AdminOnly");
     options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");
+    // Managed stacks deploy arbitrary compose (= arbitrary containers/binds) → admins only.
+    options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
 });
 
 var app = builder.Build();
