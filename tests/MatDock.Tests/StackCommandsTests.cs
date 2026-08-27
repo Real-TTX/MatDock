@@ -42,17 +42,36 @@ public class StackCommandsTests
     [Fact]
     public void Down_builds_expected_command()
     {
-        var cmd = StackCommands.Down("sudo -n docker", "media");
+        var cmd = StackCommands.Down("sudo -n docker", "media", "docker-compose.yml");
         Assert.Contains("set -e;", cmd);   // abort early if the stack dir is missing
-        Assert.Contains("name=media;", cmd);
-        Assert.Contains("sudo -n docker compose -p \"$name\" down", cmd);
+        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" down", cmd);
+        Assert.Contains("sh 'media' 'docker-compose.yml'", cmd); // name + path passed as quoted args
+    }
+
+    [Fact]
+    public void GitSync_builds_expected_command()
+    {
+        var cmd = StackCommands.GitSync("docker", "media", "stacks/app/compose.yml");
+        Assert.Contains("tar -C \"$dir\" -xf -", cmd);                 // extract repo tarball from stdin
+        Assert.DoesNotContain("-delete", cmd);                         // never wipe (preserve runtime data)
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" up -d", cmd);
+        Assert.Contains("sh 'media' 'stacks/app/compose.yml'", cmd);
+    }
+
+    [Fact]
+    public void GitSync_single_quotes_a_malicious_compose_path()
+    {
+        // A path containing a single quote must be safely quoted, not break out of the arg.
+        var cmd = StackCommands.GitSync("docker", "media", "a'b");
+        Assert.Contains("'a'\\''b'", cmd);
     }
 
     [Fact]
     public void Builders_throw_on_injection_name()
     {
         Assert.Throws<ArgumentException>(() => StackCommands.Deploy("docker", "evil; rm -rf /"));
-        Assert.Throws<ArgumentException>(() => StackCommands.Down("docker", "$(evil)"));
+        Assert.Throws<ArgumentException>(() => StackCommands.Down("docker", "$(evil)", "docker-compose.yml"));
+        Assert.Throws<ArgumentException>(() => StackCommands.GitSync("docker", "$(evil)", "docker-compose.yml"));
     }
 
     [Theory]

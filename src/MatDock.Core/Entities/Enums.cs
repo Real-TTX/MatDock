@@ -32,6 +32,15 @@ public enum EnvironmentStatus
     Error = 3
 }
 
+/// <summary>How MatDock authenticates against a Git remote when cloning stack repositories.</summary>
+public enum GitAuthType
+{
+    /// <summary>HTTPS with username + personal access token (default).</summary>
+    HttpsToken = 0
+
+    // Future: SshKey = 1
+}
+
 /// <summary>Where backup archives are stored.</summary>
 public enum BackupTargetType
 {

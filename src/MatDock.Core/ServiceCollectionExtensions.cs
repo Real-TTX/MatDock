@@ -37,6 +37,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Containers.ContainerService>();
         services.AddScoped<Stacks.StackService>();
         services.AddScoped<Templates.StackTemplateService>();
+        services.AddScoped<Git.GitCredentialService>();
+        services.AddSingleton<Git.GitRepositoryService>();
         services.AddScoped<Notifications.NotificationSettingsService>();
         services.AddScoped<Notifications.INotificationService, Notifications.NotificationService>();
         services.AddHttpClient();

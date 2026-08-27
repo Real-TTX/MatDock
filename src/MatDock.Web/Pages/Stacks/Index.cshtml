@@ -38,15 +38,21 @@
             @foreach (var s in Model.Stacks)
             {
                 <tr>
-                    <td><a href="/Stacks/Edit?id=@s.Id"><strong>@s.Name</strong></a></td>
+                    <td>
+                        <a href="/Stacks/Edit?id=@s.Id"><strong>@s.Name</strong></a>
+                        @if (s.IsGitBacked)
+                        {
+                            <span class="pill" title="@s.GitRepoUrl" style="margin-left:6px;"><icon name="git" /> Git</span>
+                        }
+                    </td>
                     <td>@(Model.EnvNames.TryGetValue(s.EnvironmentId, out var n) ? n : $"#{s.EnvironmentId}")</td>
                     <td class="text-muted nowrap">@(s.LastDeployedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                     <td class="cell-sub">@(s.LastStatus ?? "–")</td>
                     <td class="actions">
                         <div class="row-actions">
-                            <form method="post" asp-page-handler="Deploy" data-confirm="Stack „@s.Name“ jetzt deployen (compose up)?" style="display:inline;">
+                            <form method="post" asp-page-handler="Deploy" data-confirm="@(s.IsGitBacked ? $"Stack „{s.Name}“ aus Git holen und deployen?" : $"Stack „{s.Name}“ jetzt deployen (compose up)?")" style="display:inline;">
                                 <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Deployen"><icon name="check-circle" /><span>Deploy</span></button>
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(s.IsGitBacked ? "Aus Git deployen/aktualisieren" : "Deployen")"><icon name="@(s.IsGitBacked ? "git" : "check-circle")" /><span>@(s.IsGitBacked ? "Git-Deploy" : "Deploy")</span></button>
                             </form>
                             <form method="post" asp-page-handler="Down" data-confirm="Stack „@s.Name“ stoppen (compose down)?" style="display:inline;">
                                 <input type="hidden" name="id" value="@s.Id" />

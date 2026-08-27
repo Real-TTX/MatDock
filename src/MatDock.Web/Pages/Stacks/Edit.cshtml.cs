@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Git;
 using MatDock.Core.Stacks;
 using MatDock.Core.Templates;
 using Microsoft.AspNetCore.Mvc;
@@ -13,18 +14,25 @@ public class EditModel : PageModel
     private readonly StackService _stackService;
     private readonly EnvironmentService _environmentService;
     private readonly StackTemplateService _templateService;
+    private readonly GitCredentialService _gitCredentialService;
 
-    public EditModel(StackService stackService, EnvironmentService environmentService, StackTemplateService templateService)
+    public EditModel(
+        StackService stackService,
+        EnvironmentService environmentService,
+        StackTemplateService templateService,
+        GitCredentialService gitCredentialService)
     {
         _stackService = stackService;
         _environmentService = environmentService;
         _templateService = templateService;
+        _gitCredentialService = gitCredentialService;
     }
 
     [BindProperty] public InputModel Input { get; set; } = new();
 
     public bool IsEdit => Input.Id is > 0;
     public List<DockerEnvironment> Environments { get; private set; } = new();
+    public List<GitCredential> GitCredentials { get; private set; } = new();
     public string? FromTemplateName { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -42,13 +50,23 @@ public class EditModel : PageModel
         [Range(1, long.MaxValue, ErrorMessage = "Environment ist erforderlich.")]
         public long EnvironmentId { get; set; }
 
-        [Required(ErrorMessage = "Compose-YAML ist erforderlich.")]
-        public string ComposeYaml { get; set; } = string.Empty;
+        /// <summary>"inline" (compose editor) or "git" (clone a repository).</summary>
+        public string Source { get; set; } = "inline";
+
+        // Inline source. Nullable so a git-backed stack (empty editor) doesn't trip the implicit
+        // "non-nullable reference type is required" model validation; ValidateSource enforces it for inline.
+        public string? ComposeYaml { get; set; }
+
+        // Git source
+        public string? GitRepoUrl { get; set; }
+        public string? GitReference { get; set; }
+        public string? GitComposePath { get; set; }
+        public long? GitCredentialId { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id, long? templateId)
     {
-        await LoadEnvironmentsAsync();
+        await LoadListsAsync();
 
         if (id is > 0)
         {
@@ -63,7 +81,12 @@ public class EditModel : PageModel
                 Id = stack.Id,
                 Name = stack.Name,
                 EnvironmentId = stack.EnvironmentId,
+                Source = stack.IsGitBacked ? "git" : "inline",
                 ComposeYaml = stack.ComposeYaml,
+                GitRepoUrl = stack.GitRepoUrl,
+                GitReference = stack.GitReference,
+                GitComposePath = stack.GitComposePath,
+                GitCredentialId = stack.GitCredentialId,
             };
         }
         else if (templateId is > 0)
@@ -78,7 +101,7 @@ public class EditModel : PageModel
             Input.Name = StackCommands.Slugify(template.Name);
             Input.ComposeYaml = template.ComposeYaml;
         }
-        else if (Input.ComposeYaml.Length == 0)
+        else if (string.IsNullOrEmpty(Input.ComposeYaml))
         {
             Input.ComposeYaml = "services:\n  app:\n    image: nginx:alpine\n    restart: unless-stopped\n    ports:\n      - \"8080:80\"\n";
         }
@@ -88,8 +111,8 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
-        await LoadEnvironmentsAsync();
-        if (!ModelState.IsValid)
+        await LoadListsAsync();
+        if (!ValidateSource() || !ModelState.IsValid)
         {
             return Page();
         }
@@ -108,8 +131,8 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostSaveDeployAsync()
     {
-        await LoadEnvironmentsAsync();
-        if (!ModelState.IsValid)
+        await LoadListsAsync();
+        if (!ValidateSource() || !ModelState.IsValid)
         {
             return Page();
         }
@@ -123,19 +146,45 @@ public class EditModel : PageModel
 
         var (ok, output) = await _stackService.DeployAsync(result.Id, HttpContext.RequestAborted);
         Input.Id = result.Id;
+        // Tag helpers render posted ModelState values over model values; clear it so the (now saved)
+        // hidden Id and readonly name reflect the new state instead of the original create-POST values.
+        ModelState.Clear();
         DeployOutput = output;
         StatusMessage = ok ? "Stack gespeichert & deployt." : "Gespeichert, aber Deploy fehlgeschlagen.";
         IsError = !ok;
         return Page();
     }
 
+    /// <summary>Source-specific required fields (ComposeYaml for inline, GitRepoUrl for git).</summary>
+    private bool ValidateSource()
+    {
+        if (Input.Source == "git")
+        {
+            if (string.IsNullOrWhiteSpace(Input.GitRepoUrl))
+            {
+                ModelState.AddModelError("Input.GitRepoUrl", "Git-URL ist erforderlich.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(Input.ComposeYaml))
+        {
+            ModelState.AddModelError("Input.ComposeYaml", "Compose-YAML ist erforderlich.");
+        }
+
+        return ModelState.IsValid;
+    }
+
     private async Task<(bool Ok, string Message, long Id)> SaveAsync()
     {
+        var isGit = Input.Source == "git";
         var input = new StackInput
         {
             Name = Input.Name,
             EnvironmentId = Input.EnvironmentId,
-            ComposeYaml = Input.ComposeYaml,
+            ComposeYaml = isGit ? string.Empty : (Input.ComposeYaml ?? string.Empty),
+            GitRepoUrl = isGit ? Input.GitRepoUrl : null,
+            GitReference = isGit ? Input.GitReference : null,
+            GitComposePath = isGit ? Input.GitComposePath : null,
+            GitCredentialId = isGit ? Input.GitCredentialId : null,
         };
 
         if (IsEdit)
@@ -147,6 +196,9 @@ public class EditModel : PageModel
         return await _stackService.CreateAsync(input, HttpContext.RequestAborted);
     }
 
-    private async Task LoadEnvironmentsAsync()
-        => Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+    private async Task LoadListsAsync()
+    {
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+        GitCredentials = await _gitCredentialService.GetAllAsync(HttpContext.RequestAborted);
+    }
 }

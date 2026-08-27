@@ -28,6 +28,7 @@ public class MatDockDbContext : DbContext
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
     public DbSet<Stack> Stacks => Set<Stack>();
     public DbSet<StackTemplate> StackTemplates => Set<StackTemplate>();
+    public DbSet<GitCredential> GitCredentials => Set<GitCredential>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +117,10 @@ public class MatDockDbContext : DbContext
             // Filtered so a name can be reused after a soft delete (same pattern as User.Username).
             e.HasIndex(x => new { x.Name, x.EnvironmentId }).IsUnique().HasFilter("\"UpdateState\" <> 0");
             e.HasIndex(x => x.EnvironmentId);
+            e.Property(x => x.GitRepoUrl).HasMaxLength(1000);
+            e.Property(x => x.GitReference).HasMaxLength(200);
+            e.Property(x => x.GitComposePath).HasMaxLength(500);
+            e.Ignore(x => x.IsGitBacked);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 
@@ -126,6 +131,17 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Category).HasMaxLength(100);
             e.Property(x => x.Description).HasMaxLength(500);
+            e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<GitCredential>(e =>
+        {
+            e.ToTable("GitCredential");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.AuthType).HasConversion<int>();
+            e.Property(x => x.Username).HasMaxLength(200);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });

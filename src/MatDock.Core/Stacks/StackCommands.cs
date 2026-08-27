@@ -74,10 +74,29 @@ public static partial class StackCommands
     }
 
     /// <summary><c>compose down</c> for the stack (from its dir). Output merged.</summary>
-    public static string Down(string dockerHead, string name)
+    public static string Down(string dockerHead, string name, string composePath)
     {
         Require(name);
-        var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; cd \"$dir\"; " + dockerHead + " compose -p \"$name\" down";
-        return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
+        // $1 = stack name (validated), $2 = compose file path (relative). Both passed as separate,
+        // individually shell-quoted args so no user value is embedded in the single-quoted script body.
+        var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; cd \"$dir\"; "
+                   + dockerHead + " compose -p \"$1\" -f \"$2\" down";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
+    }
+
+    /// <summary>
+    /// Extracts a repo tarball (from stdin) into the stack dir and runs <c>compose up -d</c> with the given
+    /// compose file. Files are overlaid (never wiped) so bind-mounted runtime data survives a redeploy.
+    /// $1 = stack name, $2 = compose path (both shell-quoted args, not embedded).
+    /// </summary>
+    public static string GitSync(string dockerHead, string name, string composePath)
+    {
+        Require(name);
+        var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; mkdir -p \"$dir\"; "
+                   + "tar -C \"$dir\" -xf -; cd \"$dir\"; "
+                   + dockerHead + " compose -p \"$1\" -f \"$2\" up -d";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
     }
 }

@@ -100,6 +100,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
     // App templates feed the stack editor (same power) → admins only.
     options.Conventions.AuthorizeFolder("/Templates", "AdminOnly");
+    // Git credentials hold secrets and drive stack clones → admins only.
+    options.Conventions.AuthorizeFolder("/GitCredentials", "AdminOnly");
 });
 
 var app = builder.Build();

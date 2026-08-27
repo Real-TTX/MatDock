@@ -55,11 +55,47 @@
                         }
                     </select>
                 </mat-field>
+
+                <mat-field label="Quelle" asp-for="Input.Source" hint="Compose direkt bearbeiten oder aus einem Git-Repo beziehen (inkl. Config-Dateien).">
+                    <select asp-for="Input.Source" id="Source" class="mat-select">
+                        <option value="inline">Compose-Editor</option>
+                        <option value="git">Git-Repository</option>
+                    </select>
+                </mat-field>
             </div>
 
-            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Wird auf dem Host unter ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml abgelegt und mit „docker compose up -d“ deployt.">
-                <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="18" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
-            </mat-field>
+            <div data-show-when="Source=inline">
+                <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Wird auf dem Host unter ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml abgelegt und mit „docker compose up -d“ deployt.">
+                    <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="16" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
+                </mat-field>
+            </div>
+
+            <div data-show-when="Source=git">
+                <div class="form-grid">
+                    <mat-field label="Repository-URL" asp-for="Input.GitRepoUrl" class="span-2" hint="HTTPS-URL, z. B. https://github.com/user/repo.git">
+                        <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/user/repo.git" />
+                    </mat-field>
+
+                    <mat-field label="Branch / Tag" asp-for="Input.GitReference" hint="Optional, Standard = Default-Branch.">
+                        <input asp-for="Input.GitReference" class="mat-input" placeholder="main" />
+                    </mat-field>
+
+                    <mat-field label="Compose-Pfad im Repo" asp-for="Input.GitComposePath" hint="Optional, Standard = docker-compose.yml">
+                        <input asp-for="Input.GitComposePath" class="mat-input" placeholder="docker-compose.yml" />
+                    </mat-field>
+
+                    <mat-field label="Git-Zugang" asp-for="Input.GitCredentialId" class="span-2" hint="Nur für private Repos nötig. Zugänge unter „Git-Zugänge“ verwalten.">
+                        <select asp-for="Input.GitCredentialId" class="mat-select">
+                            <option value="">– öffentlich / kein Zugang –</option>
+                            @foreach (var cred in Model.GitCredentials)
+                            {
+                                <option value="@cred.Id">@cred.Name</option>
+                            }
+                        </select>
+                    </mat-field>
+                </div>
+                <p class="mat-hint">Beim Deployen wird das Repo geklont und der komplette Ordner (inkl. Config-Dateien) auf den Host gespiegelt; dann läuft <code>docker compose up -d</code>. Ein erneutes Deploy überschreibt Dateien, löscht aber keine bind-gemounteten Laufzeitdaten.</p>
+            </div>
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Speichern &amp; Deployen</span></button>

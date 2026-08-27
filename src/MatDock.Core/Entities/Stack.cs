@@ -14,7 +14,22 @@ public class Stack : AuditableEntity
 
     public string ComposeYaml { get; set; } = string.Empty;
 
+    /// <summary>When set, the stack is git-backed: the compose (and any bind-mounted files) come from this repo.</summary>
+    public string? GitRepoUrl { get; set; }
+
+    /// <summary>Optional branch/tag to check out; null = the repo default branch.</summary>
+    public string? GitReference { get; set; }
+
+    /// <summary>Repo-relative path to the compose file; null/empty = <c>docker-compose.yml</c>.</summary>
+    public string? GitComposePath { get; set; }
+
+    /// <summary>Optional <see cref="GitCredential"/> for private repos; null = anonymous/public.</summary>
+    public long? GitCredentialId { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }
+
+    /// <summary>True when the stack is deployed from a Git repository rather than the inline editor.</summary>
+    public bool IsGitBacked => !string.IsNullOrWhiteSpace(GitRepoUrl);
 }

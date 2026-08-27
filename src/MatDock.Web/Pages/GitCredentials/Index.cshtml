@@ -1,0 +1,54 @@
+@page
+@model MatDock.Web.Pages.GitCredentials.IndexModel
+@{
+    ViewData["Title"] = "Git-Zugänge";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Git-Zugänge</h1>
+        <span class="page-head__subtitle">Zugangsdaten zum Klonen privater Stack-Repositories</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/GitCredentials/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neuer Git-Zugang</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="card" style="padding:0;">
+    <table class="data">
+        <thead>
+            <tr><th>Name</th><th>Typ</th><th>Benutzer</th><th class="actions">Aktionen</th></tr>
+        </thead>
+        <tbody>
+            @if (Model.Credentials.Count == 0)
+            {
+                <tr><td colspan="4"><div class="empty-state"><div><icon name="key" /></div><p>Noch keine Git-Zugänge. Lege einen an, um private Repositories zu klonen.</p></div></td></tr>
+            }
+            @foreach (var c in Model.Credentials)
+            {
+                <tr>
+                    <td><a href="/GitCredentials/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
+                    <td class="text-muted">@(c.AuthType == MatDock.Core.Entities.GitAuthType.HttpsToken ? "HTTPS-Token" : c.AuthType.ToString())</td>
+                    <td class="text-muted">@(string.IsNullOrEmpty(c.Username) ? "–" : c.Username)</td>
+                    <td class="actions">
+                        <div class="row-actions">
+                            <a class="mat-btn mat-btn--sm" href="/GitCredentials/Edit?id=@c.Id" title="Bearbeiten"><icon name="edit" /></a>
+                            <span style="width:8px;display:inline-block;"></span>
+                            <form method="post" asp-page-handler="Delete" data-confirm="Git-Zugang „@c.Name“ löschen?" style="display:inline;">
+                                <input type="hidden" name="id" value="@c.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

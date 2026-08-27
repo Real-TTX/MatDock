@@ -1,0 +1,43 @@
+@page
+@model MatDock.Web.Pages.GitCredentials.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Git-Zugang bearbeiten" : "Neuer Git-Zugang";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">HTTPS-Zugang (Benutzer + Personal Access Token) zum Klonen privater Repos</span>
+    </div>
+</div>
+
+<div class="card" style="max-width:760px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <div class="form-grid">
+                <mat-field label="Name" asp-for="Input.Name" class="span-2" hint="Anzeigename, z. B. „GitHub – Deploy".">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="z. B. GitHub – Deploy" />
+                </mat-field>
+
+                <mat-field label="Benutzer" asp-for="Input.Username" hint="Git-Benutzername (bei GitHub genügt meist ein beliebiger Wert, z. B. der Kontoname).">
+                    <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="z. B. dein-github-name" />
+                </mat-field>
+
+                @{
+                    var tokenHint = Model.IsEdit ? "Leer lassen, um das gespeicherte Token beizubehalten." : "Personal Access Token (repo-Leserechte genügen).";
+                }
+                <mat-field label="Token" asp-for="Input.Token" hint="@tokenHint">
+                    <input asp-for="Input.Token" type="password" class="mat-input" autocomplete="new-password" placeholder="ghp_… / glpat-…" />
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                <a href="/GitCredentials" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>
