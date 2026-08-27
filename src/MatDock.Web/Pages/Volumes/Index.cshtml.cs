@@ -172,7 +172,10 @@ public class IndexModel : PageModel
 
         StatusMessage = $"Bulk-Backup → {(target?.Name ?? "Lokal")}: {ok} ok, {fail} Fehler.";
         IsError = fail > 0;
-        await NotifyBackupAsync("Sammel-Backup", $"{ok} ok, {fail} Fehler → {(target?.Name ?? "Lokal")}.", fail == 0);
+        if (ok + fail > 0)
+        {
+            await NotifyBackupAsync("Sammel-Backup", $"{ok} ok, {fail} Fehler → {(target?.Name ?? "Lokal")}.", fail == 0);
+        }
         return RedirectToPage(new { EnvId, Q });
     }
 
