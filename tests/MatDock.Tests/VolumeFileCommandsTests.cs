@@ -23,6 +23,9 @@ public class VolumeFileCommandsTests
     [InlineData("a/b/..")]
     [InlineData("a\nb")]
     [InlineData("a\rb")]
+    [InlineData("C:/Windows/win.ini")]   // Windows drive letter would root a local Path.Combine
+    [InlineData("C:\\Windows\\win.ini")]
+    [InlineData("file:stream")]           // ':' (drive / alternate-data-stream) is always rejected
     public void NormalizeRelPath_rejects_traversal_and_control_chars(string input)
         => Assert.Null(VolumeFileCommands.NormalizeRelPath(input));
 

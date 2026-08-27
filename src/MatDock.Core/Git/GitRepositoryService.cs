@@ -50,18 +50,26 @@ public sealed class GitRepositoryService
                 Repository.Clone(repoUrl, workDir, options);
 
                 // The .git history is not needed on the target host and would bloat the transfer.
+                // Best-effort only: a transient lock on a pack file (AV/indexer on Windows) must NOT
+                // turn a successful clone into a failed deploy — a leftover .git just ships along.
                 var gitDir = Path.Combine(workDir, ".git");
                 if (Directory.Exists(gitDir))
                 {
-                    DeleteDirectoryRobust(gitDir);
+                    try { DeleteDirectoryRobust(gitDir); }
+                    catch (Exception ex) { _logger.LogDebug(ex, "Could not remove .git from clone; shipping it along."); }
                 }
 
                 return workDir;
             }
+            catch (OperationCanceledException)
+            {
+                TryDelete(workDir);
+                throw; // surface as cancellation, not a git error
+            }
             catch (Exception ex) when (ex is not GitOperationException)
             {
                 TryDelete(workDir);
-                _logger.LogInformation(ex, "Git clone of {Repo} failed.", repoUrl);
+                _logger.LogInformation(ex, "Git clone of {Repo} failed.", Sanitize(repoUrl));
                 throw new GitOperationException(Describe(ex, !string.IsNullOrEmpty(secret?.Token)), ex);
             }
         }, ct);
@@ -79,6 +87,21 @@ public sealed class GitRepositoryService
         catch
         {
             // best effort – temp dirs are reclaimed by the OS eventually.
+        }
+    }
+
+    /// <summary>Strips any <c>user:pass@</c> userinfo from a URL so a credential typed into the URL
+    /// field is not written to the logs.</summary>
+    private static string Sanitize(string url)
+    {
+        try
+        {
+            var u = new Uri(url);
+            return string.IsNullOrEmpty(u.UserInfo) ? url : url.Replace(u.UserInfo + "@", string.Empty);
+        }
+        catch
+        {
+            return url;
         }
     }
 
@@ -111,9 +134,9 @@ public sealed class GitRepositoryService
     /// (otherwise <see cref="Directory.Delete(string, bool)"/> throws on Windows).</summary>
     private static void DeleteDirectoryRobust(string dir)
     {
-        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+        foreach (var entry in Directory.EnumerateFileSystemEntries(dir, "*", SearchOption.AllDirectories))
         {
-            try { File.SetAttributes(file, FileAttributes.Normal); } catch { /* ignore */ }
+            try { File.SetAttributes(entry, FileAttributes.Normal); } catch { /* ignore */ }
         }
 
         Directory.Delete(dir, recursive: true);

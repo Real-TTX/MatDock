@@ -27,7 +27,9 @@ public static class VolumeFileCommands
 
     /// <summary>
     /// Normalizes a volume-relative path to a safe form (segments joined by '/'), or returns null when
-    /// the path is unsafe (contains <c>..</c>, a NUL, or CR/LF). Empty/'/'/'.' all normalize to root ("").
+    /// the path is unsafe (contains <c>..</c>, a NUL, CR/LF, or a <c>:</c> — which would be a Windows
+    /// drive letter / alternate-data-stream and could root a local <c>Path.Combine</c>). Empty/'/'/'.'
+    /// all normalize to root ("").
     /// </summary>
     public static string? NormalizeRelPath(string? path)
     {
@@ -49,9 +51,9 @@ public static class VolumeFileCommands
                 return null; // traversal attempt
             }
 
-            if (raw.Contains('\0') || raw.Contains('\n') || raw.Contains('\r'))
+            if (raw.Contains('\0') || raw.Contains('\n') || raw.Contains('\r') || raw.Contains(':'))
             {
-                return null; // control chars would break listing/paths
+                return null; // control chars break paths; ':' would be a drive letter / ADS root
             }
 
             segments.Add(raw);

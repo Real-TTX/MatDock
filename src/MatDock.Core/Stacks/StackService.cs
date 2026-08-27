@@ -146,7 +146,7 @@ public sealed class StackService
         }
 
         var command = StackCommands.Down(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, stdin: null, ct);
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct);
     }
 
     private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, CancellationToken ct)
@@ -159,7 +159,8 @@ public sealed class StackService
 
         var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
         var command = StackCommands.Deploy(prep.Head!, stack.Name);
-        return await ExecuteAndPersistAsync(stack, deploy: true, prep, command, yaml, ct);
+        return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
+            (s, c) => s.WriteAsync(yaml, c).AsTask(), ct);
     }
 
     private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, CancellationToken ct)
@@ -175,7 +176,16 @@ public sealed class StackService
         GitCredentialSecret? secret = null;
         if (stack.GitCredentialId is > 0)
         {
-            secret = await _gitCredentials.ResolveAsync(stack.GitCredentialId.Value, ct);
+            try
+            {
+                secret = await _gitCredentials.ResolveAsync(stack.GitCredentialId.Value, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Stack {Name}: git credential decrypt failed.", stack.Name);
+                return (false, "Git-Zugang konnte nicht entschlüsselt werden (Data-Protection-Schlüssel?).");
+            }
+
             if (secret is null)
             {
                 return (false, "Zugewiesener Git-Zugang wurde nicht gefunden.");
@@ -197,16 +207,12 @@ public sealed class StackService
 
             var composeContent = await File.ReadAllTextAsync(composeFull, ct);
 
-            byte[] tar;
-            using (var ms = new MemoryStream())
-            {
-                TarFile.CreateFromDirectory(workDir, ms, includeBaseDirectory: false);
-                tar = ms.ToArray();
-            }
-
+            // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
+            var localDir = workDir;
             var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath);
-            return await ExecuteAndPersistAsync(stack, deploy: true, prep, command, tar, ct,
-                beforePersist: s => s.ComposeYaml = composeContent);
+            return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
+                (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
+                ct, beforePersist: s => s.ComposeYaml = composeContent);
         }
         catch (GitOperationException ex)
         {
@@ -243,14 +249,15 @@ public sealed class StackService
     /// <summary>Runs a host command (optionally streaming <paramref name="stdin"/>) and persists the stack
     /// status. A failing DB save never turns a successful host operation into a reported failure.</summary>
     private async Task<(bool Ok, string Output)> ExecuteAndPersistAsync(
-        Stack stack, bool deploy, HostPrep prep, string command, byte[]? stdin, CancellationToken ct,
+        Stack stack, bool deploy, HostPrep prep, string command,
+        Func<Stream, CancellationToken, Task>? writeStdin, CancellationToken ct,
         Action<Stack>? beforePersist = null)
     {
         bool ok;
         string output;
         try
         {
-            (ok, output) = await ExecOnHostAsync(prep.Settings!, command, stdin, prep.Timeout, ct);
+            (ok, output) = await ExecOnHostAsync(prep.Settings!, command, writeStdin, prep.Timeout, ct);
         }
         catch (Exception ex)
         {
@@ -273,7 +280,8 @@ public sealed class StackService
     }
 
     private async Task<(bool Ok, string Output)> ExecOnHostAsync(
-        SshConnectionSettings settings, string command, byte[]? stdin, TimeSpan timeout, CancellationToken ct)
+        SshConnectionSettings settings, string command,
+        Func<Stream, CancellationToken, Task>? writeStdin, TimeSpan timeout, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
@@ -285,13 +293,14 @@ public sealed class StackService
         cmd.CommandTimeout = timeout;
 
         var async = cmd.BeginExecute();
-        if (stdin is not null)
+        if (writeStdin is not null)
         {
-            // SSH.NET 2026: input stream only after BeginExecute opened the channel.
+            // SSH.NET 2026: input stream only after BeginExecute opened the channel. The writer streams
+            // directly to the channel (e.g. a tar of the repo) so we never buffer the whole payload.
             var input = cmd.CreateInputStream();
             try
             {
-                await input.WriteAsync(stdin, cts.Token);
+                await writeStdin(input, cts.Token);
             }
             finally
             {
@@ -357,8 +366,9 @@ public sealed class StackService
             return "Git-URL muss mit http:// oder https:// beginnen.";
         }
 
+        // Validate the same (trimmed) value that Apply stores and EffectiveComposePath later normalizes.
         if (!string.IsNullOrWhiteSpace(input.GitComposePath)
-            && VolumeFileCommands.NormalizeRelPath(input.GitComposePath) is null)
+            && VolumeFileCommands.NormalizeRelPath(input.GitComposePath.Trim()) is null)
         {
             return "Ungültiger Compose-Pfad (keine absoluten Pfade oder \"..\").";
         }
