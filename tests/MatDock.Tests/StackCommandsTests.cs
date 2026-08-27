@@ -55,6 +55,40 @@ public class StackCommandsTests
         Assert.Throws<ArgumentException>(() => StackCommands.Down("docker", "$(evil)"));
     }
 
+    [Theory]
+    [InlineData("Nginx Web Server", "nginx-web-server")]
+    [InlineData("  My  App!! ", "my-app")]
+    [InlineData("UPPER_case", "upper-case")]
+    [InlineData("a.b.c", "a-b-c")]
+    [InlineData("---leading", "leading")]
+    [InlineData("café ☕ bar", "caf-bar")]
+    public void Slugify_produces_valid_names(string title, string expected)
+    {
+        var slug = StackCommands.Slugify(title);
+        Assert.Equal(expected, slug);
+        Assert.True(StackCommands.IsValidName(slug));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("!!!")]
+    [InlineData(null)]
+    public void Slugify_falls_back_to_app_for_empty(string? title)
+    {
+        var slug = StackCommands.Slugify(title);
+        Assert.Equal("app", slug);
+        Assert.True(StackCommands.IsValidName(slug));
+    }
+
+    [Fact]
+    public void Slugify_caps_length_and_stays_valid()
+    {
+        var slug = StackCommands.Slugify(new string('a', 200));
+        Assert.True(slug.Length <= 63);
+        Assert.True(StackCommands.IsValidName(slug));
+    }
+
     [Fact]
     public void Deploy_body_is_single_quoted_and_contains_no_single_quotes()
     {

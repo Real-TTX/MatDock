@@ -11,6 +11,12 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.FromTemplateName))
+{
+    <div class="alert alert--info">
+        <icon name="template" /><span>Aus Vorlage „@Model.FromTemplateName" – Name &amp; Compose sind vorbefüllt. Environment wählen und anpassen.</span>
+    </div>
+}
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">

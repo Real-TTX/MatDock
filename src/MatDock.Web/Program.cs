@@ -98,6 +98,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");
     // Managed stacks deploy arbitrary compose (= arbitrary containers/binds) → admins only.
     options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
+    // App templates feed the stack editor (same power) → admins only.
+    options.Conventions.AuthorizeFolder("/Templates", "AdminOnly");
 });
 
 var app = builder.Build();

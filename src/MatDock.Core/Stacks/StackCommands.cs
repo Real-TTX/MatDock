@@ -16,6 +16,44 @@ public static partial class StackCommands
 
     public static bool IsValidName(string? name) => !string.IsNullOrEmpty(name) && NameRegex().IsMatch(name);
 
+    /// <summary>
+    /// Derives a valid compose project name from a free-form title (e.g. a template name): lowercased,
+    /// non-alphanumeric runs become '-', trimmed, capped at 63 chars, guaranteed to start alphanumeric.
+    /// Falls back to "app" when nothing usable remains.
+    /// </summary>
+    public static string Slugify(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return "app";
+        }
+
+        var sb = new System.Text.StringBuilder(title.Length);
+        var lastDash = false;
+        foreach (var ch in title.Trim().ToLowerInvariant())
+        {
+            if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+            {
+                sb.Append(ch);
+                lastDash = false;
+            }
+            else if (!lastDash && sb.Length > 0)
+            {
+                sb.Append('-');
+                lastDash = true;
+            }
+        }
+
+        var slug = sb.ToString().Trim('-');
+        // Must start alphanumeric (regex forbids a leading '-'); the trim already handles a leading dash.
+        if (slug.Length > 63)
+        {
+            slug = slug[..63].Trim('-');
+        }
+
+        return slug.Length == 0 ? "app" : slug;
+    }
+
     private static void Require(string name)
     {
         if (!IsValidName(name))

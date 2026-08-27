@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Stacks;
+using MatDock.Core.Templates;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -11,17 +12,20 @@ public class EditModel : PageModel
 {
     private readonly StackService _stackService;
     private readonly EnvironmentService _environmentService;
+    private readonly StackTemplateService _templateService;
 
-    public EditModel(StackService stackService, EnvironmentService environmentService)
+    public EditModel(StackService stackService, EnvironmentService environmentService, StackTemplateService templateService)
     {
         _stackService = stackService;
         _environmentService = environmentService;
+        _templateService = templateService;
     }
 
     [BindProperty] public InputModel Input { get; set; } = new();
 
     public bool IsEdit => Input.Id is > 0;
     public List<DockerEnvironment> Environments { get; private set; } = new();
+    public string? FromTemplateName { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
@@ -42,7 +46,7 @@ public class EditModel : PageModel
         public string ComposeYaml { get; set; } = string.Empty;
     }
 
-    public async Task<IActionResult> OnGetAsync(long? id)
+    public async Task<IActionResult> OnGetAsync(long? id, long? templateId)
     {
         await LoadEnvironmentsAsync();
 
@@ -61,6 +65,18 @@ public class EditModel : PageModel
                 EnvironmentId = stack.EnvironmentId,
                 ComposeYaml = stack.ComposeYaml,
             };
+        }
+        else if (templateId is > 0)
+        {
+            var template = await _templateService.GetAsync(templateId.Value, HttpContext.RequestAborted);
+            if (template is null)
+            {
+                return RedirectToPage("/Templates/Index");
+            }
+
+            FromTemplateName = template.Name;
+            Input.Name = StackCommands.Slugify(template.Name);
+            Input.ComposeYaml = template.ComposeYaml;
         }
         else if (Input.ComposeYaml.Length == 0)
         {

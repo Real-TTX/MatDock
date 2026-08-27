@@ -27,6 +27,7 @@ public class MatDockDbContext : DbContext
     public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
     public DbSet<Stack> Stacks => Set<Stack>();
+    public DbSet<StackTemplate> StackTemplates => Set<StackTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,6 +116,17 @@ public class MatDockDbContext : DbContext
             // Filtered so a name can be reused after a soft delete (same pattern as User.Username).
             e.HasIndex(x => new { x.Name, x.EnvironmentId }).IsUnique().HasFilter("\"UpdateState\" <> 0");
             e.HasIndex(x => x.EnvironmentId);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<StackTemplate>(e =>
+        {
+            e.ToTable("StackTemplate");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(100);
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

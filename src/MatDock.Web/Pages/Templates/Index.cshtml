@@ -1,0 +1,55 @@
+@page
+@model MatDock.Web.Pages.Templates.IndexModel
+@{
+    ViewData["Title"] = "Vorlagen";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Vorlagen</h1>
+        <span class="page-head__subtitle">App-Vorlagen (Compose-Blueprints) anlegen &amp; installieren</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Templates/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neue Vorlage</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="card" style="padding:0;">
+    <table class="data">
+        <thead>
+            <tr><th>Name</th><th>Kategorie</th><th>Beschreibung</th><th class="actions">Aktionen</th></tr>
+        </thead>
+        <tbody>
+            @if (Model.Templates.Count == 0)
+            {
+                <tr><td colspan="4"><div class="empty-state"><div><icon name="template" /></div><p>Noch keine Vorlagen. Lege eine an, um Apps mit einem Klick als Stack zu installieren.</p></div></td></tr>
+            }
+            @foreach (var t in Model.Templates)
+            {
+                <tr>
+                    <td><a href="/Templates/Edit?id=@t.Id"><strong>@t.Name</strong></a></td>
+                    <td class="text-muted">@(string.IsNullOrEmpty(t.Category) ? "–" : t.Category)</td>
+                    <td class="cell-sub">@(string.IsNullOrEmpty(t.Description) ? "–" : t.Description)</td>
+                    <td class="actions">
+                        <div class="row-actions">
+                            <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Installieren"><icon name="download" /><span>Installieren</span></a>
+                            <a class="mat-btn mat-btn--sm" href="/Templates/Edit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
+                            <span style="width:8px;display:inline-block;"></span>
+                            <form method="post" asp-page-handler="Delete" data-confirm="Vorlage „@t.Name“ löschen?" style="display:inline;">
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
