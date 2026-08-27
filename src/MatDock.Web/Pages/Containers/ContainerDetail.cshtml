@@ -34,6 +34,10 @@ else if (c is not null)
             <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Öffnen</span></a>
         }
         <a class="mat-btn" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
+        @if (c.IsRunning && User.IsInRole("Admin"))
+        {
+            <a class="mat-btn" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Konsole</span></a>
+        }
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">

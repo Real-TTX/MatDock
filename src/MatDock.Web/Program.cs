@@ -102,6 +102,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Templates", "AdminOnly");
     // Git credentials hold secrets and drive stack clones → admins only.
     options.Conventions.AuthorizeFolder("/GitCredentials", "AdminOnly");
+    // The web terminal is an interactive shell to the host/containers → admins only.
+    options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 });
 
 var app = builder.Build();
@@ -117,11 +119,15 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+app.UseWebSockets();
 app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<PasswordChangeGuardMiddleware>();
 app.UseAuthorization();
 app.MapRazorPages();
+
+// Interactive terminal (WebSocket ⇄ SSH PTY). Admin-only; the handler validates env + container id.
+app.MapGet("/terminal/ws", MatDock.Web.Terminal.TerminalEndpoint.HandleAsync).RequireAuthorization("AdminOnly");
 
 // ---------------------------------------------------------------------------
 // Database migration + first-run seed

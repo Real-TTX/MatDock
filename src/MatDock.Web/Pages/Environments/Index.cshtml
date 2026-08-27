@@ -124,6 +124,10 @@
                             @if (env.IsEnabled)
                             {
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
+                                }
                             }
                             <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                                 <input type="hidden" name="id" value="@env.Id" />
@@ -209,6 +213,10 @@
                                     @if (env.IsEnabled)
                                     {
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                                        @if (User.IsInRole("Admin"))
+                                        {
+                                            <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
+                                        }
                                     }
                                     <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />

@@ -1,0 +1,32 @@
+@page
+@model MatDock.Web.Pages.Terminal.IndexModel
+@{
+    ViewData["Title"] = Model.Title;
+    var backHref = Model.Container is null ? "/Environments" : $"/Containers?EnvId={Model.EnvId}";
+}
+
+<link rel="stylesheet" href="~/lib/xterm/xterm.css" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@Model.Title</h1>
+        <span class="page-head__subtitle">@(Model.Container is null ? $"SSH-Shell zu {Model.EnvName}" : $"docker exec in Container auf {Model.EnvName}")</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="@backHref" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+    </div>
+</div>
+
+<div class="card" style="padding:10px;background:#0b0f14;border-color:#0b0f14;">
+    <div id="terminal"
+         data-env-id="@Model.EnvId"
+         data-container="@(Model.Container ?? string.Empty)"
+         style="height:calc(100vh - 220px);min-height:320px;width:100%;"></div>
+</div>
+<p class="mat-hint" style="margin-top:8px;">Interaktive Shell über SSH. Zum Beenden <code>exit</code> eingeben oder die Seite verlassen. Die Größe wird beim Öffnen festgelegt.</p>
+
+@section Scripts {
+    <script src="~/lib/xterm/xterm.js"></script>
+    <script src="~/lib/xterm/xterm-addon-fit.js"></script>
+    <script src="~/js/terminal.js"></script>
+}
