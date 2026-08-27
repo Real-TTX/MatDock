@@ -39,7 +39,7 @@ public static partial class StackCommands
     public static string Down(string dockerHead, string name)
     {
         Require(name);
-        var script = "name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; cd \"$dir\"; " + dockerHead + " compose -p \"$name\" down";
+        var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; cd \"$dir\"; " + dockerHead + " compose -p \"$name\" down";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 }

@@ -32,10 +32,10 @@ public class EditModel : PageModel
         public long? Id { get; set; }
 
         [Required(ErrorMessage = "Name ist erforderlich.")]
-        [RegularExpression("^[a-z0-9][a-z0-9_-]{0,62}$", ErrorMessage = "Nur Kleinbuchstaben, Ziffern, _ und -, Beginn alphanumerisch (max. 63 Zeichen).")]
+        [RegularExpression(@"^[a-z0-9][a-z0-9_-]{0,62}\z", ErrorMessage = "Nur Kleinbuchstaben, Ziffern, _ und -, Beginn alphanumerisch (max. 63 Zeichen).")]
         public string Name { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Environment ist erforderlich.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Environment ist erforderlich.")]
         public long EnvironmentId { get; set; }
 
         [Required(ErrorMessage = "Compose-YAML ist erforderlich.")]

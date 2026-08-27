@@ -43,6 +43,7 @@ public class StackCommandsTests
     public void Down_builds_expected_command()
     {
         var cmd = StackCommands.Down("sudo -n docker", "media");
+        Assert.Contains("set -e;", cmd);   // abort early if the stack dir is missing
         Assert.Contains("name=media;", cmd);
         Assert.Contains("sudo -n docker compose -p \"$name\" down", cmd);
     }

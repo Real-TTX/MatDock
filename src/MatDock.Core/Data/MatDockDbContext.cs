@@ -111,7 +111,9 @@ public class MatDockDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.LastStatus).HasMaxLength(200);
-            e.HasIndex(x => x.Name);
+            // The name is the compose project key (host dir + `-p <name>`), unique per environment.
+            // Filtered so a name can be reused after a soft delete (same pattern as User.Username).
+            e.HasIndex(x => new { x.Name, x.EnvironmentId }).IsUnique().HasFilter("\"UpdateState\" <> 0");
             e.HasIndex(x => x.EnvironmentId);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
