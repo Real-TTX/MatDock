@@ -45,8 +45,15 @@
     var ws = new WebSocket(url);
     ws.binaryType = "arraybuffer";
 
+    function sendResize() {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
+        }
+    }
+
     ws.onopen = function () {
         term.focus();
+        sendResize(); // sync the PTY to the fitted size (query params may have been pre-guard)
     };
     ws.onmessage = function (ev) {
         if (typeof ev.data === "string") {
@@ -69,9 +76,14 @@
         }
     });
 
+    var resizeTimer;
     window.addEventListener("resize", function () {
-        if (fit) {
-            try { fit.fit(); } catch (e) { /* ignore */ }
-        }
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (fit) {
+                try { fit.fit(); } catch (e) { /* ignore */ }
+            }
+            sendResize(); // keep the remote PTY in sync so full-screen TUIs stay aligned
+        }, 150);
     });
 })();

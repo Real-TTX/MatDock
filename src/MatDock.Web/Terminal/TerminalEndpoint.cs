@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Text.Json;
 using MatDock.Core.Containers;
 using MatDock.Core.Environments;
 using MatDock.Core.Ssh;
@@ -10,7 +11,8 @@ namespace MatDock.Web.Terminal;
 /// <summary>
 /// WebSocket ⇄ SSH PTY bridge for the web terminal. Admin-only (enforced by the endpoint's authorization).
 /// Opens a login shell on the environment host, or — when a container id is given — <c>docker exec -it</c>
-/// into that container. Bytes are pumped verbatim in both directions; the browser side runs xterm.js.
+/// into that container. Binary frames carry raw terminal bytes both ways; text frames are control messages
+/// (window resize). The browser side runs xterm.js.
 /// </summary>
 public static class TerminalEndpoint
 {
@@ -21,6 +23,17 @@ public static class TerminalEndpoint
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        // Defence-in-depth against Cross-Site WebSocket Hijacking: WS handshakes bypass CORS, so on top of
+        // the SameSite=Lax auth cookie, require a same-origin Origin header (when the browser sends one).
+        var origin = context.Request.Headers.Origin.ToString();
+        if (!string.IsNullOrEmpty(origin) &&
+            !(Uri.TryCreate(origin, UriKind.Absolute, out var originUri) &&
+              string.Equals(originUri.Authority, context.Request.Host.Value, StringComparison.OrdinalIgnoreCase)))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
@@ -65,6 +78,8 @@ public static class TerminalEndpoint
         try
         {
             client = sshFactory.Create(settings);
+            // Detect a dead remote host so a leaked session doesn't pin the SSH connection forever.
+            client.KeepAliveInterval = TimeSpan.FromSeconds(30);
             await client.ConnectAsync(ct);
 
             shell = client.CreateShellStream("xterm-256color", (uint)cols, (uint)rows, 0, 0, BufferSize);
@@ -76,14 +91,14 @@ public static class TerminalEndpoint
                 shell.Write("exec " + head + " exec -it " + VolumeFileCommands.ShellQuote(container) + " sh\n");
             }
 
-            var pumpOut = PumpShellToSocketAsync(shell, ws, ct);
-            var pumpIn = PumpSocketToShellAsync(ws, shell, ct);
+            var pumpOut = PumpShellToSocketAsync(shell, ws, logger, ct);
+            var pumpIn = PumpSocketToShellAsync(ws, shell, logger, ct);
             await Task.WhenAny(pumpOut, pumpIn);
         }
         catch (Exception ex)
         {
             logger.LogInformation(ex, "Terminal session for env {EnvId} ended with an error.", envId);
-            await TrySendTextAsync(ws, "\r\n[31m[Verbindung fehlgeschlagen: " + Sanitize(ex.Message) + "][0m\r\n", CancellationToken.None);
+            await TrySendTextAsync(ws, "\r\n\x1b[31m[Verbindung fehlgeschlagen: " + Sanitize(ex.Message) + "]\x1b[0m\r\n");
         }
         finally
         {
@@ -103,59 +118,85 @@ public static class TerminalEndpoint
         }
     }
 
-    private static async Task PumpShellToSocketAsync(ShellStream shell, WebSocket ws, CancellationToken ct)
+    private static async Task PumpShellToSocketAsync(ShellStream shell, WebSocket ws, ILogger logger, CancellationToken ct)
     {
         var buffer = new byte[BufferSize];
-        while (!ct.IsCancellationRequested)
+        try
         {
-            int read;
-            try
+            while (!ct.IsCancellationRequested)
             {
-                read = await shell.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
-            }
-            catch (Exception) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
+                // ShellStream has no true async read; this runs the blocking read on a pool thread and is
+                // unblocked by shell.Dispose() (returns 0) in the finally, which ends this loop.
+                var read = await shell.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
+                if (read <= 0)
+                {
+                    break; // remote shell closed
+                }
 
-            if (read <= 0)
-            {
-                break; // remote shell closed
+                await ws.SendAsync(buffer.AsMemory(0, read), WebSocketMessageType.Binary, endOfMessage: true, ct);
             }
-
-            await ws.SendAsync(buffer.AsMemory(0, read), WebSocketMessageType.Binary, endOfMessage: true, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogInformation(ex, "Terminal shell→socket pump ended with an error.");
         }
     }
 
-    private static async Task PumpSocketToShellAsync(WebSocket ws, ShellStream shell, CancellationToken ct)
+    private static async Task PumpSocketToShellAsync(WebSocket ws, ShellStream shell, ILogger logger, CancellationToken ct)
     {
         var buffer = new byte[BufferSize];
-        while (!ct.IsCancellationRequested)
+        try
         {
-            WebSocketReceiveResult result;
-            try
+            while (!ct.IsCancellationRequested)
             {
-                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
-            }
-            catch (Exception) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    break;
+                }
 
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                break;
-            }
+                if (result.Count <= 0)
+                {
+                    continue;
+                }
 
-            if (result.Count > 0)
-            {
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    TryResize(shell, buffer, result.Count);
+                    continue;
+                }
+
                 await shell.WriteAsync(buffer.AsMemory(0, result.Count), ct);
                 await shell.FlushAsync(ct);
             }
         }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogInformation(ex, "Terminal socket→shell pump ended with an error.");
+        }
     }
 
-    private static async Task TrySendTextAsync(WebSocket ws, string text, CancellationToken ct)
+    /// <summary>Applies a <c>{"cols":C,"rows":R}</c> control frame to the remote PTY. Malformed frames are ignored.</summary>
+    private static void TryResize(ShellStream shell, byte[] buffer, int count)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(buffer.AsMemory(0, count));
+            var root = doc.RootElement;
+            if (root.TryGetProperty("cols", out var c) && root.TryGetProperty("rows", out var r))
+            {
+                var cols = Math.Clamp(c.GetInt32(), 1, 500);
+                var rows = Math.Clamp(r.GetInt32(), 1, 200);
+                shell.ChangeWindowSize((uint)cols, (uint)rows, 0, 0);
+            }
+        }
+        catch
+        {
+            // ignore malformed control frames / unsupported resize
+        }
+    }
+
+    private static async Task TrySendTextAsync(WebSocket ws, string text)
     {
         if (ws.State != WebSocketState.Open)
         {
@@ -165,7 +206,7 @@ public static class TerminalEndpoint
         try
         {
             var bytes = System.Text.Encoding.UTF8.GetBytes(text);
-            await ws.SendAsync(bytes, WebSocketMessageType.Binary, endOfMessage: true, ct);
+            await ws.SendAsync(bytes, WebSocketMessageType.Binary, endOfMessage: true, CancellationToken.None);
         }
         catch { /* best effort */ }
     }
@@ -173,6 +214,7 @@ public static class TerminalEndpoint
     private static int ParseDim(string? raw, int fallback, int max)
         => int.TryParse(raw, out var v) && v > 0 ? Math.Min(v, max) : fallback;
 
+    // Strip all C0 control chars (incl. ESC) so a remote error message can't inject terminal escapes.
     private static string Sanitize(string message)
-        => message.Replace('\r', ' ').Replace('\n', ' ');
+        => new string(message.Where(ch => ch >= ' ').ToArray());
 }

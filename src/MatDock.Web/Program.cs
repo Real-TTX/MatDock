@@ -79,6 +79,11 @@ builder.Services.AddAuthentication(AuthConstants.CookieScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole(nameof(UserRole.Admin)));
+    // Backstop: any endpoint without an explicit policy (e.g. a future minimal-API map) still requires
+    // an authenticated user. Razor Pages keep their AuthorizeFolder conventions; AllowAnonymous still wins.
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // ---------------------------------------------------------------------------
@@ -119,7 +124,13 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-app.UseWebSockets();
+app.UseWebSockets(new WebSocketOptions
+{
+    // Detect dead/half-open terminal clients: ping periodically and abort the socket if no pong
+    // arrives within the timeout, so the pump loops end and the SSH session is released.
+    KeepAliveInterval = TimeSpan.FromSeconds(30),
+    KeepAliveTimeout = TimeSpan.FromSeconds(30),
+});
 app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<PasswordChangeGuardMiddleware>();
