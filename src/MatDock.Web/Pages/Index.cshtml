@@ -22,15 +22,15 @@
             <div class="stat__label">Environments</div>
         </div>
     </div>
-    <div class="stat">
-        <div class="stat__icon" style="background:var(--success-bg);color:var(--success);"><icon name="check-circle" /></div>
+    <div class="stat stat--ok">
+        <div class="stat__icon"><icon name="check-circle" /></div>
         <div>
             <div class="stat__value">@Model.OnlineCount</div>
             <div class="stat__label">Online</div>
         </div>
     </div>
-    <div class="stat">
-        <div class="stat__icon" style="background:var(--warning-bg);color:var(--warning);"><icon name="alert" /></div>
+    <div class="stat stat--warn">
+        <div class="stat__icon"><icon name="alert" /></div>
         <div>
             <div class="stat__value">@Model.AttentionCount</div>
             <div class="stat__label">Prüfen</div>
@@ -38,7 +38,7 @@
     </div>
     @if (Model.DisabledCount > 0)
     {
-        <div class="stat">
+        <div class="stat stat--muted">
             <div class="stat__icon"><icon name="lock" /></div>
             <div>
                 <div class="stat__value">@Model.DisabledCount</div>

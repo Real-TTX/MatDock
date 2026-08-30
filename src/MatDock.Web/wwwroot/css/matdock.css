@@ -8,11 +8,14 @@
     --accent: #2496ed;          /* Docker blue */
     --accent-strong: #1b7fd1;
     --accent-contrast: #ffffff;
+    --grad-accent: linear-gradient(135deg, #2aa4f2 0%, #1b7fd1 100%);
 
-    --radius: 10px;
-    --radius-sm: 7px;
-    --radius-lg: 16px;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 18px;
     --gap: 16px;
+
+    --lift: transform .14s ease, box-shadow .14s ease;
 
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -129,7 +132,7 @@ h2 { font-size: 1.2rem; }
 }
 .nav-link .mat-icon { font-size: 1.15rem; }
 .nav-link:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
-.nav-link.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.nav-link.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-weight: 650; box-shadow: inset 3px 0 0 var(--accent); }
 .nav-link--logout { color: var(--text-muted); }
 .nav-link--logout:hover { background: var(--danger-bg); color: var(--danger); }
 
@@ -166,10 +169,10 @@ h2 { font-size: 1.2rem; }
 /* ============================================================================
    Page header
    ========================================================================== */
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-.page-head__title { display: flex; flex-direction: column; gap: 2px; }
-.page-head h1 { margin: 0; }
-.page-head__subtitle { color: var(--text-muted); font-size: .9rem; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+.page-head__title { display: flex; flex-direction: column; gap: 3px; }
+.page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 760; letter-spacing: -.01em; }
+.page-head__subtitle { color: var(--text-muted); font-size: .92rem; }
 
 /* ============================================================================
    Buttons
@@ -186,8 +189,8 @@ h2 { font-size: 1.2rem; }
 .mat-btn .mat-icon { font-size: 1.05rem; }
 .mat-btn:disabled { opacity: .55; cursor: not-allowed; }
 
-.mat-btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
-.mat-btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.mat-btn--primary { background: var(--grad-accent); border-color: var(--accent-strong); color: var(--accent-contrast); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
+.mat-btn--primary:hover { background: var(--grad-accent); border-color: var(--accent-strong); filter: brightness(1.05); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
 .mat-btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .mat-btn--danger:hover { filter: brightness(1.06); background: var(--danger); }
 .mat-btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
@@ -203,7 +206,8 @@ h2 { font-size: 1.2rem; }
    ========================================================================== */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); }
 .card__body { padding: clamp(16px, 2.4vw, 24px); }
-.card__header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 650; display: flex; align-items: center; gap: 10px; }
+.card__header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 680; font-size: 1.02rem; display: flex; align-items: center; gap: 10px; }
+.card__header .mat-icon { color: var(--accent); font-size: 1.15rem; }
 
 /* ============================================================================
    Forms
@@ -312,7 +316,8 @@ table.ctable td.num { text-align: left; }
 .view-toggle a.is-active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-1); }
 
 .env-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); }
-.env-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.env-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); padding: 18px; display: flex; flex-direction: column; gap: 14px; transition: var(--lift); }
+.env-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
 .env-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .env-card__name { font-weight: 700; font-size: 1.05rem; }
 .env-card__host { font-family: var(--mono); font-size: .78rem; color: var(--text-muted); }
@@ -380,11 +385,17 @@ table.ctable td.num { text-align: left; }
 /* ============================================================================
    Dashboard stat cards
    ========================================================================== */
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--gap); }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-1); display: flex; align-items: center; gap: 14px; }
-.stat__icon { width: 46px; height: 46px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); display: grid; place-items: center; font-size: 1.4rem; flex: 0 0 auto; }
-.stat__value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
-.stat__label { font-size: .82rem; color: var(--text-muted); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--gap); }
+.stat { --stat-accent: var(--accent); position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow-1); display: flex; align-items: center; gap: 15px; transition: var(--lift); }
+.stat::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--stat-accent); }
+.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.stat__icon { width: 52px; height: 52px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--stat-accent) 16%, transparent); color: var(--stat-accent); display: grid; place-items: center; font-size: 1.5rem; flex: 0 0 auto; }
+.stat__icon .mat-icon { font-size: 1.5rem; }
+.stat__value { font-size: 2.1rem; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.stat__label { font-size: .82rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+.stat--ok { --stat-accent: var(--success); }
+.stat--warn { --stat-accent: var(--warning); }
+.stat--muted { --stat-accent: var(--text-muted); }
 
 /* ============================================================================
    Login
@@ -400,7 +411,8 @@ table.ctable td.num { text-align: left; }
    Volume cards
    ========================================================================== */
 .vol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-.vol-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; gap: 12px; }
+.vol-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; gap: 12px; transition: var(--lift); }
+.vol-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
 .vol-card__head { display: flex; align-items: center; gap: 12px; }
 .vol-card__icon { width: 42px; height: 42px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); display: grid; place-items: center; font-size: 1.3rem; flex: 0 0 auto; }
 .vol-card__name { font-weight: 700; font-size: 1.02rem; word-break: break-all; line-height: 1.2; }
