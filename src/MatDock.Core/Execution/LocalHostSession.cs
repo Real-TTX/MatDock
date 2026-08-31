@@ -36,7 +36,9 @@ internal sealed class LocalHostCommand : IHostCommand
 
     public bool BufferOutput { get; set; } = true;
 
-    public Stream OutputStream => (_process ?? throw new InvalidOperationException("Command not started.")).StandardOutput.BaseStream;
+    public Stream OutputStream => BufferOutput
+        ? throw new InvalidOperationException("OutputStream requires BufferOutput=false (stdout is buffered into Result).")
+        : (_process ?? throw new InvalidOperationException("Command not started.")).StandardOutput.BaseStream;
 
     public string Execute()
     {
@@ -101,28 +103,26 @@ internal sealed class LocalHostCommand : IHostCommand
 
         var timeoutMs = CommandTimeout <= TimeSpan.Zero ? -1 : (int)Math.Min(int.MaxValue, CommandTimeout.TotalMilliseconds);
 
+        // Bound the WHOLE wait to a single timeout budget: wait for exit first, then give the drain tasks a
+        // short grace (they finish once the pipes hit EOF at exit). A wedged process is killed at the deadline.
+        bool exited;
+        try { exited = _process.WaitForExit(timeoutMs); }
+        catch { exited = false; }
+
+        if (!exited)
+        {
+            try { _process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+        }
+
+        const int GraceMs = 5000;
         if (BufferOutput && _stdoutTask is not null)
         {
-            Result = WaitFor(_stdoutTask, timeoutMs);
+            Result = WaitFor(_stdoutTask, GraceMs);
         }
-        Error = _stderrTask is not null ? WaitFor(_stderrTask, timeoutMs) : string.Empty;
+        Error = _stderrTask is not null ? WaitFor(_stderrTask, GraceMs) : string.Empty;
 
-        try
-        {
-            if (_process.WaitForExit(timeoutMs))
-            {
-                ExitStatus = _process.ExitCode;
-            }
-            else
-            {
-                try { _process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                ExitStatus = -1;
-            }
-        }
-        catch
-        {
-            ExitStatus = -1;
-        }
+        try { ExitStatus = exited ? _process.ExitCode : -1; }
+        catch { ExitStatus = -1; }
     }
 
     public void Dispose()
@@ -135,7 +135,24 @@ internal sealed class LocalHostCommand : IHostCommand
             }
         }
         catch { /* best effort */ }
+
+        // Observe the background drain tasks so a fault (e.g. ObjectDisposedException from killing mid-read
+        // after a pre-EndExecute exception) doesn't surface as an UnobservedTaskException.
+        Observe(_stdoutTask);
+        Observe(_stderrTask);
+
         _process?.Dispose();
+    }
+
+    private static void Observe(Task<string>? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        try { task.Wait(500); } catch { /* observed */ }
+        _ = task.Exception; // mark observed even if it didn't finish within the grace
     }
 
     private static string WaitFor(Task<string> task, int timeoutMs)

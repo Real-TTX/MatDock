@@ -229,6 +229,10 @@ public sealed class EnvironmentService
             entity.EncryptedPassword = null;
             entity.EncryptedPrivateKey = null;
             entity.EncryptedPrivateKeyPassphrase = null;
+            // Drop any SSH-probe access hints so DockerHead doesn't emit sudo/remote-DOCKER_HOST locally
+            // (re-detected on the next connection test).
+            entity.UseSudo = false;
+            entity.DockerHost = null;
             return;
         }
 
