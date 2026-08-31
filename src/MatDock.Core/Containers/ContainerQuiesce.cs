@@ -1,4 +1,4 @@
-using Renci.SshNet;
+using MatDock.Core.Execution;
 
 namespace MatDock.Core.Containers;
 
@@ -27,7 +27,7 @@ public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int Running
 public static class ContainerQuiesce
 {
     /// <summary>Stops the running containers mounting <paramref name="volume"/>. Never throws.</summary>
-    public static QuiesceResult StopRunning(SshClient client, string dockerHead, string volume, int timeoutSeconds)
+    public static QuiesceResult StopRunning(IHostSession client, string dockerHead, string volume, int timeoutSeconds)
     {
         var list = Run(client, ContainerCommands.ListByVolume(dockerHead, volume, runningOnly: true), timeoutSeconds);
         if (list.ExitStatus != 0)
@@ -53,7 +53,7 @@ public static class ContainerQuiesce
     }
 
     /// <summary>Restarts the previously-stopped containers. Never throws.</summary>
-    public static void Start(SshClient client, string dockerHead, IEnumerable<string> ids, int timeoutSeconds)
+    public static void Start(IHostSession client, string dockerHead, IEnumerable<string> ids, int timeoutSeconds)
     {
         foreach (var id in ids)
         {
@@ -66,7 +66,7 @@ public static class ContainerQuiesce
 
     // Best-effort: an SSH/timeout failure must never propagate out of a quiesce step (it runs in finally
     // blocks and around already-completed transfers), so treat any failure as a non-zero exit.
-    private static (int ExitStatus, string StdOut, string StdErr) Run(SshClient client, string command, int timeoutSeconds)
+    private static (int ExitStatus, string StdOut, string StdErr) Run(IHostSession client, string command, int timeoutSeconds)
     {
         try
         {

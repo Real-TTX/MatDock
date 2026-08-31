@@ -6,12 +6,12 @@ using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Git;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Stacks;
 
@@ -20,7 +20,7 @@ namespace MatDock.Core.Stacks;
 public sealed class StackService
 {
     private readonly MatDockDbContext _db;
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly EnvironmentService _environmentService;
     private readonly GitCredentialService _gitCredentials;
     private readonly GitRepositoryService _gitRepo;
@@ -29,7 +29,7 @@ public sealed class StackService
 
     public StackService(
         MatDockDbContext db,
-        ISshClientFactory sshClientFactory,
+        IHostSessionFactory hostSessionFactory,
         EnvironmentService environmentService,
         GitCredentialService gitCredentials,
         GitRepositoryService gitRepo,
@@ -37,7 +37,7 @@ public sealed class StackService
         ILogger<StackService> logger)
     {
         _db = db;
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _gitCredentials = gitCredentials;
         _gitRepo = gitRepo;
@@ -286,7 +286,7 @@ public sealed class StackService
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         await client.ConnectAsync(cts.Token);
 
         using var cmd = client.CreateCommand(command);

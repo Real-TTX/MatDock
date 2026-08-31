@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text.Json;
 using MatDock.Core.Containers;
+using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
@@ -68,6 +69,16 @@ public static class TerminalEndpoint
 
         var settings = environmentService.BuildSettings(env);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        // The interactive terminal still uses an SSH PTY; a local PTY is a separate follow-up. Give local
+        // environments a clear message instead of a confusing "SSH to local" failure.
+        if (settings.IsLocal)
+        {
+            using var localWs = await context.WebSockets.AcceptWebSocketAsync();
+            await TrySendTextAsync(localWs, "\r\n\x1b[33m[Terminal für lokale Umgebungen wird noch nicht unterstützt.]\x1b[0m\r\n");
+            try { await localWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
+            return;
+        }
 
         using var ws = await context.WebSockets.AcceptWebSocketAsync();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);

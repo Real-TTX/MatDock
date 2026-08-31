@@ -3,11 +3,11 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Volumes;
 
@@ -20,7 +20,7 @@ namespace MatDock.Core.Volumes;
 public sealed class VolumeBackupService
 {
     private readonly MatDockDbContext _db;
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly EnvironmentService _environmentService;
     private readonly IBackupStorageFactory _storageFactory;
     private readonly MatDockOptions _options;
@@ -28,14 +28,14 @@ public sealed class VolumeBackupService
 
     public VolumeBackupService(
         MatDockDbContext db,
-        ISshClientFactory sshClientFactory,
+        IHostSessionFactory hostSessionFactory,
         EnvironmentService environmentService,
         IBackupStorageFactory storageFactory,
         IOptions<MatDockOptions> options,
         ILogger<VolumeBackupService> logger)
     {
         _db = db;
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _storageFactory = storageFactory;
         _options = options.Value;
@@ -72,7 +72,7 @@ public sealed class VolumeBackupService
             var settings = _environmentService.BuildSettings(environment);
             var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await client.ConnectAsync(cts.Token);
 
             // Don't rely on tar's exit code to detect a missing volume: `docker run -v name:/x` would
@@ -93,6 +93,7 @@ public sealed class VolumeBackupService
             {
                 using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head));
                 exportCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
+                exportCmd.BufferOutput = false; // stream the tar stdout live instead of buffering it in memory
                 var async = exportCmd.BeginExecute();
 
                 await using (var destination = await storage.OpenWriteAsync(fileName, cts.Token))
@@ -178,7 +179,7 @@ public sealed class VolumeBackupService
             var settings = _environmentService.BuildSettings(target);
             var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await client.ConnectAsync(cts.Token);
 
             // Open (and thereby verify) the archive BEFORE any destructive step, so a source failure
@@ -274,7 +275,7 @@ public sealed class VolumeBackupService
         return true;
     }
 
-    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string command)
+    private (int ExitStatus, string StdOut, string StdErr) RunCommand(IHostSession client, string command)
     {
         using var cmd = client.CreateCommand(command);
         cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));

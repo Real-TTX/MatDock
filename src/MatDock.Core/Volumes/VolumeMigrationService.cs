@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using MatDock.Core.Configuration;
 using MatDock.Core.Entities;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Volumes;
 
@@ -15,18 +15,18 @@ namespace MatDock.Core.Volumes;
 /// </summary>
 public sealed class VolumeMigrationService
 {
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly VolumeBackupService _backupService;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeMigrationService> _logger;
 
     public VolumeMigrationService(
-        ISshClientFactory sshClientFactory,
+        IHostSessionFactory hostSessionFactory,
         VolumeBackupService backupService,
         IOptions<MatDockOptions> options,
         ILogger<VolumeMigrationService> logger)
     {
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _backupService = backupService;
         _options = options.Value;
         _logger = logger;
@@ -51,8 +51,8 @@ public sealed class VolumeMigrationService
             var sourceHead = VolumeCommands.DockerHead(request.Source.UseSudo, request.Source.DockerHost);
             var targetHead = VolumeCommands.DockerHead(request.Target.UseSudo, request.Target.DockerHost);
 
-            using var source = _sshClientFactory.Create(request.Source);
-            using var target = _sshClientFactory.Create(request.Target);
+            using var source = _hostSessionFactory.Create(request.Source);
+            using var target = _hostSessionFactory.Create(request.Target);
             await source.ConnectAsync(cts.Token);
             await target.ConnectAsync(cts.Token);
             steps.Add("Mit Quelle und Ziel verbunden.");
@@ -110,6 +110,7 @@ public sealed class VolumeMigrationService
                 using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead, clearFirst: request.Overwrite));
                 exportCmd.CommandTimeout = timeout;
                 importCmd.CommandTimeout = timeout;
+                exportCmd.BufferOutput = false; // pipe the tar stdout live (local); never buffer the whole archive
 
                 // SSH.NET 2026: CreateInputStream() requires the channel to be OPEN, and BeginExecute()
                 // opens the channel synchronously before it returns — so the input stream must be created
@@ -240,7 +241,7 @@ public sealed class VolumeMigrationService
         }
     }
 
-    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string commandText)
+    private (int ExitStatus, string StdOut, string StdErr) RunCommand(IHostSession client, string commandText)
     {
         using var command = client.CreateCommand(commandText);
         command.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));

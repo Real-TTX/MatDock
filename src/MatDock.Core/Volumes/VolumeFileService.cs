@@ -3,10 +3,10 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Volumes;
 
@@ -21,14 +21,14 @@ public sealed record FileReadResult(string Content, bool Truncated, bool IsBinar
 /// <summary>Browses and edits files inside a Docker volume via a throwaway busybox container over SSH.</summary>
 public sealed class VolumeFileService
 {
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly EnvironmentService _environmentService;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeFileService> _logger;
 
-    public VolumeFileService(ISshClientFactory sshClientFactory, EnvironmentService environmentService, IOptions<MatDockOptions> options, ILogger<VolumeFileService> logger)
+    public VolumeFileService(IHostSessionFactory hostSessionFactory, EnvironmentService environmentService, IOptions<MatDockOptions> options, ILogger<VolumeFileService> logger)
     {
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _options = options.Value;
         _logger = logger;
@@ -90,6 +90,7 @@ public sealed class VolumeFileService
                 using var cmd = client.CreateCommand(VolumeFileCommands.Read(head, _options.HelperImage, volume, rel));
                 var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
                 cmd.CommandTimeout = timeout;
+                cmd.BufferOutput = false; // read the raw file bytes live from stdout
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(timeout);
 
@@ -257,18 +258,18 @@ public sealed class VolumeFileService
         }
     }
 
-    private async Task<(string Head, SshClient Client)> ConnectAsync(DockerEnvironment env, CancellationToken ct)
+    private async Task<(string Head, IHostSession Client)> ConnectAsync(DockerEnvironment env, CancellationToken ct)
     {
         var settings = _environmentService.BuildSettings(env);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var client = _sshClientFactory.Create(settings);
+        var client = _hostSessionFactory.Create(settings);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, settings.TimeoutSeconds)));
         await client.ConnectAsync(cts.Token);
         return (head, client);
     }
 
-    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunAsync(SshClient client, string command, CancellationToken ct)
+    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunAsync(IHostSession client, string command, CancellationToken ct)
     {
         using var cmd = client.CreateCommand(command);
         var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
