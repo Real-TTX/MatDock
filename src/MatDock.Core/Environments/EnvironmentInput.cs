@@ -15,6 +15,8 @@ public sealed class EnvironmentInput
 
     public string? BaseUrl { get; set; }
 
+    public ConnectionType ConnectionType { get; set; } = ConnectionType.Ssh;
+
     public string Host { get; set; } = string.Empty;
 
     public int Port { get; set; } = 22;

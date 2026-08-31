@@ -96,6 +96,7 @@ public sealed class EnvironmentService
     {
         return new SshConnectionSettings
         {
+            ConnectionType = env.ConnectionType,
             Host = env.Host,
             Port = env.Port,
             Username = env.Username,
@@ -114,6 +115,7 @@ public sealed class EnvironmentService
     {
         return new SshConnectionSettings
         {
+            ConnectionType = input.ConnectionType,
             Host = input.Host,
             Port = input.Port,
             Username = input.Username,
@@ -132,6 +134,18 @@ public sealed class EnvironmentService
     /// </summary>
     public async Task<SshConnectionSettings> BuildTestSettingsAsync(EnvironmentInput input, long? id, CancellationToken ct = default)
     {
+        if (input.ConnectionType == ConnectionType.Local)
+        {
+            // Local needs no host/credentials; talk to the mounted socket.
+            return new SshConnectionSettings
+            {
+                ConnectionType = ConnectionType.Local,
+                Host = "local",
+                Username = "local",
+                TimeoutSeconds = _options.SshTimeoutSeconds,
+            };
+        }
+
         var secretMissing = input.AuthType == AuthType.Password
             ? string.IsNullOrEmpty(input.Password)
             : string.IsNullOrEmpty(input.PrivateKeyPem);
@@ -148,9 +162,10 @@ public sealed class EnvironmentService
 
         return new SshConnectionSettings
         {
-            Host = input.Host.Trim(),
+            ConnectionType = ConnectionType.Ssh,
+            Host = (input.Host ?? string.Empty).Trim(),
             Port = input.Port,
-            Username = input.Username.Trim(),
+            Username = (input.Username ?? string.Empty).Trim(),
             AuthType = input.AuthType,
             Password = string.IsNullOrEmpty(input.Password) ? stored?.Password : input.Password,
             PrivateKeyPem = string.IsNullOrEmpty(input.PrivateKeyPem) ? stored?.PrivateKeyPem : input.PrivateKeyPem,
@@ -202,6 +217,21 @@ public sealed class EnvironmentService
         entity.Name = input.Name.Trim();
         entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         entity.BaseUrl = string.IsNullOrWhiteSpace(input.BaseUrl) ? null : input.BaseUrl.Trim();
+        entity.ConnectionType = input.ConnectionType;
+
+        if (input.ConnectionType == ConnectionType.Local)
+        {
+            // Local envs need no SSH host/credentials; use placeholders and clear any stored secrets.
+            entity.Host = "local";
+            entity.Username = "local";
+            entity.Port = 0;
+            entity.AuthType = AuthType.Password;
+            entity.EncryptedPassword = null;
+            entity.EncryptedPrivateKey = null;
+            entity.EncryptedPrivateKeyPassphrase = null;
+            return;
+        }
+
         entity.Host = input.Host.Trim();
         entity.Port = input.Port;
         entity.Username = input.Username.Trim();

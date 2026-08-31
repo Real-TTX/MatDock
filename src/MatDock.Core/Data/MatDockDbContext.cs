@@ -69,6 +69,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Host).HasMaxLength(255).IsRequired();
             e.Property(x => x.Username).HasMaxLength(128).IsRequired();
             e.Property(x => x.AuthType).HasConversion<int>();
+            e.Property(x => x.ConnectionType).HasConversion<int>();
             e.Property(x => x.Status).HasConversion<int>();
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);

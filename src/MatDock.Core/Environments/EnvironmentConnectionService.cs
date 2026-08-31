@@ -2,31 +2,31 @@ using System.Text.Json;
 using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Environments;
 
 /// <summary>
-/// Connectivity operations against a remote Docker host over SSH. It runs the Docker CLI on the
-/// remote (structured <c>--format '{{json .}}'</c> output) so failures produce clear, actionable
+/// Connectivity operations against a Docker host — remote over SSH or the local socket. It runs the
+/// Docker CLI (structured <c>--format '{{json .}}'</c> output) so failures produce clear, actionable
 /// messages (Docker missing, no daemon, missing socket permission) instead of an opaque tunnel error.
 /// </summary>
 public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 {
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly MatDockOptions _options;
     private readonly ILogger<EnvironmentConnectionService> _logger;
 
     public EnvironmentConnectionService(
-        ISshClientFactory sshClientFactory,
+        IHostSessionFactory hostSessionFactory,
         IOptions<MatDockOptions> options,
         ILogger<EnvironmentConnectionService> logger)
     {
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _options = options.Value;
         _logger = logger;
     }
@@ -35,7 +35,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
     {
         try
         {
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, cancellationToken);
 
             // Auto-detect how Docker is reachable on this host and return the working access.
@@ -78,7 +78,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
     public async Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         try
         {
             await ConnectAsync(client, settings, cancellationToken);
@@ -106,7 +106,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             return null;
         }
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         try
         {
             await ConnectAsync(client, settings, cancellationToken);
@@ -183,7 +183,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             return (false, "Ungültiger Volume-Name (Buchstaben, Zahlen und . _ - erlaubt, Beginn alphanumerisch).");
         }
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         try
         {
             await ConnectAsync(client, settings, cancellationToken);
@@ -202,7 +202,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
     public async Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         try
         {
             await ConnectAsync(client, settings, cancellationToken);
@@ -218,7 +218,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
     }
 
     /// <summary>Ordered access strategies to probe: default, sudo, then any discovered rootless sockets.</summary>
-    private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(SshClient client, SshConnectionSettings settings)
+    private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(IHostSession client, SshConnectionSettings settings)
     {
         var candidates = new List<(bool, string?)>
         {
@@ -260,14 +260,14 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return useSudo ? "sudo" : "Standard";
     }
 
-    private async Task ConnectAsync(SshClient client, SshConnectionSettings settings, CancellationToken cancellationToken)
+    private async Task ConnectAsync(IHostSession client, SshConnectionSettings settings, CancellationToken cancellationToken)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, settings.TimeoutSeconds)));
         await client.ConnectAsync(cts.Token);
     }
 
-    private (int ExitStatus, string StdOut, string StdErr) RunCommand(SshClient client, string command, SshConnectionSettings settings)
+    private (int ExitStatus, string StdOut, string StdErr) RunCommand(IHostSession client, string command, SshConnectionSettings settings)
     {
         using var sshCommand = client.CreateCommand(command);
         sshCommand.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));

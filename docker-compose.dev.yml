@@ -7,6 +7,9 @@ services:
     environment:
       # Development => es wird automatisch ein Test-Konto angelegt (tester / Tester123!).
       ASPNETCORE_ENVIRONMENT: Development
+    # Lokaler Docker-Socket, damit "Lokal"-Environments den Host-Daemon steuern koennen.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   sqlite-web:
     image: coleifer/sqlite-web:latest

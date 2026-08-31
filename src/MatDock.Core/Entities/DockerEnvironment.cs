@@ -11,6 +11,9 @@ public class DockerEnvironment : AuditableEntity
 
     public string? Description { get; set; }
 
+    /// <summary>How MatDock reaches Docker for this environment: over SSH (default) or the local socket.</summary>
+    public ConnectionType ConnectionType { get; set; } = ConnectionType.Ssh;
+
     /// <summary>Optional base URL to open services on this host (e.g. https://host); containers can override via the <c>matdock.openurl</c> label.</summary>
     public string? BaseUrl { get; set; }
 

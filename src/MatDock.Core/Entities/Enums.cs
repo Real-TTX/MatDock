@@ -15,6 +15,16 @@ public enum AuthType
     PrivateKey = 1
 }
 
+/// <summary>How MatDock reaches the Docker daemon for an environment.</summary>
+public enum ConnectionType
+{
+    /// <summary>Run the Docker CLI on a remote host over SSH (default).</summary>
+    Ssh = 0,
+
+    /// <summary>Run the Docker CLI locally on the MatDock host, talking to the mounted Docker socket.</summary>
+    Local = 1
+}
+
 /// <summary>Soft-delete / audit state for every persisted record.</summary>
 public enum UpdateState
 {

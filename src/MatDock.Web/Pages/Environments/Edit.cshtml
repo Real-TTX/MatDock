@@ -38,25 +38,41 @@
                     <input asp-for="Input.BaseUrl" class="mat-input" placeholder="https://host.example.com" />
                 </mat-field>
 
-                <mat-field label="Host" asp-for="Input.Host">
-                    <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com oder 10.0.0.5" />
-                </mat-field>
-
-                <mat-field label="Port" asp-for="Input.Port">
-                    <input asp-for="Input.Port" type="number" min="1" max="65535" class="mat-input" />
-                </mat-field>
-
-                <mat-field label="SSH-Benutzer" asp-for="Input.Username">
-                    <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="z. B. root" />
-                </mat-field>
-
-                <mat-field label="Authentifizierung" asp-for="Input.AuthType">
-                    <select asp-for="Input.AuthType" id="AuthType" class="mat-select">
-                        <option value="Password">Passwort</option>
-                        <option value="PrivateKey">SSH-Schlüssel</option>
+                <mat-field label="Verbindungstyp" asp-for="Input.ConnectionType" class="span-2" hint="SSH = Remote-Host. Lokal = der Docker-Socket dieses MatDock-Hosts (Socket muss gemountet sein).">
+                    <select asp-for="Input.ConnectionType" id="ConnectionType" class="mat-select">
+                        <option value="Ssh">SSH (Remote-Host)</option>
+                        <option value="Local">Lokal (Docker-Socket)</option>
                     </select>
                 </mat-field>
             </div>
+
+            <div data-show-when="ConnectionType=Local">
+                <div class="alert alert--info">
+                    <icon name="server" /><span>Lokale Umgebung: MatDock spricht direkt den gemounteten Docker-Socket an – kein Host/SSH nötig. Voraussetzung: Container mit <code>-v /var/run/docker.sock:/var/run/docker.sock</code> gestartet.</span>
+                </div>
+            </div>
+
+            <div data-show-when="ConnectionType=Ssh">
+                <div class="form-grid">
+                    <mat-field label="Host" asp-for="Input.Host">
+                        <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com oder 10.0.0.5" />
+                    </mat-field>
+
+                    <mat-field label="Port" asp-for="Input.Port">
+                        <input asp-for="Input.Port" type="number" min="1" max="65535" class="mat-input" />
+                    </mat-field>
+
+                    <mat-field label="SSH-Benutzer" asp-for="Input.Username">
+                        <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="z. B. root" />
+                    </mat-field>
+
+                    <mat-field label="Authentifizierung" asp-for="Input.AuthType">
+                        <select asp-for="Input.AuthType" id="AuthType" class="mat-select">
+                            <option value="Password">Passwort</option>
+                            <option value="PrivateKey">SSH-Schlüssel</option>
+                        </select>
+                    </mat-field>
+                </div>
 
             @{
                 var secretHint = Model.IsEdit ? "Leer lassen, um das gespeicherte Geheimnis beizubehalten." : null;
@@ -86,6 +102,7 @@
                     <button type="submit" asp-page-handler="GenerateKey" class="mat-btn" formnovalidate><icon name="key" /><span>Schlüsselpaar erzeugen</span></button>
                 </mat-form-buttons>
                 <p class="mat-hint">Für Hosts, die Root-Login nur per Schlüssel erlauben (<code>PermitRootLogin prohibit-password</code>). MatDock erzeugt das Paar, du hinterlegst den öffentlichen Schlüssel auf dem Host.</p>
+            </div>
             </div>
 
             <mat-form-buttons>

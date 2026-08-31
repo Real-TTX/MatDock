@@ -8,6 +8,11 @@ namespace MatDock.Core.Ssh;
 /// </summary>
 public sealed class SshConnectionSettings
 {
+    /// <summary>Whether commands run over SSH (default) or locally against the mounted Docker socket.</summary>
+    public ConnectionType ConnectionType { get; init; } = ConnectionType.Ssh;
+
+    public bool IsLocal => ConnectionType == ConnectionType.Local;
+
     public required string Host { get; init; }
 
     public int Port { get; init; } = 22;

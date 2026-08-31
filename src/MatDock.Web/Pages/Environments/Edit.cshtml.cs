@@ -49,19 +49,22 @@ public class EditModel : PageModel
         [Display(Name = "Basis-URL")]
         public string? BaseUrl { get; set; }
 
-        [Required(ErrorMessage = "Bitte den Host angeben.")]
+        [Display(Name = "Verbindungstyp")]
+        public ConnectionType ConnectionType { get; set; } = ConnectionType.Ssh;
+
+        // Host/User are required only for SSH (validated in ValidateConnection). Nullable so the implicit
+        // "non-nullable reference type is required" validation doesn't reject an empty field for a local env.
         [StringLength(255)]
         [Display(Name = "Host")]
-        public string Host { get; set; } = string.Empty;
+        public string? Host { get; set; }
 
         [Range(1, 65535, ErrorMessage = "Port muss zwischen 1 und 65535 liegen.")]
         [Display(Name = "Port")]
         public int Port { get; set; } = 22;
 
-        [Required(ErrorMessage = "Bitte den SSH-Benutzer angeben.")]
         [StringLength(128)]
         [Display(Name = "SSH-Benutzer")]
-        public string Username { get; set; } = string.Empty;
+        public string? Username { get; set; }
 
         [Display(Name = "Authentifizierung")]
         public AuthType AuthType { get; set; } = AuthType.Password;
@@ -96,6 +99,7 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
+        ValidateConnection();
         ValidateSecretsForSave();
         if (!ModelState.IsValid)
         {
@@ -144,7 +148,8 @@ public class EditModel : PageModel
         // Only the connection fields matter for a test; ignore Name/Description validation.
         ModelState.Remove("Input.Name");
 
-        if (string.IsNullOrWhiteSpace(Input.Host) || string.IsNullOrWhiteSpace(Input.Username))
+        if (Input.ConnectionType == ConnectionType.Ssh
+            && (string.IsNullOrWhiteSpace(Input.Host) || string.IsNullOrWhiteSpace(Input.Username)))
         {
             ModelState.AddModelError(string.Empty, "Host und Benutzer werden für den Test benötigt.");
             return Page();
@@ -168,9 +173,10 @@ public class EditModel : PageModel
         Name = Input.Name,
         Description = Input.Description,
         BaseUrl = Input.BaseUrl,
-        Host = Input.Host,
+        ConnectionType = Input.ConnectionType,
+        Host = Input.Host ?? string.Empty,
         Port = Input.Port,
-        Username = Input.Username,
+        Username = Input.Username ?? string.Empty,
         AuthType = Input.AuthType,
         Password = Input.Password,
         PrivateKeyPem = Input.PrivateKeyPem,
@@ -185,6 +191,7 @@ public class EditModel : PageModel
             Name = entity.Name,
             Description = entity.Description,
             BaseUrl = entity.BaseUrl,
+            ConnectionType = entity.ConnectionType,
             Host = entity.Host,
             Port = entity.Port,
             Username = entity.Username,
@@ -193,11 +200,29 @@ public class EditModel : PageModel
         };
     }
 
+    /// <summary>SSH environments need a host and user; local environments talk to the mounted socket.</summary>
+    private void ValidateConnection()
+    {
+        if (Input.ConnectionType != ConnectionType.Ssh)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Input.Host))
+        {
+            ModelState.AddModelError("Input.Host", "Bitte den Host angeben.");
+        }
+        if (string.IsNullOrWhiteSpace(Input.Username))
+        {
+            ModelState.AddModelError("Input.Username", "Bitte den SSH-Benutzer angeben.");
+        }
+    }
+
     private void ValidateSecretsForSave()
     {
-        if (IsEdit)
+        if (IsEdit || Input.ConnectionType == ConnectionType.Local)
         {
-            return; // blank secret = keep existing
+            return; // blank secret = keep existing; local needs no secrets
         }
 
         if (Input.AuthType == AuthType.Password && string.IsNullOrEmpty(Input.Password))

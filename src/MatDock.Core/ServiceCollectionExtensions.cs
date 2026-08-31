@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
+        services.AddSingleton<Execution.IHostSessionFactory, Execution.HostSessionFactory>();
         services.AddSingleton<Backups.IBackupStorageFactory, Backups.BackupStorageFactory>();
 
         // Per-request services (depend on the scoped DbContext).

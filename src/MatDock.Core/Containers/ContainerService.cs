@@ -3,29 +3,29 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Renci.SshNet;
 
 namespace MatDock.Core.Containers;
 
-/// <summary>Lists and controls Docker containers on a remote environment over SSH.</summary>
+/// <summary>Lists and controls Docker containers on an environment (remote over SSH or the local socket).</summary>
 public sealed class ContainerService
 {
-    private readonly ISshClientFactory _sshClientFactory;
+    private readonly IHostSessionFactory _hostSessionFactory;
     private readonly EnvironmentService _environmentService;
     private readonly MatDockOptions _options;
     private readonly ILogger<ContainerService> _logger;
 
     public ContainerService(
-        ISshClientFactory sshClientFactory,
+        IHostSessionFactory hostSessionFactory,
         EnvironmentService environmentService,
         IOptions<MatDockOptions> options,
         ILogger<ContainerService> logger)
     {
-        _sshClientFactory = sshClientFactory;
+        _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _options = options.Value;
         _logger = logger;
@@ -36,7 +36,7 @@ public sealed class ContainerService
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
 
         var result = await RunCommandAsync(client, ContainerCommands.List(head), ct);
@@ -77,7 +77,7 @@ public sealed class ContainerService
 
         try
         {
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
             var result = await RunCommandAsync(client, ContainerCommands.ListByVolume(head, volume, runningOnly: false), ct);
             return result.ExitStatus == 0 ? ParseContainers(result.StdOut) : Array.Empty<DockerContainer>();
@@ -102,7 +102,7 @@ public sealed class ContainerService
 
         try
         {
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
             var result = await RunCommandAsync(client, ContainerCommands.ListByProject(head, project), ct);
             if (result.ExitStatus != 0)
@@ -144,7 +144,7 @@ public sealed class ContainerService
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
 
         var psResult = await RunCommandAsync(client, ContainerCommands.Get(head, id), ct);
@@ -196,7 +196,7 @@ public sealed class ContainerService
 
         try
         {
-            using var client = _sshClientFactory.Create(settings);
+            using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
 
             var result = await RunCommandAsync(client, ContainerCommands.Action(head, action, id), ct);
@@ -221,7 +221,7 @@ public sealed class ContainerService
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-        using var client = _sshClientFactory.Create(settings);
+        using var client = _hostSessionFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
 
         // stderr is merged into stdout (2>&1) because containers legitimately log to stderr, so the
@@ -236,7 +236,7 @@ public sealed class ContainerService
         return string.IsNullOrWhiteSpace(result.StdOut) ? "(keine Logausgabe)" : result.StdOut;
     }
 
-    private async Task ConnectAsync(SshClient client, SshConnectionSettings settings, CancellationToken ct)
+    private async Task ConnectAsync(IHostSession client, SshConnectionSettings settings, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, settings.TimeoutSeconds)));
@@ -255,7 +255,7 @@ public sealed class ContainerService
         }
     }
 
-    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunCommandAsync(SshClient client, string command, CancellationToken ct)
+    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunCommandAsync(IHostSession client, string command, CancellationToken ct)
     {
         using var cmd = client.CreateCommand(command);
         var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
