@@ -12,7 +12,7 @@
         <span class="page-head__subtitle mono">@Model.Environment?.Name @(c?.Project is { Length: > 0 } ? "· Stack " + c.Project : "")</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Containers?EnvId=@Model.EnvId&Tab=container" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
     </div>
 </div>
 
