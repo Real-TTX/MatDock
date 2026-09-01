@@ -7,7 +7,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Stacks</h1>
-        <span class="page-head__subtitle">Compose-Stacks verwalten &amp; deployen</span>
+        <span class="page-head__subtitle">Verwaltete &amp; laufende Compose-Stacks</span>
     </div>
     <div class="mat-buttons">
         <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neuer Stack</span></a>
@@ -24,51 +24,107 @@
 {
     <pre style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:.8rem;white-space:pre-wrap;word-break:break-word;margin-bottom:16px;">@Model.Output</pre>
 }
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
 
-<div class="card" style="padding:0;">
-    <table class="data">
-        <thead>
-            <tr><th>Name</th><th>Environment</th><th>Zuletzt deployt</th><th>Status</th><th class="actions">Aktionen</th></tr>
-        </thead>
-        <tbody>
-            @if (Model.Stacks.Count == 0)
-            {
-                <tr><td colspan="5"><div class="empty-state"><div><icon name="box" /></div><p>Noch keine Stacks. Lege einen an, um Compose-Dienste zu deployen.</p></div></td></tr>
-            }
-            @foreach (var s in Model.Stacks)
-            {
-                <tr>
-                    <td>
-                        <a href="/Stacks/Edit?id=@s.Id"><strong>@s.Name</strong></a>
-                        @if (s.IsGitBacked)
-                        {
-                            <span class="pill" title="@s.GitRepoUrl" style="margin-left:6px;"><icon name="git" /> Git</span>
-                        }
-                    </td>
-                    <td>@(Model.EnvNames.TryGetValue(s.EnvironmentId, out var n) ? n : $"#{s.EnvironmentId}")</td>
-                    <td class="text-muted nowrap">@(s.LastDeployedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
-                    <td class="cell-sub">@(s.LastStatus ?? "–")</td>
-                    <td class="actions">
-                        <div class="row-actions">
-                            <form method="post" asp-page-handler="Deploy" data-confirm="@(s.IsGitBacked ? $"Stack „{s.Name}“ aus Git holen und deployen?" : $"Stack „{s.Name}“ jetzt deployen (compose up)?")" style="display:inline;">
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(s.IsGitBacked ? "Aus Git deployen/aktualisieren" : "Deployen")"><icon name="@(s.IsGitBacked ? "git" : "check-circle")" /><span>@(s.IsGitBacked ? "Git-Deploy" : "Deploy")</span></button>
-                            </form>
-                            <form method="post" asp-page-handler="Down" data-confirm="Stack „@s.Name“ stoppen (compose down)?" style="display:inline;">
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm" title="Stoppen"><icon name="x-circle" /></button>
-                            </form>
-                            <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@s.Id" title="Bearbeiten"><icon name="edit" /></a>
-                            <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@s.EnvironmentId&project=@Uri.EscapeDataString(s.Name)" title="Container"><icon name="box" /></a>
-                            <span style="width:8px;display:inline-block;"></span>
-                            <form method="post" asp-page-handler="Delete" data-confirm="Stack „@s.Name“ aus MatDock löschen? (Container werden nicht gestoppt)" style="display:inline;">
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<div class="mat-table">
+    <form method="get" class="mat-table__toolbar js-autosubmit">
+        <div class="toolbar-field">
+            <label for="EnvId">Environment</label>
+            <select name="EnvId" id="EnvId" class="mat-select">
+                <option value="0">Alle (nur verwaltete)</option>
+                @foreach (var env in Model.Environments)
+                {
+                    <option value="@env.Id" selected="@(env.Id == Model.EnvId)">@env.Name</option>
+                }
+            </select>
+        </div>
+        <div class="toolbar-spacer"></div>
+        @if (Model.EnvId <= 0)
+        {
+            <span class="text-muted" style="font-size:.82rem;">Environment wählen, um laufende Stacks zu sehen.</span>
+        }
+    </form>
+
+    <div class="mat-table__scroll">
+        <table class="data">
+            <thead>
+                <tr><th>Name</th><th>Environment</th><th>Status</th><th>Zuletzt deployt</th><th class="actions">Aktionen</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="5"><div class="empty-state"><div><icon name="layers" /></div><p>Keine Stacks. Lege einen an oder wähle ein Environment mit laufenden Compose-Projekten.</p></div></td></tr>
+                }
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td>
+                            @if (r.Managed && r.ManagedId is { } mid)
+                            {
+                                <a href="/Stacks/Edit?id=@mid"><strong>@r.Name</strong></a>
+                            }
+                            else
+                            {
+                                <strong>@r.Name</strong>
+                            }
+                            @if (r.GitBacked)
+                            {
+                                <span class="pill" title="Git-gestützt" style="margin-left:6px;"><icon name="git" /> Git</span>
+                            }
+                            @if (r.Discovered)
+                            {
+                                <span class="mat-badge" title="Läuft auf dem Host, nicht von MatDock verwaltet" style="margin-left:6px;">Extern</span>
+                            }
+                        </td>
+                        <td>@r.EnvName</td>
+                        <td>
+                            @if (r.Total > 0)
+                            {
+                                var cls = r.IsRunning ? "pill--online" : (r.IsPartial ? "pill--offline" : "pill--unknown");
+                                <span class="pill @cls">@r.Running/@r.Total laufen</span>
+                            }
+                            else if (r.Managed)
+                            {
+                                <span class="cell-sub">@(r.LastStatus ?? "–")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">–</span>
+                            }
+                        </td>
+                        <td class="text-muted nowrap">@(r.LastDeployedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                        <td class="actions">
+                            <div class="row-actions">
+                                @if (r.Managed && r.ManagedId is { } id)
+                                {
+                                    <form method="post" asp-page-handler="Deploy" asp-route-EnvId="@Model.EnvId" data-confirm="@(r.GitBacked ? $"Stack „{r.Name}“ aus Git holen und deployen?" : $"Stack „{r.Name}“ jetzt deployen (compose up)?")" style="display:inline;">
+                                        <input type="hidden" name="id" value="@id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(r.GitBacked ? "Aus Git deployen/aktualisieren" : "Deployen")"><icon name="@(r.GitBacked ? "git" : "check-circle")" /><span>@(r.GitBacked ? "Git-Deploy" : "Deploy")</span></button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Down" asp-route-EnvId="@Model.EnvId" data-confirm="Stack „@r.Name“ stoppen (compose down)?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Stoppen"><icon name="x-circle" /></button>
+                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Container"><icon name="box" /></a>
+                                    <span style="width:8px;display:inline-block;"></span>
+                                    <form method="post" asp-page-handler="Delete" asp-route-EnvId="@Model.EnvId" data-confirm="Stack „@r.Name“ aus MatDock löschen? (Container werden nicht gestoppt)" style="display:inline;">
+                                        <input type="hidden" name="id" value="@id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Container ansehen"><icon name="box" /><span>Container</span></a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
