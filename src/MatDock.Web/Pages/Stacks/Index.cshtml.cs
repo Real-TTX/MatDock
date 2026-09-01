@@ -58,19 +58,26 @@ public class IndexModel : PageModel
             managed = managed.Where(s => s.EnvironmentId == EnvId).ToList();
         }
 
-        // Discover running compose projects — only for a selected, enabled env (one host call; avoids
-        // fanning out SSH to every environment on each page view).
+        // Discover compose projects (running or stopped) — only for a selected, enabled env (one host call;
+        // avoids fanning out SSH to every environment on each page view).
         var discovered = new Dictionary<(long, string), (int Running, int Total)>();
         if (SelectedEnvironment is { IsEnabled: true })
         {
             try
             {
-                var containers = await _containerService.ListAsync(SelectedEnvironment, HttpContext.RequestAborted);
+                // No stats needed for the overview -> skip the costly `docker stats` call.
+                var containers = await _containerService.ListAsync(SelectedEnvironment, HttpContext.RequestAborted, includeStats: false);
                 foreach (var group in containers
                              .Where(c => !string.IsNullOrEmpty(c.Project))
                              .GroupBy(c => c.Project!))
                 {
-                    discovered[(SelectedEnvironment.Id, group.Key)] = (group.Count(c => c.IsRunning), group.Count());
+                    var running = group.Count(c => c.IsRunning);
+                    // Don't let a cleanly-finished one-shot/init container (Exited 0) make an otherwise-up
+                    // stack look "partial". A crashed (non-zero exit) container still counts as not-running.
+                    var total = running > 0
+                        ? running + group.Count(c => !c.IsRunning && !IsCleanExit(c))
+                        : group.Count();
+                    discovered[(SelectedEnvironment.Id, group.Key)] = (running, total);
                 }
             }
             catch (Exception ex)
@@ -108,6 +115,10 @@ public class IndexModel : PageModel
 
     private static string EnvName(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
         => byId.TryGetValue(id, out var e) ? e.Name : $"#{id}";
+
+    /// <summary>A container that exited successfully (a completed one-shot/init service, not a crash).</summary>
+    private static bool IsCleanExit(DockerContainer c)
+        => string.Equals(c.State, "exited", StringComparison.OrdinalIgnoreCase) && c.Status.Contains("(0)", StringComparison.Ordinal);
 
     public async Task<IActionResult> OnPostDeployAsync(long id)
     {

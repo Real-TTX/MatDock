@@ -31,7 +31,7 @@ public sealed class ContainerService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<DockerContainer>> ListAsync(DockerEnvironment environment, CancellationToken ct = default)
+    public async Task<IReadOnlyList<DockerContainer>> ListAsync(DockerEnvironment environment, CancellationToken ct = default, bool includeStats = true)
     {
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
@@ -46,6 +46,13 @@ public sealed class ContainerService
         }
 
         var containers = ParseContainers(result.StdOut);
+
+        // `docker stats --no-stream` costs a sampling interval; skip it for callers that only need the
+        // container list (e.g. the Stacks overview) to keep the page fast.
+        if (!includeStats)
+        {
+            return containers;
+        }
 
         // Best-effort live usage on the same connection; never fail the listing if stats are unavailable.
         try

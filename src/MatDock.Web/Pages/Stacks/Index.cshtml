@@ -7,7 +7,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Stacks</h1>
-        <span class="page-head__subtitle">Verwaltete &amp; laufende Compose-Stacks</span>
+        <span class="page-head__subtitle">Verwaltete &amp; entdeckte Compose-Stacks</span>
     </div>
     <div class="mat-buttons">
         <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neuer Stack</span></a>
@@ -44,7 +44,7 @@
         <div class="toolbar-spacer"></div>
         @if (Model.EnvId <= 0)
         {
-            <span class="text-muted" style="font-size:.82rem;">Environment wählen, um laufende Stacks zu sehen.</span>
+            <span class="text-muted" style="font-size:.82rem;">Environment wählen, um entdeckte (laufende &amp; gestoppte) Stacks zu sehen.</span>
         }
     </form>
 
@@ -56,7 +56,7 @@
             <tbody>
                 @if (Model.Rows.Count == 0)
                 {
-                    <tr><td colspan="5"><div class="empty-state"><div><icon name="layers" /></div><p>Keine Stacks. Lege einen an oder wähle ein Environment mit laufenden Compose-Projekten.</p></div></td></tr>
+                    <tr><td colspan="5"><div class="empty-state"><div><icon name="layers" /></div><p>Keine Stacks. Lege einen an oder wähle ein Environment mit Compose-Projekten.</p></div></td></tr>
                 }
                 @foreach (var r in Model.Rows)
                 {
