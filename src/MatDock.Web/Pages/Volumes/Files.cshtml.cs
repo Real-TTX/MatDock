@@ -78,6 +78,46 @@ public class FilesModel : PageModel
         return Finish(ok, msg, envId, volume, path);
     }
 
+    public async Task<IActionResult> OnPostUploadAsync(long envId, string volume, string? path, IFormFile? file)
+    {
+        if (!await LoadEnvAsync(envId))
+        {
+            return Finish(false, "Environment not available.", envId, volume, path);
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return Finish(false, "No file selected.", envId, volume, path);
+        }
+
+        // Strip any client-supplied directory components; place the file in the current folder.
+        var dest = Combine(path, System.IO.Path.GetFileName(file.FileName));
+        await using var stream = file.OpenReadStream();
+        var (ok, msg) = await _fileService.UploadAsync(Environment!, volume, dest, stream, HttpContext.RequestAborted);
+        return Finish(ok, msg, envId, volume, path);
+    }
+
+    public async Task<IActionResult> OnGetDownloadAsync(long envId, string volume, string target)
+    {
+        if (!await LoadEnvAsync(envId))
+        {
+            return NotFound();
+        }
+
+        var name = target.Split('/').LastOrDefault();
+        // Sanitize for the Content-Disposition header (no control chars or quotes).
+        var safe = new string((name ?? string.Empty).Where(ch => ch >= ' ' && ch != '"').ToArray());
+        if (safe.Length == 0)
+        {
+            safe = "download";
+        }
+
+        Response.ContentType = "application/octet-stream";
+        Response.Headers.ContentDisposition = $"attachment; filename=\"{safe}\"";
+        var (ok, _) = await _fileService.DownloadAsync(Environment!, volume, target, Response.Body, HttpContext.RequestAborted);
+        return new EmptyResult();
+    }
+
     private async Task<(bool Ok, string Message)> Guard(long envId, string volume, Func<Task<(bool, string)>> action)
     {
         if (!await LoadEnvAsync(envId))

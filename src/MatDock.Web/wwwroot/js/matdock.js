@@ -134,6 +134,21 @@
     });
 })();
 
+/* File explorer: prompt for a name, write it into the button's form (input marked
+   data-prompt-target) and submit. Used for New folder / New file / Rename so the
+   toolbar and rows stay uncluttered. */
+function matdockPromptSubmit(btn, message, current) {
+    var value = window.prompt(message, current || "");
+    if (value === null) { return; }
+    value = value.trim();
+    if (value.length === 0) { return; }
+    var form = btn.closest("form");
+    if (!form) { return; }
+    var input = form.querySelector("[data-prompt-target]");
+    if (input) { input.value = value; }
+    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+}
+
 /* Global environment selector (sidebar): persist the choice in a cookie and navigate to the current
    top-level section's list. Avoids mangling detail-page URLs (which would drop required id params). */
 function matdockSetEnv(value) {

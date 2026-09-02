@@ -161,6 +161,81 @@ public sealed class VolumeFileService
     public Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, string volume, string srcRel, string dstRel, CancellationToken ct = default)
         => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
 
+    /// <summary>Streams a file's raw bytes from the volume into <paramref name="output"/> (no size cap; for downloads).</summary>
+    public async Task<(bool Ok, string Error)> DownloadAsync(DockerEnvironment env, string volume, string relPath, Stream output, CancellationToken ct = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(volume))
+        {
+            return (false, "Invalid volume name.");
+        }
+
+        var rel = VolumeFileCommands.NormalizeRelPath(relPath);
+        if (string.IsNullOrEmpty(rel))
+        {
+            return (false, "No file specified.");
+        }
+
+        try
+        {
+            var (head, client) = await ConnectAsync(env, ct);
+            using (client)
+            {
+                using var cmd = client.CreateCommand(VolumeFileCommands.Read(head, _options.HelperImage, volume, rel));
+                // Downloads can be large; allow more time than a normal command and stream straight through.
+                var timeout = TimeSpan.FromSeconds(Math.Max(300, _options.SshTimeoutSeconds));
+                cmd.CommandTimeout = timeout;
+                cmd.BufferOutput = false;
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(timeout);
+
+                var async = cmd.BeginExecute();
+                await cmd.OutputStream.CopyToAsync(output, cts.Token);
+                cmd.EndExecute(async);
+                return cmd.ExitStatus == 0 ? (true, string.Empty) : (false, "File could not be read.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, Describe(ex));
+        }
+    }
+
+    /// <summary>Streams uploaded bytes from <paramref name="source"/> into a (new or overwritten) file in the volume.</summary>
+    public async Task<(bool Ok, string Message)> UploadAsync(DockerEnvironment env, string volume, string relPath, Stream source, CancellationToken ct = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(volume))
+        {
+            return (false, "Invalid volume name.");
+        }
+
+        var rel = VolumeFileCommands.NormalizeRelPath(relPath);
+        if (string.IsNullOrEmpty(rel))
+        {
+            return (false, "Invalid path.");
+        }
+
+        try
+        {
+            var (head, client) = await ConnectAsync(env, ct);
+            using (client)
+            {
+                using var cmd = client.CreateCommand(VolumeFileCommands.Write(head, _options.HelperImage, volume, rel));
+                cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(300, _options.SshTimeoutSeconds));
+                // SSH.NET 2026: create the input stream only AFTER BeginExecute opened the channel.
+                var async = cmd.BeginExecute();
+                var input = cmd.CreateInputStream();
+                await source.CopyToAsync(input, ct);
+                input.Close();
+                cmd.EndExecute(async);
+                return cmd.ExitStatus == 0 ? (true, "Uploaded.") : (false, "Upload failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, Describe(ex));
+        }
+    }
+
     // ---- shared plumbing ----
 
     private async Task<(bool Ok, string Message)> MutateAsync(DockerEnvironment env, string volume, string relPath,

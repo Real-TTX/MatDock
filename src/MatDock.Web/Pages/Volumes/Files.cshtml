@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Files";
     string Target(string name) => Model.Path.Length == 0 ? name : Model.Path + "/" + name;
+    string Url(string rel) => $"/Volumes/Files?envId={Model.EnvId}&volume={Uri.EscapeDataString(Model.Volume)}&path={Uri.EscapeDataString(rel)}";
     string Fmt(long b)
     {
         string[] u = { "B", "KB", "MB", "GB" };
@@ -29,25 +30,46 @@
     </div>
 }
 
-<div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-    <nav class="mono" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-        @foreach (var (name, rel) in Model.Crumbs)
+<div class="fs-toolbar">
+    <nav class="fs-crumbs mono" aria-label="Path">
+        @for (int i = 0; i < Model.Crumbs.Count; i++)
         {
-            <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(rel)">@name</a>
-            <span class="text-muted">/</span>
+            var c = Model.Crumbs[i];
+            var last = i == Model.Crumbs.Count - 1;
+            if (i > 0)
+            {
+                <span class="fs-crumbs__sep">/</span>
+            }
+            if (last)
+            {
+                <span class="fs-crumbs__cur">@if (i == 0) { <icon name="home" /> } else { @c.Name }</span>
+            }
+            else
+            {
+                <a href="@Url(c.Rel)">@if (i == 0) { <icon name="home" /> } else { @c.Name }</a>
+            }
         }
     </nav>
+
     <span class="toolbar-spacer"></span>
-    <form method="post" asp-page-handler="NewFolder" style="display:inline-flex;gap:4px;">
-        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
-        <input name="name" class="mat-input" placeholder="Folder name" style="width:130px;" required />
-        <button type="submit" class="mat-btn mat-btn--sm" title="Create folder"><icon name="plus" /></button>
-    </form>
-    <form method="post" asp-page-handler="NewFile" style="display:inline-flex;gap:4px;">
-        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
-        <input name="name" class="mat-input" placeholder="File name" style="width:130px;" required />
-        <button type="submit" class="mat-btn mat-btn--sm" title="Create file"><icon name="plus" /></button>
-    </form>
+
+    <div class="fs-ops">
+        <form method="post" asp-page-handler="NewFolder">
+            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
+            <input type="hidden" name="name" data-prompt-target />
+            <button type="button" class="mat-btn mat-btn--sm" onclick="matdockPromptSubmit(this,'New folder name','')"><icon name="folder" /><span>New folder</span></button>
+        </form>
+        <form method="post" asp-page-handler="NewFile">
+            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
+            <input type="hidden" name="name" data-prompt-target />
+            <button type="button" class="mat-btn mat-btn--sm" onclick="matdockPromptSubmit(this,'New file name','')"><icon name="file" /><span>New file</span></button>
+        </form>
+        <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="fs-upload">
+            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
+            <input type="file" name="file" required aria-label="File to upload" />
+            <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary"><icon name="upload" /><span>Upload</span></button>
+        </form>
+    </div>
 </div>
 
 @if (Model.Error is not null)
@@ -62,7 +84,7 @@ else
             <tbody>
                 @if (Model.Entries.Count == 0)
                 {
-                    <tr><td colspan="3"><div class="empty-state"><p>Empty folder.</p></div></td></tr>
+                    <tr><td colspan="3"><div class="empty-state"><div><icon name="folder" /></div><p>Empty folder.</p></div></td></tr>
                 }
                 @foreach (var e in Model.Entries)
                 {
@@ -71,27 +93,31 @@ else
                         <td class="wrap">
                             @if (e.IsDirectory)
                             {
-                                <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(target)"><icon name="volume" /> <strong>@e.Name</strong></a>
+                                <a class="fs-entry" href="@Url(target)"><span class="fs-entry__icon fs-entry__icon--dir"><icon name="folder" /></span><strong>@e.Name</strong></a>
                             }
                             else
                             {
-                                <a href="/Volumes/FileEdit?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(target)">@e.Name</a>
+                                <a class="fs-entry" href="/Volumes/FileEdit?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(target)"><span class="fs-entry__icon"><icon name="file" /></span>@e.Name</a>
                             }
                         </td>
-                        <td class="cell-sub">@(e.IsDirectory ? "" : Fmt(e.Size))</td>
+                        <td class="cell-sub">@(e.IsDirectory ? "—" : Fmt(e.Size))</td>
                         <td class="actions">
                             <div class="row-actions">
-                                <form method="post" asp-page-handler="Rename" style="display:inline-flex;gap:3px;">
+                                @if (!e.IsDirectory)
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Volumes/Files?handler=Download&envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&target=@Uri.EscapeDataString(target)" title="Download"><icon name="download" /></a>
+                                }
+                                <form method="post" asp-page-handler="Rename">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
                                     <input type="hidden" name="target" value="@target" />
-                                    <input name="newName" value="@e.Name" class="mat-input" style="width:120px;" aria-label="New name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm" title="Rename"><icon name="edit" /></button>
+                                    <input type="hidden" name="newName" data-prompt-target />
+                                    <button type="button" class="mat-btn mat-btn--sm" title="Rename" onclick="matdockPromptSubmit(this,'Rename to:','@e.Name')"><icon name="edit" /></button>
                                 </form>
                                 <form method="post" asp-page-handler="Copy" style="display:inline;">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
                                     <input type="hidden" name="target" value="@target" />
                                     <input type="hidden" name="newName" value="@(e.Name)-copy" />
-                                    <button type="submit" class="mat-btn mat-btn--sm" title="Duplicate"><icon name="save" /></button>
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Duplicate"><icon name="copy" /></button>
                                 </form>
                                 <form method="post" asp-page-handler="Delete" data-confirm="Really delete @e.Name?" style="display:inline;">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />

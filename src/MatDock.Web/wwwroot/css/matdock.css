@@ -520,6 +520,25 @@ table.ctable td.num { text-align: left; }
 .app-card__desc { font-size: .85rem; color: var(--text-muted); margin: 0; line-height: 1.45; }
 .app-card__foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
 
+/* ============================================================================
+   Volume file explorer
+   ========================================================================== */
+.fs-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-1); }
+.fs-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .9rem; }
+.fs-crumbs a { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); text-decoration: none; }
+.fs-crumbs a:hover { text-decoration: underline; }
+.fs-crumbs__sep { color: var(--text-muted); }
+.fs-crumbs__cur { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--text); }
+.fs-ops { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fs-ops form { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.fs-upload input[type=file] { font-size: .8rem; max-width: 200px; color: var(--text-muted); }
+.fs-upload input[type=file]::file-selector-button { font: inherit; margin-right: 8px; padding: 5px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); cursor: pointer; }
+
+.fs-entry { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: inherit; }
+.fs-entry:hover { color: var(--accent); }
+.fs-entry__icon { color: var(--text-muted); display: inline-flex; }
+.fs-entry__icon--dir { color: var(--accent); }
+
 /* JS list/tile filters toggle [hidden]; force it to win over flex/grid display on cards. */
 [hidden] { display: none !important; }
 
