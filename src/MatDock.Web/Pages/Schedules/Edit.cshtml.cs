@@ -39,21 +39,21 @@ public class EditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Namen angeben.")]
+        [Required(ErrorMessage = "Please enter a name.")]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
-        [Range(1, long.MaxValue, ErrorMessage = "Bitte ein Environment wählen.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Please select an environment.")]
         public long EnvironmentId { get; set; }
 
         public List<string> SelectedVolumes { get; set; } = new();
 
-        [Display(Name = "Weitere Volumes (eine pro Zeile)")]
+        [Display(Name = "Additional volumes (one per line)")]
         public string? ExtraVolumes { get; set; }
 
         public long? BackupTargetId { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Cron-Ausdruck angeben.")]
+        [Required(ErrorMessage = "Please enter a cron expression.")]
         public string Cron { get; set; } = "0 3 * * *";
 
         [Range(0, int.MaxValue)]
@@ -113,13 +113,13 @@ public class EditModel : PageModel
 
         if (!CronSchedule.IsValid(Input.Cron))
         {
-            ModelState.AddModelError("Input.Cron", "Ungültiger Cron-Ausdruck (5 Felder, z. B. 0 3 * * *).");
+            ModelState.AddModelError("Input.Cron", "Invalid cron expression (5 fields, e.g. 0 3 * * *).");
         }
 
         var volumes = CombineVolumes();
         if (volumes.Count == 0)
         {
-            ModelState.AddModelError("Input.SelectedVolumes", "Bitte mindestens ein Volume wählen oder eingeben.");
+            ModelState.AddModelError("Input.SelectedVolumes", "Please select or enter at least one volume.");
         }
 
         if (!ModelState.IsValid)

@@ -1,7 +1,7 @@
 @page
 @model MatDock.Web.Pages.Volumes.FileEditModel
 @{
-    ViewData["Title"] = "Datei bearbeiten";
+    ViewData["Title"] = "Edit file";
 }
 
 <div class="page-head">
@@ -10,7 +10,7 @@
         <span class="page-head__subtitle mono">@Model.Volume · @Model.Environment?.Name</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -27,18 +27,18 @@
 }
 else if (Model.IsBinary)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Binärdatei – kann hier nicht bearbeitet werden.</span></div>
+    <div class="alert alert--warning"><icon name="alert" /><span>Binary file – cannot be edited here.</span></div>
 }
 else
 {
     var editable = !Model.Truncated && !Model.NonUtf8;
     @if (Model.Truncated)
     {
-        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist größer als @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB – nur der Anfang wird angezeigt, Speichern ist deaktiviert (kein Datenverlust).</span></div>
+        <div class="alert alert--warning"><icon name="alert" /><span>The file is larger than @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB – only the beginning is shown, saving is disabled (no data loss).</span></div>
     }
     else if (Model.NonUtf8)
     {
-        <div class="alert alert--warning"><icon name="alert" /><span>Datei ist nicht UTF-8-kodiert – schreibgeschützt, um Beschädigung zu vermeiden.</span></div>
+        <div class="alert alert--warning"><icon name="alert" /><span>The file is not UTF-8 encoded – read-only to avoid corruption.</span></div>
     }
     <form method="post" asp-page-handler="Save">
         <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Path" />
@@ -46,9 +46,9 @@ else
         <mat-form-buttons>
             @if (editable)
             {
-                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
             }
-            <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+            <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
         </mat-form-buttons>
     </form>
 }

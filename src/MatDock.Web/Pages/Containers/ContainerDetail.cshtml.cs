@@ -44,7 +44,7 @@ public class ContainerDetailModel : PageModel
             Mounts = mounts;
             if (container is null)
             {
-                Error = "Container nicht gefunden.";
+                Error = "Container not found.";
             }
         }
         catch (Exception ex)
@@ -59,7 +59,7 @@ public class ContainerDetailModel : PageModel
     {
         if (!ModelState.IsValid)
         {
-            StatusMessage = "Ungültige Aktion.";
+            StatusMessage = "Invalid action.";
             IsError = true;
             return RedirectToPage(new { envId, id });
         }
@@ -67,7 +67,7 @@ public class ContainerDetailModel : PageModel
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null || !env.IsEnabled)
         {
-            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
+            StatusMessage = "Environment not available (disabled or deleted).";
             IsError = true;
             return RedirectToPage(new { envId, id });
         }

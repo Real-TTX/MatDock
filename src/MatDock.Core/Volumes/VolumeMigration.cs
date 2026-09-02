@@ -49,7 +49,7 @@ public sealed class VolumeMigrationResult
         BytesTransferred = bytes,
         DurationSeconds = seconds,
         Steps = steps,
-        Message = $"Migration erfolgreich – {FormatBytes(bytes)} übertragen."
+        Message = $"Migration successful - {FormatBytes(bytes)} transferred."
     };
 
     public static VolumeMigrationResult Fail(string message, List<string>? steps = null) => new()

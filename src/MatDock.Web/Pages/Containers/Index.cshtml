@@ -64,7 +64,7 @@
                 <div class="row-actions">
                     @if (openUrl is not null)
                     {
-                        <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Öffnen"><icon name="external" /></a>
+                        <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open"><icon name="external" /></a>
                     }
                     <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                     @if (c.IsRunning)
@@ -72,9 +72,9 @@
                         <form method="post" asp-page-handler="Action" style="display:inline;">
                             <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="action" value="Restart" />
-                            <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
+                            <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
                         </form>
-                        <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
+                        <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
                             <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="action" value="Stop" />
                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
@@ -97,7 +97,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Container</h1>
-        <span class="page-head__subtitle">@(Model.IsAll ? "Alle Container über alle Environments" : "Container des gewählten Environments") · Stacks unter „Stacks"</span>
+        <span class="page-head__subtitle">@(Model.IsAll ? "All containers across all environments" : "Containers in the selected environment") · Stacks under "Stacks"</span>
     </div>
 </div>
 
@@ -115,20 +115,20 @@
 <div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:16px;">
     <div class="search">
         <icon name="search" />
-        <input type="search" id="container-filter" class="mat-input" placeholder="Filtern (Name, Image, Stack, Env, Port)…" autocomplete="off" />
+        <input type="search" id="container-filter" class="mat-input" placeholder="Filter (name, image, stack, env, port)…" autocomplete="off" />
     </div>
     <span class="toolbar-spacer"></span>
     <span class="text-muted"><strong>@Model.Rows.Count</strong> Container</span>
-    <a class="mat-btn mat-btn--sm" href="/Containers"><icon name="refresh" /><span>Aktualisieren</span></a>
+    <a class="mat-btn mat-btn--sm" href="/Containers"><icon name="refresh" /><span>Refresh</span></a>
 </div>
 
 @if (Model.Environments.Count == 0)
 {
-    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Kein aktives Environment. Lege eines an oder aktiviere eines.</p></div></div>
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>No active environment. Create one or enable one.</p></div></div>
 }
 else if (Model.Rows.Count == 0)
 {
-    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Keine Container gefunden.</p></div></div>
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>No containers found.</p></div></div>
 }
 else
 {
@@ -140,7 +140,7 @@ else
                     {
                         <th>Environment</th>
                     }
-                    <th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th>
+                    <th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Actions</th>
                 </tr>
             </thead>
             <tbody>

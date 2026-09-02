@@ -113,21 +113,21 @@ public sealed class GitRepositoryService
                                             || msg.Contains("credentials", StringComparison.OrdinalIgnoreCase)))
         {
             return hadToken
-                ? "Authentifizierung fehlgeschlagen – Benutzer/Token prüfen."
-                : "Authentifizierung erforderlich – Git-Zugang zuweisen.";
+                ? "Authentication failed - check the user/token."
+                : "Authentication required - assign Git credentials.";
         }
 
         if (msg.Contains("not found", StringComparison.OrdinalIgnoreCase) || msg.Contains("404"))
         {
-            return "Repository nicht gefunden – URL prüfen.";
+            return "Repository not found - check the URL.";
         }
 
         if (msg.Contains("Cannot checkout", StringComparison.OrdinalIgnoreCase) || msg.Contains("no reference", StringComparison.OrdinalIgnoreCase))
         {
-            return "Branch/Tag nicht gefunden.";
+            return "Branch/tag not found.";
         }
 
-        return "Git-Fehler: " + msg;
+        return "Git error: " + msg;
     }
 
     /// <summary>Deletes a directory tree, clearing the read-only attribute that Git sets on pack files

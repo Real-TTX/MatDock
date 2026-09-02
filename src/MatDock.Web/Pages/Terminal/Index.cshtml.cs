@@ -38,7 +38,7 @@ public class IndexModel : PageModel
         Container = string.IsNullOrEmpty(container) ? null : container;
         Title = Container is null
             ? $"Shell · {env.Name}"
-            : $"Konsole · {(string.IsNullOrEmpty(name) ? Container : name)}";
+            : $"Console · {(string.IsNullOrEmpty(name) ? Container : name)}";
 
         return Page();
     }

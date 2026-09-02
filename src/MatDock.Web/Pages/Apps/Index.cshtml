@@ -1,16 +1,16 @@
 @page
 @model MatDock.Web.Pages.Apps.IndexModel
 @{
-    ViewData["Title"] = "Vorlagen";
+    ViewData["Title"] = "Templates";
 }
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Vorlagen</h1>
-        <span class="page-head__subtitle">App-Vorlagen (Compose-Blueprints) anlegen &amp; installieren</span>
+        <h1>Templates</h1>
+        <span class="page-head__subtitle">Create &amp; install app templates (Compose blueprints)</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neue Vorlage</span></a>
+        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New template</span></a>
     </div>
 </div>
 
@@ -24,12 +24,12 @@
 <div class="card" style="padding:0;">
     <table class="data">
         <thead>
-            <tr><th>Name</th><th>Kategorie</th><th>Beschreibung</th><th class="actions">Aktionen</th></tr>
+            <tr><th>Name</th><th>Category</th><th>Description</th><th class="actions">Actions</th></tr>
         </thead>
         <tbody>
             @if (Model.Templates.Count == 0)
             {
-                <tr><td colspan="4"><div class="empty-state"><div><icon name="template" /></div><p>Noch keine Vorlagen. Lege eine an, um Apps mit einem Klick als Stack zu installieren.</p></div></td></tr>
+                <tr><td colspan="4"><div class="empty-state"><div><icon name="template" /></div><p>No templates yet. Create one to install apps as a stack with a single click.</p></div></td></tr>
             }
             @foreach (var t in Model.Templates)
             {
@@ -39,12 +39,12 @@
                     <td class="cell-sub">@(string.IsNullOrEmpty(t.Description) ? "–" : t.Description)</td>
                     <td class="actions">
                         <div class="row-actions">
-                            <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Installieren"><icon name="download" /><span>Installieren</span></a>
-                            <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
+                            <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install"><icon name="download" /><span>Install</span></a>
+                            <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Edit"><icon name="edit" /></a>
                             <span style="width:8px;display:inline-block;"></span>
-                            <form method="post" asp-page-handler="Delete" data-confirm="Vorlage „@t.Name“ löschen?" style="display:inline;">
+                            <form method="post" asp-page-handler="Delete" data-confirm="Delete template '@t.Name'?" style="display:inline;">
                                 <input type="hidden" name="id" value="@t.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                             </form>
                         </div>
                     </td>

@@ -36,12 +36,12 @@ public sealed class BackupScheduleRunner
         var env = await _environmentService.GetAsync(schedule.EnvironmentId, ct);
         if (env is null)
         {
-            return "Environment nicht gefunden.";
+            return "Environment not found.";
         }
 
         if (!env.IsEnabled)
         {
-            return "Environment ist deaktiviert – übersprungen.";
+            return "Environment is disabled - skipped.";
         }
 
         BackupTarget? target = null;
@@ -50,14 +50,14 @@ public sealed class BackupScheduleRunner
             target = await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == tid, ct);
             if (target is null)
             {
-                return "Backup-Ziel wurde gelöscht.";
+                return "Backup target has been deleted.";
             }
         }
 
         var volumes = schedule.Volumes.ToList();
         if (volumes.Count == 0)
         {
-            return "Keine Volumes ausgewählt.";
+            return "No volumes selected.";
         }
 
         var ok = 0;
@@ -77,7 +77,7 @@ public sealed class BackupScheduleRunner
             }
         }
 
-        var summary = $"{ok}/{volumes.Count} Volumes gesichert";
+        var summary = $"{ok}/{volumes.Count} volumes backed up";
         if (failures.Count > 0)
         {
             summary += " – " + string.Join("; ", failures.Take(3));

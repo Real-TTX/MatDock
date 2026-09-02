@@ -25,42 +25,42 @@ public sealed class StackTemplateService
     {
         if (string.IsNullOrWhiteSpace(input.Name))
         {
-            return (false, "Name ist erforderlich.", 0);
+            return (false, "Name is required.", 0);
         }
 
         if (string.IsNullOrWhiteSpace(input.ComposeYaml))
         {
-            return (false, "Compose-YAML ist erforderlich.", 0);
+            return (false, "Compose YAML is required.", 0);
         }
 
         var template = new StackTemplate();
         Apply(template, input);
         _db.StackTemplates.Add(template);
         await _db.SaveChangesAsync(ct);
-        return (true, "Vorlage angelegt.", template.Id);
+        return (true, "App created.", template.Id);
     }
 
     public async Task<(bool Ok, string Message)> UpdateAsync(long id, StackTemplateInput input, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(input.Name))
         {
-            return (false, "Name ist erforderlich.");
+            return (false, "Name is required.");
         }
 
         if (string.IsNullOrWhiteSpace(input.ComposeYaml))
         {
-            return (false, "Compose-YAML ist erforderlich.");
+            return (false, "Compose YAML is required.");
         }
 
         var template = await _db.StackTemplates.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (template is null)
         {
-            return (false, "Vorlage nicht gefunden.");
+            return (false, "App not found.");
         }
 
         Apply(template, input);
         await _db.SaveChangesAsync(ct);
-        return (true, "Vorlage gespeichert.");
+        return (true, "App saved.");
     }
 
     public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)

@@ -33,15 +33,17 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostRunAsync(long id)
     {
         var summary = await _scheduleService.RunNowAsync(id, HttpContext.RequestAborted);
-        StatusMessage = $"Ausgeführt: {summary}";
-        IsError = summary.Contains("Fehler", StringComparison.OrdinalIgnoreCase);
+        StatusMessage = $"Executed: {summary}";
+        // Summary starts with "<ok>/<total> volumes backed up"; error if not all succeeded (or non-standard summary).
+        var m = System.Text.RegularExpressions.Regex.Match(summary, @"^(\d+)/(\d+)\b");
+        IsError = m.Success ? m.Groups[1].Value != m.Groups[2].Value : true;
         return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _scheduleService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Zeitplan gelöscht." : "Zeitplan nicht gefunden.";
+        StatusMessage = deleted ? "Schedule deleted." : "Schedule not found.";
         IsError = !deleted;
         return RedirectToPage();
     }

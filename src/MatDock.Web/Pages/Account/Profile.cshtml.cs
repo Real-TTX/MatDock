@@ -32,20 +32,20 @@ public class ProfileModel : PageModel
 
     public class InputModel
     {
-        [Required(ErrorMessage = "Bitte aktuelles Passwort eingeben.")]
+        [Required(ErrorMessage = "Please enter your current password.")]
         [DataType(DataType.Password)]
-        [Display(Name = "Aktuelles Passwort")]
+        [Display(Name = "Current password")]
         public string CurrentPassword { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Bitte neues Passwort eingeben.")]
-        [MinLength(8, ErrorMessage = "Das Passwort muss mindestens 8 Zeichen haben.")]
+        [Required(ErrorMessage = "Please enter a new password.")]
+        [MinLength(8, ErrorMessage = "The password must be at least 8 characters.")]
         [DataType(DataType.Password)]
-        [Display(Name = "Neues Passwort")]
+        [Display(Name = "New password")]
         public string NewPassword { get; set; } = string.Empty;
 
         [DataType(DataType.Password)]
-        [Compare(nameof(NewPassword), ErrorMessage = "Die Passwörter stimmen nicht überein.")]
-        [Display(Name = "Neues Passwort bestätigen")]
+        [Compare(nameof(NewPassword), ErrorMessage = "The passwords do not match.")]
+        [Display(Name = "Confirm new password")]
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 
@@ -75,7 +75,7 @@ public class ProfileModel : PageModel
 
         if (!_passwordHasher.Verify(Input.CurrentPassword, user.PasswordHash))
         {
-            ModelState.AddModelError("Input.CurrentPassword", "Das aktuelle Passwort ist falsch.");
+            ModelState.AddModelError("Input.CurrentPassword", "The current password is incorrect.");
             return Page();
         }
 
@@ -86,7 +86,7 @@ public class ProfileModel : PageModel
         var token = User.GetSessionToken() ?? string.Empty;
         await HttpContext.SignInAsync(AuthConstants.CookieScheme, PrincipalFactory.Build(user, token));
 
-        StatusMessage = "Passwort erfolgreich geändert.";
+        StatusMessage = "Password changed successfully.";
         MustChange = false;
         ModelState.Clear();
         Input = new InputModel();

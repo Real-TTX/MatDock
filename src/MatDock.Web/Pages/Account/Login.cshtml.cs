@@ -30,16 +30,16 @@ public class LoginModel : PageModel
 
     public class InputModel
     {
-        [Required(ErrorMessage = "Bitte Benutzernamen eingeben.")]
-        [Display(Name = "Benutzername")]
+        [Required(ErrorMessage = "Please enter your username.")]
+        [Display(Name = "Username")]
         public string Username { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Bitte Passwort eingeben.")]
+        [Required(ErrorMessage = "Please enter your password.")]
         [DataType(DataType.Password)]
-        [Display(Name = "Passwort")]
+        [Display(Name = "Password")]
         public string Password { get; set; } = string.Empty;
 
-        [Display(Name = "Angemeldet bleiben")]
+        [Display(Name = "Stay signed in")]
         public bool RememberMe { get; set; } = true;
     }
 
@@ -63,7 +63,7 @@ public class LoginModel : PageModel
         var result = await _authService.AuthenticateAsync(Input.Username, Input.Password, HttpContext.RequestAborted);
         if (!result.Succeeded || result.User is null)
         {
-            ErrorMessage = result.Error ?? "Anmeldung fehlgeschlagen.";
+            ErrorMessage = result.Error ?? "Sign-in failed.";
             return Page();
         }
 

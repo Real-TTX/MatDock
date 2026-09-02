@@ -52,7 +52,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                     var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
                     var label = AccessLabel(useSudo, dockerHost);
                     return DockerConnectionResult.Ok(
-                        $"Verbunden mit Docker {version} (API {apiVersion}) · Zugriff: {label}.",
+                        $"Connected to Docker {version} (API {apiVersion}) · Access: {label}.",
                         version, apiVersion, osArch, useSudo, dockerHost, label);
                 }
 
@@ -67,7 +67,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return DockerConnectionResult.Fail("Zeitüberschreitung beim Verbindungsaufbau.", EnvironmentStatus.Offline);
+            return DockerConnectionResult.Fail("Connection timed out.", EnvironmentStatus.Offline);
         }
         catch (Exception ex)
         {
@@ -180,7 +180,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
     {
         if (!VolumeCommands.IsValidVolumeName(name))
         {
-            return (false, "Ungültiger Volume-Name (Buchstaben, Zahlen und . _ - erlaubt, Beginn alphanumerisch).");
+            return (false, "Invalid volume name (letters, digits and . _ - allowed, must start alphanumeric).");
         }
 
         using var client = _hostSessionFactory.Create(settings);
@@ -196,7 +196,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         var result = RunCommand(client, VolumeCommands.Create(name, head), settings);
         return result.ExitStatus == 0
-            ? (true, $"Volume „{name}“ erstellt.")
+            ? (true, $"Volume \"{name}\" created.")
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
@@ -257,7 +257,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             return useSudo ? $"rootless+sudo ({path})" : $"rootless ({path})";
         }
 
-        return useSudo ? "sudo" : "Standard";
+        return useSudo ? "sudo" : "Default";
     }
 
     private async Task ConnectAsync(IHostSession client, SshConnectionSettings settings, CancellationToken cancellationToken)

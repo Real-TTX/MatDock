@@ -10,10 +10,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>@Model.Title</h1>
-        <span class="page-head__subtitle">@(Model.Container is null ? $"SSH-Shell zu {Model.EnvName}" : $"docker exec in Container auf {Model.EnvName}")</span>
+        <span class="page-head__subtitle">@(Model.Container is null ? $"SSH shell to {Model.EnvName}" : $"docker exec in container on {Model.EnvName}")</span>
     </div>
     <div class="mat-buttons">
-        <a href="@backHref" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="@backHref" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -23,7 +23,7 @@
          data-container="@(Model.Container ?? string.Empty)"
          style="height:calc(100vh - 220px);min-height:320px;width:100%;"></div>
 </div>
-<p class="mat-hint" style="margin-top:8px;">Interaktive Shell über SSH. Zum Beenden <code>exit</code> eingeben oder die Seite verlassen. Die Größe wird beim Öffnen festgelegt.</p>
+<p class="mat-hint" style="margin-top:8px;">Interactive shell over SSH. Type <code>exit</code> or leave the page to end it. The size is set when it opens.</p>
 
 @section Scripts {
     <script src="~/lib/xterm/xterm.js"></script>

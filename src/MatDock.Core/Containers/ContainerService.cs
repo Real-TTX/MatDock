@@ -195,7 +195,7 @@ public sealed class ContainerService
     {
         if (!ContainerCommands.IsValidId(id))
         {
-            return (false, "Ungültige Container-ID.");
+            return (false, "Invalid container ID.");
         }
 
         var settings = _environmentService.BuildSettings(environment);
@@ -222,7 +222,7 @@ public sealed class ContainerService
     {
         if (!ContainerCommands.IsValidId(id))
         {
-            return "Ungültige Container-ID.";
+            return "Invalid container ID.";
         }
 
         var settings = _environmentService.BuildSettings(environment);
@@ -240,7 +240,7 @@ public sealed class ContainerService
             throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdOut, result.StdOut));
         }
 
-        return string.IsNullOrWhiteSpace(result.StdOut) ? "(keine Logausgabe)" : result.StdOut;
+        return string.IsNullOrWhiteSpace(result.StdOut) ? "(no log output)" : result.StdOut;
     }
 
     private async Task ConnectAsync(IHostSession client, SshConnectionSettings settings, CancellationToken ct)
@@ -253,7 +253,7 @@ public sealed class ContainerService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new InvalidOperationException("Zeitüberschreitung beim Verbindungsaufbau.");
+            throw new InvalidOperationException("Connection timed out.");
         }
         catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
         {

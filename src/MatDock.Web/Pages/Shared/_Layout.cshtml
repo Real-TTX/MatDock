@@ -8,7 +8,7 @@
     var isAdmin = User.IsAdmin();
 }
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -50,9 +50,9 @@
                 }
                 <div class="sidebar__env">
                     <label for="global-env"><icon name="server" /> Environment</label>
-                    <select id="global-env" class="mat-select" aria-label="Environment wählen"
+                    <select id="global-env" class="mat-select" aria-label="Select environment"
                             onchange="matdockSetEnv(this.value)">
-                        <option value="0" selected="@(currentEnv is null)">Alle Environments</option>
+                        <option value="0" selected="@(currentEnv is null)">All environments</option>
                         @foreach (var env in globalEnvs)
                         {
                             <option value="@env.Id" selected="@(currentEnv == env.Id)">@env.Name</option>

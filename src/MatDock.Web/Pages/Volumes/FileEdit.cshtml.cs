@@ -80,7 +80,7 @@ public class FileEditModel : PageModel
             IsBinary = current?.IsBinary ?? false;
             Truncated = current?.Truncated ?? false;
             NonUtf8 = current?.NonUtf8 ?? false;
-            StatusMessage = "Datei kann nicht gespeichert werden (zu groß, binär oder keine UTF-8-Textdatei).";
+            StatusMessage = "The file cannot be saved (too large, binary, or not a UTF-8 text file).";
             IsError = true;
             return Page();
         }

@@ -75,7 +75,7 @@ public static class TerminalEndpoint
         if (settings.IsLocal)
         {
             using var localWs = await context.WebSockets.AcceptWebSocketAsync();
-            await TrySendTextAsync(localWs, "\r\n\x1b[33m[Terminal für lokale Umgebungen wird noch nicht unterstützt.]\x1b[0m\r\n");
+            await TrySendTextAsync(localWs, "\r\n\x1b[33m[Terminal for local environments is not supported yet.]\x1b[0m\r\n");
             try { await localWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
             return;
         }
@@ -109,7 +109,7 @@ public static class TerminalEndpoint
         catch (Exception ex)
         {
             logger.LogInformation(ex, "Terminal session for env {EnvId} ended with an error.", envId);
-            await TrySendTextAsync(ws, "\r\n\x1b[31m[Verbindung fehlgeschlagen: " + Sanitize(ex.Message) + "]\x1b[0m\r\n");
+            await TrySendTextAsync(ws, "\r\n\x1b[31m[Connection failed: " + Sanitize(ex.Message) + "]\x1b[0m\r\n");
         }
         finally
         {

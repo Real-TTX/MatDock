@@ -47,7 +47,7 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public long EnvId { get; set; }
 
-    /// <summary>Force a fresh query, bypassing the short-lived cache (the "Aktualisieren" button).</summary>
+    /// <summary>Force a fresh query, bypassing the short-lived cache (the "Refresh" button).</summary>
     [BindProperty(SupportsGet = true)]
     public bool Refresh { get; set; }
 
@@ -145,7 +145,7 @@ public class IndexModel : PageModel
         var env = await _environmentService.GetAsync(createEnvId, HttpContext.RequestAborted);
         if (env is null || !env.IsEnabled)
         {
-            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
+            StatusMessage = "Environment not available (disabled or deleted).";
             IsError = true;
             return RedirectToPage(new { EnvId, Q });
         }
@@ -180,11 +180,11 @@ public class IndexModel : PageModel
             if (result.Success) { ok++; } else { fail++; }
         }
 
-        StatusMessage = $"Bulk-Backup → {(target?.Name ?? "Lokal")}: {ok} ok, {fail} Fehler.";
+        StatusMessage = $"Bulk backup → {(target?.Name ?? "Local")}: {ok} ok, {fail} failed.";
         IsError = fail > 0;
         if (ok + fail > 0)
         {
-            await NotifyBackupAsync("Sammel-Backup", $"{ok} ok, {fail} Fehler → {(target?.Name ?? "Lokal")}.", fail == 0);
+            await NotifyBackupAsync("Bulk backup", $"{ok} ok, {fail} failed → {(target?.Name ?? "Local")}.", fail == 0);
         }
         return RedirectToPage(new { EnvId, Q });
     }
@@ -194,7 +194,7 @@ public class IndexModel : PageModel
         var (envId, volume) = VolumeSelection.Parse(new[] { single }).FirstOrDefault();
         if (volume is null)
         {
-            StatusMessage = "Ungültige Auswahl.";
+            StatusMessage = "Invalid selection.";
             IsError = true;
             return RedirectToPage(new { EnvId, Q });
         }
@@ -202,16 +202,16 @@ public class IndexModel : PageModel
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null || !env.IsEnabled)
         {
-            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
+            StatusMessage = "Environment not available (disabled or deleted).";
             IsError = true;
             return RedirectToPage(new { EnvId, Q });
         }
 
         var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
         var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
-        StatusMessage = $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}";
+        StatusMessage = $"{volume} → {(target?.Name ?? "Local")}: {result.Message}";
         IsError = !result.Success;
-        await NotifyBackupAsync($"Manuelles Backup: {volume}", $"{volume} → {(target?.Name ?? "Lokal")}: {result.Message}", result.Success);
+        await NotifyBackupAsync($"Manual backup: {volume}", $"{volume} → {(target?.Name ?? "Local")}: {result.Message}", result.Success);
         return RedirectToPage(new { EnvId, Q });
     }
 

@@ -29,10 +29,10 @@ public class RestoreModel : PageModel
     {
         public long BackupId { get; set; }
 
-        [Range(1, long.MaxValue, ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Please select a target environment.")]
         public long TargetEnvId { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Ziel-Volume-Namen angeben.")]
+        [Required(ErrorMessage = "Please enter a target volume name.")]
         public string TargetVolume { get; set; } = string.Empty;
 
         public bool Overwrite { get; set; }
@@ -68,7 +68,7 @@ public class RestoreModel : PageModel
 
         if (!VolumeCommands.IsValidVolumeName(Input.TargetVolume))
         {
-            ModelState.AddModelError("Input.TargetVolume", "Nur Buchstaben, Zahlen und . _ - erlaubt (Beginn alphanumerisch).");
+            ModelState.AddModelError("Input.TargetVolume", "Only letters, digits and . _ - are allowed (must start alphanumeric).");
         }
 
         if (!ModelState.IsValid)
@@ -79,7 +79,7 @@ public class RestoreModel : PageModel
         var target = await _environmentService.GetAsync(Input.TargetEnvId, HttpContext.RequestAborted);
         if (target is null || !target.IsEnabled)
         {
-            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
+            ModelState.AddModelError("Input.TargetEnvId", "Target environment not available (disabled or deleted).");
             return Page();
         }
 

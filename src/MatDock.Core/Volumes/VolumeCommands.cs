@@ -54,7 +54,7 @@ public static partial class VolumeCommands
         {
             if (!IsValidDockerHost(dockerHost))
             {
-                throw new ArgumentException($"Ungültiger DOCKER_HOST: '{dockerHost}'.", nameof(dockerHost));
+                throw new ArgumentException($"Invalid DOCKER_HOST: '{dockerHost}'.", nameof(dockerHost));
             }
 
             head += $"DOCKER_HOST={dockerHost} ";
@@ -67,12 +67,12 @@ public static partial class VolumeCommands
     {
         if (!IsValidVolumeName(volume))
         {
-            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
         }
 
         if (!IsValidImage(image))
         {
-            throw new ArgumentException($"Ungültiges Image: '{image}'.", nameof(image));
+            throw new ArgumentException($"Invalid image: '{image}'.", nameof(image));
         }
     }
 
@@ -80,7 +80,7 @@ public static partial class VolumeCommands
     {
         if (!IsValidVolumeName(volume))
         {
-            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
         }
 
         return PathPrefix + $"{dockerHead} volume create '{volume}'";
@@ -111,7 +111,7 @@ public static partial class VolumeCommands
     {
         if (!IsValidVolumeName(volume))
         {
-            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
         }
 
         return PathPrefix + $"{dockerHead} volume inspect '{volume}'";
@@ -122,7 +122,7 @@ public static partial class VolumeCommands
     {
         if (!IsValidVolumeName(volume))
         {
-            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
         }
 
         // Braces built by concatenation so the Go template survives (see note below).

@@ -43,11 +43,11 @@ public class EditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Name ist erforderlich.")]
-        [RegularExpression(@"^[a-z0-9][a-z0-9_-]{0,62}\z", ErrorMessage = "Nur Kleinbuchstaben, Ziffern, _ und -, Beginn alphanumerisch (max. 63 Zeichen).")]
+        [Required(ErrorMessage = "Name is required.")]
+        [RegularExpression(@"^[a-z0-9][a-z0-9_-]{0,62}\z", ErrorMessage = "Only lowercase letters, digits, _ and -, must start alphanumeric (max. 63 characters).")]
         public string Name { get; set; } = string.Empty;
 
-        [Range(1, long.MaxValue, ErrorMessage = "Environment ist erforderlich.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Environment is required.")]
         public long EnvironmentId { get; set; }
 
         /// <summary>"inline" (compose editor) or "git" (clone a repository).</summary>
@@ -150,7 +150,7 @@ public class EditModel : PageModel
         // hidden Id and readonly name reflect the new state instead of the original create-POST values.
         ModelState.Clear();
         DeployOutput = output;
-        StatusMessage = ok ? "Stack gespeichert & deployt." : "Gespeichert, aber Deploy fehlgeschlagen.";
+        StatusMessage = ok ? "Stack saved & deployed." : "Saved, but deploy failed.";
         IsError = !ok;
         return Page();
     }
@@ -162,12 +162,12 @@ public class EditModel : PageModel
         {
             if (string.IsNullOrWhiteSpace(Input.GitRepoUrl))
             {
-                ModelState.AddModelError("Input.GitRepoUrl", "Git-URL ist erforderlich.");
+                ModelState.AddModelError("Input.GitRepoUrl", "Git URL is required.");
             }
         }
         else if (string.IsNullOrWhiteSpace(Input.ComposeYaml))
         {
-            ModelState.AddModelError("Input.ComposeYaml", "Compose-YAML ist erforderlich.");
+            ModelState.AddModelError("Input.ComposeYaml", "Compose YAML is required.");
         }
 
         return ModelState.IsValid;

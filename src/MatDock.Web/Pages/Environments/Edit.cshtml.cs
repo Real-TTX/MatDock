@@ -26,7 +26,7 @@ public class EditModel : PageModel
 
     public DockerConnectionResult? TestResult { get; private set; }
 
-    /// <summary>Set after "Schlüsselpaar erzeugen"; shown so the user can install it on the host.</summary>
+    /// <summary>Set after "Generate key pair"; shown so the user can install it on the host.</summary>
     public string? GeneratedPublicKey { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -36,20 +36,20 @@ public class EditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Namen angeben.")]
+        [Required(ErrorMessage = "Please enter a name.")]
         [StringLength(200)]
         [Display(Name = "Name")]
         public string Name { get; set; } = string.Empty;
 
         [StringLength(500)]
-        [Display(Name = "Beschreibung")]
+        [Display(Name = "Description")]
         public string? Description { get; set; }
 
         [StringLength(500)]
-        [Display(Name = "Basis-URL")]
+        [Display(Name = "Base URL")]
         public string? BaseUrl { get; set; }
 
-        [Display(Name = "Verbindungstyp")]
+        [Display(Name = "Connection type")]
         public ConnectionType ConnectionType { get; set; } = ConnectionType.Ssh;
 
         // Host/User are required only for SSH (validated in ValidateConnection). Nullable so the implicit
@@ -58,26 +58,26 @@ public class EditModel : PageModel
         [Display(Name = "Host")]
         public string? Host { get; set; }
 
-        [Range(1, 65535, ErrorMessage = "Port muss zwischen 1 und 65535 liegen.")]
+        [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535.")]
         [Display(Name = "Port")]
         public int Port { get; set; } = 22;
 
         [StringLength(128)]
-        [Display(Name = "SSH-Benutzer")]
+        [Display(Name = "SSH user")]
         public string? Username { get; set; }
 
-        [Display(Name = "Authentifizierung")]
+        [Display(Name = "Authentication")]
         public AuthType AuthType { get; set; } = AuthType.Password;
 
         [DataType(DataType.Password)]
-        [Display(Name = "Passwort")]
+        [Display(Name = "Password")]
         public string? Password { get; set; }
 
-        [Display(Name = "Privater SSH-Schlüssel (PEM)")]
+        [Display(Name = "Private SSH key (PEM)")]
         public string? PrivateKeyPem { get; set; }
 
         [DataType(DataType.Password)]
-        [Display(Name = "Schlüssel-Passphrase")]
+        [Display(Name = "Key passphrase")]
         public string? PrivateKeyPassphrase { get; set; }
     }
 
@@ -115,13 +115,13 @@ public class EditModel : PageModel
                 return NotFound();
             }
 
-            StatusMessage = "Environment gespeichert.";
+            StatusMessage = "Environment saved.";
         }
         else
         {
             var created = await _environmentService.CreateAsync(input, HttpContext.RequestAborted);
             Input.Id = created.Id;
-            StatusMessage = "Environment angelegt.";
+            StatusMessage = "Environment created.";
         }
 
         IsError = false;
@@ -151,7 +151,7 @@ public class EditModel : PageModel
         if (Input.ConnectionType == ConnectionType.Ssh
             && (string.IsNullOrWhiteSpace(Input.Host) || string.IsNullOrWhiteSpace(Input.Username)))
         {
-            ModelState.AddModelError(string.Empty, "Host und Benutzer werden für den Test benötigt.");
+            ModelState.AddModelError(string.Empty, "Host and user are required for the test.");
             return Page();
         }
 
@@ -162,7 +162,7 @@ public class EditModel : PageModel
         }
         catch (Exception ex)
         {
-            TestResult = DockerConnectionResult.Fail($"Zugangsdaten konnten nicht gelesen werden: {ex.Message}");
+            TestResult = DockerConnectionResult.Fail($"Credentials could not be read: {ex.Message}");
         }
 
         return Page();
@@ -210,11 +210,11 @@ public class EditModel : PageModel
 
         if (string.IsNullOrWhiteSpace(Input.Host))
         {
-            ModelState.AddModelError("Input.Host", "Bitte den Host angeben.");
+            ModelState.AddModelError("Input.Host", "Please enter the host.");
         }
         if (string.IsNullOrWhiteSpace(Input.Username))
         {
-            ModelState.AddModelError("Input.Username", "Bitte den SSH-Benutzer angeben.");
+            ModelState.AddModelError("Input.Username", "Please enter the SSH user.");
         }
     }
 
@@ -227,11 +227,11 @@ public class EditModel : PageModel
 
         if (Input.AuthType == AuthType.Password && string.IsNullOrEmpty(Input.Password))
         {
-            ModelState.AddModelError("Input.Password", "Bitte ein Passwort angeben.");
+            ModelState.AddModelError("Input.Password", "Please enter a password.");
         }
         else if (Input.AuthType == AuthType.PrivateKey && string.IsNullOrWhiteSpace(Input.PrivateKeyPem))
         {
-            ModelState.AddModelError("Input.PrivateKeyPem", "Bitte den privaten Schlüssel angeben.");
+            ModelState.AddModelError("Input.PrivateKeyPem", "Please enter the private key.");
         }
     }
 }

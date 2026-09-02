@@ -1,14 +1,14 @@
 @page
 @model MatDock.Web.Pages.Settings.BackupTargetEditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Backup-Ziel bearbeiten" : "Neues Backup-Ziel";
-    var pwHint = Model.IsEdit ? "Leer lassen, um das gespeicherte Passwort beizubehalten." : null;
+    ViewData["Title"] = Model.IsEdit ? "Edit backup target" : "New backup target";
+    var pwHint = Model.IsEdit ? "Leave blank to keep the stored password." : null;
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">NAS / SMB-Freigabe als Backup-Ziel</span>
+        <span class="page-head__subtitle">NAS / SMB share as a backup target</span>
     </div>
 </div>
 
@@ -26,39 +26,39 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <mat-field label="Name" asp-for="Input.Name">
-                <input asp-for="Input.Name" class="mat-input" placeholder="z. B. NAS-Backups" />
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. NAS backups" />
             </mat-field>
 
             <div class="form-grid">
                 <mat-field label="Host (NAS)" asp-for="Input.SmbHost">
-                    <input asp-for="Input.SmbHost" class="mat-input" placeholder="nas.local oder 192.168.1.20" />
+                    <input asp-for="Input.SmbHost" class="mat-input" placeholder="nas.local or 192.168.1.20" />
                 </mat-field>
-                <mat-field label="Freigabe (Share)" asp-for="Input.SmbShare">
+                <mat-field label="Share" asp-for="Input.SmbShare">
                     <input asp-for="Input.SmbShare" class="mat-input" placeholder="backups" />
                 </mat-field>
-                <mat-field label="Unterverzeichnis" asp-for="Input.SmbDirectory" hint="Optional, z. B. matdock/volumes">
+                <mat-field label="Subfolder" asp-for="Input.SmbDirectory" hint="Optional, e.g. matdock/volumes">
                     <input asp-for="Input.SmbDirectory" class="mat-input" />
                 </mat-field>
-                <mat-field label="Domäne" asp-for="Input.SmbDomain" hint="Optional">
+                <mat-field label="Domain" asp-for="Input.SmbDomain" hint="Optional">
                     <input asp-for="Input.SmbDomain" class="mat-input" />
                 </mat-field>
-                <mat-field label="Benutzer" asp-for="Input.SmbUsername">
+                <mat-field label="User" asp-for="Input.SmbUsername">
                     <input asp-for="Input.SmbUsername" class="mat-input" autocomplete="off" />
                 </mat-field>
-                <mat-field label="Passwort" asp-for="Input.SmbPassword" hint="@pwHint">
+                <mat-field label="Password" asp-for="Input.SmbPassword" hint="@pwHint">
                     <input asp-for="Input.SmbPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
             </div>
 
             <label class="mat-check">
                 <input asp-for="Input.IsDefault" type="checkbox" />
-                <span>Als Standard-Ziel für neue Backups verwenden</span>
+                <span>Use as the default target for new backups</span>
             </label>
 
             <mat-form-buttons>
-                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
-                <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Verbindung testen</span></button>
-                <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Test connection</span></button>
+                <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     </div>

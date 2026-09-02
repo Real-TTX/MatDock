@@ -135,7 +135,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _environmentService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Environment gelöscht." : "Environment nicht gefunden.";
+        StatusMessage = deleted ? "Environment deleted." : "Environment not found.";
         IsError = !deleted;
         return RedirectToPage();
     }
@@ -152,8 +152,8 @@ public class IndexModel : PageModel
     {
         var ok = await _environmentService.SetEnabledAsync(id, enable, HttpContext.RequestAborted);
         StatusMessage = ok
-            ? (enable ? "Environment aktiviert." : "Environment deaktiviert – wird von automatischen Läufen und Auswahllisten ausgeschlossen.")
-            : "Environment nicht gefunden.";
+            ? (enable ? "Environment enabled." : "Environment disabled – excluded from automatic runs and selection lists.")
+            : "Environment not found.";
         IsError = !ok;
         return RedirectToPage(new { View });
     }

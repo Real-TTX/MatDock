@@ -27,30 +27,30 @@ public class EditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Benutzernamen angeben.")]
+        [Required(ErrorMessage = "Please enter a username.")]
         [StringLength(128)]
-        [RegularExpression(@"^[A-Za-z0-9._@-]+$", ErrorMessage = "Nur Buchstaben, Zahlen und . _ @ - erlaubt.")]
-        [Display(Name = "Benutzername")]
+        [RegularExpression(@"^[A-Za-z0-9._@-]+$", ErrorMessage = "Only letters, digits and . _ @ - are allowed.")]
+        [Display(Name = "Username")]
         public string Username { get; set; } = string.Empty;
 
         [StringLength(256)]
-        [Display(Name = "Anzeigename")]
+        [Display(Name = "Display name")]
         public string? DisplayName { get; set; }
 
-        [Display(Name = "Rolle")]
+        [Display(Name = "Role")]
         public UserRole Role { get; set; } = UserRole.User;
 
-        [Display(Name = "Aktiv")]
+        [Display(Name = "Active")]
         public bool IsActive { get; set; } = true;
 
-        [MinLength(8, ErrorMessage = "Das Passwort muss mindestens 8 Zeichen haben.")]
+        [MinLength(8, ErrorMessage = "The password must be at least 8 characters.")]
         [DataType(DataType.Password)]
-        [Display(Name = "Passwort")]
+        [Display(Name = "Password")]
         public string? Password { get; set; }
 
         [DataType(DataType.Password)]
-        [Compare(nameof(Password), ErrorMessage = "Die Passwörter stimmen nicht überein.")]
-        [Display(Name = "Passwort bestätigen")]
+        [Compare(nameof(Password), ErrorMessage = "The passwords do not match.")]
+        [Display(Name = "Confirm password")]
         public string? ConfirmPassword { get; set; }
     }
 
@@ -81,12 +81,12 @@ public class EditModel : PageModel
     {
         if (!IsEdit && string.IsNullOrEmpty(Input.Password))
         {
-            ModelState.AddModelError("Input.Password", "Bitte ein Passwort vergeben.");
+            ModelState.AddModelError("Input.Password", "Please set a password.");
         }
 
         if (Input.Role == UserRole.Anonymous)
         {
-            ModelState.AddModelError("Input.Role", "Die Rolle „Anonym\" ist Link-Freigaben vorbehalten.");
+            ModelState.AddModelError("Input.Role", "The \"Anonymous\" role is reserved for link shares.");
         }
 
         if (!ModelState.IsValid)
@@ -105,18 +105,18 @@ public class EditModel : PageModel
                 return NotFound();
             }
 
-            StatusMessage = "Benutzer gespeichert.";
+            StatusMessage = "User saved.";
         }
         else
         {
             if (await _userService.UsernameExistsAsync(Input.Username.Trim(), null, HttpContext.RequestAborted))
             {
-                ModelState.AddModelError("Input.Username", "Dieser Benutzername ist bereits vergeben.");
+                ModelState.AddModelError("Input.Username", "This username is already taken.");
                 return Page();
             }
 
             await _userService.CreateAsync(Input.Username, displayName, Input.Password!, Input.Role, mustChangePassword: false, HttpContext.RequestAborted);
-            StatusMessage = "Benutzer angelegt.";
+            StatusMessage = "User created.";
         }
 
         IsError = false;

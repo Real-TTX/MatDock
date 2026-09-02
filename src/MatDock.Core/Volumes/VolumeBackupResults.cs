@@ -13,8 +13,8 @@ public sealed class BackupResult
         BytesTransferred = bytes,
         BackupId = backupId,
         Message = warning is null
-            ? $"Backup erstellt – {VolumeMigrationResult.FormatBytes(bytes)}."
-            : $"Backup erstellt – {VolumeMigrationResult.FormatBytes(bytes)}. ⚠ {warning}"
+            ? $"Backup created - {VolumeMigrationResult.FormatBytes(bytes)}."
+            : $"Backup created - {VolumeMigrationResult.FormatBytes(bytes)}. ⚠ {warning}"
     };
 
     public static BackupResult Fail(string message) => new() { Success = false, Message = message };
@@ -31,8 +31,8 @@ public sealed class RestoreResult
         Success = true,
         BytesTransferred = bytes,
         Message = warning is null
-            ? $"Restore erfolgreich – {VolumeMigrationResult.FormatBytes(bytes)} zurückgespielt."
-            : $"Restore erfolgreich – {VolumeMigrationResult.FormatBytes(bytes)} zurückgespielt. ⚠ {warning}"
+            ? $"Restore successful - {VolumeMigrationResult.FormatBytes(bytes)} restored."
+            : $"Restore successful - {VolumeMigrationResult.FormatBytes(bytes)} restored. ⚠ {warning}"
     };
 
     public static RestoreResult Fail(string message) => new() { Success = false, Message = message };

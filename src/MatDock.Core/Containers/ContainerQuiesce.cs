@@ -14,8 +14,8 @@ public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int Running
     public string? Warning => !Incomplete
         ? null
         : ListFailed
-            ? "Container konnten nicht ermittelt werden – Snapshot ggf. inkonsistent."
-            : $"{RunningFound - StoppedIds.Count} von {RunningFound} Container konnten nicht gestoppt werden – Snapshot ggf. inkonsistent.";
+            ? "Containers could not be determined - snapshot may be inconsistent."
+            : $"{RunningFound - StoppedIds.Count} of {RunningFound} containers could not be stopped - snapshot may be inconsistent.";
 }
 
 /// <summary>

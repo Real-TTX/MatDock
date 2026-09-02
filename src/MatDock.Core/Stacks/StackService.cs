@@ -55,7 +55,7 @@ public sealed class StackService
     {
         if (!StackCommands.IsValidName(input.Name))
         {
-            return (false, "Ungültiger Stack-Name (klein, a-z 0-9 _ -, Beginn alphanumerisch).", 0);
+            return (false, "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).", 0);
         }
 
         var gitError = ValidateGit(input);
@@ -67,21 +67,21 @@ public sealed class StackService
         var name = input.Name.Trim();
         if (await _db.Stacks.AnyAsync(s => s.Name == name && s.EnvironmentId == input.EnvironmentId, ct))
         {
-            return (false, "In diesem Environment existiert bereits ein Stack mit diesem Namen.", 0);
+            return (false, "A stack with this name already exists in this environment.", 0);
         }
 
         var stack = new Stack();
         Apply(stack, input);
         _db.Stacks.Add(stack);
         await _db.SaveChangesAsync(ct);
-        return (true, "Stack angelegt.", stack.Id);
+        return (true, "Stack created.", stack.Id);
     }
 
     public async Task<(bool Ok, string Message)> UpdateAsync(long id, StackInput input, CancellationToken ct = default)
     {
         if (!StackCommands.IsValidName(input.Name))
         {
-            return (false, "Ungültiger Stack-Name (klein, a-z 0-9 _ -, Beginn alphanumerisch).");
+            return (false, "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).");
         }
 
         var gitError = ValidateGit(input);
@@ -93,18 +93,18 @@ public sealed class StackService
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
         {
-            return (false, "Stack nicht gefunden.");
+            return (false, "Stack not found.");
         }
 
         var name = input.Name.Trim();
         if (await _db.Stacks.AnyAsync(s => s.Id != id && s.Name == name && s.EnvironmentId == input.EnvironmentId, ct))
         {
-            return (false, "In diesem Environment existiert bereits ein Stack mit diesem Namen.");
+            return (false, "A stack with this name already exists in this environment.");
         }
 
         Apply(stack, input);
         await _db.SaveChangesAsync(ct);
-        return (true, "Stack gespeichert.");
+        return (true, "Stack saved.");
     }
 
     public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)
@@ -125,7 +125,7 @@ public sealed class StackService
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
         {
-            return (false, "Stack nicht gefunden.");
+            return (false, "Stack not found.");
         }
 
         return stack.IsGitBacked ? await GitDeployAsync(stack, ct) : await InlineDeployAsync(stack, ct);
@@ -136,7 +136,7 @@ public sealed class StackService
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
         {
-            return (false, "Stack nicht gefunden.");
+            return (false, "Stack not found.");
         }
 
         var prep = await PrepareHostAsync(stack, ct);
@@ -183,12 +183,12 @@ public sealed class StackService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Stack {Name}: git credential decrypt failed.", stack.Name);
-                return (false, "Git-Zugang konnte nicht entschlüsselt werden (Data-Protection-Schlüssel?).");
+                return (false, "Git credentials could not be decrypted (Data Protection key?).");
             }
 
             if (secret is null)
             {
-                return (false, "Zugewiesener Git-Zugang wurde nicht gefunden.");
+                return (false, "The assigned Git credentials were not found.");
             }
         }
 
@@ -200,9 +200,9 @@ public sealed class StackService
             var composeFull = Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(composeFull))
             {
-                stack.LastStatus = "Compose-Datei fehlt";
+                stack.LastStatus = "Compose file missing";
                 try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
-                return (false, $"Compose-Datei im Repo nicht gefunden: {composePath}");
+                return (false, $"Compose file not found in the repo: {composePath}");
             }
 
             var composeContent = await File.ReadAllTextAsync(composeFull, ct);
@@ -216,7 +216,7 @@ public sealed class StackService
         }
         catch (GitOperationException ex)
         {
-            stack.LastStatus = "Git-Fehler";
+            stack.LastStatus = "Git error";
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
             return (false, ex.Message);
         }
@@ -236,7 +236,7 @@ public sealed class StackService
         var env = await _environmentService.GetAsync(stack.EnvironmentId, ct);
         if (env is null || !env.IsEnabled)
         {
-            return new HostPrep(false, "Environment nicht verfügbar (deaktiviert oder gelöscht).", null, null, default);
+            return new HostPrep(false, "Environment not available (disabled or deleted).", null, null, default);
         }
 
         var settings = _environmentService.BuildSettings(env);
@@ -262,9 +262,9 @@ public sealed class StackService
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Stack {Name} host op (deploy={Deploy}) failed.", stack.Name, deploy);
-            stack.LastStatus = "Fehler";
+            stack.LastStatus = "Error";
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
-            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Fehler: {ex.Message}");
+            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
         }
 
         beforePersist?.Invoke(stack);
@@ -272,11 +272,11 @@ public sealed class StackService
         {
             stack.LastDeployedAt = DateTime.UtcNow;
         }
-        stack.LastStatus = ok ? (deploy ? "Deployed" : "Gestoppt") : (deploy ? "Deploy fehlgeschlagen" : "Down fehlgeschlagen");
+        stack.LastStatus = ok ? (deploy ? "Deployed" : "Stopped") : (deploy ? "Deploy failed" : "Down failed");
         try { await _db.SaveChangesAsync(ct); }
         catch (Exception ex) { _logger.LogWarning(ex, "Stack {Name}: status save after host op failed.", stack.Name); }
 
-        return (ok, string.IsNullOrWhiteSpace(output) ? (ok ? "OK." : "Fehlgeschlagen.") : output.Trim());
+        return (ok, string.IsNullOrWhiteSpace(output) ? (ok ? "OK." : "Failed.") : output.Trim());
     }
 
     private async Task<(bool Ok, string Output)> ExecOnHostAsync(
@@ -363,14 +363,14 @@ public sealed class StackService
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            return "Git-URL muss mit http:// oder https:// beginnen.";
+            return "Git URL must start with http:// or https://.";
         }
 
         // Validate the same (trimmed) value that Apply stores and EffectiveComposePath later normalizes.
         if (!string.IsNullOrWhiteSpace(input.GitComposePath)
             && VolumeFileCommands.NormalizeRelPath(input.GitComposePath.Trim()) is null)
         {
-            return "Ungültiger Compose-Pfad (keine absoluten Pfade oder \"..\").";
+            return "Invalid compose path (no absolute paths or \"..\").";
         }
 
         return null;

@@ -12,7 +12,7 @@
         <span class="page-head__subtitle mono">@Model.Environment?.Name @(c?.Project is { Length: > 0 } ? "· Stack " + c.Project : "")</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -31,7 +31,7 @@ else if (c is not null)
     <div class="mat-buttons" style="margin-bottom:16px;">
         @if (openUrl is not null)
         {
-            <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Öffnen</span></a>
+            <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
         }
         <a class="mat-btn" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
         @if (c.IsRunning && User.IsInRole("Admin"))
@@ -42,9 +42,9 @@ else if (c is not null)
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn"><icon name="refresh" /><span>Neustart</span></button>
+                <button type="submit" class="mat-btn"><icon name="refresh" /><span>Restart</span></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="x-circle" /><span>Stop</span></button>
             </form>
@@ -79,13 +79,13 @@ else if (c is not null)
         <div class="card__header"><icon name="volume" /><span>Volumes &amp; Mounts</span><span class="mat-badge">@Model.Mounts.Count</span></div>
         @if (Model.Mounts.Count == 0)
         {
-            <div class="empty-state"><p>Keine Mounts.</p></div>
+            <div class="empty-state"><p>No mounts.</p></div>
         }
         else
         {
             <div class="mat-table__scroll">
                 <table class="data">
-                    <thead><tr><th>Typ</th><th>Quelle</th><th>Ziel (im Container)</th><th>Modus</th></tr></thead>
+                    <thead><tr><th>Type</th><th>Source</th><th>Target (in container)</th><th>Mode</th></tr></thead>
                     <tbody>
                         @foreach (var m in Model.Mounts)
                         {

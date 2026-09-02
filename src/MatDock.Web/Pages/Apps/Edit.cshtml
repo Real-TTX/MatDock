@@ -1,13 +1,13 @@
 @page
 @model MatDock.Web.Pages.Apps.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Vorlage bearbeiten" : "Neue Vorlage";
+    ViewData["Title"] = Model.IsEdit ? "Edit template" : "New template";
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">Compose-Blueprint, den man als Stack installieren kann</span>
+        <span class="page-head__subtitle">Compose blueprint that can be installed as a stack</span>
     </div>
 </div>
 
@@ -18,26 +18,26 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <div class="form-grid">
-                <mat-field label="Name" asp-for="Input.Name" hint="Anzeigename der App, z. B. „Nginx Web Server“.">
-                    <input asp-for="Input.Name" class="mat-input" placeholder="z. B. Nginx Web Server" />
+                <mat-field label="Name" asp-for="Input.Name" hint="Display name of the app, e.g. 'Nginx Web Server'.">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nginx Web Server" />
                 </mat-field>
 
-                <mat-field label="Kategorie" asp-for="Input.Category" hint="Optional, z. B. „Web“, „Datenbank“.">
+                <mat-field label="Category" asp-for="Input.Category" hint="Optional, e.g. 'Web', 'Database'.">
                     <input asp-for="Input.Category" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
-                <mat-field label="Beschreibung" asp-for="Input.Description" class="span-2">
+                <mat-field label="Description" asp-for="Input.Description" class="span-2">
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
             </div>
 
-            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Blueprint; beim Installieren wird daraus ein Stack vorbefüllt (Name &amp; Environment wählt man dann).">
+            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Blueprint; on install it prefills a stack (you then choose name &amp; environment).">
                 <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="18" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
             </mat-field>
 
             <mat-form-buttons>
-                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
-                <a href="/Apps" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <a href="/Apps" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     </div>

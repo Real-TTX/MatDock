@@ -67,13 +67,13 @@ public class IndexModel : PageModel
     {
         if (User.GetUserId() == id)
         {
-            StatusMessage = "Das eigene Konto kann nicht gelöscht werden.";
+            StatusMessage = "You cannot delete your own account.";
             IsError = true;
             return RedirectToPage();
         }
 
         var deleted = await _userService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Benutzer gelöscht." : "Benutzer nicht gefunden.";
+        StatusMessage = deleted ? "User deleted." : "User not found.";
         IsError = !deleted;
         return RedirectToPage();
     }

@@ -42,7 +42,7 @@ public sealed class NotificationService : INotificationService
 
         // Strip CR/LF: a line break would make MailMessage.Subject throw (and silently drop the e-mail).
         var safeName = title.Replace('\r', ' ').Replace('\n', ' ');
-        var subject = $"MatDock Backup: {safeName} – {(success ? "OK" : "Fehler")}";
+        var subject = $"MatDock Backup: {safeName} – {(success ? "OK" : "Error")}";
         await DispatchAsync(s, subject, summary, safeName, success, ct);
     }
 
@@ -51,13 +51,13 @@ public sealed class NotificationService : INotificationService
         var s = await _settingsService.GetAsync(ct);
         if (!s.SmtpEnabled && !s.WebhookEnabled)
         {
-            return (false, "Keine Benachrichtigung aktiviert (SMTP und Webhook sind aus).");
+            return (false, "No notification enabled (SMTP and webhook are off).");
         }
 
-        var errors = await DispatchAsync(s, "MatDock Test-Benachrichtigung",
-            "Dies ist eine Test-Benachrichtigung von MatDock.", "Test", success: true, ct);
+        var errors = await DispatchAsync(s, "MatDock test notification",
+            "This is a test notification from MatDock.", "Test", success: true, ct);
         return errors.Count == 0
-            ? (true, "Test-Benachrichtigung gesendet.")
+            ? (true, "Test notification sent.")
             : (false, string.Join(" · ", errors));
     }
 
@@ -68,7 +68,7 @@ public sealed class NotificationService : INotificationService
         if (s.SmtpEnabled)
         {
             try { await SendEmailAsync(s, subject, body, ct); }
-            catch (Exception ex) { _logger.LogWarning(ex, "E-mail notification failed."); errors.Add($"E-Mail: {ex.Message}"); }
+            catch (Exception ex) { _logger.LogWarning(ex, "E-mail notification failed."); errors.Add($"Email: {ex.Message}"); }
         }
 
         if (s.WebhookEnabled)
@@ -84,7 +84,7 @@ public sealed class NotificationService : INotificationService
     {
         if (string.IsNullOrWhiteSpace(s.SmtpHost) || string.IsNullOrWhiteSpace(s.SmtpFrom) || string.IsNullOrWhiteSpace(s.SmtpTo))
         {
-            throw new InvalidOperationException("SMTP unvollständig konfiguriert (Host, Absender und Empfänger nötig).");
+            throw new InvalidOperationException("SMTP is incompletely configured (host, sender and recipients are required).");
         }
 
 #pragma warning disable SYSLIB0014 // SmtpClient is obsolete but is the only built-in SMTP client (no extra dependency).
@@ -102,7 +102,7 @@ public sealed class NotificationService : INotificationService
 
         if (msg.To.Count == 0)
         {
-            throw new InvalidOperationException("Kein gültiger Empfänger.");
+            throw new InvalidOperationException("No valid recipient.");
         }
 
         await client.SendMailAsync(msg, ct);
@@ -115,7 +115,7 @@ public sealed class NotificationService : INotificationService
             || !Uri.TryCreate(s.WebhookUrl, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            throw new InvalidOperationException("Ungültige Webhook-URL (http/https erwartet).");
+            throw new InvalidOperationException("Invalid webhook URL (http/https expected).");
         }
 
         var payload = JsonSerializer.Serialize(new

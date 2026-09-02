@@ -1,20 +1,20 @@
 @page
 @model MatDock.Web.Pages.Stacks.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Stack bearbeiten" : "Neuer Stack";
+    ViewData["Title"] = Model.IsEdit ? "Edit Stack" : "New Stack";
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">Compose-Stack anlegen &amp; via <code>docker compose</code> deployen</span>
+        <span class="page-head__subtitle">Create a Compose stack &amp; deploy via <code>docker compose</code></span>
     </div>
 </div>
 
 @if (!string.IsNullOrEmpty(Model.FromTemplateName))
 {
     <div class="alert alert--info">
-        <icon name="template" /><span>Aus Vorlage „@Model.FromTemplateName“ – Name &amp; Compose sind vorbefüllt. Environment wählen und anpassen.</span>
+        <icon name="template" /><span>From app "@Model.FromTemplateName" – name &amp; compose are prefilled. Select an environment and adjust.</span>
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -35,20 +35,20 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <div class="form-grid">
-                <mat-field label="Name" asp-for="Input.Name" hint="Compose-Projektname (bestimmt den Verzeichnis- und Container-Präfix). Nach dem ersten Deploy nicht mehr ändern.">
+                <mat-field label="Name" asp-for="Input.Name" hint="Compose project name (defines the directory and container prefix). Do not change it after the first deploy.">
                     @if (Model.IsEdit)
                     {
                         <input asp-for="Input.Name" class="mat-input" readonly />
                     }
                     else
                     {
-                        <input asp-for="Input.Name" class="mat-input" placeholder="z. B. media-stack" />
+                        <input asp-for="Input.Name" class="mat-input" placeholder="e.g. media-stack" />
                     }
                 </mat-field>
 
                 <mat-field label="Environment" asp-for="Input.EnvironmentId">
                     <select asp-for="Input.EnvironmentId" class="mat-select">
-                        <option value="">– wählen –</option>
+                        <option value="">– select –</option>
                         @foreach (var env in Model.Environments)
                         {
                             <option value="@env.Id">@env.Name</option>
@@ -56,37 +56,37 @@
                     </select>
                 </mat-field>
 
-                <mat-field label="Quelle" asp-for="Input.Source" hint="Compose direkt bearbeiten oder aus einem Git-Repo beziehen (inkl. Config-Dateien).">
+                <mat-field label="Source" asp-for="Input.Source" hint="Edit compose directly or pull from a Git repo (including config files).">
                     <select asp-for="Input.Source" id="Source" class="mat-select">
-                        <option value="inline">Compose-Editor</option>
-                        <option value="git">Git-Repository</option>
+                        <option value="inline">Compose editor</option>
+                        <option value="git">Git repository</option>
                     </select>
                 </mat-field>
             </div>
 
             <div data-show-when="Source=inline">
-                <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Wird auf dem Host unter ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml abgelegt und mit „docker compose up -d“ deployt.">
+                <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Stored on the host at ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml and deployed with 'docker compose up -d'.">
                     <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="16" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
                 </mat-field>
             </div>
 
             <div data-show-when="Source=git">
                 <div class="form-grid">
-                    <mat-field label="Repository-URL" asp-for="Input.GitRepoUrl" class="span-2" hint="HTTPS-URL, z. B. https://github.com/user/repo.git">
+                    <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" class="span-2" hint="HTTPS URL, e.g. https://github.com/user/repo.git">
                         <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/user/repo.git" />
                     </mat-field>
 
-                    <mat-field label="Branch / Tag" asp-for="Input.GitReference" hint="Optional, Standard = Default-Branch.">
+                    <mat-field label="Branch / Tag" asp-for="Input.GitReference" hint="Optional, default = default branch.">
                         <input asp-for="Input.GitReference" class="mat-input" placeholder="main" />
                     </mat-field>
 
-                    <mat-field label="Compose-Pfad im Repo" asp-for="Input.GitComposePath" hint="Optional, Standard = docker-compose.yml">
+                    <mat-field label="Compose path in repo" asp-for="Input.GitComposePath" hint="Optional, default = docker-compose.yml">
                         <input asp-for="Input.GitComposePath" class="mat-input" placeholder="docker-compose.yml" />
                     </mat-field>
 
-                    <mat-field label="Git-Zugang" asp-for="Input.GitCredentialId" class="span-2" hint="Nur für private Repos nötig. Zugänge unter „Git-Zugänge“ verwalten.">
+                    <mat-field label="Git access" asp-for="Input.GitCredentialId" class="span-2" hint="Only needed for private repos. Manage credentials under 'Git access'.">
                         <select asp-for="Input.GitCredentialId" class="mat-select">
-                            <option value="">– öffentlich / kein Zugang –</option>
+                            <option value="">– public / no access –</option>
                             @foreach (var cred in Model.GitCredentials)
                             {
                                 <option value="@cred.Id">@cred.Name</option>
@@ -94,13 +94,13 @@
                         </select>
                     </mat-field>
                 </div>
-                <p class="mat-hint">Beim Deployen wird das Repo geklont und der komplette Ordner (inkl. Config-Dateien) auf den Host gespiegelt; dann läuft <code>docker compose up -d</code>. Ein erneutes Deploy überschreibt Dateien, löscht aber keine bind-gemounteten Laufzeitdaten.</p>
+                <p class="mat-hint">On deploy the repo is cloned and the entire folder (including config files) is mirrored to the host; then <code>docker compose up -d</code> runs. Deploying again overwrites files but does not delete bind-mounted runtime data.</p>
             </div>
 
             <mat-form-buttons>
-                <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Speichern &amp; Deployen</span></button>
-                <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Speichern</span></button>
-                <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Save &amp; Deploy</span></button>
+                <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Save</span></button>
+                <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     </div>

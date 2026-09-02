@@ -32,7 +32,7 @@ public sealed class PaginationTagHelper : TagHelper
 
         output.TagName = "nav";
         output.Attributes.SetAttribute("class", "mat-pagination");
-        output.Attributes.SetAttribute("aria-label", "Seitennavigation");
+        output.Attributes.SetAttribute("aria-label", "Pagination");
 
         var builder = new HtmlContentBuilder();
         builder.AppendHtml($"<span class=\"mat-pagination__summary\">{Model.FirstItemIndex}–{Model.LastItemIndex} von {Model.TotalItems}</span>");
@@ -40,7 +40,7 @@ public sealed class PaginationTagHelper : TagHelper
         if (Model.TotalPages > 1)
         {
             builder.AppendHtml("<ul class=\"mat-pagination__pages\">");
-            builder.AppendHtml(PageLink(Model.Page - 1, "‹", Model.HasPrevious, "Vorherige Seite"));
+            builder.AppendHtml(PageLink(Model.Page - 1, "‹", Model.HasPrevious, "Previous page"));
 
             foreach (var page in PageNumbers(Model.Page, Model.TotalPages))
             {
@@ -50,11 +50,11 @@ public sealed class PaginationTagHelper : TagHelper
                 }
                 else
                 {
-                    builder.AppendHtml(PageLink(page, page.ToString(), enabled: true, $"Seite {page}", isCurrent: page == Model.Page));
+                    builder.AppendHtml(PageLink(page, page.ToString(), enabled: true, $"Page {page}", isCurrent: page == Model.Page));
                 }
             }
 
-            builder.AppendHtml(PageLink(Model.Page + 1, "›", Model.HasNext, "Nächste Seite"));
+            builder.AppendHtml(PageLink(Model.Page + 1, "›", Model.HasNext, "Next page"));
             builder.AppendHtml("</ul>");
         }
 

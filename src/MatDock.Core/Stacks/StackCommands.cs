@@ -58,7 +58,7 @@ public static partial class StackCommands
     {
         if (!IsValidName(name))
         {
-            throw new ArgumentException($"Ungültiger Stack-Name: '{name}'.", nameof(name));
+            throw new ArgumentException($"Invalid stack name: '{name}'.", nameof(name));
         }
     }
 

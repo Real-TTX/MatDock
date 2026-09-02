@@ -1,13 +1,13 @@
 @page
 @model MatDock.Web.Pages.Account.ProfileModel
 @{
-    ViewData["Title"] = "Profil";
+    ViewData["Title"] = "Profile";
 }
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Profil</h1>
-        <span class="page-head__subtitle">Konto &amp; Passwort verwalten</span>
+        <h1>Profile</h1>
+        <span class="page-head__subtitle">Manage account &amp; password</span>
     </div>
 </div>
 
@@ -15,7 +15,7 @@
 {
     <div class="alert alert--warning">
         <icon name="alert" />
-        <span>Bitte lege ein eigenes Passwort fest, bevor du fortfährst.</span>
+        <span>Please set your own password before continuing.</span>
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -27,34 +27,34 @@
 
 <div class="form-grid">
     <div class="card">
-        <div class="card__header"><icon name="user" /><span>Konto</span></div>
+        <div class="card__header"><icon name="user" /><span>Account</span></div>
         <div class="card__body">
             <div class="mat-form">
-                <mat-field label="Benutzername"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
-                <mat-field label="Anzeigename"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
-                <mat-field label="Rolle"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
+                <mat-field label="Username"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
+                <mat-field label="Display name"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
+                <mat-field label="Role"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
             </div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card__header"><icon name="key" /><span>Passwort ändern</span></div>
+        <div class="card__header"><icon name="key" /><span>Change password</span></div>
         <div class="card__body">
             <form method="post" class="mat-form">
                 <div asp-validation-summary="ModelOnly"></div>
 
-                <mat-field label="Aktuelles Passwort" asp-for="Input.CurrentPassword">
+                <mat-field label="Current password" asp-for="Input.CurrentPassword">
                     <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
                 </mat-field>
-                <mat-field label="Neues Passwort" asp-for="Input.NewPassword">
+                <mat-field label="New password" asp-for="Input.NewPassword">
                     <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
-                <mat-field label="Neues Passwort bestätigen" asp-for="Input.ConfirmPassword">
+                <mat-field label="Confirm new password" asp-for="Input.ConfirmPassword">
                     <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
 
                 <mat-form-buttons>
-                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 </mat-form-buttons>
             </form>
         </div>

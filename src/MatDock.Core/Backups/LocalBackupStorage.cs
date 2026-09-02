@@ -24,7 +24,7 @@ public sealed class LocalBackupStorage : IBackupStorage
         var path = FullPath(fileName);
         if (!File.Exists(path))
         {
-            throw new FileNotFoundException("Die Backup-Datei existiert nicht mehr.", fileName);
+            throw new FileNotFoundException("The backup file no longer exists.", fileName);
         }
 
         Stream stream = File.OpenRead(path);

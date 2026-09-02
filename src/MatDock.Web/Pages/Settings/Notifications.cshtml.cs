@@ -65,12 +65,12 @@ public class NotificationsModel : PageModel
     {
         if (Input.SmtpEnabled && (string.IsNullOrWhiteSpace(Input.SmtpHost) || string.IsNullOrWhiteSpace(Input.SmtpFrom) || string.IsNullOrWhiteSpace(Input.SmtpTo)))
         {
-            ModelState.AddModelError(string.Empty, "Für E-Mail werden Host, Absender und Empfänger benötigt.");
+            ModelState.AddModelError(string.Empty, "Email requires a host, sender and recipients.");
         }
 
         if (Input.WebhookEnabled && (string.IsNullOrWhiteSpace(Input.WebhookUrl) || !Uri.TryCreate(Input.WebhookUrl, UriKind.Absolute, out var u) || (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps)))
         {
-            ModelState.AddModelError("Input.WebhookUrl", "Bitte eine gültige http(s)-URL angeben.");
+            ModelState.AddModelError("Input.WebhookUrl", "Please enter a valid http(s) URL.");
         }
 
         if (!ModelState.IsValid)
@@ -96,7 +96,7 @@ public class NotificationsModel : PageModel
             WebhookUrl = Input.WebhookUrl
         }, HttpContext.RequestAborted);
 
-        StatusMessage = "Benachrichtigungen gespeichert.";
+        StatusMessage = "Notifications saved.";
         return RedirectToPage();
     }
 

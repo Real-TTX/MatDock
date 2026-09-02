@@ -103,7 +103,7 @@ public class ContainerTests
 
         var partial = new QuiesceResult(new[] { "a" }, RunningFound: 3, ListFailed: false);
         Assert.True(partial.Incomplete);
-        Assert.Contains("2 von 3", partial.Warning);
+        Assert.Contains("2 of 3", partial.Warning);
 
         var listFailed = new QuiesceResult(Array.Empty<string>(), RunningFound: 0, ListFailed: true);
         Assert.True(listFailed.Incomplete);

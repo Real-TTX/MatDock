@@ -1,7 +1,7 @@
 @page
 @model MatDock.Web.Pages.Account.LoginModel
 @{
-    ViewData["Title"] = "Anmelden";
+    ViewData["Title"] = "Sign in";
 }
 
 <div class="login">
@@ -21,21 +21,21 @@
             <form method="post" class="mat-form">
                 <input type="hidden" asp-for="ReturnUrl" />
 
-                <mat-field label="Benutzername" asp-for="Input.Username">
+                <mat-field label="Username" asp-for="Input.Username">
                     <input asp-for="Input.Username" class="mat-input" autocomplete="username" autofocus />
                 </mat-field>
 
-                <mat-field label="Passwort" asp-for="Input.Password">
+                <mat-field label="Password" asp-for="Input.Password">
                     <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="current-password" />
                 </mat-field>
 
                 <label class="mat-check">
                     <input asp-for="Input.RememberMe" type="checkbox" />
-                    <span>Angemeldet bleiben</span>
+                    <span>Stay signed in</span>
                 </label>
 
                 <button type="submit" class="mat-btn mat-btn--primary">
-                    <icon name="login" /><span>Anmelden</span>
+                    <icon name="login" /><span>Sign in</span>
                 </button>
             </form>
         </div>

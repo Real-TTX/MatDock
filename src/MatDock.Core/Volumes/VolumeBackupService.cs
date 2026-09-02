@@ -57,7 +57,7 @@ public sealed class VolumeBackupService
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
-            return BackupResult.Fail($"Ungültiger Volume-Name: '{volumeName}'.");
+            return BackupResult.Fail($"Invalid volume name: '{volumeName}'.");
         }
 
         // Unique even within the same second (avoids overwriting a concurrent backup's file).
@@ -80,7 +80,7 @@ public sealed class VolumeBackupService
             var inspect = RunCommand(client, VolumeCommands.Inspect(volumeName, head));
             if (inspect.ExitStatus != 0)
             {
-                return BackupResult.Fail($"Volume '{volumeName}' existiert auf dem Host nicht.");
+                return BackupResult.Fail($"Volume '{volumeName}' does not exist on the host.");
             }
 
             // Optionally quiesce the volume's containers so the archive is a consistent snapshot.
@@ -107,7 +107,7 @@ public sealed class VolumeBackupService
                 if (exportCmd.ExitStatus != 0)
                 {
                     await TryDeleteAsync(storage, fileName);
-                    return BackupResult.Fail($"Backup fehlgeschlagen: {FirstLine(exportCmd.Error)}");
+                    return BackupResult.Fail($"Backup failed: {FirstLine(exportCmd.Error)}");
                 }
             }
             finally
@@ -124,7 +124,7 @@ public sealed class VolumeBackupService
                 FileName = fileName,
                 SizeBytes = bytes,
                 BackupTargetId = target?.Id,
-                BackupTargetName = target?.Name ?? "Lokal",
+                BackupTargetName = target?.Name ?? "Local",
                 BackupScheduleId = scheduleId
             };
             _db.VolumeBackups.Add(backup);
@@ -135,13 +135,13 @@ public sealed class VolumeBackupService
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             await TryDeleteAsync(storage, fileName);
-            return BackupResult.Fail("Zeitüberschreitung beim Backup.");
+            return BackupResult.Fail("Backup timed out.");
         }
         catch (Exception ex)
         {
             await TryDeleteAsync(storage, fileName);
             _logger.LogInformation(ex, "Backup of {Volume} on env {Env} failed.", volumeName, environment.Id);
-            return BackupResult.Fail($"Fehler: {Innermost(ex).Message}");
+            return BackupResult.Fail($"Error: {Innermost(ex).Message}");
         }
     }
 
@@ -149,13 +149,13 @@ public sealed class VolumeBackupService
     {
         if (!VolumeCommands.IsValidVolumeName(targetVolume))
         {
-            return RestoreResult.Fail($"Ungültiger Ziel-Volume-Name: '{targetVolume}'.");
+            return RestoreResult.Fail($"Invalid target volume name: '{targetVolume}'.");
         }
 
         var backup = await GetAsync(backupId, ct);
         if (backup is null)
         {
-            return RestoreResult.Fail("Backup nicht gefunden.");
+            return RestoreResult.Fail("Backup not found.");
         }
 
         // Resolve the archive's target even if it was soft-deleted; fail loudly rather than silently
@@ -166,7 +166,7 @@ public sealed class VolumeBackupService
             storageTarget = await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == stid, ct);
             if (storageTarget is null)
             {
-                return RestoreResult.Fail("Das Backup-Ziel dieses Backups wurde gelöscht – Restore nicht möglich.");
+                return RestoreResult.Fail("The backup target of this backup has been deleted - restore is not possible.");
             }
         }
         var storage = _storageFactory.Create(storageTarget);
@@ -189,7 +189,7 @@ public sealed class VolumeBackupService
             var create = RunCommand(client, VolumeCommands.Create(targetVolume, head));
             if (create.ExitStatus != 0)
             {
-                return RestoreResult.Fail($"Ziel-Volume konnte nicht angelegt werden: {FirstLine(create.StdErr)}");
+                return RestoreResult.Fail($"Target volume could not be created: {FirstLine(create.StdErr)}");
             }
 
             if (!overwrite)
@@ -198,11 +198,11 @@ public sealed class VolumeBackupService
                 var count = RunCommand(client, VolumeCommands.CountEntries(targetVolume, _options.HelperImage, head));
                 if (count.ExitStatus != 0 || !int.TryParse(count.StdOut.Trim(), out var entries))
                 {
-                    return RestoreResult.Fail($"Ziel-Volume '{targetVolume}' konnte nicht geprüft werden – Restore abgebrochen: {FirstLine(count.StdErr)}");
+                    return RestoreResult.Fail($"Target volume '{targetVolume}' could not be checked - restore aborted: {FirstLine(count.StdErr)}");
                 }
                 if (entries > 0)
                 {
-                    return RestoreResult.Fail($"Ziel-Volume '{targetVolume}' enthält bereits Daten. Zum Überschreiben „Überschreiben“ aktivieren.");
+                    return RestoreResult.Fail($"Target volume '{targetVolume}' already contains data. Enable \"Overwrite\" to overwrite it.");
                 }
             }
 
@@ -230,7 +230,7 @@ public sealed class VolumeBackupService
                 // Require an explicit success; null exit status = command killed / channel died = failure.
                 if (importCmd.ExitStatus != 0)
                 {
-                    return RestoreResult.Fail($"Restore fehlgeschlagen: {FirstLine(importCmd.Error)}");
+                    return RestoreResult.Fail($"Restore failed: {FirstLine(importCmd.Error)}");
                 }
             }
             finally
@@ -242,16 +242,16 @@ public sealed class VolumeBackupService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return RestoreResult.Fail("Zeitüberschreitung beim Restore.");
+            return RestoreResult.Fail("Restore timed out.");
         }
         catch (FileNotFoundException)
         {
-            return RestoreResult.Fail("Die Backup-Datei existiert am Ziel nicht mehr.");
+            return RestoreResult.Fail("The backup file no longer exists at the target.");
         }
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Restore of backup {Id} failed.", backupId);
-            return RestoreResult.Fail($"Fehler: {Innermost(ex).Message}");
+            return RestoreResult.Fail($"Error: {Innermost(ex).Message}");
         }
     }
 
@@ -302,7 +302,7 @@ public sealed class VolumeBackupService
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return "unbekannter Fehler";
+            return "unknown error";
         }
 
         foreach (var line in text.Split('\n'))
@@ -314,6 +314,6 @@ public sealed class VolumeBackupService
             }
         }
 
-        return "unbekannter Fehler";
+        return "unknown error";
     }
 }

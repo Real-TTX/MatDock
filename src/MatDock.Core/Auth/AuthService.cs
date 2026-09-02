@@ -24,7 +24,7 @@ public sealed class AuthService
     public async Task<AuthenticationResult> AuthenticateAsync(string username, string password, CancellationToken ct = default)
     {
         // Generic message on purpose: never reveal whether the username exists.
-        const string invalidCredentials = "Benutzername oder Passwort ist falsch.";
+        const string invalidCredentials = "Incorrect username or password.";
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
 
@@ -40,7 +40,7 @@ public sealed class AuthService
         // enumerate usernames.
         if (!user.IsActive)
         {
-            return AuthenticationResult.Failure("Dieses Konto ist deaktiviert.");
+            return AuthenticationResult.Failure("This account is disabled.");
         }
 
         user.LastLoginAt = DateTime.UtcNow;

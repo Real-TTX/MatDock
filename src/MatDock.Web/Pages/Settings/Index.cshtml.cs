@@ -39,7 +39,7 @@ public class IndexModel : PageModel
         var target = await _targetService.GetAsync(id, HttpContext.RequestAborted);
         if (target is null)
         {
-            StatusMessage = "Ziel nicht gefunden.";
+            StatusMessage = "Target not found.";
             IsError = true;
             return RedirectToPage(new { Tab = "backup" });
         }
@@ -53,14 +53,14 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDefaultAsync(long id)
     {
         await _targetService.SetDefaultAsync(id, HttpContext.RequestAborted);
-        StatusMessage = "Standard-Ziel gesetzt.";
+        StatusMessage = "Default target set.";
         return RedirectToPage(new { Tab = "backup" });
     }
 
     public async Task<IActionResult> OnPostLocalDefaultAsync()
     {
         await _targetService.SetDefaultAsync(null, HttpContext.RequestAborted);
-        StatusMessage = "Lokaler Speicher ist jetzt Standard.";
+        StatusMessage = "Local storage is now the default.";
         return RedirectToPage(new { Tab = "backup" });
     }
 

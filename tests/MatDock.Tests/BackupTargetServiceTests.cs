@@ -28,7 +28,7 @@ public class BackupTargetServiceTests
 
         var (blocked, message) = await service.DeleteAsync(target.Id);
         Assert.False(blocked);
-        Assert.Contains("verwendet", message);
+        Assert.Contains("used by", message);
 
         // After the backup is gone, deletion succeeds.
         var backup = db.Context.VolumeBackups.First();

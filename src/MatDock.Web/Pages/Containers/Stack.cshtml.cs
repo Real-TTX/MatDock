@@ -44,7 +44,7 @@ public class StackModel : PageModel
             Containers = await _containerService.ListByProjectAsync(Environment, Project, HttpContext.RequestAborted);
             if (Containers.Count == 0)
             {
-                Error = "Stack nicht gefunden oder leer.";
+                Error = "Stack not found or empty.";
             }
         }
         catch (Exception ex)
@@ -59,7 +59,7 @@ public class StackModel : PageModel
     {
         if (!ModelState.IsValid)
         {
-            StatusMessage = "Ungültige Aktion.";
+            StatusMessage = "Invalid action.";
             IsError = true;
             return RedirectToPage(new { envId, project });
         }
@@ -67,7 +67,7 @@ public class StackModel : PageModel
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null || !env.IsEnabled)
         {
-            StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
+            StatusMessage = "Environment not available (disabled or deleted).";
             IsError = true;
             return RedirectToPage(new { envId, project });
         }

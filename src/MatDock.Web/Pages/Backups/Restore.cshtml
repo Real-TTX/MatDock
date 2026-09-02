@@ -8,10 +8,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Restore</h1>
-        <span class="page-head__subtitle">Ein Backup in ein Volume zurückspielen</span>
+        <span class="page-head__subtitle">Restore a backup into a volume</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -20,7 +20,7 @@
     <div class="result-banner @(Model.Result.Success ? "result-banner--ok" : "result-banner--fail")">
         <icon name="@(Model.Result.Success ? "check-circle" : "x-circle")" />
         <div>
-            <div class="result-banner__big">@(Model.Result.Success ? "Restore erfolgreich" : "Restore fehlgeschlagen")</div>
+            <div class="result-banner__big">@(Model.Result.Success ? "Restore successful" : "Restore failed")</div>
             <div class="result-banner__sub">@Model.Result.Message</div>
         </div>
     </div>
@@ -28,15 +28,15 @@
 
 @if (Model.Backup is null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>Backup nicht gefunden.</span></div>
+    <div class="alert alert--error"><icon name="x-circle" /><span>Backup not found.</span></div>
 }
 else if (Model.Environments.Count == 0)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Kein Ziel-Environment vorhanden.</span></div>
+    <div class="alert alert--warning"><icon name="alert" /><span>No target environment available.</span></div>
 }
 else
 {
-    <form method="post" data-confirm="Restore jetzt starten?">
+    <form method="post" data-confirm="Start restore now?">
         <input type="hidden" asp-for="Input.BackupId" />
         <div asp-validation-summary="ModelOnly"></div>
 
@@ -44,15 +44,15 @@ else
             <div class="migrate__side migrate__side--source">
                 <h3><icon name="save" /><span>Backup</span></h3>
                 <div class="migrate__env">@Model.Backup.VolumeName</div>
-                <div class="migrate__host">aus @Model.Backup.SourceEnvironmentName · @VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes) · @Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+                <div class="migrate__host">from @Model.Backup.SourceEnvironmentName · @VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes) · @Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
             </div>
 
             <div class="migrate__arrow"><icon name="chevron-right" /></div>
 
             <div class="migrate__side migrate__side--target">
-                <h3><icon name="server" /><span>Ziel</span></h3>
+                <h3><icon name="server" /><span>Target</span></h3>
                 <div class="mat-form">
-                    <mat-field label="Ziel-Environment" asp-for="Input.TargetEnvId">
+                    <mat-field label="Target environment" asp-for="Input.TargetEnvId">
                         <select asp-for="Input.TargetEnvId" class="mat-select">
                             @foreach (var env in Model.Environments)
                             {
@@ -60,16 +60,16 @@ else
                             }
                         </select>
                     </mat-field>
-                    <mat-field label="Ziel-Volume" asp-for="Input.TargetVolume">
+                    <mat-field label="Target volume" asp-for="Input.TargetVolume">
                         <input asp-for="Input.TargetVolume" class="mat-input" />
                     </mat-field>
                     <label class="mat-check">
                         <input asp-for="Input.Overwrite" type="checkbox" />
-                        <span>Überschreiben, falls das Ziel-Volume bereits Daten enthält</span>
+                        <span>Overwrite if the target volume already contains data</span>
                     </label>
                     <label class="mat-check">
                         <input asp-for="Input.StopContainers" type="checkbox" />
-                        <span>Container am Ziel-Volume während des Restores stoppen und danach wieder starten</span>
+                        <span>Stop containers using the target volume during the restore, then restart them</span>
                     </label>
                 </div>
             </div>
@@ -77,12 +77,12 @@ else
 
         <div class="alert alert--info">
             <icon name="alert" />
-            <span>Das Backup wird per <code>tar</code> über SSH in das Ziel-Volume zurückgespielt. Voraussetzung: Docker + <code>busybox</code> auf dem Ziel-Host.</span>
+            <span>The backup is restored into the target volume via <code>tar</code> over SSH. Requirement: Docker + <code>busybox</code> on the target host.</span>
         </div>
 
         <mat-form-buttons>
-            <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Restore starten</span></button>
-            <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Abbrechen</span></a>
+            <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Start restore</span></button>
+            <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
         </mat-form-buttons>
     </form>
 }

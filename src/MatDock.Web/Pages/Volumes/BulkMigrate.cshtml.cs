@@ -68,14 +68,14 @@ public class BulkMigrateModel : PageModel
 
         if (TargetEnvId <= 0)
         {
-            ModelState.AddModelError(nameof(TargetEnvId), "Bitte ein Ziel-Environment wählen.");
+            ModelState.AddModelError(nameof(TargetEnvId), "Please select a target environment.");
             return Page();
         }
 
         var targetEnv = await _environmentService.GetAsync(TargetEnvId, HttpContext.RequestAborted);
         if (targetEnv is null || !targetEnv.IsEnabled)
         {
-            ModelState.AddModelError(nameof(TargetEnvId), "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
+            ModelState.AddModelError(nameof(TargetEnvId), "Target environment not available (disabled or deleted).");
             return Page();
         }
 
@@ -85,7 +85,7 @@ public class BulkMigrateModel : PageModel
             backupTarget = await _backupTargetService.GetAsync(BackupTargetId, HttpContext.RequestAborted);
             if (backupTarget is null)
             {
-                ModelState.AddModelError(nameof(BackupTargetId), "Backup-Ziel nicht gefunden.");
+                ModelState.AddModelError(nameof(BackupTargetId), "Backup target not found.");
                 return Page();
             }
         }
@@ -101,7 +101,7 @@ public class BulkMigrateModel : PageModel
         {
             if (envId == TargetEnvId)
             {
-                results.Add(($"{envName}/{volume}", false, "Quelle und Ziel identisch – übersprungen."));
+                results.Add(($"{envName}/{volume}", false, "Source and target are identical – skipped."));
                 continue;
             }
 
@@ -112,14 +112,14 @@ public class BulkMigrateModel : PageModel
             }
             if (srcEnv is null || !srcEnv.IsEnabled)
             {
-                results.Add(($"{envName}/{volume}", false, "Quell-Environment nicht verfügbar (deaktiviert oder gelöscht)."));
+                results.Add(($"{envName}/{volume}", false, "Source environment not available (disabled or deleted)."));
                 continue;
             }
 
             if (!targetNames.Add(volume))
             {
                 results.Add(($"{envName}/{volume}", false,
-                    $"Ziel-Volumename „{volume}“ ist mehrfach in der Auswahl – übersprungen, um Überschreiben zu vermeiden."));
+                    $"Target volume name \"{volume}\" appears multiple times in the selection – skipped to avoid overwriting."));
                 continue;
             }
 
@@ -150,7 +150,7 @@ public class BulkMigrateModel : PageModel
             catch (Exception ex)
             {
                 // One item's failure must not discard the whole batch's per-item report.
-                results.Add(($"{envName}/{volume} → {targetEnv.Name}", false, $"Fehler: {ex.Message}"));
+                results.Add(($"{envName}/{volume} → {targetEnv.Name}", false, $"Error: {ex.Message}"));
             }
         }
 

@@ -37,7 +37,7 @@ public static class DbBootstrapper
         // the real admin. Automatic — no configuration flag needed.
         if (environment.IsDevelopment() && !await users.UsernameExistsAsync("tester"))
         {
-            await users.CreateAsync("tester", "Test-Benutzer", "Tester123!", UserRole.Admin, mustChangePassword: false);
+            await users.CreateAsync("tester", "Test User", "Tester123!", UserRole.Admin, mustChangePassword: false);
             logger.LogWarning("Seeded local test account 'tester' / 'Tester123!' (Development only).");
         }
     }

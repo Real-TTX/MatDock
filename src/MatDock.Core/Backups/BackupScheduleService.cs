@@ -66,7 +66,7 @@ public sealed class BackupScheduleService
         var schedule = await _db.BackupSchedules.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (schedule is null)
         {
-            return "Zeitplan nicht gefunden.";
+            return "Schedule not found.";
         }
 
         var summary = await _runner.RunAsync(schedule, ct);
@@ -110,7 +110,7 @@ public sealed class BackupScheduleService
             }
             catch (Exception ex)
             {
-                summary = $"Fehler: {ex.Message}";
+                summary = $"Error: {ex.Message}";
                 _logger.LogWarning(ex, "Scheduled backup '{Name}' failed.", schedule.Name);
             }
 

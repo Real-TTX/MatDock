@@ -34,7 +34,7 @@ public sealed class SmbBackupStorage : IBackupStorage
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_NONALERT, null);
             if (status != NTStatus.STATUS_SUCCESS)
             {
-                throw new IOException($"SMB: Datei '{path}' konnte nicht angelegt werden ({status}).");
+                throw new IOException($"SMB: file '{path}' could not be created ({status}).");
             }
 
             return Task.FromResult<Stream>(new SmbWriteStream(session, handle, ChunkSize(session.Client.MaxWriteSize)));
@@ -58,7 +58,7 @@ public sealed class SmbBackupStorage : IBackupStorage
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_NONALERT, null);
             if (status != NTStatus.STATUS_SUCCESS)
             {
-                throw new IOException($"SMB: Datei '{path}' konnte nicht geöffnet werden ({status}).");
+                throw new IOException($"SMB: file '{path}' could not be opened ({status}).");
             }
 
             return Task.FromResult<Stream>(new SmbReadStream(session, handle, ChunkSize(session.Client.MaxReadSize)));
@@ -116,14 +116,14 @@ internal sealed class SmbSession : IDisposable
         var address = ResolveHost(info.Host);
         if (!client.Connect(address, SMBTransportType.DirectTCPTransport))
         {
-            throw new IOException($"SMB: Keine Verbindung zu {info.Host} (Port 445).");
+            throw new IOException($"SMB: could not connect to {info.Host} (port 445).");
         }
 
         var login = client.Login(info.Domain ?? string.Empty, info.Username ?? string.Empty, info.Password ?? string.Empty);
         if (login != NTStatus.STATUS_SUCCESS)
         {
             client.Disconnect();
-            throw new IOException($"SMB-Anmeldung fehlgeschlagen ({login}).");
+            throw new IOException($"SMB login failed ({login}).");
         }
 
         var fileStore = client.TreeConnect(info.Share, out var status);
@@ -131,7 +131,7 @@ internal sealed class SmbSession : IDisposable
         {
             client.Logoff();
             client.Disconnect();
-            throw new IOException($"SMB-Freigabe '{info.Share}' nicht erreichbar ({status}).");
+            throw new IOException($"SMB share '{info.Share}' not reachable ({status}).");
         }
 
         return new SmbSession { Client = client, FileStore = fileStore };
@@ -171,7 +171,7 @@ internal sealed class SmbSession : IDisposable
         var addresses = Dns.GetHostAddresses(host);
         return addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
                ?? addresses.FirstOrDefault()
-               ?? throw new IOException($"SMB: Host '{host}' konnte nicht aufgelöst werden.");
+               ?? throw new IOException($"SMB: host '{host}' could not be resolved.");
     }
 
     public void Dispose()
@@ -214,11 +214,11 @@ internal sealed class SmbWriteStream : Stream
             var status = _session.FileStore.WriteFile(out var written, _handle, _offset, slice);
             if (status != NTStatus.STATUS_SUCCESS)
             {
-                throw new IOException($"SMB WriteFile fehlgeschlagen ({status}).");
+                throw new IOException($"SMB WriteFile failed ({status}).");
             }
             if (written <= 0)
             {
-                throw new IOException("SMB WriteFile schrieb 0 Bytes.");
+                throw new IOException("SMB WriteFile wrote 0 bytes.");
             }
 
             _offset += written;
@@ -283,7 +283,7 @@ internal sealed class SmbReadStream : Stream
         }
         if (status != NTStatus.STATUS_SUCCESS)
         {
-            throw new IOException($"SMB ReadFile fehlgeschlagen ({status}).");
+            throw new IOException($"SMB ReadFile failed ({status}).");
         }
 
         _offset += data.Length;

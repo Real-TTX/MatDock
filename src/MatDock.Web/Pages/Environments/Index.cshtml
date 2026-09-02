@@ -14,7 +14,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Environments</h1>
-        <span class="page-head__subtitle">Docker-Umgebungen über SSH verwalten</span>
+        <span class="page-head__subtitle">Manage Docker environments over SSH</span>
     </div>
 </div>
 
@@ -31,12 +31,12 @@
             <input type="hidden" name="view" value="@Model.View" />
             <div class="search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Name, Host, Benutzer)…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (name, host, user)…" />
             </div>
             <div class="toolbar-field">
                 <label for="filter-status"><icon name="filter" /></label>
                 <select id="filter-status" name="Status" class="mat-select">
-                    <option value="">Alle Status</option>
+                    <option value="">All statuses</option>
                     @foreach (var st in new[] { EnvironmentStatus.Online, EnvironmentStatus.Offline, EnvironmentStatus.Error, EnvironmentStatus.Unknown })
                     {
                         <option value="@st" selected="@(Model.Status == st.ToString())">@st</option>
@@ -44,21 +44,21 @@
                 </select>
             </div>
             <div class="toolbar-field">
-                <label for="sort-field">Sortieren</label>
+                <label for="sort-field">Sort</label>
                 <select id="sort-field" name="Sort" class="mat-select">
                     <option value="name" selected="@(Model.Sort == "name")">Name</option>
                     <option value="host" selected="@(Model.Sort == "host")">Host</option>
                     <option value="status" selected="@(Model.Sort == "status")">Status</option>
-                    <option value="checked" selected="@(Model.Sort == "checked")">Zuletzt geprüft</option>
+                    <option value="checked" selected="@(Model.Sort == "checked")">Last checked</option>
                 </select>
-                <select name="Dir" class="mat-select" aria-label="Richtung">
+                <select name="Dir" class="mat-select" aria-label="Direction">
                     <option value="asc" selected="@(Model.Dir == "asc")">↑</option>
                     <option value="desc" selected="@(Model.Dir == "desc")">↓</option>
                 </select>
             </div>
         </form>
-        <div class="view-toggle" role="group" aria-label="Ansicht" style="margin-left:auto;">
-            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>Liste</span></a>
+        <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
+            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>List</span></a>
             <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")"><icon name="dashboard" /><span>Gallery</span></a>
         </div>
     </mat-table-toolbar>
@@ -68,7 +68,7 @@
         {
             <div class="empty-state">
                 <div><icon name="server" /></div>
-                <p>Keine Environments gefunden.</p>
+                <p>No environments found.</p>
             </div>
         }
         else if (isGallery)
@@ -87,7 +87,7 @@
                                     <a href="/Environments/Edit?id=@env.Id">@env.Name</a>
                                     @if (!env.IsEnabled)
                                     {
-                                        <span class="pill pill--unknown" style="margin-left:6px;">Deaktiviert</span>
+                                        <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
                                     }
                                 </div>
                                 <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
@@ -119,7 +119,7 @@
                             {
                                 <span class="text-muted" style="font-size:.78rem;">Docker @env.DockerVersion</span>
                             }
-                            <span class="text-muted" style="font-size:.72rem;">geprüft @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "nie")</span>
+                            <span class="text-muted" style="font-size:.72rem;">checked @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "never")</span>
                             <span style="flex:1 1 auto;"></span>
                             @if (env.IsEnabled)
                             {
@@ -131,16 +131,16 @@
                             }
                             <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                                 <input type="hidden" name="id" value="@env.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                                <button type="submit" class="mat-btn mat-btn--sm" title="Test connection"><icon name="plug" /></button>
                             </form>
                             <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
                                 <input type="hidden" name="id" value="@env.Id" />
                                 <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
-                                <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">
+                                <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Disable" : "Enable")">
                                     <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
                                 </button>
                             </form>
-                            <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
+                            <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a>
                         </div>
                     </div>
                 }
@@ -152,15 +152,15 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Verbindung</th>
+                        <th>Connection</th>
                         <th>Status</th>
                         <th>CPU</th>
                         <th>RAM</th>
                         <th>Disk</th>
                         <th>Container</th>
                         <th>Docker</th>
-                        <th>Zuletzt geprüft</th>
-                        <th class="actions">Aktionen</th>
+                        <th>Last checked</th>
+                        <th class="actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -172,7 +172,7 @@
                                 <a href="/Environments/Edit?id=@env.Id"><strong>@env.Name</strong></a>
                                 @if (!env.IsEnabled)
                                 {
-                                    <span class="pill pill--unknown" style="margin-left:6px;">Deaktiviert</span>
+                                    <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
                                 }
                                 @if (!string.IsNullOrWhiteSpace(env.Description))
                                 {
@@ -220,20 +220,20 @@
                                     }
                                     <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Verbindung testen"><icon name="plug" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Test connection"><icon name="plug" /></button>
                                     </form>
                                     <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
                                         <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Deaktivieren" : "Aktivieren")">
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Disable" : "Enable")">
                                             <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
                                         </button>
                                     </form>
-                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Bearbeiten"><icon name="edit" /></a>
+                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a>
                                     <span style="width:8px;display:inline-block;"></span>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Environment „@env.Name“ wirklich löschen?" style="display:inline;">
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Really delete environment '@env.Name'?" style="display:inline;">
                                         <input type="hidden" name="id" value="@env.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                                     </form>
                                 </div>
                             </td>
@@ -249,7 +249,7 @@
     </mat-table-pagination>
 
     <mat-table-actions>
-        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neues Environment</span></a>
-        <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Aktualisieren</span></a>
+        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New environment</span></a>
+        <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

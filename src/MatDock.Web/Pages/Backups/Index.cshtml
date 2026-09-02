@@ -10,10 +10,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Backups</h1>
-        <span class="page-head__subtitle">Gesicherte Volume-Archive@(string.IsNullOrEmpty(Model.Volume) ? "" : $" · gefiltert: {Model.Volume}")</span>
+        <span class="page-head__subtitle">Backed-up volume archives@(string.IsNullOrEmpty(Model.Volume) ? "" : $" · filtered: {Model.Volume}")</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="volume" /><span>Zu den Volumes</span></a>
+        <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="volume" /><span>Go to volumes</span></a>
     </div>
 </div>
 
@@ -33,7 +33,7 @@
             }
             <div class="search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Volume, Environment)…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, environment)…" />
             </div>
             <span class="toolbar-spacer"></span>
             <span class="text-muted"><strong>@Model.Items.Count</strong> Backups</span>
@@ -45,14 +45,14 @@
         {
             <div class="empty-state">
                 <div><icon name="save" /></div>
-                <p>Keine Backups vorhanden. Erstelle eines über die Volumes-Liste.</p>
+                <p>No backups yet. Create one from the volumes list.</p>
             </div>
         }
         else
         {
             <table class="data">
                 <thead>
-                    <tr><th>Volume</th><th>Environment (Quelle)</th><th>Ziel</th><th class="num">Größe</th><th>Erstellt</th><th class="actions">Aktionen</th></tr>
+                    <tr><th>Volume</th><th>Environment (source)</th><th>Target</th><th class="num">Size</th><th>Created</th><th class="actions">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var b in Model.Items)
@@ -60,16 +60,16 @@
                         <tr>
                             <td><strong>@b.VolumeName</strong></td>
                             <td>@b.SourceEnvironmentName</td>
-                            <td><span class="mat-badge">@(b.BackupTargetName ?? "Lokal")</span></td>
+                            <td><span class="mat-badge">@(b.BackupTargetName ?? "Local")</span></td>
                             <td class="num">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
                             <td class="text-muted nowrap">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                             <td class="actions">
                                 <div class="row-actions">
                                     <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Backups/Restore?id=@b.Id" title="Restore"><icon name="refresh" /><span>Restore</span></a>
                                     <span style="width:8px;display:inline-block;"></span>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Backup „@b.VolumeName“ vom @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") löschen?" style="display:inline;">
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?" style="display:inline;">
                                         <input type="hidden" name="id" value="@b.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                                     </form>
                                 </div>
                             </td>

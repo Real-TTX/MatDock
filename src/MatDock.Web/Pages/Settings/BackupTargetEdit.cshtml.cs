@@ -26,31 +26,31 @@ public class BackupTargetEditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Namen angeben.")]
+        [Required(ErrorMessage = "Please enter a name.")]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
         public bool IsDefault { get; set; }
 
-        [Required(ErrorMessage = "Bitte den NAS-Host angeben.")]
+        [Required(ErrorMessage = "Please enter the NAS host.")]
         [Display(Name = "Host")]
         public string? SmbHost { get; set; }
 
-        [Required(ErrorMessage = "Bitte die Freigabe angeben.")]
-        [Display(Name = "Freigabe (Share)")]
+        [Required(ErrorMessage = "Please enter the share.")]
+        [Display(Name = "Share")]
         public string? SmbShare { get; set; }
 
-        [Display(Name = "Unterverzeichnis")]
+        [Display(Name = "Subfolder")]
         public string? SmbDirectory { get; set; }
 
-        [Display(Name = "Benutzer")]
+        [Display(Name = "User")]
         public string? SmbUsername { get; set; }
 
-        [Display(Name = "Domäne")]
+        [Display(Name = "Domain")]
         public string? SmbDomain { get; set; }
 
         [DataType(DataType.Password)]
-        [Display(Name = "Passwort")]
+        [Display(Name = "Password")]
         public string? SmbPassword { get; set; }
     }
 

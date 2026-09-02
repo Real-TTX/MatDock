@@ -27,7 +27,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _templateService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Vorlage gelöscht." : "Vorlage nicht gefunden.";
+        StatusMessage = deleted ? "Template deleted." : "Template not found.";
         IsError = !deleted;
         return RedirectToPage();
     }

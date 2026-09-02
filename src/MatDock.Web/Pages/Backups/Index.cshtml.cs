@@ -49,7 +49,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _backupService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Backup gelöscht." : "Backup nicht gefunden.";
+        StatusMessage = deleted ? "Backup deleted." : "Backup not found.";
         IsError = !deleted;
         return RedirectToPage(new { Q, Volume });
     }

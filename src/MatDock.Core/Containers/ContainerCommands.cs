@@ -25,7 +25,7 @@ public static partial class ContainerCommands
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            throw new ArgumentException($"Ungültiger Volume-Name: '{volume}'.", nameof(volume));
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
         }
 
         var all = runningOnly ? string.Empty : "-a ";
@@ -38,7 +38,7 @@ public static partial class ContainerCommands
     {
         if (!IsValidId(project))
         {
-            throw new ArgumentException($"Ungültiger Projektname: '{project}'.", nameof(project));
+            throw new ArgumentException($"Invalid project name: '{project}'.", nameof(project));
         }
 
         return VolumeCommands.PathPrefix + dockerHead + " ps -a --filter label=com.docker.compose.project='" + project + "' --format '{{json .}}'";
@@ -49,7 +49,7 @@ public static partial class ContainerCommands
     {
         if (!IsValidId(id))
         {
-            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
         }
 
         return VolumeCommands.PathPrefix + dockerHead + " ps -a --filter id='" + id + "' --format '{{json .}}'";
@@ -60,7 +60,7 @@ public static partial class ContainerCommands
     {
         if (!IsValidId(id))
         {
-            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
         }
 
         return VolumeCommands.PathPrefix + dockerHead + " inspect --format '{{json .Mounts}}' '" + id + "'";
@@ -70,7 +70,7 @@ public static partial class ContainerCommands
     {
         if (!IsValidId(id))
         {
-            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
         }
 
         var verb = action switch
@@ -88,7 +88,7 @@ public static partial class ContainerCommands
     {
         if (!IsValidId(id))
         {
-            throw new ArgumentException($"Ungültige Container-ID: '{id}'.", nameof(id));
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
         }
 
         var lines = Math.Clamp(tail, 1, 5000);

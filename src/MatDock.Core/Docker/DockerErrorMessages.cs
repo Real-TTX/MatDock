@@ -12,39 +12,39 @@ public static class DockerErrorMessages
     /// <summary>Maps an SSH-layer exception (connect/auth/socket) to an actionable message.</summary>
     public static string DescribeSshError(Exception ex) => ex switch
     {
-        SshAuthenticationException => "Authentifizierung fehlgeschlagen. Bei Benutzer 'root' ist der Passwort-Login "
-            + "oft gesperrt (sshd: PermitRootLogin prohibit-password / PasswordAuthentication no) – dann SSH-Key "
-            + "verwenden oder einen Benutzer der Gruppe 'docker'.",
-        SshConnectionException => "SSH-Verbindung fehlgeschlagen.",
-        System.Net.Sockets.SocketException => "Host nicht erreichbar (Adresse/Port prüfen).",
-        _ => $"Fehler: {Innermost(ex).Message}"
+        SshAuthenticationException => "Authentication failed. For the 'root' user, password login is "
+            + "often disabled (sshd: PermitRootLogin prohibit-password / PasswordAuthentication no) - use an SSH key "
+            + "instead, or a user in the 'docker' group.",
+        SshConnectionException => "SSH connection failed.",
+        System.Net.Sockets.SocketException => "Host unreachable (check address/port).",
+        _ => $"Error: {Innermost(ex).Message}"
     };
 
     /// <summary>Adds a hint (permission/daemon/not-found) to the real remote Docker error output.</summary>
     public static string InterpretDockerError(string? stderr, string? stdout)
     {
-        var detail = FirstLine(stderr) ?? FirstLine(stdout) ?? "keine Fehlerausgabe";
+        var detail = FirstLine(stderr) ?? FirstLine(stdout) ?? "no error output";
         var lower = detail.ToLowerInvariant();
 
         string? hint = null;
         if (lower.Contains("permission denied") || lower.Contains("got permission denied"))
         {
-            hint = "Keine Berechtigung für den Docker-Socket. Der SSH-Benutzer muss den Docker-Daemon erreichen dürfen "
-                 + "(Benutzer in Gruppe \"docker\", oder – bei Rootless-Docker – als der Docker-Besitzer verbinden). ";
+            hint = "No permission for the Docker socket. The SSH user must be allowed to reach the Docker daemon "
+                 + "(a user in the \"docker\" group, or - with rootless Docker - connect as the Docker owner). ";
         }
         else if (lower.Contains("cannot connect to the docker daemon") || lower.Contains("is the docker daemon running")
                  || lower.Contains("connection refused"))
         {
-            hint = "Der Docker-Daemon ist nicht erreichbar. Läuft der Docker-Dienst (ggf. Rootless-Socket)? ";
+            hint = "The Docker daemon is not reachable. Is the Docker service running (possibly a rootless socket)? ";
         }
         else if (lower.Contains("not found") || lower.Contains("no such file"))
         {
-            hint = "Docker wurde nicht gefunden. Ist Docker installiert und im PATH des SSH-Benutzers? ";
+            hint = "Docker was not found. Is Docker installed and on the SSH user's PATH? ";
         }
 
         // Always surface the real remote error so per-host causes are diagnosable.
         return hint is null
-            ? $"Docker-Fehler: {detail}"
+            ? $"Docker error: {detail}"
             : $"{hint}Details: {detail}";
     }
 

@@ -141,7 +141,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeployAsync(long id)
     {
         var (ok, output) = await _stackService.DeployAsync(id, HttpContext.RequestAborted);
-        StatusMessage = ok ? "Stack deployt." : "Deploy fehlgeschlagen.";
+        StatusMessage = ok ? "Stack deployed." : "Deploy failed.";
         IsError = !ok;
         Output = output;
         return RedirectToPage();
@@ -150,7 +150,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDownAsync(long id)
     {
         var (ok, output) = await _stackService.DownAsync(id, HttpContext.RequestAborted);
-        StatusMessage = ok ? "Stack gestoppt." : "Stoppen fehlgeschlagen.";
+        StatusMessage = ok ? "Stack stopped." : "Stop failed.";
         IsError = !ok;
         Output = output;
         return RedirectToPage();
@@ -159,7 +159,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Stack gelöscht (Container bleiben ggf. laufend – vorher stoppen)." : "Stack nicht gefunden.";
+        StatusMessage = deleted ? "Stack deleted (containers may still be running – stop them first)." : "Stack not found.";
         IsError = !deleted;
         return RedirectToPage();
     }

@@ -24,7 +24,7 @@ public class EditModel : PageModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Name ist erforderlich.")]
+        [Required(ErrorMessage = "Name is required.")]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
@@ -34,7 +34,7 @@ public class EditModel : PageModel
         [StringLength(500)]
         public string? Description { get; set; }
 
-        [Required(ErrorMessage = "Compose-YAML ist erforderlich.")]
+        [Required(ErrorMessage = "Compose YAML is required.")]
         public string ComposeYaml { get; set; } = string.Empty;
     }
 

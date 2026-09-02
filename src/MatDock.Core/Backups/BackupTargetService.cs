@@ -66,7 +66,7 @@ public sealed class BackupTargetService
         var target = await _db.BackupTargets.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (target is null)
         {
-            return (false, "Ziel nicht gefunden.");
+            return (false, "Target not found.");
         }
 
         // Do not orphan backups: a target that still holds archives must not be removed, otherwise those
@@ -74,12 +74,12 @@ public sealed class BackupTargetService
         var referencing = await _db.VolumeBackups.CountAsync(b => b.BackupTargetId == id, ct);
         if (referencing > 0)
         {
-            return (false, $"Ziel wird noch von {referencing} Backup(s) verwendet – diese zuerst löschen.");
+            return (false, $"Target is still used by {referencing} backup(s) - delete those first.");
         }
 
         _db.BackupTargets.Remove(target);
         await _db.SaveChangesAsync(ct);
-        return (true, "Ziel gelöscht.");
+        return (true, "Target deleted.");
     }
 
     /// <summary>Marks a target as default (<paramref name="id"/> null = local is default, clears all).</summary>
@@ -100,8 +100,8 @@ public sealed class BackupTargetService
         {
             await _storageFactory.Create(target).TestAsync(ct);
             return (true, target.Type == BackupTargetType.Smb
-                ? $"Verbunden mit \\\\{target.SmbHost}\\{target.SmbShare}."
-                : "Lokaler Speicher ist beschreibbar.");
+                ? $"Connected to \\\\{target.SmbHost}\\{target.SmbShare}."
+                : "Local storage is writable.");
         }
         catch (Exception ex)
         {
@@ -136,7 +136,7 @@ public sealed class BackupTargetService
         }
         catch (Exception ex)
         {
-            return (false, $"Zugangsdaten konnten nicht gelesen werden: {ex.Message}");
+            return (false, $"Credentials could not be read: {ex.Message}");
         }
 
         return await TestAsync(probe, ct);

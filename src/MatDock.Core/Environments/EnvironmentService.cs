@@ -180,7 +180,7 @@ public sealed class EnvironmentService
         var entity = await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null)
         {
-            return DockerConnectionResult.Fail("Environment nicht gefunden.");
+            return DockerConnectionResult.Fail("Environment not found.");
         }
 
         DockerConnectionResult result;
@@ -191,7 +191,7 @@ public sealed class EnvironmentService
         catch (Exception ex)
         {
             // e.g. secrets can no longer be decrypted (Data Protection keys changed).
-            result = DockerConnectionResult.Fail($"Zugangsdaten konnten nicht gelesen werden: {ex.Message}");
+            result = DockerConnectionResult.Fail($"Credentials could not be read: {ex.Message}");
         }
 
         entity.Status = result.Status;

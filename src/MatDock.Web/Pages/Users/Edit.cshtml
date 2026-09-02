@@ -1,14 +1,14 @@
 @page
 @model MatDock.Web.Pages.Users.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Benutzer bearbeiten" : "Neuer Benutzer";
-    var pwHint = Model.IsEdit ? "Leer lassen, um das aktuelle Passwort beizubehalten." : null;
+    ViewData["Title"] = Model.IsEdit ? "Edit user" : "New user";
+    var pwHint = Model.IsEdit ? "Leave blank to keep the current password." : null;
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">Lokales Benutzerkonto</span>
+        <span class="page-head__subtitle">Local user account</span>
     </div>
 </div>
 
@@ -18,15 +18,15 @@
             <input type="hidden" asp-for="Input.Id" />
 
             <div class="form-grid">
-                <mat-field label="Benutzername" asp-for="Input.Username">
+                <mat-field label="Username" asp-for="Input.Username">
                     <input asp-for="Input.Username" class="mat-input" autocomplete="off" readonly="@Model.IsEdit" />
                 </mat-field>
 
-                <mat-field label="Anzeigename" asp-for="Input.DisplayName">
+                <mat-field label="Display name" asp-for="Input.DisplayName">
                     <input asp-for="Input.DisplayName" class="mat-input" />
                 </mat-field>
 
-                <mat-field label="Rolle" asp-for="Input.Role">
+                <mat-field label="Role" asp-for="Input.Role">
                     <select asp-for="Input.Role" class="mat-select">
                         <option value="Admin">Admin</option>
                         <option value="User">User</option>
@@ -36,22 +36,22 @@
                 <mat-field label="Status">
                     <label class="mat-check" style="margin-top:8px;">
                         <input asp-for="Input.IsActive" type="checkbox" />
-                        <span>Konto ist aktiv</span>
+                        <span>Account is active</span>
                     </label>
                 </mat-field>
 
-                <mat-field label="Passwort" asp-for="Input.Password" hint="@pwHint">
+                <mat-field label="Password" asp-for="Input.Password" hint="@pwHint">
                     <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
 
-                <mat-field label="Passwort bestätigen" asp-for="Input.ConfirmPassword">
+                <mat-field label="Confirm password" asp-for="Input.ConfirmPassword">
                     <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
             </div>
 
             <mat-form-buttons>
-                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
-                <a href="/Users" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <a href="/Users" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     </div>

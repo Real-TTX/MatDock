@@ -1,7 +1,7 @@
 @page
 @model MatDock.Web.Pages.Volumes.FilesModel
 @{
-    ViewData["Title"] = "Dateien";
+    ViewData["Title"] = "Files";
     string Target(string name) => Model.Path.Length == 0 ? name : Model.Path + "/" + name;
     string Fmt(long b)
     {
@@ -14,11 +14,11 @@
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Dateien</h1>
+        <h1>Files</h1>
         <span class="page-head__subtitle mono">@Model.Volume · @Model.Environment?.Name</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -40,13 +40,13 @@
     <span class="toolbar-spacer"></span>
     <form method="post" asp-page-handler="NewFolder" style="display:inline-flex;gap:4px;">
         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
-        <input name="name" class="mat-input" placeholder="Ordnername" style="width:130px;" required />
-        <button type="submit" class="mat-btn mat-btn--sm" title="Ordner erstellen"><icon name="plus" /></button>
+        <input name="name" class="mat-input" placeholder="Folder name" style="width:130px;" required />
+        <button type="submit" class="mat-btn mat-btn--sm" title="Create folder"><icon name="plus" /></button>
     </form>
     <form method="post" asp-page-handler="NewFile" style="display:inline-flex;gap:4px;">
         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
-        <input name="name" class="mat-input" placeholder="Dateiname" style="width:130px;" required />
-        <button type="submit" class="mat-btn mat-btn--sm" title="Datei erstellen"><icon name="plus" /></button>
+        <input name="name" class="mat-input" placeholder="File name" style="width:130px;" required />
+        <button type="submit" class="mat-btn mat-btn--sm" title="Create file"><icon name="plus" /></button>
     </form>
 </div>
 
@@ -58,11 +58,11 @@ else
 {
     <div class="card" style="padding:0;">
         <table class="data">
-            <thead><tr><th>Name</th><th>Größe</th><th class="actions">Aktionen</th></tr></thead>
+            <thead><tr><th>Name</th><th>Size</th><th class="actions">Actions</th></tr></thead>
             <tbody>
                 @if (Model.Entries.Count == 0)
                 {
-                    <tr><td colspan="3"><div class="empty-state"><p>Leeres Verzeichnis.</p></div></td></tr>
+                    <tr><td colspan="3"><div class="empty-state"><p>Empty folder.</p></div></td></tr>
                 }
                 @foreach (var e in Model.Entries)
                 {
@@ -84,19 +84,19 @@ else
                                 <form method="post" asp-page-handler="Rename" style="display:inline-flex;gap:3px;">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
                                     <input type="hidden" name="target" value="@target" />
-                                    <input name="newName" value="@e.Name" class="mat-input" style="width:120px;" aria-label="Neuer Name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm" title="Umbenennen"><icon name="edit" /></button>
+                                    <input name="newName" value="@e.Name" class="mat-input" style="width:120px;" aria-label="New name" />
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Rename"><icon name="edit" /></button>
                                 </form>
                                 <form method="post" asp-page-handler="Copy" style="display:inline;">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
                                     <input type="hidden" name="target" value="@target" />
-                                    <input type="hidden" name="newName" value="@(e.Name)-kopie" />
-                                    <button type="submit" class="mat-btn mat-btn--sm" title="Duplizieren"><icon name="save" /></button>
+                                    <input type="hidden" name="newName" value="@(e.Name)-copy" />
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Duplicate"><icon name="save" /></button>
                                 </form>
-                                <form method="post" asp-page-handler="Delete" data-confirm="„@e.Name“ wirklich löschen?" style="display:inline;">
+                                <form method="post" asp-page-handler="Delete" data-confirm="Really delete @e.Name?" style="display:inline;">
                                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="volume" value="@Model.Volume" /><input type="hidden" name="path" value="@Model.Path" />
                                     <input type="hidden" name="target" value="@target" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Löschen"><icon name="trash" /></button>
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                                 </form>
                             </div>
                         </td>

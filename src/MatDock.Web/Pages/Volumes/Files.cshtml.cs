@@ -82,7 +82,7 @@ public class FilesModel : PageModel
     {
         if (!await LoadEnvAsync(envId))
         {
-            return (false, "Environment nicht verfügbar.");
+            return (false, "Environment not available.");
         }
 
         return await action();

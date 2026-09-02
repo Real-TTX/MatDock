@@ -42,37 +42,37 @@ public sealed class GitCredentialService
     {
         if (string.IsNullOrWhiteSpace(input.Name))
         {
-            return (false, "Name ist erforderlich.", 0);
+            return (false, "Name is required.", 0);
         }
 
         if (string.IsNullOrWhiteSpace(input.Token))
         {
-            return (false, "Token ist erforderlich.", 0);
+            return (false, "Token is required.", 0);
         }
 
         var cred = new GitCredential();
         Apply(cred, input, isCreate: true);
         _db.GitCredentials.Add(cred);
         await _db.SaveChangesAsync(ct);
-        return (true, "Git-Zugang angelegt.", cred.Id);
+        return (true, "Git credentials created.", cred.Id);
     }
 
     public async Task<(bool Ok, string Message)> UpdateAsync(long id, GitCredentialInput input, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(input.Name))
         {
-            return (false, "Name ist erforderlich.");
+            return (false, "Name is required.");
         }
 
         var cred = await _db.GitCredentials.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (cred is null)
         {
-            return (false, "Git-Zugang nicht gefunden.");
+            return (false, "Git credentials not found.");
         }
 
         Apply(cred, input, isCreate: false);
         await _db.SaveChangesAsync(ct);
-        return (true, "Git-Zugang gespeichert.");
+        return (true, "Git credentials saved.");
     }
 
     public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)

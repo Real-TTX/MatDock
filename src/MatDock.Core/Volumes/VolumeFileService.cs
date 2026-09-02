@@ -38,13 +38,13 @@ public sealed class VolumeFileService
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            return (Array.Empty<VolumeFileEntry>(), "Ungültiger Volume-Name.");
+            return (Array.Empty<VolumeFileEntry>(), "Invalid volume name.");
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (rel is null)
         {
-            return (Array.Empty<VolumeFileEntry>(), "Ungültiger Pfad.");
+            return (Array.Empty<VolumeFileEntry>(), "Invalid path.");
         }
 
         try
@@ -55,7 +55,7 @@ public sealed class VolumeFileService
                 var result = await RunAsync(client, VolumeFileCommands.List(head, _options.HelperImage, volume, rel), ct);
                 if (result.ExitStatus != 0)
                 {
-                    return (Array.Empty<VolumeFileEntry>(), "Verzeichnis konnte nicht gelesen werden.");
+                    return (Array.Empty<VolumeFileEntry>(), "Directory could not be read.");
                 }
 
                 return (ParseListing(result.StdOut), null);
@@ -71,13 +71,13 @@ public sealed class VolumeFileService
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            return (null, "Ungültiger Volume-Name.");
+            return (null, "Invalid volume name.");
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (string.IsNullOrEmpty(rel))
         {
-            return (null, "Keine Datei angegeben.");
+            return (null, "No file specified.");
         }
 
         try
@@ -105,7 +105,7 @@ public sealed class VolumeFileService
 
                 if (cmd.ExitStatus != 0)
                 {
-                    return (null, "Datei konnte nicht gelesen werden (existiert sie und ist es eine reguläre Datei?).");
+                    return (null, "File could not be read (does it exist and is it a regular file?).");
                 }
 
                 var truncated = bytes.Length > VolumeFileCommands.MaxReadBytes;
@@ -139,27 +139,27 @@ public sealed class VolumeFileService
         => MutateWithStdinAsync(env, volume, relPath, content, ct);
 
     public Task<(bool Ok, string Message)> MakeDirAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, volume, relPath, VolumeFileCommands.MakeDir, "Ordner erstellt.", ct);
+        => MutateAsync(env, volume, relPath, VolumeFileCommands.MakeDir, "Folder created.", ct);
 
     public Task<(bool Ok, string Message)> CreateFileAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, volume, relPath, VolumeFileCommands.CreateFile, "Datei erstellt.", ct);
+        => MutateAsync(env, volume, relPath, VolumeFileCommands.CreateFile, "File created.", ct);
 
     public async Task<(bool Ok, string Message)> DeleteAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
     {
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (string.IsNullOrEmpty(rel))
         {
-            return (false, "Das Wurzelverzeichnis kann nicht gelöscht werden.");
+            return (false, "The root folder cannot be deleted.");
         }
 
-        return await MutateAsync(env, volume, relPath, VolumeFileCommands.Delete, "Gelöscht.", ct);
+        return await MutateAsync(env, volume, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
     }
 
     public Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, string volume, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Move, "Verschoben/umbenannt.", ct);
+        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
 
     public Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, string volume, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Copy, "Kopiert.", ct);
+        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
 
     // ---- shared plumbing ----
 
@@ -168,13 +168,13 @@ public sealed class VolumeFileService
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            return (false, "Ungültiger Volume-Name.");
+            return (false, "Invalid volume name.");
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (rel is null)
         {
-            return (false, "Ungültiger Pfad.");
+            return (false, "Invalid path.");
         }
 
         try
@@ -197,14 +197,14 @@ public sealed class VolumeFileService
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            return (false, "Ungültiger Volume-Name.");
+            return (false, "Invalid volume name.");
         }
 
         var src = VolumeFileCommands.NormalizeRelPath(srcRel);
         var dst = VolumeFileCommands.NormalizeRelPath(dstRel);
         if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(dst))
         {
-            return (false, "Ungültiger Quell- oder Zielpfad.");
+            return (false, "Invalid source or target path.");
         }
 
         try
@@ -226,13 +226,13 @@ public sealed class VolumeFileService
     {
         if (!VolumeCommands.IsValidVolumeName(volume))
         {
-            return (false, "Ungültiger Volume-Name.");
+            return (false, "Invalid volume name.");
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (string.IsNullOrEmpty(rel))
         {
-            return (false, "Ungültiger Pfad.");
+            return (false, "Invalid path.");
         }
 
         try
@@ -249,7 +249,7 @@ public sealed class VolumeFileService
                 await input.WriteAsync(bytes, ct);
                 input.Close();
                 cmd.EndExecute(async);
-                return cmd.ExitStatus == 0 ? (true, "Gespeichert.") : (false, "Speichern fehlgeschlagen.");
+                return cmd.ExitStatus == 0 ? (true, "Saved.") : (false, "Save failed.");
             }
         }
         catch (Exception ex)
@@ -283,15 +283,15 @@ public sealed class VolumeFileService
     private static string MapError((int ExitStatus, string StdOut, string StdErr) r)
     {
         var err = r.StdErr;
-        if (err.Contains("EXISTS")) return "Existiert bereits.";
-        if (err.Contains("NOTAFILE")) return "Keine reguläre Datei.";
-        return DockerErrorMessages.FirstLine(err) ?? "Aktion fehlgeschlagen.";
+        if (err.Contains("EXISTS")) return "Already exists.";
+        if (err.Contains("NOTAFILE")) return "Not a regular file.";
+        return DockerErrorMessages.FirstLine(err) ?? "Action failed.";
     }
 
     private string Describe(Exception ex)
     {
         _logger.LogInformation(ex, "Volume file operation failed.");
-        return DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Fehler: {ex.Message}";
+        return DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}";
     }
 
     private static IReadOnlyList<VolumeFileEntry> ParseListing(string output)

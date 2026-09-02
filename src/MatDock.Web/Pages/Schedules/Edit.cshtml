@@ -1,13 +1,13 @@
 @page
 @model MatDock.Web.Pages.Schedules.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Zeitplan bearbeiten" : "Neuer Zeitplan";
+    ViewData["Title"] = Model.IsEdit ? "Edit schedule" : "New schedule";
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">Automatisches Backup ausgewählter Volumes</span>
+        <span class="page-head__subtitle">Automatic backup of selected volumes</span>
     </div>
 </div>
 
@@ -18,22 +18,22 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <mat-field label="Name" asp-for="Input.Name">
-                <input asp-for="Input.Name" class="mat-input" placeholder="z. B. Nächtliches Prod-Backup" />
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nightly prod backup" />
             </mat-field>
 
             <div class="form-grid">
-                <mat-field label="Environment (Quelle)" asp-for="Input.EnvironmentId">
+                <mat-field label="Environment (source)" asp-for="Input.EnvironmentId">
                     <select asp-for="Input.EnvironmentId" id="EnvironmentId" class="mat-select">
-                        <option value="0">— wählen —</option>
+                        <option value="0">— select —</option>
                         @foreach (var env in Model.Environments)
                         {
                             <option value="@env.Id">@env.Name</option>
                         }
                     </select>
                 </mat-field>
-                <mat-field label="Ziel">
+                <mat-field label="Target">
                     <select asp-for="Input.BackupTargetId" class="mat-select">
-                        <option value="">Lokal (MatDock)</option>
+                        <option value="">Local (MatDock)</option>
                         @foreach (var t in Model.Targets)
                         {
                             <option value="@t.Id">@t.Name</option>
@@ -53,10 +53,10 @@
             <div class="mat-field">
                 <label class="mat-label">Volumes</label>
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-                    <button type="submit" asp-page-handler="LoadVolumes" class="mat-btn mat-btn--sm" formnovalidate><icon name="refresh" /><span>Volumes des Environments laden</span></button>
+                    <button type="submit" asp-page-handler="LoadVolumes" class="mat-btn mat-btn--sm" formnovalidate><icon name="refresh" /><span>Load environment's volumes</span></button>
                     @if (Model.VolumeLoadError is not null)
                     {
-                        <span class="mat-validation">Live-Liste nicht verfügbar (@Model.VolumeLoadError) – gespeicherte Volumes bleiben erhalten.</span>
+                        <span class="mat-validation">Live list unavailable (@Model.VolumeLoadError) – saved volumes are retained.</span>
                     }
                 </div>
                 @if (shownVolumes.Count > 0)
@@ -74,42 +74,42 @@
                 }
                 else
                 {
-                    <span class="mat-hint">Environment wählen und „Volumes laden" klicken – oder unten manuell eintragen.</span>
+                    <span class="mat-hint">Select an environment and click 'Load volumes' – or enter them manually below.</span>
                 }
                 <span asp-validation-for="Input.SelectedVolumes" class="mat-validation"></span>
             </div>
 
-            <mat-field label="Weitere Volumes (eine pro Zeile)" asp-for="Input.ExtraVolumes" hint="Für Hosts, die gerade nicht erreichbar sind.">
+            <mat-field label="Additional volumes (one per line)" asp-for="Input.ExtraVolumes" hint="For hosts that are currently unreachable.">
                 <textarea asp-for="Input.ExtraVolumes" class="mat-textarea" rows="3"></textarea>
             </mat-field>
 
             <div class="form-grid">
-                <mat-field label="Zeitplan (Cron, UTC)" asp-for="Input.Cron" hint="min std tag monat wochentag · z. B. 0 3 * * * = täglich 03:00">
+                <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 3 * * * = daily at 03:00">
                     <input asp-for="Input.Cron" class="mat-input" placeholder="0 3 * * *" />
                 </mat-field>
-                <mat-field label="Aktiv">
+                <mat-field label="Enabled">
                     <label class="mat-check" style="margin-top:8px;">
                         <input asp-for="Input.Enabled" type="checkbox" />
-                        <span>Zeitplan aktiv</span>
+                        <span>Schedule enabled</span>
                     </label>
                 </mat-field>
                 <mat-field label="Container">
                     <label class="mat-check" style="margin-top:8px;">
                         <input asp-for="Input.StopContainers" type="checkbox" />
-                        <span>Container während des Backups stoppen und danach wieder starten (konsistenter Snapshot)</span>
+                        <span>Stop containers during the backup, then restart them (consistent snapshot)</span>
                     </label>
                 </mat-field>
-                <mat-field label="Aufbewahren: Anzahl" asp-for="Input.RetentionCount" hint="Neueste N je Volume behalten (0 = unbegrenzt)">
+                <mat-field label="Retention: count" asp-for="Input.RetentionCount" hint="Keep the newest N per volume (0 = unlimited)">
                     <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
                 </mat-field>
-                <mat-field label="Aufbewahren: Tage" asp-for="Input.RetentionDays" hint="Ältere löschen (0 = aus)">
+                <mat-field label="Retention: days" asp-for="Input.RetentionDays" hint="Delete older ones (0 = off)">
                     <input asp-for="Input.RetentionDays" type="number" min="0" class="mat-input" />
                 </mat-field>
             </div>
 
             <mat-form-buttons>
-                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
-                <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     </div>

@@ -40,10 +40,10 @@ public class MigrateModel : PageModel
         [Required]
         public string SourceVolume { get; set; } = string.Empty;
 
-        [Range(1, long.MaxValue, ErrorMessage = "Bitte ein Ziel-Environment wählen.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Please choose a target environment.")]
         public long TargetEnvId { get; set; }
 
-        [Required(ErrorMessage = "Bitte einen Ziel-Volume-Namen angeben.")]
+        [Required(ErrorMessage = "Please enter a target volume name.")]
         public string TargetVolume { get; set; } = string.Empty;
 
         public bool Overwrite { get; set; }
@@ -89,12 +89,12 @@ public class MigrateModel : PageModel
 
         if (!VolumeCommands.IsValidVolumeName(Input.TargetVolume))
         {
-            ModelState.AddModelError("Input.TargetVolume", "Nur Buchstaben, Zahlen und . _ - erlaubt (Beginn alphanumerisch).");
+            ModelState.AddModelError("Input.TargetVolume", "Only letters, numbers and . _ - are allowed (must start alphanumeric).");
         }
 
         if (Input.TargetEnvId == Input.SourceEnvId)
         {
-            ModelState.AddModelError("Input.TargetEnvId", "Quelle und Ziel müssen unterschiedlich sein.");
+            ModelState.AddModelError("Input.TargetEnvId", "Source and target must be different.");
         }
 
         if (!ModelState.IsValid)
@@ -105,7 +105,7 @@ public class MigrateModel : PageModel
         var target = await _environmentService.GetAsync(Input.TargetEnvId, HttpContext.RequestAborted);
         if (target is null || !target.IsEnabled)
         {
-            ModelState.AddModelError("Input.TargetEnvId", "Ziel-Environment nicht verfügbar (deaktiviert oder gelöscht).");
+            ModelState.AddModelError("Input.TargetEnvId", "Target environment not available (disabled or deleted).");
             return Page();
         }
 
@@ -118,7 +118,7 @@ public class MigrateModel : PageModel
                 backupTarget = await _backupTargetService.GetAsync(Input.BackupTargetId, HttpContext.RequestAborted);
                 if (backupTarget is null)
                 {
-                    ModelState.AddModelError("Input.BackupTargetId", "Backup-Ziel nicht gefunden.");
+                    ModelState.AddModelError("Input.BackupTargetId", "Backup target not found.");
                     return Page();
                 }
             }

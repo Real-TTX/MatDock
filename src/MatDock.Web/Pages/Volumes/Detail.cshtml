@@ -1,7 +1,7 @@
 @page
 @model MatDock.Web.Pages.Volumes.DetailModel
 @{
-    ViewData["Title"] = "Volume-Detail";
+    ViewData["Title"] = "Volume details";
     var oic = StringComparison.OrdinalIgnoreCase;
     bool IsSecret(string k) => k.Contains("pass", oic) || k.Contains("secret", oic) || k.Contains("cred", oic) || k.Contains("token", oic);
     string Redact(string key, string value)
@@ -35,10 +35,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>@Model.VolumeName</h1>
-        <span class="page-head__subtitle">Volume auf @Model.Environment?.Name</span>
+        <span class="page-head__subtitle">Volume on @Model.Environment?.Name</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Volumes?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Volumes?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -48,7 +48,7 @@
 }
 else if (Model.Detail is null)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Volume „@Model.VolumeName" wurde auf diesem Host nicht gefunden.</span></div>
+    <div class="alert alert--warning"><icon name="alert" /><span>Volume "@Model.VolumeName" was not found on this host.</span></div>
 }
 else
 {
@@ -57,9 +57,9 @@ else
     <div class="mat-buttons" style="margin-bottom:16px;">
         @if (User.IsAdmin())
         {
-            <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Dateien</span></a>
+            <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
         }
-        <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrieren</span></a>
+        <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
         <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
     </div>
 
@@ -67,7 +67,7 @@ else
     {
         <div class="alert alert--info">
             <icon name="volume" />
-            <span>Remote-Freigabe (@(d.Options.TryGetValue("type", out var t) ? t : "remote")): <strong class="mono">@d.Device</strong></span>
+            <span>Remote share (@(d.Options.TryGetValue("type", out var t) ? t : "remote")): <strong class="mono">@d.Device</strong></span>
         </div>
     }
 
@@ -77,13 +77,13 @@ else
             <table class="data">
                 <tbody>
                     <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
-                    <tr><th>Treiber</th><td>@d.Driver</td></tr>
+                    <tr><th>Driver</th><td>@d.Driver</td></tr>
                     <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
-                    <tr><th>Erstellt</th><td>@(d.CreatedAt ?? "–")</td></tr>
-                    <tr><th>Mountpoint (lokal)</th><td class="mono">@(d.Mountpoint ?? "–")</td></tr>
+                    <tr><th>Created</th><td>@(d.CreatedAt ?? "–")</td></tr>
+                    <tr><th>Mountpoint (local)</th><td class="mono">@(d.Mountpoint ?? "–")</td></tr>
                     @if (d.Device is not null)
                     {
-                        <tr><th>Remote-Share</th><td class="mono">@d.Device</td></tr>
+                        <tr><th>Remote share</th><td class="mono">@d.Device</td></tr>
                     }
                 </tbody>
             </table>
@@ -93,10 +93,10 @@ else
     @if (d.Options.Count > 0)
     {
         <div class="card" style="margin-bottom:16px;">
-            <div class="card__header"><icon name="settings" /><span>Treiber-Optionen</span></div>
+            <div class="card__header"><icon name="settings" /><span>Driver options</span></div>
             <div class="mat-table__scroll">
                 <table class="data">
-                    <thead><tr><th style="width:180px;">Schlüssel</th><th>Wert</th></tr></thead>
+                    <thead><tr><th style="width:180px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Options)
                         {
@@ -114,7 +114,7 @@ else
             <div class="card__header"><icon name="filter" /><span>Labels</span></div>
             <div class="mat-table__scroll">
                 <table class="data">
-                    <thead><tr><th style="width:280px;">Schlüssel</th><th>Wert</th></tr></thead>
+                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Labels)
                         {
@@ -127,10 +127,10 @@ else
     }
 
     <div class="card">
-        <div class="card__header"><icon name="box" /><span>Wird verwendet von</span><span class="mat-badge">@Model.UsedBy.Count</span></div>
+        <div class="card__header"><icon name="box" /><span>Used by</span><span class="mat-badge">@Model.UsedBy.Count</span></div>
         @if (Model.UsedBy.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>Kein Container nutzt dieses Volume.</p></div>
+            <div class="empty-state"><div><icon name="box" /></div><p>No container uses this volume.</p></div>
         }
         else
         {

@@ -9,10 +9,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>@Model.Project</h1>
-        <span class="page-head__subtitle">Stack auf @Model.Environment?.Name</span>
+        <span class="page-head__subtitle">Stack on @Model.Environment?.Name</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Stacks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+        <a href="/Stacks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -31,12 +31,12 @@ else
     var noneRunning = Model.RunningCount == 0;
     <div class="alert @(allRunning ? "alert--success" : noneRunning ? "alert--warning" : "alert--info")">
         <icon name="box" />
-        <span><strong>@Model.RunningCount / @Model.TotalCount laufen</strong> — @(allRunning ? "Stack läuft vollständig" : noneRunning ? "Stack gestoppt" : "Stack läuft teilweise")</span>
+        <span><strong>@Model.RunningCount / @Model.TotalCount running</strong> — @(allRunning ? "Stack fully running" : noneRunning ? "Stack stopped" : "Stack partially running")</span>
     </div>
 
     <div class="card" style="padding:0;">
         <table class="data">
-            <thead><tr><th>Container</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th></tr></thead>
+            <thead><tr><th>Container</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Actions</th></tr></thead>
             <tbody>
                 @foreach (var c in Model.Containers.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
                 {
@@ -54,16 +54,16 @@ else
                             <div class="row-actions">
                                 @if (openUrl is not null)
                                 {
-                                    <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Öffnen"><icon name="external" /></a>
+                                    <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open"><icon name="external" /></a>
                                 }
                                 <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                                 @if (c.IsRunning)
                                 {
                                     <form method="post" asp-page-handler="Action" style="display:inline;">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
                                     </form>
-                                    <form method="post" asp-page-handler="Action" data-confirm="„@c.Name“ stoppen?" style="display:inline;">
+                                    <form method="post" asp-page-handler="Action" data-confirm="Stop '@c.Name'?" style="display:inline;">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
                                     </form>

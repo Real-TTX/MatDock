@@ -39,7 +39,7 @@ public sealed class VolumeMigrationService
 
         if (!VolumeCommands.IsValidVolumeName(request.SourceVolume) || !VolumeCommands.IsValidVolumeName(request.TargetVolume))
         {
-            return VolumeMigrationResult.Fail("Ungültiger Volume-Name.");
+            return VolumeMigrationResult.Fail("Invalid volume name.");
         }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -55,22 +55,22 @@ public sealed class VolumeMigrationService
             using var target = _hostSessionFactory.Create(request.Target);
             await source.ConnectAsync(cts.Token);
             await target.ConnectAsync(cts.Token);
-            steps.Add("Mit Quelle und Ziel verbunden.");
+            steps.Add("Connected to source and target.");
 
             // 0) Verify the source volume exists (docker would otherwise auto-create an empty one).
             var inspect = RunCommand(source, VolumeCommands.Inspect(request.SourceVolume, sourceHead));
             if (inspect.ExitStatus != 0)
             {
-                return VolumeMigrationResult.Fail($"Quell-Volume '{request.SourceVolume}' existiert nicht.", steps);
+                return VolumeMigrationResult.Fail($"Source volume '{request.SourceVolume}' does not exist.", steps);
             }
 
             // 1) Ensure the target volume exists.
             var create = RunCommand(target, VolumeCommands.Create(request.TargetVolume, targetHead));
             if (create.ExitStatus != 0)
             {
-                return VolumeMigrationResult.Fail($"Ziel-Volume konnte nicht angelegt werden: {FirstLine(create.StdErr)}", steps);
+                return VolumeMigrationResult.Fail($"Target volume could not be created: {FirstLine(create.StdErr)}", steps);
             }
-            steps.Add($"Ziel-Volume '{request.TargetVolume}' bereit.");
+            steps.Add($"Target volume '{request.TargetVolume}' ready.");
 
             // 2) Refuse to clobber a non-empty target unless explicitly allowed (fail closed if unsure).
             if (!request.Overwrite)
@@ -79,12 +79,12 @@ public sealed class VolumeMigrationService
                 if (count.ExitStatus != 0 || !int.TryParse(count.StdOut.Trim(), out var entries))
                 {
                     return VolumeMigrationResult.Fail(
-                        $"Ziel-Volume '{request.TargetVolume}' konnte nicht geprüft werden – Migration abgebrochen: {FirstLine(count.StdErr)}", steps);
+                        $"Target volume '{request.TargetVolume}' could not be checked - migration aborted: {FirstLine(count.StdErr)}", steps);
                 }
                 if (entries > 0)
                 {
                     return VolumeMigrationResult.Fail(
-                        $"Ziel-Volume '{request.TargetVolume}' enthält bereits Daten. Zum Überschreiben die Option „Überschreiben“ aktivieren.", steps);
+                        $"Target volume '{request.TargetVolume}' already contains data. Enable the \"Overwrite\" option to overwrite it.", steps);
                 }
             }
 
@@ -94,7 +94,7 @@ public sealed class VolumeMigrationService
                 : Containers.QuiesceResult.None;
             if (quiesce.StoppedIds.Count > 0)
             {
-                steps.Add($"{quiesce.StoppedIds.Count} Container an der Quelle gestoppt.");
+                steps.Add($"{quiesce.StoppedIds.Count} container(s) stopped on the source.");
             }
             if (quiesce.Warning is not null)
             {
@@ -129,11 +129,11 @@ public sealed class VolumeMigrationService
                 // Require explicit success; null exit status = command killed / channel died = failure.
                 if (exportCmd.ExitStatus != 0)
                 {
-                    return VolumeMigrationResult.Fail($"Export der Quelle fehlgeschlagen: {FirstLine(exportCmd.Error)}", steps);
+                    return VolumeMigrationResult.Fail($"Export from source failed: {FirstLine(exportCmd.Error)}", steps);
                 }
                 if (importCmd.ExitStatus != 0)
                 {
-                    return VolumeMigrationResult.Fail($"Import ins Ziel fehlgeschlagen: {FirstLine(importCmd.Error)}", steps);
+                    return VolumeMigrationResult.Fail($"Import into target failed: {FirstLine(importCmd.Error)}", steps);
                 }
             }
             finally
@@ -142,18 +142,18 @@ public sealed class VolumeMigrationService
                 Containers.ContainerQuiesce.Start(source, sourceHead, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }
 
-            steps.Add($"{VolumeMigrationResult.FormatBytes(bytes)} übertragen.");
+            steps.Add($"{VolumeMigrationResult.FormatBytes(bytes)} transferred.");
             stopwatch.Stop();
             return VolumeMigrationResult.Ok(bytes, stopwatch.Elapsed.TotalSeconds, steps);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return VolumeMigrationResult.Fail("Zeitüberschreitung bei der Migration.", steps);
+            return VolumeMigrationResult.Fail("Migration timed out.", steps);
         }
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Volume migration {Src} -> {Dst} failed.", request.SourceVolume, request.TargetVolume);
-            return VolumeMigrationResult.Fail($"Fehler: {Innermost(ex).Message}", steps);
+            return VolumeMigrationResult.Fail($"Error: {Innermost(ex).Message}", steps);
         }
     }
 
@@ -176,7 +176,7 @@ public sealed class VolumeMigrationService
     {
         if (!VolumeCommands.IsValidVolumeName(sourceVolume) || !VolumeCommands.IsValidVolumeName(targetVolume))
         {
-            return VolumeMigrationResult.Fail("Ungültiger Volume-Name.");
+            return VolumeMigrationResult.Fail("Invalid volume name.");
         }
 
         var steps = new List<string>();
@@ -193,37 +193,37 @@ public sealed class VolumeMigrationService
             var backup = await _backupService.BackupAsync(source, sourceVolume, backupTarget, scheduleId: null, ct: cts.Token, stopContainers: stopContainers);
             if (!backup.Success || backup.BackupId is not { } backupId)
             {
-                return VolumeMigrationResult.Fail($"Backup der Quelle fehlgeschlagen: {backup.Message}", steps);
+                return VolumeMigrationResult.Fail($"Backup of the source failed: {backup.Message}", steps);
             }
-            steps.Add($"Backup erstellt ({VolumeMigrationResult.FormatBytes(backup.BytesTransferred)}) auf „{backupTarget?.Name ?? "Lokal"}“.");
+            steps.Add($"Backup created ({VolumeMigrationResult.FormatBytes(backup.BytesTransferred)}) on \"{backupTarget?.Name ?? "Local"}\".");
 
             // 2) Restore that backup into the target. On failure the backup is intentionally KEPT so the
             //    restore can be retried without touching the source again.
             var restore = await _backupService.RestoreAsync(backupId, target, targetVolume, overwrite, ct: cts.Token, stopContainers: stopContainers);
             if (!restore.Success)
             {
-                steps.Add("Backup bleibt erhalten – Restore kann daraus wiederholt werden.");
-                return VolumeMigrationResult.Fail($"Restore ins Ziel fehlgeschlagen: {restore.Message}", steps);
+                steps.Add("Backup is kept - the restore can be retried from it.");
+                return VolumeMigrationResult.Fail($"Restore into target failed: {restore.Message}", steps);
             }
-            steps.Add($"Restore ins Ziel „{target.Name}/{targetVolume}“ erfolgreich.");
+            steps.Add($"Restore into target \"{target.Name}/{targetVolume}\" successful.");
 
             // 3) The data is already at the target now — a cleanup failure must NOT turn a completed
             //    migration into a reported failure. Keep by default; on delete, downgrade errors to a note.
             if (keepBackup)
             {
-                steps.Add("Zwischen-Backup als Sicherung behalten.");
+                steps.Add("Intermediate backup kept as a safety copy.");
             }
             else
             {
                 try
                 {
                     var deleted = await _backupService.DeleteAsync(backupId, cts.Token);
-                    steps.Add(deleted ? "Zwischen-Backup entfernt." : "Zwischen-Backup konnte nicht entfernt werden (bleibt erhalten).");
+                    steps.Add(deleted ? "Intermediate backup removed." : "Intermediate backup could not be removed (it is kept).");
                 }
                 catch (Exception ex)
                 {
                     _logger.LogInformation(ex, "Cleanup of intermediate backup {Id} after migration failed.", backupId);
-                    steps.Add("Zwischen-Backup konnte nicht entfernt werden (bleibt erhalten).");
+                    steps.Add("Intermediate backup could not be removed (it is kept).");
                 }
             }
 
@@ -232,12 +232,12 @@ public sealed class VolumeMigrationService
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return VolumeMigrationResult.Fail("Zeitüberschreitung bei der Migration.", steps);
+            return VolumeMigrationResult.Fail("Migration timed out.", steps);
         }
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Backup-based migration {Src} -> {Dst} failed.", sourceVolume, targetVolume);
-            return VolumeMigrationResult.Fail($"Fehler: {Innermost(ex).Message}", steps);
+            return VolumeMigrationResult.Fail($"Error: {Innermost(ex).Message}", steps);
         }
     }
 
@@ -263,7 +263,7 @@ public sealed class VolumeMigrationService
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return "unbekannter Fehler";
+            return "unknown error";
         }
 
         foreach (var line in text.Split('\n'))
@@ -275,6 +275,6 @@ public sealed class VolumeMigrationService
             }
         }
 
-        return "unbekannter Fehler";
+        return "unknown error";
     }
 }
