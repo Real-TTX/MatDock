@@ -138,6 +138,86 @@ public class ContainerTests
     }
 
     [Fact]
+    public void Events_builds_bounded_snapshot_command()
+    {
+        var cmd = ContainerCommands.Events("docker", 24);
+        // Both --since and --until so `docker events` returns the window and exits instead of streaming.
+        Assert.Contains("docker events --since 24h --until 0s --filter type=container --format '{{json .}}'", cmd);
+    }
+
+    [Theory]
+    [InlineData(0, "1h")]      // clamped up
+    [InlineData(9999, "168h")] // clamped down to a week
+    public void Events_clamps_since_window(int hours, string expected)
+        => Assert.Contains($"--since {expected} ", ContainerCommands.Events("docker", hours));
+
+    [Fact]
+    public void ParseEvents_reads_modern_actor_format_and_maps_kind()
+    {
+        var line = "{\"Type\":\"container\",\"Action\":\"start\",\"Actor\":{\"ID\":\"abc123def456\",\"Attributes\":{\"name\":\"web-1\",\"image\":\"nginx:latest\"}},\"time\":1700000000}";
+        var e = Assert.Single(ContainerService.ParseEvents(line));
+
+        Assert.Equal("start", e.Action);
+        Assert.Equal("started", e.Kind);
+        Assert.True(e.IsLifecycle);
+        Assert.Equal("web-1", e.ContainerName);
+        Assert.Equal("nginx:latest", e.Image);
+        Assert.Equal("abc123def456", e.Id);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1700000000).UtcDateTime, e.TimeUtc);
+    }
+
+    [Fact]
+    public void ParseEvents_reads_legacy_status_format()
+    {
+        // Older daemons: no Actor, image reported as "from", id at the root.
+        var line = "{\"status\":\"die\",\"id\":\"aaaaaaaaaaaa0000\",\"from\":\"redis\",\"Type\":\"container\",\"time\":1700000123}";
+        var e = Assert.Single(ContainerService.ParseEvents(line));
+
+        Assert.Equal("stopped", e.Kind);
+        Assert.Equal("redis", e.Image);
+        Assert.Equal("aaaaaaaaaaaa", e.Id); // short id
+        Assert.Equal("aaaaaaaaaaaa", e.ContainerName); // falls back to short id when no name
+    }
+
+    [Theory]
+    [InlineData("create", "created")]
+    [InlineData("start", "started")]
+    [InlineData("restart", "restarted")]
+    [InlineData("stop", "stopped")]
+    [InlineData("kill", "stopped")]
+    [InlineData("destroy", "removed")]
+    [InlineData("pause", "other")]
+    public void ParseEvents_normalizes_actions(string action, string expectedKind)
+    {
+        var line = $"{{\"Type\":\"container\",\"Action\":\"{action}\",\"Actor\":{{\"ID\":\"x\",\"Attributes\":{{\"name\":\"c\"}}}},\"time\":1}}";
+        Assert.Equal(expectedKind, ContainerService.ParseEvents(line).Single().Kind);
+    }
+
+    [Fact]
+    public void ParseEvents_strips_action_suffix_and_skips_noise()
+    {
+        // "exec_create: sh" -> head token "exec_create" -> not a lifecycle event.
+        var line = "{\"Type\":\"container\",\"Action\":\"exec_create: sh\",\"Actor\":{\"ID\":\"x\",\"Attributes\":{\"name\":\"c\"}},\"time\":1}";
+        var e = Assert.Single(ContainerService.ParseEvents(line));
+        Assert.Equal("exec_create", e.Action);
+        Assert.False(e.IsLifecycle);
+    }
+
+    [Fact]
+    public void ParseEvents_skips_malformed_and_non_container_lines()
+    {
+        var output = string.Join('\n', new[]
+        {
+            "not json",
+            "{\"Type\":\"network\",\"Action\":\"connect\",\"time\":1}",   // wrong type
+            "{\"Type\":\"container\",\"Action\":\"start\",\"Actor\":{\"ID\":\"good0000\",\"Attributes\":{\"name\":\"ok\"}},\"time\":5}",
+        });
+
+        var e = Assert.Single(ContainerService.ParseEvents(output));
+        Assert.Equal("ok", e.ContainerName);
+    }
+
+    [Fact]
     public void ParseContainers_skips_malformed_and_non_object_lines_but_keeps_valid()
     {
         // A stray non-object JSON line and a non-string field must NOT abort the whole list.

@@ -95,4 +95,16 @@ public static partial class ContainerCommands
         // Logs may go to stderr; merge so we capture everything.
         return VolumeCommands.PathPrefix + $"{dockerHead} logs --tail {lines} '{id}' 2>&1";
     }
+
+    /// <summary>
+    /// A non-streaming snapshot of container lifecycle events from the last <paramref name="sinceHours"/> hours.
+    /// Both <c>--since</c> and <c>--until</c> are set so <c>docker events</c> returns the window and exits
+    /// (with only <c>--since</c> it would keep streaming live and block the SSH command).
+    /// </summary>
+    public static string Events(string dockerHead, int sinceHours)
+    {
+        var hours = Math.Clamp(sinceHours, 1, 168);
+        return VolumeCommands.PathPrefix + dockerHead +
+               " events --since " + hours + "h --until 0s --filter type=container --format '{{json .}}'";
+    }
 }

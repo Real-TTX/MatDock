@@ -140,6 +140,37 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>
+    /// Recent container lifecycle events (created/started/stopped/…) from the last <paramref name="sinceHours"/>
+    /// hours, newest first. Best-effort: returns an empty list if the host is unreachable or its Docker is too
+    /// old to support the events window.
+    /// </summary>
+    public async Task<IReadOnlyList<ContainerEvent>> ListEventsAsync(DockerEnvironment environment, int sinceHours = 24, CancellationToken ct = default)
+    {
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _hostSessionFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var result = await RunCommandAsync(client, ContainerCommands.Events(head, sinceHours), ct);
+            if (result.ExitStatus != 0)
+            {
+                return Array.Empty<ContainerEvent>();
+            }
+
+            return ParseEvents(result.StdOut)
+                .OrderByDescending(e => e.TimeUtc)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "docker events unavailable for env {Env}.", environment.Id);
+            return Array.Empty<ContainerEvent>();
+        }
+    }
+
     /// <summary>One container by id plus its mounts and live stats. Container is null if not found / unreachable.</summary>
     public async Task<(DockerContainer? Container, IReadOnlyList<ContainerMount> Mounts)> GetDetailAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
     {
@@ -326,6 +357,91 @@ public sealed class ContainerService
     /// <summary>Merges <c>docker stats --format json</c> output into the matching containers (by id).</summary>
     public static void ApplyStats(IReadOnlyList<DockerContainer> containers, string statsOutput)
         => MergeStats(containers, ParseStats(statsOutput));
+
+    /// <summary>Parses the JSON-lines output of <c>docker events --format '{{json .}}'</c> into events.</summary>
+    public static IReadOnlyList<ContainerEvent> ParseEvents(string output)
+    {
+        var list = new List<ContainerEvent>();
+        foreach (var line in output.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                static string? Str(JsonElement e, string name) =>
+                    e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+                // Defensive: the command already filters to container, but a mixed daemon could still slip.
+                var type = Str(root, "Type") ?? "container";
+                if (!string.Equals(type, "container", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // Newer daemons emit "Action"; legacy ones "status". Actions may carry a suffix
+                // ("exec_create: sh") — keep only the head token, lower-cased.
+                var action = Str(root, "Action") ?? Str(root, "status") ?? string.Empty;
+                var colon = action.IndexOf(':');
+                if (colon > 0)
+                {
+                    action = action[..colon];
+                }
+
+                action = action.Trim().ToLowerInvariant();
+                if (action.Length == 0)
+                {
+                    continue;
+                }
+
+                string? name = null, image = null;
+                var id = Str(root, "id");
+                if (root.TryGetProperty("Actor", out var actor) && actor.ValueKind == JsonValueKind.Object)
+                {
+                    id = Str(actor, "ID") ?? id;
+                    if (actor.TryGetProperty("Attributes", out var attrs) && attrs.ValueKind == JsonValueKind.Object)
+                    {
+                        name = Str(attrs, "name");
+                        image = Str(attrs, "image");
+                    }
+                }
+
+                image ??= Str(root, "from"); // legacy: image is reported as "from"
+                var shortId = string.IsNullOrEmpty(id) ? string.Empty : ShortId(id);
+
+                long unix = 0;
+                if (root.TryGetProperty("time", out var t) && t.ValueKind == JsonValueKind.Number)
+                {
+                    unix = t.GetInt64();
+                }
+
+                var timeUtc = unix > 0 ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime : default;
+
+                list.Add(new ContainerEvent(
+                    timeUtc,
+                    action,
+                    name ?? (shortId.Length > 0 ? shortId : "?"),
+                    image,
+                    shortId));
+            }
+            catch (JsonException)
+            {
+                // skip malformed line
+            }
+        }
+
+        return list;
+    }
 
     /// <summary>Parses the JSON array from <c>docker inspect --format '{{json .Mounts}}'</c>.</summary>
     public static IReadOnlyList<ContainerMount> ParseMounts(string json)
