@@ -4,16 +4,23 @@
 @{
     ViewData["Title"] = "Container";
     var ci = System.Globalization.CultureInfo.InvariantCulture;
-    string SearchKey(DockerContainer c) => $"{c.Name} {c.Image} {c.Service} {c.Project} {c.Ports}".ToLowerInvariant();
+    var showEnv = Model.IsAll;
+    string SearchKey(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r) => $"{r.Env.Name} {r.Container.Name} {r.Container.Image} {r.Container.Service} {r.Container.Project} {r.Container.Ports}".ToLowerInvariant();
     string CpuText(DockerContainer c) => c.CpuPercent is { } v ? $"{v.ToString("0.0", ci)}%" : "–";
     string Pct(double? v) => Math.Clamp(v ?? 0, 0, 100).ToString(ci);
 
-    async Task Row(DockerContainer c)
+    async Task Row(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r)
     {
-        var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.SelectedEnvironment?.BaseUrl);
-        <tr data-search="@SearchKey(c)">
+        var env = r.Env;
+        var c = r.Container;
+        var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, env.BaseUrl);
+        <tr data-search="@SearchKey(r)">
+            @if (showEnv)
+            {
+                <td class="cell-sub">@env.Name</td>
+            }
             <td class="wrap">
-                <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
+                <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
                 @if (!string.IsNullOrEmpty(c.Project))
                 {
                     <div class="cell-sub">@c.Project@(string.IsNullOrEmpty(c.Service) ? "" : " / " + c.Service)</div>
@@ -59,16 +66,16 @@
                     {
                         <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Öffnen"><icon name="external" /></a>
                     }
-                    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                     @if (c.IsRunning)
                     {
                         <form method="post" asp-page-handler="Action" style="display:inline;">
-                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="action" value="Restart" />
                             <button type="submit" class="mat-btn mat-btn--sm" title="Neustart"><icon name="refresh" /></button>
                         </form>
                         <form method="post" asp-page-handler="Action" data-confirm="Container „@c.Name“ stoppen?" style="display:inline;">
-                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="action" value="Stop" />
                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
                         </form>
@@ -76,7 +83,7 @@
                     else
                     {
                         <form method="post" asp-page-handler="Action" style="display:inline;">
-                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="action" value="Start" />
                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
                         </form>
@@ -90,7 +97,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Container</h1>
-        <span class="page-head__subtitle">Alle Container je Environment (Stacks unter „Stacks")</span>
+        <span class="page-head__subtitle">@(Model.IsAll ? "Alle Container über alle Environments" : "Container des gewählten Environments") · Stacks unter „Stacks"</span>
     </div>
 </div>
 
@@ -100,62 +107,46 @@
         <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
     </div>
 }
+@foreach (var err in Model.LoadErrors)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@err</span></div>
+}
 
 <div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:16px;">
-    <form method="get" class="js-autosubmit" style="display:contents;">
-        <div class="toolbar-field">
-            <label for="env"><icon name="server" /> Environment</label>
-            <select id="env" name="EnvId" class="mat-select">
-                <option value="0">— wählen —</option>
-                @foreach (var env in Model.Environments)
-                {
-                    <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
-                }
-            </select>
-        </div>
-    </form>
-    @if (Model.SelectedEnvironment is not null)
-    {
-        <div class="search">
-            <icon name="search" />
-            <input type="search" id="container-filter" class="mat-input" placeholder="Filtern (Name, Image, Stack, Port)…" autocomplete="off" />
-        </div>
-    }
+    <div class="search">
+        <icon name="search" />
+        <input type="search" id="container-filter" class="mat-input" placeholder="Filtern (Name, Image, Stack, Env, Port)…" autocomplete="off" />
+    </div>
     <span class="toolbar-spacer"></span>
-    @if (Model.SelectedEnvironment is not null)
-    {
-        <span class="text-muted"><strong>@Model.Containers.Count</strong> Container</span>
-        <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@Model.EnvId"><icon name="refresh" /><span>Aktualisieren</span></a>
-    }
+    <span class="text-muted"><strong>@Model.Rows.Count</strong> Container</span>
+    <a class="mat-btn mat-btn--sm" href="/Containers"><icon name="refresh" /><span>Aktualisieren</span></a>
 </div>
 
-@if (Model.SelectedEnvironment is null)
+@if (Model.Environments.Count == 0)
 {
-    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Environment wählen, um Container anzuzeigen.</p></div></div>
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Kein aktives Environment. Lege eines an oder aktiviere eines.</p></div></div>
 }
-else if (Model.Error is not null)
+else if (Model.Rows.Count == 0)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>Container konnten nicht geladen werden: @Model.Error</span></div>
-}
-else if (Model.Containers.Count == 0)
-{
-    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Keine Container auf diesem Host.</p></div></div>
+    <div class="card"><div class="empty-state"><div><icon name="box" /></div><p>Keine Container gefunden.</p></div></div>
 }
 else
 {
     <div class="card" style="padding:0;">
         <table class="data ctable" id="container-table">
-            <colgroup>
-                <col style="width:22%" /><col style="width:18%" /><col style="width:14%" />
-                <col style="width:16%" /><col style="width:9%" /><col style="width:11%" /><col style="width:10%" />
-            </colgroup>
             <thead>
-                <tr><th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th></tr>
+                <tr>
+                    @if (showEnv)
+                    {
+                        <th>Environment</th>
+                    }
+                    <th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Aktionen</th>
+                </tr>
             </thead>
             <tbody>
-                @foreach (var c in Model.Containers.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                @foreach (var r in Model.Rows)
                 {
-                    await Row(c);
+                    await Row(r);
                 }
             </tbody>
         </table>

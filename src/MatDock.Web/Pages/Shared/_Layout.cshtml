@@ -1,4 +1,5 @@
 @using System.Security.Claims
+@inject MatDock.Core.Environments.EnvironmentService EnvSvc
 @{
     var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
     bool IsActive(string prefix) => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
@@ -41,6 +42,22 @@
                             <span class="brand__version">@AppVersion.Informational</span>
                         </span>
                     </a>
+                </div>
+
+                @{
+                    var globalEnvs = await EnvSvc.GetAllAsync(Context.RequestAborted);
+                    var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
+                }
+                <div class="sidebar__env">
+                    <label for="global-env"><icon name="server" /> Environment</label>
+                    <select id="global-env" class="mat-select" aria-label="Environment wählen"
+                            onchange="location.search='?EnvId='+encodeURIComponent(this.value)">
+                        <option value="0" selected="@(currentEnv is null)">Alle Environments</option>
+                        @foreach (var env in globalEnvs)
+                        {
+                            <option value="@env.Id" selected="@(currentEnv == env.Id)">@env.Name</option>
+                        }
+                    </select>
                 </div>
 
                 <nav class="sidebar__nav" aria-label="Hauptnavigation">

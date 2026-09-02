@@ -1,6 +1,7 @@
 using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -17,50 +18,57 @@ public class IndexModel : PageModel
         _environmentService = environmentService;
     }
 
-    [BindProperty(SupportsGet = true)]
-    public long EnvId { get; set; }
+    /// <summary>Globally selected environment (null = all), from the sidebar dropdown / cookie.</summary>
+    public long? SelectedEnvId { get; private set; }
+    public bool IsAll => SelectedEnvId is null;
 
     public List<DockerEnvironment> Environments { get; private set; } = new();
-    public DockerEnvironment? SelectedEnvironment { get; private set; }
-    public List<DockerContainer> Containers { get; private set; } = new();
-    public string? Error { get; private set; }
+    public List<ContainerRow> Rows { get; private set; } = new();
+    public List<string> LoadErrors { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
 
+    public sealed record ContainerRow(DockerEnvironment Env, DockerContainer Container);
+
     public async Task OnGetAsync()
     {
+        SelectedEnvId = EnvSelection.Resolve(HttpContext);
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
-        if (EnvId <= 0)
-        {
-            return;
-        }
 
-        SelectedEnvironment = Environments.FirstOrDefault(e => e.Id == EnvId);
-        if (SelectedEnvironment is null)
-        {
-            return;
-        }
+        var targets = IsAll
+            ? Environments
+            : Environments.Where(e => e.Id == SelectedEnvId).ToList();
 
-        try
+        var tasks = targets.Select(async env =>
         {
-            Containers = (await _containerService.ListAsync(SelectedEnvironment, HttpContext.RequestAborted)).ToList();
-        }
-        catch (Exception ex)
-        {
-            Error = ex.Message;
-        }
+            try
+            {
+                var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted);
+                return (env, containers, error: (string?)null);
+            }
+            catch (Exception ex)
+            {
+                return (env, containers: (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(), error: (string?)ex.Message);
+            }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        Rows = results
+            .SelectMany(r => r.containers.Select(c => new ContainerRow(r.env, c)))
+            .OrderBy(r => r.Env.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Container.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        LoadErrors = results.Where(r => r.error is not null).Select(r => $"{r.env.Name}: {r.error}").ToList();
     }
 
     public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action)
     {
-        // An unbindable action (crafted POST) leaves the enum at its default (Start); reject it
-        // instead of silently starting the container.
         if (!ModelState.IsValid)
         {
             StatusMessage = "Ungültige Aktion.";
             IsError = true;
-            return RedirectToPage(new { EnvId = envId });
+            return RedirectToPage();
         }
 
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
@@ -68,12 +76,12 @@ public class IndexModel : PageModel
         {
             StatusMessage = "Environment nicht verfügbar (deaktiviert oder gelöscht).";
             IsError = true;
-            return RedirectToPage(new { EnvId = envId });
+            return RedirectToPage();
         }
 
         var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
         StatusMessage = $"{action} {id}: {message}";
         IsError = !ok;
-        return RedirectToPage(new { EnvId = envId });
+        return RedirectToPage();
     }
 }

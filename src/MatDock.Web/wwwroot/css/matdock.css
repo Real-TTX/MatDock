@@ -121,6 +121,10 @@ h2 { font-size: 1.2rem; }
 .brand__name { font-weight: 750; font-size: 1.15rem; letter-spacing: .2px; }
 .brand__version { font-size: .68rem; color: var(--text-muted); font-family: var(--mono); }
 
+.sidebar__env { padding: 4px 12px 10px; display: flex; flex-direction: column; gap: 5px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.sidebar__env label { font-size: .72rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: .03em; }
+.sidebar__env .mat-select { width: 100%; padding: 7px 10px; font-size: .86rem; }
+
 .sidebar__nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; overflow-y: auto; }
 
 .nav-link {

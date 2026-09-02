@@ -2,6 +2,7 @@ using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Stacks;
+using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -20,69 +21,74 @@ public class IndexModel : PageModel
         _containerService = containerService;
     }
 
-    /// <summary>Environment filter (0 = all). Discovered/running stacks are only scanned for a selected env.</summary>
-    [BindProperty(SupportsGet = true)]
-    public long EnvId { get; set; }
+    /// <summary>Globally selected environment (0 = all), from the sidebar dropdown / cookie.</summary>
+    public long EnvId { get; private set; }
+    public bool IsAll => EnvId <= 0;
 
-    public List<DockerEnvironment> Environments { get; private set; } = new();
-    public DockerEnvironment? SelectedEnvironment { get; private set; }
     public List<StackRow> Rows { get; private set; } = new();
-    public string? Error { get; private set; }
+    public List<string> LoadErrors { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
     [TempData] public string? Output { get; set; }
 
-    /// <summary>A managed and/or currently-running compose stack on a host.</summary>
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
-        public bool IsStopped => Total == 0 || Running == 0;
     }
 
     public async Task OnGetAsync()
     {
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
-        var envById = Environments.ToDictionary(e => e.Id);
-        if (EnvId > 0)
-        {
-            SelectedEnvironment = envById.GetValueOrDefault(EnvId);
-        }
+        EnvId = EnvSelection.Resolve(HttpContext) ?? 0;
+
+        var allEnvs = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
+        var envById = allEnvs.ToDictionary(e => e.Id);
 
         var managed = await _stackService.GetAllAsync(HttpContext.RequestAborted);
-        if (EnvId > 0)
+        if (!IsAll)
         {
             managed = managed.Where(s => s.EnvironmentId == EnvId).ToList();
         }
 
-        // Discover compose projects (running or stopped) — only for a selected, enabled env (one host call;
-        // avoids fanning out SSH to every environment on each page view).
+        // Discover compose projects (running or stopped) on the target hosts — the selected env, or all
+        // enabled envs when "all" is chosen (parallel, best-effort; per-env errors surfaced inline).
+        var enabled = allEnvs.Where(e => e.IsEnabled && (IsAll || e.Id == EnvId)).ToList();
         var discovered = new Dictionary<(long, string), (int Running, int Total)>();
-        if (SelectedEnvironment is { IsEnabled: true })
+
+        var scans = enabled.Select(async env =>
         {
             try
             {
-                // No stats needed for the overview -> skip the costly `docker stats` call.
-                var containers = await _containerService.ListAsync(SelectedEnvironment, HttpContext.RequestAborted, includeStats: false);
-                foreach (var group in containers
-                             .Where(c => !string.IsNullOrEmpty(c.Project))
-                             .GroupBy(c => c.Project!))
-                {
-                    var running = group.Count(c => c.IsRunning);
-                    // Don't let a cleanly-finished one-shot/init container (Exited 0) make an otherwise-up
-                    // stack look "partial". A crashed (non-zero exit) container still counts as not-running.
-                    var total = running > 0
-                        ? running + group.Count(c => !c.IsRunning && !IsCleanExit(c))
-                        : group.Count();
-                    discovered[(SelectedEnvironment.Id, group.Key)] = (running, total);
-                }
+                var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted, includeStats: false);
+                return (env, containers, error: (string?)null);
             }
             catch (Exception ex)
             {
-                Error = ex.Message;
+                return (env, (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(), error: ex.Message);
+            }
+        });
+        var results = await Task.WhenAll(scans);
+
+        foreach (var (env, containers, error) in results)
+        {
+            if (error is not null)
+            {
+                LoadErrors.Add($"{env.Name}: {error}");
+                continue;
+            }
+
+            foreach (var group in containers.Where(c => !string.IsNullOrEmpty(c.Project)).GroupBy(c => c.Project!))
+            {
+                var running = group.Count(c => c.IsRunning);
+                // A cleanly-finished one-shot/init container (Exited 0) shouldn't make an otherwise-up stack
+                // look partial; a crashed (non-zero) container still counts as not-running.
+                var total = running > 0
+                    ? running + group.Count(c => !c.IsRunning && !IsCleanExit(c))
+                    : group.Count();
+                discovered[(env.Id, group.Key)] = (running, total);
             }
         }
 
@@ -95,19 +101,18 @@ public class IndexModel : PageModel
             var live = discovered.TryGetValue(key, out var d) ? d : default;
             rows.Add(new StackRow(s.Id, s.EnvironmentId, EnvName(envById, s.EnvironmentId), s.Name,
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
-                Running: live.Running, Total: live.Total, s.LastDeployedAt, s.LastStatus));
+                live.Running, live.Total, s.LastDeployedAt, s.LastStatus));
         }
 
         foreach (var ((envId, project), d) in discovered)
         {
             if (managedKeys.Contains((envId, project)))
             {
-                continue; // already shown as a managed stack (with its live status merged in)
+                continue;
             }
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
-                Managed: false, Discovered: true, GitBacked: false,
-                Running: d.Running, Total: d.Total, null, null));
+                Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null));
         }
 
         Rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
@@ -116,7 +121,6 @@ public class IndexModel : PageModel
     private static string EnvName(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
         => byId.TryGetValue(id, out var e) ? e.Name : $"#{id}";
 
-    /// <summary>A container that exited successfully (a completed one-shot/init service, not a crash).</summary>
     private static bool IsCleanExit(DockerContainer c)
         => string.Equals(c.State, "exited", StringComparison.OrdinalIgnoreCase) && c.Status.Contains("(0)", StringComparison.Ordinal);
 
@@ -126,7 +130,7 @@ public class IndexModel : PageModel
         StatusMessage = ok ? "Stack deployt." : "Deploy fehlgeschlagen.";
         IsError = !ok;
         Output = output;
-        return RedirectToPage(new { EnvId });
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDownAsync(long id)
@@ -135,7 +139,7 @@ public class IndexModel : PageModel
         StatusMessage = ok ? "Stack gestoppt." : "Stoppen fehlgeschlagen.";
         IsError = !ok;
         Output = output;
-        return RedirectToPage(new { EnvId });
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)
@@ -143,6 +147,6 @@ public class IndexModel : PageModel
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);
         StatusMessage = deleted ? "Stack gelöscht (Container bleiben ggf. laufend – vorher stoppen)." : "Stack nicht gefunden.";
         IsError = !deleted;
-        return RedirectToPage(new { EnvId });
+        return RedirectToPage();
     }
 }

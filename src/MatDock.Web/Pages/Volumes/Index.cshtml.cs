@@ -61,6 +61,9 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
+        // The environment is chosen globally (sidebar dropdown / cookie); 0 = all.
+        EnvId = MatDock.Web.Support.EnvSelection.Resolve(HttpContext) ?? 0;
+
         // Deactivated environments are excluded (not queried, not shown in the picker).
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
 

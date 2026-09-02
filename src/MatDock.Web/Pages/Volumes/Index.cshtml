@@ -7,7 +7,7 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Volumes</h1>
-        <span class="page-head__subtitle">Alle Docker-Volumes über alle Environments</span>
+        <span class="page-head__subtitle">@(Model.EnvId > 0 ? "Docker-Volumes des gewählten Environments" : "Alle Docker-Volumes über alle Environments")</span>
     </div>
     <div class="mat-buttons">
         <a href="/Backups" class="mat-btn"><icon name="save" /><span>Backups</span></a>
@@ -35,16 +35,6 @@
 <mat-table>
     <mat-table-toolbar>
         <form method="get" class="js-autosubmit" style="display:contents;">
-            <div class="toolbar-field">
-                <label for="filter-env"><icon name="server" /> Environment</label>
-                <select id="filter-env" name="EnvId" class="mat-select">
-                    <option value="0">Alle Environments</option>
-                    @foreach (var env in Model.Environments)
-                    {
-                        <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
-                    }
-                </select>
-            </div>
             <div class="search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Suchen (Volume, Mountpoint, Environment)…" />
