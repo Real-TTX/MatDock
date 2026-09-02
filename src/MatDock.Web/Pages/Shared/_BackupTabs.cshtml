@@ -1,0 +1,8 @@
+@{
+    var bp = Context.Request.Path.Value ?? "";
+    bool On(string s) => bp.StartsWith(s, StringComparison.OrdinalIgnoreCase);
+}
+<nav class="mat-tabs">
+    <a class="mat-tabs__tab @(On("/Schedules") ? "is-active" : "")" href="/Schedules"><icon name="clock" /><span>Jobs</span></a>
+    <a class="mat-tabs__tab @(On("/Backups") ? "is-active" : "")" href="/Backups"><icon name="save" /><span>History</span></a>
+</nav>

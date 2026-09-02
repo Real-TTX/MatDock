@@ -104,7 +104,7 @@ builder.Services.AddRazorPages(options =>
     // Managed stacks deploy arbitrary compose (= arbitrary containers/binds) → admins only.
     options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
     // App templates feed the stack editor (same power) → admins only.
-    options.Conventions.AuthorizeFolder("/Templates", "AdminOnly");
+    options.Conventions.AuthorizeFolder("/Apps", "AdminOnly");
     // Git credentials hold secrets and drive stack clones → admins only.
     options.Conventions.AuthorizeFolder("/GitCredentials", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.

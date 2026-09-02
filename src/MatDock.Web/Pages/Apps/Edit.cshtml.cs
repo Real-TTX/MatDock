@@ -3,7 +3,7 @@ using MatDock.Core.Templates;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace MatDock.Web.Pages.Templates;
+namespace MatDock.Web.Pages.Apps;
 
 public class EditModel : PageModel
 {

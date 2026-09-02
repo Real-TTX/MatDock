@@ -60,50 +60,41 @@
                     </select>
                 </div>
 
-                <nav class="sidebar__nav" aria-label="Hauptnavigation">
+                <nav class="sidebar__nav" aria-label="Main navigation">
                     <a class="nav-link @(IsActive("/") && path == "/" ? "is-active" : "")" href="/">
                         <icon name="dashboard" /><span>Dashboard</span>
                     </a>
                     <a class="nav-link @(IsActive("/Environments") ? "is-active" : "")" href="/Environments">
                         <icon name="server" /><span>Environments</span>
                     </a>
-                    <a class="nav-link @(IsActive("/Containers") ? "is-active" : "")" href="/Containers">
-                        <icon name="box" /><span>Container</span>
-                    </a>
                     @if (isAdmin)
                     {
                         <a class="nav-link @(IsActive("/Stacks") ? "is-active" : "")" href="/Stacks">
                             <icon name="layers" /><span>Stacks</span>
                         </a>
-                        <a class="nav-link @(IsActive("/Templates") ? "is-active" : "")" href="/Templates">
-                            <icon name="template" /><span>Vorlagen</span>
-                        </a>
-                        <a class="nav-link @(IsActive("/GitCredentials") ? "is-active" : "")" href="/GitCredentials">
-                            <icon name="key" /><span>Git-Zugänge</span>
-                        </a>
                     }
+                    <a class="nav-link @(IsActive("/Containers") ? "is-active" : "")" href="/Containers">
+                        <icon name="box" /><span>Containers</span>
+                    </a>
                     <a class="nav-link @(IsActive("/Volumes") ? "is-active" : "")" href="/Volumes">
                         <icon name="volume" /><span>Volumes</span>
                     </a>
-                    <a class="nav-link @(IsActive("/Backups") ? "is-active" : "")" href="/Backups">
+                    <a class="nav-link @(IsActive("/Backups") || IsActive("/Schedules") ? "is-active" : "")" href="/Backups">
                         <icon name="save" /><span>Backups</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Schedules") ? "is-active" : "")" href="/Schedules">
-                        <icon name="clock" /><span>Zeitpläne</span>
                     </a>
                     @if (isAdmin)
                     {
-                        <a class="nav-link @(IsActive("/Users") ? "is-active" : "")" href="/Users">
-                            <icon name="users" /><span>Benutzer</span>
+                        <a class="nav-link @(IsActive("/Apps") ? "is-active" : "")" href="/Apps">
+                            <icon name="template" /><span>Apps</span>
                         </a>
-                        <a class="nav-link @(IsActive("/Settings") ? "is-active" : "")" href="/Settings">
+                        <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") ? "is-active" : "")" href="/Settings">
                             <icon name="settings" /><span>System</span>
                         </a>
                     }
                 </nav>
 
                 <div class="sidebar__footer">
-                    <a class="account" href="/Account/Profile" title="Profil">
+                    <a class="account" href="/Account/Profile" title="Profile">
                         <span class="account__avatar"><icon name="user" /></span>
                         <span class="account__meta">
                             <span class="account__name">@User.GetDisplayName()</span>
@@ -111,15 +102,15 @@
                         </span>
                     </a>
 
-                    <div class="theme-switch" role="group" aria-label="Design">
+                    <div class="theme-switch" role="group" aria-label="Theme">
                         <button type="button" class="theme-switch__btn" data-theme-set="system" title="System"><icon name="monitor" /></button>
-                        <button type="button" class="theme-switch__btn" data-theme-set="light" title="Hell"><icon name="sun" /></button>
-                        <button type="button" class="theme-switch__btn" data-theme-set="dark" title="Dunkel"><icon name="moon" /></button>
+                        <button type="button" class="theme-switch__btn" data-theme-set="light" title="Light"><icon name="sun" /></button>
+                        <button type="button" class="theme-switch__btn" data-theme-set="dark" title="Dark"><icon name="moon" /></button>
                     </div>
 
                     <form method="post" asp-page="/Account/Logout" class="logout-form">
                         <button type="submit" class="nav-link nav-link--logout">
-                            <icon name="logout" /><span>Abmelden</span>
+                            <icon name="logout" /><span>Sign out</span>
                         </button>
                     </form>
                 </div>
@@ -127,7 +118,7 @@
 
             <div class="content">
                 <header class="topbar">
-                    <label for="nav-toggle" class="topbar__menu" aria-label="Menü">
+                    <label for="nav-toggle" class="topbar__menu" aria-label="Menu">
                         <icon name="menu" />
                     </label>
                     <span class="topbar__title">@ViewData["Title"]</span>

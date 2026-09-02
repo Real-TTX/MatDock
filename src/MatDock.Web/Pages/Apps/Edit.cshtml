@@ -1,5 +1,5 @@
 @page
-@model MatDock.Web.Pages.Templates.EditModel
+@model MatDock.Web.Pages.Apps.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Vorlage bearbeiten" : "Neue Vorlage";
 }
@@ -37,7 +37,7 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Speichern</span></button>
-                <a href="/Templates" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
+                <a href="/Apps" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Zurück</span></a>
             </mat-form-buttons>
         </form>
     </div>

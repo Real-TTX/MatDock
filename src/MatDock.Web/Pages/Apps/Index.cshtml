@@ -1,5 +1,5 @@
 @page
-@model MatDock.Web.Pages.Templates.IndexModel
+@model MatDock.Web.Pages.Apps.IndexModel
 @{
     ViewData["Title"] = "Vorlagen";
 }
@@ -10,7 +10,7 @@
         <span class="page-head__subtitle">App-Vorlagen (Compose-Blueprints) anlegen &amp; installieren</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Templates/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neue Vorlage</span></a>
+        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Neue Vorlage</span></a>
     </div>
 </div>
 
@@ -34,13 +34,13 @@
             @foreach (var t in Model.Templates)
             {
                 <tr>
-                    <td><a href="/Templates/Edit?id=@t.Id"><strong>@t.Name</strong></a></td>
+                    <td><a href="/Apps/Edit?id=@t.Id"><strong>@t.Name</strong></a></td>
                     <td class="text-muted">@(string.IsNullOrEmpty(t.Category) ? "–" : t.Category)</td>
                     <td class="cell-sub">@(string.IsNullOrEmpty(t.Description) ? "–" : t.Description)</td>
                     <td class="actions">
                         <div class="row-actions">
                             <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Installieren"><icon name="download" /><span>Installieren</span></a>
-                            <a class="mat-btn mat-btn--sm" href="/Templates/Edit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
+                            <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Bearbeiten"><icon name="edit" /></a>
                             <span style="width:8px;display:inline-block;"></span>
                             <form method="post" asp-page-handler="Delete" data-confirm="Vorlage „@t.Name“ löschen?" style="display:inline;">
                                 <input type="hidden" name="id" value="@t.Id" />

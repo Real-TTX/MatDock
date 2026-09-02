@@ -94,7 +94,7 @@ public class EditModel : PageModel
             var template = await _templateService.GetAsync(templateId.Value, HttpContext.RequestAborted);
             if (template is null)
             {
-                return RedirectToPage("/Templates/Index");
+                return RedirectToPage("/Apps/Index");
             }
 
             FromTemplateName = template.Name;
