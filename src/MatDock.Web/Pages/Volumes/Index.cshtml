@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.Volumes.IndexModel
 @{
     ViewData["Title"] = "Volumes";
+    var isAdmin = User.IsInRole("Admin");
 }
 
 <div class="page-head">
@@ -91,12 +92,17 @@
                                 </td>
                                 <td class="actions">
                                     <div class="row-actions">
+                                        <a class="mat-btn mat-btn--sm" href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="Open"><icon name="external" /></a>
+                                        @if (isAdmin)
+                                        {
+                                            <a class="mat-btn mat-btn--sm" href="/Volumes/Files?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="File explorer"><icon name="edit" /></a>
+                                        }
+                                        <button type="submit" asp-page-handler="Backup" name="single" value="@row.Environment.Id|@row.Volume.Name"
+                                                class="mat-btn mat-btn--sm" title="Create backup"><icon name="save" /></button>
+                                        <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore from backup"><icon name="refresh" /></a>
                                         <a class="mat-btn mat-btn--sm"
                                            href="/Environments/Migrate?sourceId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"
-                                           title="Migrate"><icon name="server" /><span>Migrate</span></a>
-                                        <button type="submit" asp-page-handler="Backup" name="single" value="@row.Environment.Id|@row.Volume.Name"
-                                                class="mat-btn mat-btn--sm" title="Create backup"><icon name="save" /><span>Backup</span></button>
-                                        <a class="mat-btn mat-btn--sm" href="/Backups?Volume=@Uri.EscapeDataString(row.Volume.Name)" title="Restore from backup"><icon name="refresh" /><span>Restore</span></a>
+                                           title="Migrate"><icon name="server" /></a>
                                     </div>
                                 </td>
                             </tr>
