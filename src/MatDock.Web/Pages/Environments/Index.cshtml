@@ -123,6 +123,11 @@
                             <span style="flex:1 1 auto;"></span>
                             @if (env.IsEnabled)
                             {
+                                <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
+                                }
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                                 @if (User.IsInRole("Admin"))
                                 {
@@ -212,6 +217,11 @@
                                 <div class="row-actions">
                                     @if (env.IsEnabled)
                                     {
+                                        <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
+                                        @if (User.IsInRole("Admin"))
+                                        {
+                                            <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
+                                        }
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                                         @if (User.IsInRole("Admin"))
                                         {

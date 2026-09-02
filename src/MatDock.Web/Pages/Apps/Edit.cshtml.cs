@@ -34,6 +34,10 @@ public class EditModel : PageModel
         [StringLength(500)]
         public string? Description { get; set; }
 
+        [StringLength(500)]
+        [Url(ErrorMessage = "Icon must be a valid URL.")]
+        public string? IconUrl { get; set; }
+
         [Required(ErrorMessage = "Compose YAML is required.")]
         public string ComposeYaml { get; set; } = string.Empty;
     }
@@ -54,6 +58,7 @@ public class EditModel : PageModel
                 Name = template.Name,
                 Category = template.Category,
                 Description = template.Description,
+                IconUrl = template.IconUrl,
                 ComposeYaml = template.ComposeYaml,
             };
         }
@@ -77,6 +82,7 @@ public class EditModel : PageModel
             Name = Input.Name,
             Category = Input.Category,
             Description = Input.Description,
+            IconUrl = Input.IconUrl,
             ComposeYaml = Input.ComposeYaml,
         };
 

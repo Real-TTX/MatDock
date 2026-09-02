@@ -14,5 +14,8 @@ public class StackTemplate : AuditableEntity
 
     public string? Description { get; set; }
 
+    /// <summary>Optional URL to an app logo shown on the Apps page. Empty falls back to a letter avatar.</summary>
+    public string? IconUrl { get; set; }
+
     public string ComposeYaml { get; set; } = string.Empty;
 }

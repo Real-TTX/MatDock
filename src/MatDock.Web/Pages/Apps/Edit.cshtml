@@ -1,7 +1,7 @@
 @page
 @model MatDock.Web.Pages.Apps.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Edit template" : "New template";
+    ViewData["Title"] = Model.IsEdit ? "Edit app" : "New app";
 }
 
 <div class="page-head">
@@ -28,6 +28,10 @@
 
                 <mat-field label="Description" asp-for="Input.Description" class="span-2">
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
+                </mat-field>
+
+                <mat-field label="Icon URL" asp-for="Input.IconUrl" class="span-2" hint="Optional logo URL for the app card; empty shows a letter avatar.">
+                    <input asp-for="Input.IconUrl" class="mat-input" placeholder="https://…/logo.png" />
                 </mat-field>
             </div>
 

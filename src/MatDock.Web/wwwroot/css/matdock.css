@@ -506,6 +506,20 @@ table.ctable td.num { text-align: left; }
 /* Container tiles reuse .env-card; just the grid wrapper differs. */
 .cbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); padding: 14px; }
 
+/* ============================================================================
+   Apps (template cards with icons)
+   ========================================================================== */
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); }
+.app-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: var(--lift); }
+.app-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.app-card__head { display: flex; align-items: center; gap: 14px; }
+.app-card__icon { width: 46px; height: 46px; border-radius: var(--radius-sm); flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; background: var(--surface-3); }
+.app-card__icon img { width: 100%; height: 100%; object-fit: contain; }
+.app-card__icon--letter { color: #fff; font-weight: 800; font-size: 1.35rem; }
+.app-card__name { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+.app-card__desc { font-size: .85rem; color: var(--text-muted); margin: 0; line-height: 1.45; }
+.app-card__foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+
 /* JS list/tile filters toggle [hidden]; force it to win over flex/grid display on cards. */
 [hidden] { display: none !important; }
 

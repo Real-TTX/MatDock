@@ -81,6 +81,7 @@ public sealed class StackTemplateService
         template.Name = input.Name.Trim();
         template.Category = string.IsNullOrWhiteSpace(input.Category) ? null : input.Category.Trim();
         template.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
+        template.IconUrl = string.IsNullOrWhiteSpace(input.IconUrl) ? null : input.IconUrl.Trim();
         template.ComposeYaml = input.ComposeYaml ?? string.Empty;
     }
 }

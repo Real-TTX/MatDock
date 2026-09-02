@@ -1,16 +1,25 @@
 @page
 @model MatDock.Web.Pages.Apps.IndexModel
 @{
-    ViewData["Title"] = "Templates";
+    ViewData["Title"] = "Apps";
+
+    // Deterministic accent for the letter avatar so each app keeps a stable colour.
+    string Accent(string name)
+    {
+        var hues = new[] { "#2563eb", "#0891b2", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#ca8a04", "#dc2626" };
+        int sum = 0;
+        foreach (var ch in name) { sum += ch; }
+        return hues[Math.Abs(sum) % hues.Length];
+    }
 }
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Templates</h1>
-        <span class="page-head__subtitle">Create &amp; install app templates (Compose blueprints)</span>
+        <h1>Apps</h1>
+        <span class="page-head__subtitle">Reusable Compose blueprints — install as a stack in one click</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New template</span></a>
+        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
     </div>
 </div>
 
@@ -21,35 +30,55 @@
     </div>
 }
 
-<div class="card" style="padding:0;">
-    <table class="data">
-        <thead>
-            <tr><th>Name</th><th>Category</th><th>Description</th><th class="actions">Actions</th></tr>
-        </thead>
-        <tbody>
-            @if (Model.Templates.Count == 0)
-            {
-                <tr><td colspan="4"><div class="empty-state"><div><icon name="template" /></div><p>No templates yet. Create one to install apps as a stack with a single click.</p></div></td></tr>
-            }
-            @foreach (var t in Model.Templates)
-            {
-                <tr>
-                    <td><a href="/Apps/Edit?id=@t.Id"><strong>@t.Name</strong></a></td>
-                    <td class="text-muted">@(string.IsNullOrEmpty(t.Category) ? "–" : t.Category)</td>
-                    <td class="cell-sub">@(string.IsNullOrEmpty(t.Description) ? "–" : t.Description)</td>
-                    <td class="actions">
-                        <div class="row-actions">
-                            <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install"><icon name="download" /><span>Install</span></a>
-                            <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Edit"><icon name="edit" /></a>
-                            <span style="width:8px;display:inline-block;"></span>
-                            <form method="post" asp-page-handler="Delete" data-confirm="Delete template '@t.Name'?" style="display:inline;">
-                                <input type="hidden" name="id" value="@t.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-</div>
+@if (Model.Templates.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div><icon name="template" /></div>
+            <p>No apps yet. Create one to install it as a stack with a single click.</p>
+            <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="app-grid">
+        @foreach (var t in Model.Templates)
+        {
+            <div class="app-card">
+                <div class="app-card__head">
+                    @if (!string.IsNullOrEmpty(t.IconUrl))
+                    {
+                        <span class="app-card__icon"><img src="@t.IconUrl" alt="" loading="lazy" referrerpolicy="no-referrer" /></span>
+                    }
+                    else
+                    {
+                        <span class="app-card__icon app-card__icon--letter" style="background:@Accent(t.Name);">@(string.IsNullOrEmpty(t.Name) ? "?" : char.ToUpperInvariant(t.Name[0]).ToString())</span>
+                    }
+                    <div style="min-width:0;">
+                        <div class="app-card__name"><a href="/Apps/Edit?id=@t.Id">@t.Name</a></div>
+                        @if (!string.IsNullOrEmpty(t.Category))
+                        {
+                            <span class="mat-badge">@t.Category</span>
+                        }
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(t.Description))
+                {
+                    <p class="app-card__desc">@t.Description</p>
+                }
+
+                <div class="app-card__foot">
+                    <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install as stack"><icon name="download" /><span>Install</span></a>
+                    <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="external" /><span>Open</span></a>
+                    <span style="flex:1 1 auto;"></span>
+                    <form method="post" asp-page-handler="Delete" data-confirm="Delete app '@t.Name'?" style="display:inline;">
+                        <input type="hidden" name="id" value="@t.Id" />
+                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+}
