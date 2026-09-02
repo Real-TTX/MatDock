@@ -35,6 +35,9 @@ public static class EnvSelection
         return FromCookie(ctx);
     }
 
+    /// <summary>Resets the selection to "all" (e.g. when the stored env was deleted/disabled).</summary>
+    public static void Clear(HttpContext ctx) => Write(ctx, 0);
+
     private static long? FromCookie(HttpContext ctx)
         => ctx.Request.Cookies.TryGetValue(Cookie, out var c) && long.TryParse(c, out var cid) && cid > 0 ? cid : null;
 

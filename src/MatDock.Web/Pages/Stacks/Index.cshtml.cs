@@ -47,6 +47,13 @@ public class IndexModel : PageModel
         var allEnvs = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
         var envById = allEnvs.ToDictionary(e => e.Id);
 
+        // Stale selection (env deleted or deactivated): fall back to "all" and clear the cookie.
+        if (EnvId > 0 && !allEnvs.Any(e => e.Id == EnvId && e.IsEnabled))
+        {
+            EnvId = 0;
+            EnvSelection.Clear(HttpContext);
+        }
+
         var managed = await _stackService.GetAllAsync(HttpContext.RequestAborted);
         if (!IsAll)
         {
@@ -58,8 +65,11 @@ public class IndexModel : PageModel
         var enabled = allEnvs.Where(e => e.IsEnabled && (IsAll || e.Id == EnvId)).ToList();
         var discovered = new Dictionary<(long, string), (int Running, int Total)>();
 
+        // Cap concurrent host connections so opening "all" never triggers an SSH auth storm / lockout.
+        using var gate = new SemaphoreSlim(4);
         var scans = enabled.Select(async env =>
         {
+            await gate.WaitAsync(HttpContext.RequestAborted);
             try
             {
                 var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted, includeStats: false);
@@ -68,6 +78,10 @@ public class IndexModel : PageModel
             catch (Exception ex)
             {
                 return (env, (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(), error: ex.Message);
+            }
+            finally
+            {
+                gate.Release();
             }
         });
         var results = await Task.WhenAll(scans);

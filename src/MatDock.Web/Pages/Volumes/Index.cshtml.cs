@@ -67,6 +67,13 @@ public class IndexModel : PageModel
         // Deactivated environments are excluded (not queried, not shown in the picker).
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
 
+        // Stale selection (env deleted or deactivated): fall back to "all" and clear the cookie.
+        if (EnvId > 0 && Environments.All(e => e.Id != EnvId))
+        {
+            EnvId = 0;
+            MatDock.Web.Support.EnvSelection.Clear(HttpContext);
+        }
+
         var targets = (EnvId > 0 ? Environments.Where(e => e.Id == EnvId) : Environments).ToList();
         var prepared = targets.Select(e => (Env: e, Settings: _environmentService.BuildSettings(e))).ToList();
 

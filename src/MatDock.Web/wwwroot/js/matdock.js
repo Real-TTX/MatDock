@@ -133,3 +133,13 @@
         }
     });
 })();
+
+/* Global environment selector (sidebar): persist the choice in a cookie and navigate to the current
+   top-level section's list. Avoids mangling detail-page URLs (which would drop required id params). */
+function matdockSetEnv(value) {
+    var v = value === "0" ? "all" : encodeURIComponent(value);
+    document.cookie = "matdock.env=" + v + ";path=/;max-age=31536000;samesite=lax";
+    var seg = "/" + (location.pathname.split("/")[1] || "");
+    var lists = ["/Containers", "/Volumes", "/Stacks", "/Environments"];
+    location.href = lists.indexOf(seg) >= 0 ? seg : "/";
+}
