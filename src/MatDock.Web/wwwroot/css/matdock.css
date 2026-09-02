@@ -477,6 +477,33 @@ table.ctable td.num { text-align: left; }
 .dash-metric__label { font-size: .78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
 
 /* ============================================================================
+   Stacks (expandable tiles -> container tiles)
+   ========================================================================== */
+.stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--gap); padding: 14px; }
+.stack-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); overflow: hidden; transition: var(--lift); }
+.stack-card:hover { box-shadow: var(--shadow-2); }
+.stack-card__head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; list-style: none; }
+.stack-card__head::-webkit-details-marker { display: none; }
+.stack-card__chev { color: var(--text-muted); transition: transform .18s; display: inline-flex; flex: 0 0 auto; }
+.stack-card[open] .stack-card__chev { transform: rotate(90deg); }
+.stack-card__title { min-width: 0; flex: 1 1 auto; }
+.stack-card__name { font-weight: 700; font-size: 1.02rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stack-card__name .pill, .stack-card__name .mat-badge { font-size: .7rem; padding: 1px 8px; }
+.stack-card__env { font-size: .8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.stack-card__env .mat-icon { font-size: .9rem; }
+.stack-card__body { padding: 0 16px 14px; border-top: 1px solid var(--border); }
+.stack-card__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+.ctile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
+.ctile { display: block; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-decoration: none; color: inherit; transition: var(--lift); }
+.ctile:hover { transform: translateY(-2px); box-shadow: var(--shadow-1); border-color: var(--border-strong); }
+.ctile__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ctile__name { font-weight: 650; font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctile__top .pill { font-size: .68rem; padding: 1px 7px; flex: 0 0 auto; }
+.ctile__img { font-family: var(--mono); font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 5px; }
+.ctile__meta { font-size: .72rem; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============================================================================
    Responsive / mobile
    ========================================================================== */
 @media (max-width: 760px) {

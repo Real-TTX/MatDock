@@ -64,7 +64,7 @@ public class EditModel : PageModel
         public long? GitCredentialId { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(long? id, long? templateId)
+    public async Task<IActionResult> OnGetAsync(long? id, long? templateId, string? source)
     {
         await LoadListsAsync();
 
@@ -100,6 +100,11 @@ public class EditModel : PageModel
             FromTemplateName = template.Name;
             Input.Name = StackCommands.Slugify(template.Name);
             Input.ComposeYaml = template.ComposeYaml;
+        }
+        else if (string.Equals(source, "git", StringComparison.OrdinalIgnoreCase))
+        {
+            // Deep link from the Stacks page: start a new stack on the Git source tab.
+            Input.Source = "git";
         }
         else if (string.IsNullOrEmpty(Input.ComposeYaml))
         {

@@ -20,6 +20,9 @@ services:
       MatDock__Admin__Password: admin
     volumes:
       - matdock-data:/data
+      # Optional: mount the host Docker socket so a "local" environment (ConnectionType = Local)
+      # can manage this host's Docker directly. Remove this line if you only use SSH environments.
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
 volumes:

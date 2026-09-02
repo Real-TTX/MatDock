@@ -10,6 +10,8 @@ namespace MatDock.Web.Pages.Stacks;
 
 public class IndexModel : PageModel
 {
+    private static readonly StringComparison Ic = StringComparison.OrdinalIgnoreCase;
+
     private readonly StackService _stackService;
     private readonly EnvironmentService _environmentService;
     private readonly ContainerService _containerService;
@@ -25,7 +27,20 @@ public class IndexModel : PageModel
     public long EnvId { get; private set; }
     public bool IsAll => EnvId <= 0;
 
+    [BindProperty(SupportsGet = true)]
+    public string View { get; set; } = "gallery";
+
+    [BindProperty(SupportsGet = true)]
+    public string? Q { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? Status { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? Type { get; set; }
+
     public List<StackRow> Rows { get; private set; } = new();
+    public int TotalCount { get; private set; }
     public List<string> LoadErrors { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
@@ -34,10 +49,14 @@ public class IndexModel : PageModel
 
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
-        bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus)
+        bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
+        IReadOnlyList<DockerContainer> Containers)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
+
+        /// <summary>Normalized status for filtering/display: running, partial or stopped.</summary>
+        public string StatusKind => IsRunning ? "running" : IsPartial ? "partial" : "stopped";
     }
 
     public async Task OnGetAsync()
@@ -63,7 +82,7 @@ public class IndexModel : PageModel
         // Discover compose projects (running or stopped) on the target hosts — the selected env, or all
         // enabled envs when "all" is chosen (parallel, best-effort; per-env errors surfaced inline).
         var enabled = allEnvs.Where(e => e.IsEnabled && (IsAll || e.Id == EnvId)).ToList();
-        var discovered = new Dictionary<(long, string), (int Running, int Total)>();
+        var discovered = new Dictionary<(long, string), (int Running, int Total, List<DockerContainer> Containers)>();
 
         // Cap concurrent host connections so opening "all" never triggers an SSH auth storm / lockout.
         using var gate = new SemaphoreSlim(4);
@@ -102,7 +121,11 @@ public class IndexModel : PageModel
                 var total = running > 0
                     ? running + group.Count(c => !c.IsRunning && !IsCleanExit(c))
                     : group.Count();
-                discovered[(env.Id, group.Key)] = (running, total);
+                var ordered = group
+                    .OrderByDescending(c => c.IsRunning)
+                    .ThenBy(c => c.Service ?? c.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                discovered[(env.Id, group.Key)] = (running, total, ordered);
             }
         }
 
@@ -115,7 +138,8 @@ public class IndexModel : PageModel
             var live = discovered.TryGetValue(key, out var d) ? d : default;
             rows.Add(new StackRow(s.Id, s.EnvironmentId, EnvName(envById, s.EnvironmentId), s.Name,
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
-                live.Running, live.Total, s.LastDeployedAt, s.LastStatus));
+                live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
+                live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>()));
         }
 
         foreach (var ((envId, project), d) in discovered)
@@ -126,10 +150,34 @@ public class IndexModel : PageModel
             }
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
-                Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null));
+                Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers));
         }
 
-        Rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
+        rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
+        TotalCount = rows.Count;
+
+        // ---- Client-invisible server-side filtering (search + status + type) ----
+        if (!string.IsNullOrWhiteSpace(Q))
+        {
+            var q = Q.Trim();
+            rows = rows.Where(r => r.Name.Contains(q, Ic) || r.EnvName.Contains(q, Ic)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(Status))
+        {
+            rows = rows.Where(r => string.Equals(r.StatusKind, Status, Ic)).ToList();
+        }
+
+        if (string.Equals(Type, "managed", Ic))
+        {
+            rows = rows.Where(r => r.Managed).ToList();
+        }
+        else if (string.Equals(Type, "external", Ic))
+        {
+            rows = rows.Where(r => r.Discovered).ToList();
+        }
+
+        Rows = rows;
     }
 
     private static string EnvName(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
