@@ -101,7 +101,7 @@ public class BackupTargetEditModel : PageModel
             await _targetService.CreateAsync(input, HttpContext.RequestAborted);
         }
 
-        return RedirectToPage("/Settings/Index");
+        return RedirectToPage("/Settings/Index", new { tab = "backup" });
     }
 
     public async Task<IActionResult> OnPostTestAsync()

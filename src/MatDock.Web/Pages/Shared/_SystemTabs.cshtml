@@ -1,12 +1,15 @@
 @{
     var sp = Context.Request.Path.Value ?? "";
+    var tab = Context.Request.Query["tab"].ToString();
     bool Is(string s) => sp.StartsWith(s, StringComparison.OrdinalIgnoreCase);
     var onNotifications = Is("/Settings/Notifications");
-    var onGeneral = Is("/Settings") && !onNotifications;
+    var onBackupTargets = Is("/Settings") && !onNotifications && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase);
+    var onGeneral = Is("/Settings") && !onNotifications && !onBackupTargets;
 }
 <nav class="mat-tabs">
     <a class="mat-tabs__tab @(onGeneral ? "is-active" : "")" href="/Settings"><icon name="settings" /><span>General</span></a>
     <a class="mat-tabs__tab @(Is("/Users") ? "is-active" : "")" href="/Users"><icon name="users" /><span>Users</span></a>
     <a class="mat-tabs__tab @(onNotifications ? "is-active" : "")" href="/Settings/Notifications"><icon name="alert" /><span>Notifications</span></a>
     <a class="mat-tabs__tab @(Is("/GitCredentials") ? "is-active" : "")" href="/GitCredentials"><icon name="git" /><span>Git</span></a>
+    <a class="mat-tabs__tab @(onBackupTargets ? "is-active" : "")" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
 </nav>
