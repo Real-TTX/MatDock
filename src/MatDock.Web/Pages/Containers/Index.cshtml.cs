@@ -22,6 +22,9 @@ public class IndexModel : PageModel
     public long? SelectedEnvId { get; private set; }
     public bool IsAll => SelectedEnvId is null;
 
+    [BindProperty(SupportsGet = true)]
+    public string View { get; set; } = "list";
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<ContainerRow> Rows { get; private set; } = new();
     public List<string> LoadErrors { get; private set; } = new();

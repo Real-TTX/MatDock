@@ -503,6 +503,12 @@ table.ctable td.num { text-align: left; }
 .ctile__img { font-family: var(--mono); font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 5px; }
 .ctile__meta { font-size: .72rem; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Container tiles reuse .env-card; just the grid wrapper differs. */
+.cbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); padding: 14px; }
+
+/* JS list/tile filters toggle [hidden]; force it to win over flex/grid display on cards. */
+[hidden] { display: none !important; }
+
 /* ============================================================================
    Responsive / mobile
    ========================================================================== */
