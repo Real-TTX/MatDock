@@ -159,9 +159,7 @@
                         <th>Name</th>
                         <th>Connection</th>
                         <th>Status</th>
-                        <th>CPU</th>
-                        <th>RAM</th>
-                        <th>Disk</th>
+                        <th>Resources</th>
                         <th>Container</th>
                         <th>Docker</th>
                         <th>Last checked</th>
@@ -186,29 +184,31 @@
                             </td>
                             <td class="mono">@env.Username@@@env.Host:@env.Port</td>
                             <td><partial name="_StatusPill" model="env.Status" /></td>
-                            <td class="num">
-                                @if (st.Cores is not null)
+                            <td class="res-cell">
+                                @if (st.Cores is null && st.MemTotalBytes is null && st.DiskTotalBytes is null)
                                 {
-                                    <div>@((int)Math.Round(st.CpuPercent))%</div>
-                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.CpuPercent))%"></span></span>
+                                    <span class="text-muted">–</span>
                                 }
-                                else { <span class="text-muted">–</span> }
-                            </td>
-                            <td class="num">
-                                @if (st.MemTotalBytes is not null)
+                                else
                                 {
-                                    <div class="cell-sub" style="white-space:nowrap;">@Fb(st.MemUsedBytes ?? 0) / @Fb(st.MemTotalBytes.Value)</div>
-                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.MemPercent))%"></span></span>
+                                    <div class="res">
+                                        <div class="res__row" title="RAM: @Fb(st.MemUsedBytes ?? 0) / @Fb(st.MemTotalBytes ?? 0)">
+                                            <span class="res__k">RAM</span>
+                                            <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.MemPercent))%"></span></span>
+                                            <span class="res__v">@(st.MemTotalBytes is null ? "–" : (int)Math.Round(st.MemPercent) + "%")</span>
+                                        </div>
+                                        <div class="res__row" title="CPU: load @(st.Load1?.ToString("0.00") ?? "?") / @(st.Cores?.ToString() ?? "?") cores">
+                                            <span class="res__k">CPU</span>
+                                            <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.CpuPercent))%"></span></span>
+                                            <span class="res__v">@(st.Cores is null ? "–" : (int)Math.Round(st.CpuPercent) + "%")</span>
+                                        </div>
+                                        <div class="res__row" title="Disk: @Fb(st.DiskUsedBytes ?? 0) / @Fb(st.DiskTotalBytes ?? 0)">
+                                            <span class="res__k">Disk</span>
+                                            <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.DiskPercent))%"></span></span>
+                                            <span class="res__v">@(st.DiskTotalBytes is null ? "–" : (int)Math.Round(st.DiskPercent) + "%")</span>
+                                        </div>
+                                    </div>
                                 }
-                                else { <span class="text-muted">–</span> }
-                            </td>
-                            <td class="num">
-                                @if (st.DiskTotalBytes is not null)
-                                {
-                                    <div class="cell-sub" style="white-space:nowrap;">@Fb(st.DiskUsedBytes ?? 0) / @Fb(st.DiskTotalBytes.Value)</div>
-                                    <span class="ubar"><span class="ubar__fill" style="width:@((int)Math.Round(st.DiskPercent))%"></span></span>
-                                }
-                                else { <span class="text-muted">–</span> }
                             </td>
                             <td class="num">@(st.RunningContainers?.ToString() ?? "–")</td>
                             <td class="text-muted">@(env.DockerVersion ?? "–")</td>

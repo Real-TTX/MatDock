@@ -2,6 +2,8 @@
 @model MatDock.Web.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "Profile";
+    // Land on the password tab when a change is required or the last submit failed.
+    var pwActive = Model.MustChange || !ViewData.ModelState.IsValid;
 }
 
 <div class="page-head">
@@ -25,38 +27,47 @@
     </div>
 }
 
-<div class="form-grid">
-    <div class="card">
-        <div class="card__header"><icon name="user" /><span>Account</span></div>
-        <div class="card__body">
-            <div class="mat-form">
-                <mat-field label="Username"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
-                <mat-field label="Display name"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
-                <mat-field label="Role"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
+<div data-tabs>
+    <nav class="mat-tabs">
+        <button type="button" class="mat-tabs__tab @(pwActive ? "" : "is-active")" data-tab="general"><icon name="user" /><span>General</span></button>
+        <button type="button" class="mat-tabs__tab @(pwActive ? "is-active" : "")" data-tab="password"><icon name="key" /><span>Password</span></button>
+    </nav>
+
+    <div data-tab-panel="general" hidden="@(pwActive ? "hidden" : null)">
+        <div class="card" style="max-width:560px;">
+            <div class="card__header"><icon name="user" /><span>Account</span></div>
+            <div class="card__body">
+                <div class="mat-form">
+                    <mat-field label="Username"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
+                    <mat-field label="Display name"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
+                    <mat-field label="Role"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card__header"><icon name="key" /><span>Change password</span></div>
-        <div class="card__body">
-            <form method="post" class="mat-form">
-                <div asp-validation-summary="ModelOnly"></div>
+    <div data-tab-panel="password" hidden="@(pwActive ? null : "hidden")">
+        <div class="card" style="max-width:560px;">
+            <div class="card__header"><icon name="key" /><span>Change password</span></div>
+            <div class="card__body">
+                <form method="post" class="mat-form">
+                    <div asp-validation-summary="ModelOnly"></div>
 
-                <mat-field label="Current password" asp-for="Input.CurrentPassword">
-                    <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
-                </mat-field>
-                <mat-field label="New password" asp-for="Input.NewPassword">
-                    <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
-                </mat-field>
-                <mat-field label="Confirm new password" asp-for="Input.ConfirmPassword">
-                    <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
-                </mat-field>
+                    <mat-field label="Current password" asp-for="Input.CurrentPassword">
+                        <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
+                    </mat-field>
+                    <mat-field label="New password" asp-for="Input.NewPassword">
+                        <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                    <mat-field label="Confirm new password" asp-for="Input.ConfirmPassword">
+                        <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
 
-                <mat-form-buttons>
-                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                </mat-form-buttons>
-            </form>
+                    <mat-form-buttons>
+                        <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                    </mat-form-buttons>
+                </form>
+            </div>
         </div>
     </div>
 </div>

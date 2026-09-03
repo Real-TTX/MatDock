@@ -372,6 +372,7 @@ table.ctable td.num { text-align: left; }
 .mat-tabs__tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; color: var(--text-muted); font-weight: 600; font-size: .9rem; border-bottom: 2px solid transparent; white-space: nowrap; }
 .mat-tabs__tab:hover { color: var(--text); text-decoration: none; }
 .mat-tabs__tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font: inherit; font-weight: 600; }
 
 /* ============================================================================
    Badges, pills, alerts

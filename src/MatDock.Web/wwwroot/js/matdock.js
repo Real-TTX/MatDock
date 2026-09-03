@@ -123,6 +123,20 @@
         update();
     })();
 
+    /* ---------------- Client-side tabs ----------------
+       <div data-tabs> <button data-tab="x"> … </button> <div data-tab-panel="x"> … </div> </div> */
+    document.querySelectorAll("[data-tabs]").forEach(function (group) {
+        var tabs = Array.prototype.slice.call(group.querySelectorAll("[data-tab]"));
+        var panels = Array.prototype.slice.call(group.querySelectorAll("[data-tab-panel]"));
+        tabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                var name = tab.getAttribute("data-tab");
+                tabs.forEach(function (t) { t.classList.toggle("is-active", t === tab); });
+                panels.forEach(function (p) { p.hidden = p.getAttribute("data-tab-panel") !== name; });
+            });
+        });
+    });
+
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
         var form = e.target;
