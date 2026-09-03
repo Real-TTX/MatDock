@@ -330,8 +330,8 @@ table.ctable td.num { text-align: left; }
 
 .gauge { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; font-size: .8rem; }
 .gauge__label { color: var(--text-muted); }
-.gauge__track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.gauge__fill { height: 100%; border-radius: 999px; background: var(--success); transition: width .3s; }
+.gauge__track { display: block; height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.gauge__fill { display: block; height: 100%; border-radius: 999px; background: var(--success); transition: width .3s; }
 .gauge__fill--warn { background: var(--warning); }
 .gauge__fill--crit { background: var(--danger); }
 .gauge__value { font-variant-numeric: tabular-nums; color: var(--text); min-width: 86px; text-align: right; }
