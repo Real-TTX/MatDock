@@ -1,4 +1,3 @@
-using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using Microsoft.AspNetCore.Mvc;
@@ -8,12 +7,10 @@ namespace MatDock.Web.Pages.Containers;
 
 public class LogsModel : PageModel
 {
-    private readonly ContainerService _containerService;
     private readonly EnvironmentService _environmentService;
 
-    public LogsModel(ContainerService containerService, EnvironmentService environmentService)
+    public LogsModel(EnvironmentService environmentService)
     {
-        _containerService = containerService;
         _environmentService = environmentService;
     }
 
@@ -27,8 +24,6 @@ public class LogsModel : PageModel
     public int Tail { get; set; } = 200;
 
     public DockerEnvironment? Environment { get; private set; }
-    public string? Log { get; private set; }
-    public string? Error { get; private set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -38,15 +33,7 @@ public class LogsModel : PageModel
             return NotFound();
         }
 
-        try
-        {
-            Log = await _containerService.LogsAsync(Environment, Id, Tail, HttpContext.RequestAborted);
-        }
-        catch (Exception ex)
-        {
-            Error = ex.Message;
-        }
-
+        // The live log stream is delivered over the /logs/ws WebSocket (docker logs -f).
         return Page();
     }
 }

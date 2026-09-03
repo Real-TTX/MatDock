@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.Containers.LogsModel
 @{
     ViewData["Title"] = "Container Logs";
+    var tail = Model.Tail <= 0 ? 200 : Model.Tail;
 }
 
 <div class="page-head">
@@ -14,21 +15,47 @@
     </div>
 </div>
 
-<div class="mat-table__toolbar" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:12px;">
-    <span class="text-muted">Lines:</span>
-    @foreach (var n in new[] { 100, 200, 500, 1000 })
-    {
-        <a class="mat-btn mat-btn--sm @(Model.Tail == n ? "mat-btn--primary" : "")" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(Model.Id)&tail=@n">@n</a>
-    }
-    <span class="toolbar-spacer"></span>
-    <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(Model.Id)&tail=@Model.Tail"><icon name="refresh" /><span>Refresh</span></a>
+<div class="logview" id="logview"
+     data-envid="@Model.EnvId"
+     data-container="@Model.Id"
+     data-tail="@tail">
+    <div class="logview__bar">
+        <button type="button" class="mat-btn mat-btn--sm logview__live is-live" data-log-live title="Pause / resume live stream">
+            <span class="logview__dot"></span><span data-log-live-label>Live</span>
+        </button>
+        <button type="button" class="mat-btn mat-btn--sm is-active" data-log-follow title="Auto-scroll to newest"><icon name="chevron-right" /><span>Follow</span></button>
+
+        <span class="logview__group" role="group" aria-label="Lines">
+            <span class="text-muted" style="font-size:.8rem;">Lines</span>
+            @foreach (var n in new[] { 100, 200, 500, 1000 })
+            {
+                <button type="button" class="mat-btn mat-btn--sm @(tail == n ? "mat-btn--primary" : "")" data-log-tail="@n">@n</button>
+            }
+        </span>
+
+        <span class="toolbar-spacer"></span>
+
+        <span class="search logview__search">
+            <icon name="filter" />
+            <input type="search" class="mat-input" data-log-filter placeholder="Filter (live)…" autocomplete="off" />
+        </span>
+        <span class="search logview__search">
+            <icon name="search" />
+            <input type="search" class="mat-input" data-log-search placeholder="Search…" autocomplete="off" />
+        </span>
+        <span class="logview__matches text-muted" data-log-matches></span>
+        <button type="button" class="mat-btn mat-btn--sm" data-log-prev title="Previous match"><icon name="chevron-left" /></button>
+        <button type="button" class="mat-btn mat-btn--sm" data-log-next title="Next match"><icon name="chevron-right" /></button>
+
+        <button type="button" class="mat-btn mat-btn--sm" data-log-wrap title="Toggle line wrap"><icon name="menu" /><span>Wrap</span></button>
+        <button type="button" class="mat-btn mat-btn--sm" data-log-clear title="Clear"><icon name="trash" /></button>
+        <button type="button" class="mat-btn mat-btn--sm" data-log-download title="Download"><icon name="download" /></button>
+    </div>
+
+    <div class="logview__status" data-log-status>Connecting…</div>
+    <div class="logview__pane" data-log-pane><div class="logview__lines" data-log-lines></div></div>
 </div>
 
-@if (Model.Error is not null)
-{
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
-}
-else
-{
-    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;overflow:auto;max-height:70vh;font-family:var(--mono);font-size:.82rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;">@Model.Log</pre>
+@section Scripts {
+    <script src="~/js/logs.js" asp-append-version="true"></script>
 }

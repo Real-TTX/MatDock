@@ -29,6 +29,19 @@ public class ContainerTests
         => Assert.Contains("--tail 5000", ContainerCommands.Logs("docker", "abc", 999999));
 
     [Fact]
+    public void LogsFollow_builds_follow_command_and_rejects_injection()
+    {
+        Assert.Contains("docker logs -f --tail 200 'abc123' 2>&1", ContainerCommands.LogsFollow("docker", "abc123", 200));
+        Assert.Throws<ArgumentException>(() => ContainerCommands.LogsFollow("docker", "a; rm -rf /", 100));
+    }
+
+    [Theory]
+    [InlineData(-5, "--tail 0 ")]      // resume value clamps to 0 (only new lines)
+    [InlineData(99999, "--tail 5000 ")]
+    public void LogsFollow_clamps_tail(int tail, string expected)
+        => Assert.Contains(expected, ContainerCommands.LogsFollow("docker", "abc", tail));
+
+    [Fact]
     public void ParseContainers_reads_state_and_compose_labels()
     {
         var line = "{\"ID\":\"abc123\",\"Names\":\"web-1\",\"Image\":\"nginx:latest\",\"State\":\"running\",\"Status\":\"Up 2 hours\",\"Ports\":\"0.0.0.0:80->80/tcp\",\"Labels\":\"com.docker.compose.project=shop,com.docker.compose.service=web,foo=bar\"}";

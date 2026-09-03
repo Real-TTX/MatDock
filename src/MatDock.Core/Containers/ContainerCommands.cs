@@ -96,6 +96,18 @@ public static partial class ContainerCommands
         return VolumeCommands.PathPrefix + $"{dockerHead} logs --tail {lines} '{id}' 2>&1";
     }
 
+    /// <summary>Follows a container's logs live (<c>-f</c>). Streams until the channel/process is closed.</summary>
+    public static string LogsFollow(string dockerHead, string id, int tail)
+    {
+        if (!IsValidId(id))
+        {
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
+        }
+
+        var lines = Math.Clamp(tail, 0, 5000); // 0 = only new lines (used on resume)
+        return VolumeCommands.PathPrefix + $"{dockerHead} logs -f --tail {lines} '{id}' 2>&1";
+    }
+
     /// <summary>
     /// A non-streaming snapshot of container lifecycle events from the last <paramref name="sinceHours"/> hours.
     /// Both <c>--since</c> and <c>--until</c> are set so <c>docker events</c> returns the window and exits

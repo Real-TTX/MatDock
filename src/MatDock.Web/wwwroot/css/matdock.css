@@ -546,6 +546,30 @@ table.ctable td.num { text-align: left; }
 .fs-entry__icon { color: var(--text-muted); display: inline-flex; }
 .fs-entry__icon--dir { color: var(--accent); }
 
+/* ============================================================================
+   Live log viewer
+   ========================================================================== */
+.logview { display: flex; flex-direction: column; gap: 10px; }
+.logview__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-1); }
+.logview__group { display: inline-flex; align-items: center; gap: 6px; }
+.logview__search { flex: 0 1 200px; min-width: 140px; }
+.logview__matches { font-size: .78rem; min-width: 54px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.logview__live .logview__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); display: inline-block; margin-right: 6px; }
+.logview__live.is-live .logview__dot { background: var(--success); box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent); animation: logpulse 1.6s infinite; }
+@keyframes logpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+.logview__status { font-size: .78rem; color: var(--text-muted); padding: 0 2px; }
+.logview__status.is-live { color: var(--success); }
+.logview__status.is-error { color: var(--danger); }
+
+.logview__pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); overflow: auto; max-height: 70vh; padding: 10px 14px; }
+.logview__lines { font-family: var(--mono); font-size: .82rem; line-height: 1.5; }
+.logview__line { white-space: pre; }
+.logview__pane.is-wrap .logview__line { white-space: pre-wrap; word-break: break-word; }
+.logview__line mark { background: color-mix(in srgb, var(--warning) 45%, transparent); color: inherit; border-radius: 2px; }
+.logview__line mark.is-current { background: var(--warning); color: #1a1a1a; outline: 1px solid var(--warning); }
+
 /* JS list/tile filters toggle [hidden]; force it to win over flex/grid display on cards. */
 [hidden] { display: none !important; }
 

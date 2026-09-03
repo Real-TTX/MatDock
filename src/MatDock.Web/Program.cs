@@ -140,6 +140,9 @@ app.MapRazorPages();
 // Interactive terminal (WebSocket ⇄ SSH PTY). Admin-only; the handler validates env + container id.
 app.MapGet("/terminal/ws", MatDock.Web.Terminal.TerminalEndpoint.HandleAsync).RequireAuthorization("AdminOnly");
 
+// Live container logs (one-directional WebSocket, docker logs -f). Any authenticated user, like the Logs page.
+app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthorization();
+
 // ---------------------------------------------------------------------------
 // Database migration + first-run seed
 // ---------------------------------------------------------------------------
