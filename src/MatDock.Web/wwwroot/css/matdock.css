@@ -634,6 +634,27 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
     .main { padding: 16px; }
 }
 
+/* Narrow screens: turn wide data tables into stacked cards (no horizontal scrolling). */
+@media (max-width: 680px) {
+    table.data thead { display: none; }
+    table.data, table.data tbody { display: block; width: 100%; }
+    table.data tr { display: block; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    table.data tbody tr:hover { background: transparent; }
+    table.data tbody tr:last-child { border-bottom: none; }
+    table.data td { display: block; border: none; padding: 3px 0; white-space: normal; text-align: left; }
+    table.data td.num { text-align: left; }
+    table.data td.actions, table.data th.actions { text-align: left; position: static; }
+    table.data td.actions { padding-top: 8px; }
+    table.data td.actions .row-actions { justify-content: flex-start; flex-wrap: wrap; }
+    table.data tbody tr:hover td.actions { background: transparent; }
+    .res { min-width: 0; }
+    .res__row { max-width: 260px; }
+    /* Stacks expand detail + restore popover fit the viewport */
+    .stack-detail > td { padding: 8px 0 12px; }
+    .restore-form { position: static; width: 100%; margin-top: 8px; box-shadow: none; }
+    .restore-pop { display: block; }
+}
+
 @media (max-width: 520px) {
     .mat-table__scroll { -webkit-overflow-scrolling: touch; }
     .page-head { flex-direction: column; align-items: stretch; }
