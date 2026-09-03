@@ -49,7 +49,6 @@
                     var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
                 }
                 <div class="sidebar__env">
-                    <label for="global-env"><icon name="server" /> Environment</label>
                     <select id="global-env" class="mat-select" aria-label="Select environment"
                             onchange="matdockSetEnv(this.value)">
                         <option value="0" selected="@(currentEnv is null)">All environments</option>
