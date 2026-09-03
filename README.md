@@ -1,151 +1,245 @@
-<h1 align="center">
-  <img src="src/MatDock.Web/wwwroot/img/logo.svg" width="64" height="64" alt="MatDock logo"><br>
-  MatDock
-</h1>
+<div align="center">
 
-<p align="center"><em>Docker Environment &amp; Volume Manager – eine schlanke Alternative zu Portainer/Dockhand mit Fokus auf Environment- und Volume-Verwaltung.</em></p>
+<img src="src/MatDock.Web/wwwroot/img/logo.svg" width="96" alt="MatDock" />
+
+# MatDock
+
+**A Docker manager for your servers – in the browser.**
+
+Environments over SSH or the local socket, stacks, containers, volumes, live logs, a web
+terminal and real backups. One container, no cloud, no agents on the hosts.
+
+</div>
+
+![The dashboard: environment usage, top containers and recent activity](docs/images/dashboard.png)
 
 ---
 
-## Was ist MatDock?
+## What this is about
 
-MatDock verbindet sich per **SSH** mit mehreren Docker-Hosts (Environments) und macht deren
-Volumes verwaltbar. Der Fokus liegt auf dem **Verschieben von Volumes zwischen Umgebungen** sowie
-(geplant) auf **Backup-Plänen** mit Retention, Zeitplänen und Restore.
+Portainer and the like are great – but running many small servers means one agent per host,
+another UI per box, and backups that are somebody else's problem. MatDock connects to your
+hosts over plain **SSH** (or the **local Docker socket**) – nothing to install on the target –
+and puts a single dashboard on top of all of them: stacks, containers, volumes, images and
+live logs across every environment, with a global switcher to look at one host or **all at
+once**. On top of that it does what most managers leave out: **volume migration between hosts**
+and **scheduled, restorable backups** – single volumes or whole stacks.
 
-**Build 1 (Fundament + Environments)** umfasst:
+## At a glance
 
-- 🔐 Lokale Anmeldung, Rollen (Admin / User / Anonym), server-seitige Sessions (überstehen Container-Neustart)
-- 🖥️ Environment-Verwaltung: SSH-Hosts anlegen/bearbeiten, **Verbindung testen**
-- 💾 Volumes eines Environments anzeigen (Basis für die spätere Migration)
-- 👤 Benutzerverwaltung (Admin)
-- 🎨 Eigenes UI-Designsystem (Dark/Hell/System), mobil-optimiert, wiederverwendbare Controls
+**Environments**
+- Connect over **SSH** (password or key) or the **local Docker socket** – no agent on the host
+- **Host stats** per environment: CPU load, RAM and disk, running containers, Docker version
+- A **global environment selector** in the sidebar – one host or **"All environments"**, every
+  page follows it
+- Connection test with a clear result; secrets stored **encrypted**
 
-**Geplant (nächste Meilensteine):** Volume-Migration A→B, Backup-Pläne, Retention, Zeitpläne/Scheduler,
-Restore, Microsoft Entra ID, Anonym-Link-Freigaben.
+**Dashboard**
+- Environment tiles with **CPU / RAM / disk** usage, **top containers** by load, a feed of
+  recent **container events** (created / started / stopped) and the **backup status**
+
+**Stacks & containers**
+- **Managed and discovered** Compose stacks side by side – list or tiles, **expandable to the
+  container cards** with per-service actions
+- Add a stack from the **Compose editor**, from **Git**, or from an **App template**
+- Deploy / redeploy / stop, aggregated **resources** per stack
+- Container list with **short status** (hover for detail), **ports as clickable tags**, combined
+  **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**
+
+**Volumes**
+- List across environments, **migrate a volume from one host to another** (tar over SSH)
+- **File explorer** in the volume: browse, **edit text files**, image **preview**, **upload**,
+  **download**, create folder/file, rename, duplicate, delete
+- Create volumes, backup and restore
+
+**Backups**
+- **Scheduled jobs** (cron) with retention, plus a full **history**
+- **Targets**: the local data volume or a **NAS via SMB** – browse the archives actually present
+  at a target and **restore even backups written by another/older MatDock**
+- **Full stack bundles**: all volumes **+ the compose definition + image references** in one
+  backup, restored as a running stack (images are pulled again on restore)
+
+**Operations**
+- **Live log viewer** (streaming `docker logs -f`): pause, follow, **live filter**, **search**
+- **Web terminal** (xterm.js) – a shell on the host or straight into a container
+- **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
+- Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
+- **Light and dark**, works well on **mobile**, no cloud and no third-party services
 
 ## Screenshots
 
-| Dashboard | Environments |
-|-----------|--------------|
-| ![Dashboard](docs/images/dashboard.png) | ![Environments](docs/images/environments.png) |
+### Stacks – expandable to the containers, with aggregated resources
 
-| Environment bearbeiten | Dark Mode |
-|------------------------|-----------|
-| ![Environment bearbeiten](docs/images/environment-edit.png) | ![Dark Mode](docs/images/dashboard-dark.png) |
+![Stacks list with expanded container cards](docs/images/stacks.png)
 
-| Login | Mobil |
-|-------|-------|
-| ![Login](docs/images/login.png) | <img src="docs/images/mobile-dashboard.png" width="220" alt="Mobil"> |
+Managed and discovered Compose projects in one list. A row expands to show its containers as
+cards – each with status, ports and start/stop/restart/logs/shell – and the row itself sums up
+the stack's CPU and RAM.
 
-**Volume-Migration A→B** (Streaming per `tar` über SSH, ohne Zwischenspeicher):
+### Containers – status, ports and resources at a glance
 
-![Volume migrieren](docs/images/volume-migrate.png)
+![Container list with status, port tags and resources](docs/images/containers.png)
 
-## Tech-Stack
+Short status with the full text on hover, published ports as tags that open the app in a new
+tab, and CPU + RAM as one compact column. Open, shell, logs, volumes and lifecycle actions per
+row.
 
-| Bereich        | Technologie |
-|----------------|-------------|
-| Backend/UI     | ASP.NET Core 10 **Razor Pages** (C#) |
-| Datenbank      | **SQLite** (Logik) + JSON (Config), EF Core 10 |
-| SSH            | SSH.NET |
-| Docker         | Docker-CLI über SSH (strukturierte `--format '{{json .}}'`-Ausgabe) |
-| Secrets        | ASP.NET Core Data Protection (Schlüssel auf dem Datenvolume) |
+### Volumes: migration, backups and a file explorer
 
-## Schnellstart (Docker)
+| File explorer | Volumes |
+|---|---|
+| ![Volume file explorer](docs/images/files.png) | ![Volume list](docs/images/volumes.png) |
 
-```bash
-docker compose up -d --build
+Browse a volume like a folder – edit, preview, upload and download – switch volumes from the
+dropdown, or migrate a whole volume to another host.
+
+### Backups you can actually restore
+
+![Backup targets with archives and restore](docs/images/backups-targets.png)
+
+Every archive present at a target – including ones written by an older or a different MatDock
+instance to the same NAS – ready to restore. Whole stacks are backed up as a bundle (volumes +
+compose + image references) and come back as a running stack.
+
+### Live logs
+
+![Live log viewer with search](docs/images/logs.png)
+
+`docker logs -f` in the browser: follow, pause, filter to matching lines, and search with
+highlighting and next/previous.
+
+### Apps, environments and system
+
+| Apps | Environments | System |
+|---|---|---|
+| ![App templates](docs/images/apps.png) | ![Environments](docs/images/environments.png) | ![System settings](docs/images/system.png) |
+
+### Dark theme and narrow screens
+
+| Dark | Phone | Menu |
+|---|---|---|
+| ![Dark dashboard](docs/images/dashboard-dark.png) | ![Containers on a phone](docs/images/mobile-containers.png) | ![Sidebar as an overlay](docs/images/mobile-nav.png) |
+
+## Quick start
+
+Ready-made images are published to the GitHub Container Registry:
+
+| Tag | Built from | Use it for |
+|---|---|---|
+| `ghcr.io/real-ttx/matdock:latest` | `main` | releases |
+| `ghcr.io/real-ttx/matdock:nightly` | `dev` | the newest features |
+
+### 1. Just run it
+
+```yaml
+services:
+  matdock:
+    image: ghcr.io/real-ttx/matdock:latest
+    container_name: matdock
+    restart: unless-stopped
+    ports:
+      - "4455:4455"
+    environment:
+      # Initial administrator – change the password before the first start
+      MatDock__Admin__Username: admin
+      MatDock__Admin__Password: admin
+    volumes:
+      - matdock-data:/data
+      # Optional: manage THIS host's Docker directly (a "local" environment)
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  matdock-data:
 ```
 
-Danach: <http://localhost:4455> (Port **4455**).
-
-Erste Anmeldung mit dem Seed-Admin (Passwort muss beim ersten Login geändert werden):
-
-- Benutzer: `admin`
-- Passwort: `admin`
-
-> ⚠️ Ändere `MatDock__Admin__Password` in `docker-compose.yml` vor dem ersten Start.
-
-### Dev-Stack (mit SQLite-Web-Viewer)
-
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose up -d
 ```
 
-- App: <http://localhost:4455>
-- SQLite-Web: <http://localhost:8085>
-- **Test-Konto** (automatisch bei lokalem/Development-Start, nie im Release): `tester` / `Tester123!`
-  (Rolle Admin, kein Passwortzwang) — zum Testen, ohne das Admin-Konto anzufassen.
+Open **http://localhost:4455** and sign in with **`admin` / `admin`**. The `matdock-data`
+volume keeps the database, the configuration, the backups and the session keys, so an update is
+just `docker compose pull && docker compose up -d`.
 
-### Live-Reload / Testen
-
-Der Workflow ist bewusst einfach: Container neu bauen und Stack neu deployen.
+Without Compose:
 
 ```bash
-./scripts/redeploy.ps1        # Release-Stack
-./scripts/redeploy.ps1 -Dev   # Dev-Stack inkl. SQLite-Web
+docker run -d --name matdock -p 4455:4455 \
+  -v matdock-data:/data -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/real-ttx/matdock:latest
 ```
 
-## Lokal entwickeln (ohne Docker)
+### 2. Add your hosts
+
+MatDock reaches your servers over SSH – nothing to install there. In the UI:
+*Environments → New environment*, enter host, user and a password or private key, run the
+**connection test**, save. The sidebar switcher then flips every page between a single host and
+**all of them at once**.
+
+The socket mount above is only needed if you also want to manage the machine MatDock runs on as
+a **local** environment; remove it for an SSH-only setup.
+
+### 3. As a Windows app
+
+Every build also produces a **self-contained Windows executable** (`win-x64`, no .NET install
+needed) as a CI artifact – handy for running MatDock straight on a workstation.
+
+### 4. From source
 
 ```bash
-dotnet run --project src/MatDock.Web
+docker compose up -d --build                              # release build
+docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite web viewer
 ```
 
-Läuft auf <http://localhost:4455>. Daten landen in `src/MatDock.Web/App_Data/`.
+### Settings that matter
 
-## Daten & Persistenz
+| Variable | Default | Meaning |
+|---|---|---|
+| `MatDock__Admin__Username` / `__Password` | `admin` / `admin` | Initial administrator (first start only) |
+| `MatDock__DataPath` | `/data` | Data directory (SQLite, config, keys, backups) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | Standard ASP.NET Core environment |
 
-Alles Veränderliche liegt unter dem Datenverzeichnis (im Container `/data`, als Volume gemountet):
+### The `/data` volume
 
 ```
 /data
-├── matdock.db            # SQLite (Users, Sessions, Environments)
-├── config/               # JSON-Konfiguration
-├── dataprotection-keys/  # Schlüssel (Cookies + verschlüsselte Secrets)
-└── logs/
+├─ matdock.db            SQLite database
+├─ config/               JSON configuration
+├─ dataprotection-keys/  session & secret keys (survive restarts)
+└─ backups/              local backup archives
 ```
 
-Dadurch bleiben **Sessions und verschlüsselte Zugangsdaten über Container-Neustarts hinweg erhalten**.
+## How it is built
 
-## Projektstruktur
+- **ASP.NET Core 10** (Razor Pages) with **EF Core** on SQLite
+- Docker access without an agent: **SSH.NET** opens a channel to the host and runs the Docker
+  CLI; a **local** environment talks to the mounted socket instead – both behind one interface
+- Volume migration & backups stream a **tar over SSH** (no temp files on the host); backup
+  targets are the local volume or **SMB** (SMBLibrary, no OS mount)
+- The web terminal is **xterm.js** over a WebSocket ⇄ SSH PTY; live logs stream the same way
+- The interface is **plain JavaScript** – no framework, no build step; secrets are encrypted
+  with **DataProtection**
 
-```
-src/MatDock.Core   Domain, Daten (EF Core), Services (Auth, SSH, Docker, Environments)
-src/MatDock.Web    Razor Pages, UI-Controls (TagHelpers), wwwroot
-tests/MatDock.Tests xUnit-Tests
-Dockerfile, docker-compose*.yml
-.github/workflows/build.yml
-```
+## Status
 
-## Versionierung & CI
+| Milestone | Content | Status |
+|---|---|---|
+| Foundation | Docker, CI, versioning, auth, roles, sessions, design system | ✅ |
+| Environments | SSH + local socket, host stats, global selector | ✅ |
+| Volumes | Listing, migration between hosts, file explorer | ✅ |
+| Backups | Scheduled jobs, retention, history, SMB targets, restore | ✅ |
+| Containers & stacks | Managed + discovered stacks, containers, live logs, terminal | ✅ |
+| Backup v2 | Browse/restore archives at a target, full stack bundles | ✅ |
+| Apps | Compose templates with icons, one-click install | ✅ |
+| Next | Complex volumes (NFS/CIFS), Entra ID, anonymous share links | open |
 
-GitHub Actions (`.github/workflows/build.yml`) baut bei jedem Push **sowohl** ein Docker-Image
-**als auch** eine self-contained **Windows-EXE** (`win-x64`, Single-File) und lädt sie als Artefakt hoch.
+## Branches & versioning
 
-| Branch        | Kanal   | Versionsschema |
-|---------------|---------|----------------|
-| `main`        | release | `<major>.<minor>.<build>-<datum>` z. B. `0.1.42-20260825` |
-| `dev`         | nightly | `nightly-<build>-<datum>` |
-| lokal         | local   | `local-<datum>` |
+| Branch | Purpose | Version |
+|---|---|---|
+| `main` | Release | `<major>.<minor>.<build>-<yyyyMMdd>` |
+| `dev` | Development | `nightly-<build>-<yyyyMMdd>` |
+| local | – | `local-<yyyyMMdd>` |
 
-`major`/`minor` stehen zentral in [`Directory.Build.props`](Directory.Build.props); `build` ist die
-GitHub-Run-Nummer, `datum` das Build-Datum (UTC, `yyyyMMdd`).
-
-## Tests
-
-```bash
-dotnet test
-```
-
-## Sicherheitshinweise
-
-- **Initial-Admin `admin`/`admin`**: nur für den ersten Start; das Passwort **muss** beim ersten Login
-  geändert werden. Vor dem Produktivstart `MatDock__Admin__Password` setzen.
-- **TLS**: Der Container spricht intern HTTP (Port 4455). Für Produktion **TLS vorne terminieren**
-  (Reverse Proxy). `X-Forwarded-Proto` wird ausgewertet, damit das Session-Cookie dann `Secure` ist.
-- **Datenvolume** (`/data`) enthält die SQLite-DB, verschlüsselte SSH-Secrets und die
-  Data-Protection-Schlüssel – als vertraulich behandeln und gesichert sichern.
-- **Für spätere Meilensteine geplant**: Login-Rate-Limiting/Lockout, Verschlüsselung des
-  Data-Protection-Keyrings at-rest, Absicherung des lokalen Docker-SSH-Proxys per Token.
+`Major`/`Minor` live in [`Directory.Build.props`](Directory.Build.props); the build number comes
+from the GitHub action. Images are published to the GitHub Container Registry, and a
+self-contained Windows EXE is attached to every build.
