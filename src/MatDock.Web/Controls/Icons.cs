@@ -52,6 +52,8 @@ public static class Icons
         ["upload"] = "<path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/>",
         ["home"] = "<path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/>",
         ["copy"] = "<rect x='9' y='9' width='13' height='13' rx='2' ry='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/>",
+        ["play"] = "<polygon points='6 4 20 12 6 20 6 4'/>",
+        ["stop"] = "<rect x='5' y='5' width='14' height='14' rx='2'/>",
     };
 
     public static bool TryGet(string name, out string innerSvg)

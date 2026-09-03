@@ -56,7 +56,7 @@ public class IndexModel : PageModel
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
-        IReadOnlyList<DockerContainer> Containers)
+        IReadOnlyList<DockerContainer> Containers, string? EnvHost)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
@@ -145,7 +145,8 @@ public class IndexModel : PageModel
             rows.Add(new StackRow(s.Id, s.EnvironmentId, EnvName(envById, s.EnvironmentId), s.Name,
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
                 live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
-                live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>()));
+                live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(),
+                HostFor(envById, s.EnvironmentId)));
         }
 
         foreach (var ((envId, project), d) in discovered)
@@ -156,7 +157,8 @@ public class IndexModel : PageModel
             }
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
-                Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers));
+                Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers,
+                HostFor(envById, envId)));
         }
 
         rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
@@ -188,6 +190,9 @@ public class IndexModel : PageModel
 
     private static string EnvName(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
         => byId.TryGetValue(id, out var e) ? e.Name : $"#{id}";
+
+    private static string? HostFor(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
+        => byId.TryGetValue(id, out var e) ? MatDock.Web.Support.OpenUrls.PortLinkHost(e) : null;
 
     private static bool IsCleanExit(DockerContainer c)
         => string.Equals(c.State, "exited", StringComparison.OrdinalIgnoreCase) && c.Status.Contains("(0)", StringComparison.Ordinal);

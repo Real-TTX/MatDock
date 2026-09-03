@@ -46,14 +46,14 @@ else if (c is not null)
             </form>
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
-                <button type="submit" class="mat-btn mat-btn--danger"><icon name="x-circle" /><span>Stop</span></button>
+                <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
         else
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
-                <button type="submit" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Start</span></button>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
             </form>
         }
     </div>

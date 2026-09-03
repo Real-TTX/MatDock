@@ -40,7 +40,7 @@
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                 <input type="hidden" name="action" value="Stop" />
-                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
+                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
             </form>
         }
         else
@@ -48,9 +48,31 @@
             <form method="post" asp-page-handler="Action" style="display:inline;">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
                 <input type="hidden" name="action" value="Start" />
-                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
+                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
             </form>
         }
+    }
+
+    // Combined CPU/RAM cell: two mini-bars with %, full detail on hover.
+    void Resources(DockerContainer c)
+    {
+        if (c.CpuPercent is null && c.MemPercent is null && string.IsNullOrEmpty(c.MemUsage))
+        {
+            <span class="text-muted">–</span>
+            return;
+        }
+        <div class="res">
+            <div class="res__row" title="RAM: @(string.IsNullOrEmpty(c.MemUsage) ? "n/a" : c.MemUsage)@(c.MemPercent is { } mp ? $" ({mp.ToString("0.0", ci)}%)" : "")">
+                <span class="res__k">RAM</span>
+                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.MemPercent))%"></span></span>
+                <span class="res__v">@(c.MemPercent is { } m ? Math.Round(m).ToString(ci) + "%" : "–")</span>
+            </div>
+            <div class="res__row" title="CPU: @(c.CpuPercent is { } cp ? cp.ToString("0.0", ci) + "%" : "n/a")">
+                <span class="res__k">CPU</span>
+                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.CpuPercent))%"></span></span>
+                <span class="res__v">@(c.CpuPercent is { } cv ? cv.ToString("0.0", ci) + "%" : "–")</span>
+            </div>
+        </div>
     }
 
     async Task Row(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r)
@@ -60,7 +82,7 @@
         <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
             @if (showEnv)
             {
-                <td class="cell-sub">@env.Name</td>
+                <td class="cell-sub nowrap">@env.Name</td>
             }
             <td class="wrap">
                 <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
@@ -69,40 +91,9 @@
                     <div class="cell-sub">@c.Project@(string.IsNullOrEmpty(c.Service) ? "" : " / " + c.Service)</div>
                 }
             </td>
-            <td class="cell-sub" title="@c.Image">@c.Image</td>
-            <td>
-                @if (c.IsRunning)
-                {
-                    <span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>
-                }
-                else
-                {
-                    <span class="pill pill--unknown"><span>@c.Status</span></span>
-                }
-            </td>
+            <td><container-status state="@c.State" status="@c.Status" /></td>
             <td class="ports"><container-ports ports="@c.Ports" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
-            <td class="num">
-                @if (c.CpuPercent is not null)
-                {
-                    <div>@CpuText(c)</div>
-                    <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.CpuPercent))%"></span></span>
-                }
-                else
-                {
-                    <span class="text-muted">–</span>
-                }
-            </td>
-            <td class="num" title="@c.MemUsage">
-                @if (!string.IsNullOrEmpty(c.MemUsage))
-                {
-                    <div class="cell-sub" style="white-space:nowrap;">@c.MemUsage</div>
-                    <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.MemPercent))%"></span></span>
-                }
-                else
-                {
-                    <span class="text-muted">–</span>
-                }
-            </td>
+            <td class="res-cell">@{ Resources(c); }</td>
             <td class="actions">
                 <div class="row-actions">@{ await Actions(r); }</div>
             </td>
@@ -171,14 +162,7 @@
                                 <div class="env-card__name"><a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></div>
                                 <div class="env-card__host" title="@c.Image">@c.Image</div>
                             </div>
-                            @if (c.IsRunning)
-                            {
-                                <span class="pill pill--online"><icon name="check-circle" /></span>
-                            }
-                            else
-                            {
-                                <span class="pill pill--unknown">off</span>
-                            }
+                            <container-status state="@c.State" status="@c.Status" />
                         </div>
 
                         <div class="env-card__gauges">
@@ -219,7 +203,7 @@
                         {
                             <th>Environment</th>
                         }
-                        <th>Container</th><th>Image</th><th>Status</th><th>Ports</th><th>CPU</th><th>RAM</th><th class="actions">Actions</th>
+                        <th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>

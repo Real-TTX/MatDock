@@ -309,6 +309,16 @@ table.ctable td.num { text-align: left; }
 .ubar { display: block; width: 100%; height: 4px; margin-top: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
 .ubar__fill { display: block; height: 100%; background: var(--accent); }
 
+/* Combined CPU/RAM "Resources" cell (container list) */
+.res { display: flex; flex-direction: column; gap: 5px; min-width: 128px; }
+.res__row { display: grid; grid-template-columns: 30px 1fr 44px; align-items: center; gap: 7px; font-size: .72rem; }
+.res__row .ubar { margin-top: 0; }
+.res__k { color: var(--text-muted); }
+.res__v { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* Gallery inside a bordered mat-table needs inset so cards don't double up on the container border. */
+.mat-table .env-gallery { padding: 14px; }
+
 .bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap; }
 .bulk-bar__count { font-size: .85rem; color: var(--text-muted); }
 .mat-btn[disabled] { opacity: .5; cursor: not-allowed; }
