@@ -71,6 +71,7 @@ internal sealed class FakeBackupStorageFactory : IBackupStorageFactory
         public Task<Stream> OpenWriteAsync(string fileName, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
         public Task<Stream> OpenReadAsync(string fileName, CancellationToken ct = default) => Task.FromResult<Stream>(new MemoryStream());
         public Task DeleteAsync(string fileName, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<BackupFileInfo>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<BackupFileInfo>>(System.Array.Empty<BackupFileInfo>());
         public Task TestAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 }

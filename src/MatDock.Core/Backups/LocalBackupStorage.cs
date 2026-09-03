@@ -42,6 +42,21 @@ public sealed class LocalBackupStorage : IBackupStorage
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<BackupFileInfo>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(_paths.BackupsPath))
+        {
+            return Task.FromResult<IReadOnlyList<BackupFileInfo>>(Array.Empty<BackupFileInfo>());
+        }
+
+        var list = new DirectoryInfo(_paths.BackupsPath)
+            .EnumerateFiles()
+            .Where(f => !f.Name.StartsWith(".write-test-", StringComparison.Ordinal))
+            .Select(f => new BackupFileInfo(f.Name, f.Length, f.LastWriteTimeUtc))
+            .ToList();
+        return Task.FromResult<IReadOnlyList<BackupFileInfo>>(list);
+    }
+
     public Task TestAsync(CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(_paths.BackupsPath);

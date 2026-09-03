@@ -85,6 +85,45 @@ public sealed class SmbBackupStorage : IBackupStorage
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<BackupFileInfo>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var session = SmbSession.Open(_info);
+            var dir = (_info.Directory ?? string.Empty).Replace('/', '\\').Trim('\\');
+            var status = session.FileStore.CreateFile(out var handle, out _, dir,
+                AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE, SMBLibrary.FileAttributes.Directory,
+                ShareAccess.Read | ShareAccess.Write, CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_NONALERT, null);
+            if (status != NTStatus.STATUS_SUCCESS)
+            {
+                return Task.FromResult<IReadOnlyList<BackupFileInfo>>(Array.Empty<BackupFileInfo>());
+            }
+
+            session.FileStore.QueryDirectory(out var entries, handle, "*", FileInformationClass.FileDirectoryInformation);
+            session.FileStore.CloseFile(handle);
+
+            var list = new List<BackupFileInfo>();
+            if (entries is not null)
+            {
+                foreach (var e in entries)
+                {
+                    if (e is FileDirectoryInformation f && (f.FileAttributes & SMBLibrary.FileAttributes.Directory) == 0
+                        && f.FileName is not "." and not "..")
+                    {
+                        list.Add(new BackupFileInfo(f.FileName, f.EndOfFile, f.LastWriteTime));
+                    }
+                }
+            }
+
+            return Task.FromResult<IReadOnlyList<BackupFileInfo>>(list);
+        }
+        catch
+        {
+            return Task.FromResult<IReadOnlyList<BackupFileInfo>>(Array.Empty<BackupFileInfo>());
+        }
+    }
+
     public Task TestAsync(CancellationToken cancellationToken = default)
     {
         using var session = SmbSession.Open(_info);

@@ -1,0 +1,120 @@
+@page
+@model MatDock.Web.Pages.Backups.TargetsModel
+@{
+    ViewData["Title"] = "Backup targets";
+    var isAdmin = User.IsInRole("Admin");
+    string Fmt(long b)
+    {
+        string[] u = { "B", "KB", "MB", "GB", "TB" };
+        double v = b; int i = 0;
+        while (v >= 1024 && i < u.Length - 1) { v /= 1024; i++; }
+        return $"{v:0.#} {u[i]}";
+    }
+}
+
+<partial name="_BackupTabs" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Backup targets</h1>
+        <span class="page-head__subtitle">Browse and restore archives present at a target — including backups from older or other MatDock instances.</span>
+    </div>
+    @if (isAdmin)
+    {
+        <div class="mat-buttons">
+            <a href="/Settings?tab=backup" class="mat-btn"><icon name="settings" /><span>Manage targets</span></a>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="view-toggle" role="group" aria-label="Target" style="margin-bottom:16px;flex-wrap:wrap;">
+    <a class="@(Model.TargetId == 0 ? "is-active" : "")" href="/Backups/Targets"><icon name="save" /><span>Local (MatDock)</span></a>
+    @foreach (var t in Model.Targets)
+    {
+        <a class="@(Model.TargetId == t.Id ? "is-active" : "")" href="/Backups/Targets?targetId=@t.Id"><icon name="server" /><span>@t.Name</span></a>
+    }
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.SelectedName: @Model.Error</span></div>
+}
+
+<div class="card" style="padding:0;">
+    <div class="card__header"><icon name="save" /><span>@Model.SelectedName</span><span style="flex:1 1 auto;"></span><span class="text-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
+    <div class="mat-table__scroll">
+        <table class="data">
+            <thead>
+                <tr><th>Archive</th><th>Type</th><th>Size</th><th>Modified</th><th class="actions">Actions</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Archives.Count == 0)
+                {
+                    <tr><td colspan="5"><div class="empty-state"><div><icon name="save" /></div><p>No archives found at this target.</p></div></td></tr>
+                }
+                @foreach (var a in Model.Archives)
+                {
+                    MatDock.Core.Volumes.VolumeBackupService.TryParseArchiveName(a.FileName, out var parsedEnv, out _, out _);
+                    <tr>
+                        <td class="wrap">
+                            <strong class="mono" style="font-size:.82rem;">@a.FileName</strong>
+                            <div class="cell-sub">
+                                @if (a.Known) { <span class="mat-badge">This instance</span> } else { <span class="mat-badge" title="Not recorded by this MatDock instance">Foreign</span> }
+                                @if (!string.IsNullOrEmpty(a.VolumeName)) { <span>· @a.VolumeName</span> }
+                                @if (!string.IsNullOrEmpty(a.SourceEnvName)) { <span>· @a.SourceEnvName</span> }
+                            </div>
+                        </td>
+                        <td>@(a.IsBundle ? "Bundle" : "Volume")</td>
+                        <td class="cell-sub">@Fmt(a.SizeBytes)</td>
+                        <td class="text-muted nowrap">@(a.ModifiedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                        <td class="actions">
+                            <div class="row-actions" style="justify-content:flex-end;">
+                                @if (!a.IsBundle)
+                                {
+                                    <details class="restore-pop">
+                                        <summary class="mat-btn mat-btn--sm mat-btn--primary" title="Restore"><icon name="refresh" /><span>Restore</span></summary>
+                                        <div class="restore-form">
+                                            <form method="post" asp-page-handler="Restore">
+                                                <input type="hidden" name="targetId" value="@Model.TargetId" />
+                                                <input type="hidden" name="fileName" value="@a.FileName" />
+                                                <div class="mat-field">
+                                                    <label class="mat-label">Target environment</label>
+                                                    <select name="envId" class="mat-select" required>
+                                                        @foreach (var e in Model.Environments)
+                                                        {
+                                                            <option value="@e.Id" selected="@(e.Id == parsedEnv)">@e.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="mat-field">
+                                                    <label class="mat-label">Target volume</label>
+                                                    <input name="targetVolume" class="mat-input" value="@a.VolumeName" placeholder="volume name" required />
+                                                </div>
+                                                <label class="mat-check"><input type="checkbox" name="overwrite" value="true" /><span>Overwrite if the volume already contains data</span></label>
+                                                <label class="mat-check"><input type="checkbox" name="stopContainers" value="true" /><span>Stop containers during restore</span></label>
+                                                <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore '@a.FileName' into the selected volume?"><icon name="refresh" /><span>Restore now</span></button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                }
+                                <a class="mat-btn mat-btn--sm" href="/Backups/Targets?handler=Download&targetId=@Model.TargetId&fileName=@Uri.EscapeDataString(a.FileName)" title="Download"><icon name="download" /></a>
+                                <form method="post" asp-page-handler="Delete" data-confirm="Delete '@a.FileName' from this target?" style="display:inline;">
+                                    <input type="hidden" name="targetId" value="@Model.TargetId" />
+                                    <input type="hidden" name="fileName" value="@a.FileName" />
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

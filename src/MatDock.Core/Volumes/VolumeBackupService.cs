@@ -53,6 +53,52 @@ public sealed class VolumeBackupService
             ? $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}.tar"
             : $"{environmentId}_{volumeName}_{timestampUtc:yyyyMMddHHmmss}_{suffix}.tar";
 
+    /// <summary>
+    /// Parses a MatDock volume-archive file name <c>{envId}_{volume}_{yyyyMMddHHmmss}[_{suffix}].tar</c>
+    /// back into its parts. The volume name itself may contain underscores. Returns false if it doesn't
+    /// match the MatDock convention (e.g. a truly foreign archive).
+    /// </summary>
+    public static bool TryParseArchiveName(string fileName, out long environmentId, out string volumeName, out DateTime timestampUtc)
+    {
+        environmentId = 0;
+        volumeName = string.Empty;
+        timestampUtc = default;
+
+        var name = Path.GetFileName(fileName);
+        if (name.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[..^4];
+        }
+
+        var parts = name.Split('_');
+        if (parts.Length < 3 || !long.TryParse(parts[0], out environmentId))
+        {
+            return false;
+        }
+
+        // The timestamp is the last 14-digit segment (an optional 8-char suffix may follow it).
+        var tsIdx = -1;
+        for (var i = parts.Length - 1; i >= 2; i--)
+        {
+            if (parts[i].Length == 14 && parts[i].All(char.IsDigit))
+            {
+                tsIdx = i;
+                break;
+            }
+        }
+
+        if (tsIdx < 2 || !DateTime.TryParseExact(parts[tsIdx], "yyyyMMddHHmmss",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out timestampUtc))
+        {
+            return false;
+        }
+
+        volumeName = string.Join('_', parts[1..tsIdx]);
+        return volumeName.Length > 0;
+    }
+
     public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
@@ -147,11 +193,6 @@ public sealed class VolumeBackupService
 
     public async Task<RestoreResult> RestoreAsync(long backupId, DockerEnvironment target, string targetVolume, bool overwrite, CancellationToken ct = default, bool stopContainers = false)
     {
-        if (!VolumeCommands.IsValidVolumeName(targetVolume))
-        {
-            return RestoreResult.Fail($"Invalid target volume name: '{targetVolume}'.");
-        }
-
         var backup = await GetAsync(backupId, ct);
         if (backup is null)
         {
@@ -169,7 +210,23 @@ public sealed class VolumeBackupService
                 return RestoreResult.Fail("The backup target of this backup has been deleted - restore is not possible.");
             }
         }
-        var storage = _storageFactory.Create(storageTarget);
+
+        return await RestoreCoreAsync(_storageFactory.Create(storageTarget), backup.FileName, target, targetVolume, overwrite, stopContainers, ct);
+    }
+
+    /// <summary>
+    /// Restores an archive that is present at a target by FILE NAME (not a DB record) — used to restore
+    /// backups created by an older/other MatDock instance that wrote to the same target.
+    /// </summary>
+    public Task<RestoreResult> RestoreFromFileAsync(BackupTarget? storageTarget, string fileName, DockerEnvironment target, string targetVolume, bool overwrite, bool stopContainers = false, CancellationToken ct = default)
+        => RestoreCoreAsync(_storageFactory.Create(storageTarget), Path.GetFileName(fileName), target, targetVolume, overwrite, stopContainers, ct);
+
+    private async Task<RestoreResult> RestoreCoreAsync(IBackupStorage storage, string fileName, DockerEnvironment target, string targetVolume, bool overwrite, bool stopContainers, CancellationToken ct)
+    {
+        if (!VolumeCommands.IsValidVolumeName(targetVolume))
+        {
+            return RestoreResult.Fail($"Invalid target volume name: '{targetVolume}'.");
+        }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds)));
@@ -184,7 +241,7 @@ public sealed class VolumeBackupService
 
             // Open (and thereby verify) the archive BEFORE any destructive step, so a source failure
             // aborts the restore before the target volume is wiped.
-            await using var source = await storage.OpenReadAsync(backup.FileName, cts.Token);
+            await using var source = await storage.OpenReadAsync(fileName, cts.Token);
 
             var create = RunCommand(client, VolumeCommands.Create(targetVolume, head));
             if (create.ExitStatus != 0)
@@ -250,7 +307,7 @@ public sealed class VolumeBackupService
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Restore of backup {Id} failed.", backupId);
+            _logger.LogInformation(ex, "Restore of '{File}' failed.", fileName);
             return RestoreResult.Fail($"Error: {Innermost(ex).Message}");
         }
     }

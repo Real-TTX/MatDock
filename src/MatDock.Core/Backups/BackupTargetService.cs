@@ -142,6 +142,74 @@ public sealed class BackupTargetService
         return await TestAsync(probe, ct);
     }
 
+    /// <summary>File extension that marks a full stack/container bundle manifest at a target.</summary>
+    public const string BundleExtension = ".mdbundle.json";
+
+    /// <summary>An archive physically present at a target, enriched with DB metadata when known.</summary>
+    public sealed record TargetArchive(
+        string FileName, long SizeBytes, DateTime? ModifiedUtc, bool Known,
+        string? VolumeName, string? SourceEnvName, bool IsBundle);
+
+    /// <summary>
+    /// Lists the archives physically present at a target (null = local), merged with this instance's DB
+    /// records so foreign/older backups written to the same target are also shown and can be restored.
+    /// </summary>
+    public async Task<(IReadOnlyList<TargetArchive> Archives, string? Error)> ListArchivesAsync(BackupTarget? target, CancellationToken ct = default)
+    {
+        IReadOnlyList<BackupFileInfo> files;
+        try
+        {
+            files = await _storageFactory.Create(target).ListAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            return (Array.Empty<TargetArchive>(), ex.Message);
+        }
+
+        var targetId = target?.Id;
+        var records = await _db.VolumeBackups.AsNoTracking().Where(b => b.BackupTargetId == targetId).ToListAsync(ct);
+        var byName = new Dictionary<string, VolumeBackup>(StringComparer.Ordinal);
+        foreach (var r in records)
+        {
+            byName[r.FileName] = r;
+        }
+
+        var archives = files.Select(f =>
+        {
+            var isBundle = f.FileName.EndsWith(BundleExtension, StringComparison.OrdinalIgnoreCase);
+            byName.TryGetValue(f.FileName, out var rec);
+            var volume = rec?.VolumeName;
+            if (volume is null && !isBundle && Volumes.VolumeBackupService.TryParseArchiveName(f.FileName, out _, out var parsedVol, out _))
+            {
+                volume = parsedVol;
+            }
+
+            return new TargetArchive(f.FileName, f.SizeBytes, f.ModifiedUtc, rec is not null, volume, rec?.SourceEnvironmentName, isBundle);
+        })
+        .OrderByDescending(a => a.ModifiedUtc ?? DateTime.MinValue)
+        .ToList();
+
+        return (archives, null);
+    }
+
+    public Task<Stream> OpenArchiveAsync(BackupTarget? target, string fileName, CancellationToken ct = default)
+        => _storageFactory.Create(target).OpenReadAsync(Path.GetFileName(fileName), ct);
+
+    public async Task DeleteArchiveAsync(BackupTarget? target, string fileName, CancellationToken ct = default)
+    {
+        var safe = Path.GetFileName(fileName);
+        await _storageFactory.Create(target).DeleteAsync(safe, ct);
+
+        // Keep History consistent: drop any DB record that referenced this file at this target.
+        var targetId = target?.Id;
+        var rec = await _db.VolumeBackups.FirstOrDefaultAsync(b => b.BackupTargetId == targetId && b.FileName == safe, ct);
+        if (rec is not null)
+        {
+            _db.VolumeBackups.Remove(rec);
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
     private async Task ClearOtherDefaultsAsync(long keepId, CancellationToken ct)
     {
         var others = await _db.BackupTargets.Where(t => t.IsDefault && t.Id != keepId).ToListAsync(ct);
