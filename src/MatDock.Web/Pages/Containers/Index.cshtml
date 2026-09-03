@@ -29,7 +29,7 @@
             <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
         }
         <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
-        <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+        <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack"><icon name="volume" /></a>
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">

@@ -31,6 +31,13 @@
 }
 
 <div class="fs-toolbar">
+    <select class="mat-select fs-volswitch" aria-label="Switch volume"
+            onchange="location.href='/Volumes/Files?envId=@Model.EnvId&volume='+encodeURIComponent(this.value)">
+        @foreach (var v in Model.VolumeNames)
+        {
+            <option value="@v" selected="@(v == Model.Volume)">@v</option>
+        }
+    </select>
     <nav class="fs-crumbs mono" aria-label="Path">
         @for (int i = 0; i < Model.Crumbs.Count; i++)
         {

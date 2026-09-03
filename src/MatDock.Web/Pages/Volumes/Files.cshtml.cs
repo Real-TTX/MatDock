@@ -10,17 +10,22 @@ public class FilesModel : PageModel
 {
     private readonly EnvironmentService _environmentService;
     private readonly VolumeFileService _fileService;
+    private readonly IEnvironmentConnectionService _connectionService;
 
-    public FilesModel(EnvironmentService environmentService, VolumeFileService fileService)
+    public FilesModel(EnvironmentService environmentService, VolumeFileService fileService, IEnvironmentConnectionService connectionService)
     {
         _environmentService = environmentService;
         _fileService = fileService;
+        _connectionService = connectionService;
     }
 
     public long EnvId { get; private set; }
     public string Volume { get; private set; } = string.Empty;
     public string Path { get; private set; } = string.Empty;
     public DockerEnvironment? Environment { get; private set; }
+
+    /// <summary>All volumes on this environment, for the volume switcher dropdown (best-effort).</summary>
+    public List<string> VolumeNames { get; private set; } = new();
     public IReadOnlyList<VolumeFileEntry> Entries { get; private set; } = new List<VolumeFileEntry>();
     public string? Error { get; private set; }
 
@@ -45,6 +50,20 @@ public class FilesModel : PageModel
         var (entries, error) = await _fileService.ListAsync(Environment!, Volume, Path, HttpContext.RequestAborted);
         Entries = entries;
         Error = error;
+
+        // Populate the volume switcher (best-effort; on failure it just shows the current volume).
+        try
+        {
+            var vols = await _connectionService.ListVolumesAsync(_environmentService.BuildSettings(Environment!), HttpContext.RequestAborted);
+            VolumeNames = vols.Select(v => v.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch { /* ignore */ }
+
+        if (!VolumeNames.Contains(Volume))
+        {
+            VolumeNames.Insert(0, Volume);
+        }
+
         return Page();
     }
 
