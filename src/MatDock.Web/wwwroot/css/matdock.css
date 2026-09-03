@@ -501,6 +501,13 @@ table.ctable td.num { text-align: left; }
 .ctile__name:hover { color: var(--accent); }
 .ctile__actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .ctile__actions form { display: inline; margin: 0; }
+
+/* Port tags (compose-style host:container; published ones link to the app) */
+.port-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.port-tag { display: inline-flex; align-items: center; font-family: var(--mono); font-size: .72rem; padding: 2px 7px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--text-muted); white-space: nowrap; text-decoration: none; border: 1px solid transparent; }
+.port-tag--link { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+.port-tag--link:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); text-decoration: none; }
+.port-tag--muted { opacity: .75; }
 .ctile__top .pill { font-size: .68rem; padding: 1px 7px; flex: 0 0 auto; }
 .ctile__img { font-family: var(--mono); font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 5px; }
 .ctile__meta { font-size: .72rem; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

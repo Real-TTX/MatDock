@@ -80,7 +80,7 @@
                     <span class="pill pill--unknown"><span>@c.Status</span></span>
                 }
             </td>
-            <td class="ports cell-sub">@c.Ports</td>
+            <td class="ports"><container-ports ports="@c.Ports" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
             <td class="num">
                 @if (c.CpuPercent is not null)
                 {

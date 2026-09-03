@@ -10,6 +10,27 @@ public static class OpenUrls
     public static string? Resolve(string? containerOverride, string? environmentBaseUrl)
         => Sanitize(containerOverride) ?? Sanitize(environmentBaseUrl);
 
+    /// <summary>
+    /// The host to use for per-port links: the environment's base-URL host if configured, else "localhost"
+    /// for a local environment, else the SSH host. Null when nothing usable is available.
+    /// </summary>
+    public static string? PortLinkHost(MatDock.Core.Entities.DockerEnvironment env)
+    {
+        if (!string.IsNullOrWhiteSpace(env.BaseUrl)
+            && Uri.TryCreate(env.BaseUrl.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return uri.Host;
+        }
+
+        if (env.ConnectionType == MatDock.Core.Entities.ConnectionType.Local)
+        {
+            return "localhost";
+        }
+
+        return string.IsNullOrWhiteSpace(env.Host) ? null : env.Host;
+    }
+
     private static string? Sanitize(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))

@@ -47,7 +47,7 @@ else
                             @if (!string.IsNullOrEmpty(c.Service)) { <div class="cell-sub">@c.Service</div> }
                         </td>
                         <td>@if (c.IsRunning) {<span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="pill pill--unknown">@c.Status</span>}</td>
-                        <td class="cell-sub mono">@c.Ports</td>
+                        <td><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td>
                         <td class="num">@CpuText(c)</td>
                         <td class="num cell-sub">@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td>
                         <td class="actions">

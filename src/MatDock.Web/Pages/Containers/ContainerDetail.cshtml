@@ -66,7 +66,7 @@ else if (c is not null)
                     <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="pill pill--unknown">@c.Status</span>}</td></tr>
                     <tr><th>Image</th><td class="mono">@c.Image</td></tr>
                     <tr><th>Stack</th><td>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</td></tr>
-                    <tr><th>Ports</th><td class="mono">@(string.IsNullOrEmpty(c.Ports) ? "–" : c.Ports)</td></tr>
+                    <tr><th>Ports</th><td><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td></tr>
                     <tr><th>CPU</th><td>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</td></tr>
                     <tr><th>RAM</th><td>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td></tr>
                     <tr><th>ID</th><td class="mono">@c.Id</td></tr>
