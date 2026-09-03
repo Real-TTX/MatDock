@@ -222,6 +222,31 @@ public sealed class ContainerService
         return (container, mounts);
     }
 
+    /// <summary>The mounts (named volumes/binds) of one container. Best-effort: empty on failure. One inspect call.</summary>
+    public async Task<IReadOnlyList<ContainerMount>> GetMountsAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return Array.Empty<ContainerMount>();
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _hostSessionFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var inspect = await RunCommandAsync(client, ContainerCommands.InspectMounts(head, id), ct);
+            return inspect.ExitStatus == 0 ? ParseMounts(inspect.StdOut) : Array.Empty<ContainerMount>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "GetMounts for {Id} on env {Env} failed.", id, environment.Id);
+            return Array.Empty<ContainerMount>();
+        }
+    }
+
     public async Task<(bool Success, string Message)> ActionAsync(DockerEnvironment environment, string id, ContainerAction action, CancellationToken ct = default)
     {
         if (!ContainerCommands.IsValidId(id))

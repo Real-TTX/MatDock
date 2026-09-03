@@ -11,12 +11,14 @@ public class TargetsModel : PageModel
 {
     private readonly BackupTargetService _targetService;
     private readonly VolumeBackupService _volumeBackupService;
+    private readonly BundleBackupService _bundleService;
     private readonly EnvironmentService _environmentService;
 
-    public TargetsModel(BackupTargetService targetService, VolumeBackupService volumeBackupService, EnvironmentService environmentService)
+    public TargetsModel(BackupTargetService targetService, VolumeBackupService volumeBackupService, BundleBackupService bundleService, EnvironmentService environmentService)
     {
         _targetService = targetService;
         _volumeBackupService = volumeBackupService;
+        _bundleService = bundleService;
         _environmentService = environmentService;
     }
 
@@ -63,6 +65,23 @@ public class TargetsModel : PageModel
         var result = await _volumeBackupService.RestoreFromFileAsync(storageTarget, fileName, env, targetVolume, overwrite, stopContainers, HttpContext.RequestAborted);
         StatusMessage = $"{fileName} → {env.Name}/{targetVolume}: {result.Message}";
         IsError = !result.Success;
+        return RedirectToPage(new { targetId });
+    }
+
+    public async Task<IActionResult> OnPostRestoreBundleAsync(long targetId, string fileName, long envId, string? newName, bool overwriteVolumes)
+    {
+        var storageTarget = targetId > 0 ? await _targetService.GetAsync(targetId, HttpContext.RequestAborted) : null;
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Target environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(new { targetId });
+        }
+
+        var (ok, message) = await _bundleService.RestoreBundleAsync(storageTarget, fileName, env, newName, overwriteVolumes, HttpContext.RequestAborted);
+        StatusMessage = $"{fileName} → {env.Name}: {message}";
+        IsError = !ok;
         return RedirectToPage(new { targetId });
     }
 

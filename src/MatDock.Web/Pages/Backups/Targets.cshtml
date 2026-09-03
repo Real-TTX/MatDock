@@ -104,6 +104,33 @@
                                         </div>
                                     </details>
                                 }
+                                else
+                                {
+                                    <details class="restore-pop">
+                                        <summary class="mat-btn mat-btn--sm mat-btn--primary" title="Restore stack"><icon name="refresh" /><span>Restore</span></summary>
+                                        <div class="restore-form">
+                                            <form method="post" asp-page-handler="RestoreBundle">
+                                                <input type="hidden" name="targetId" value="@Model.TargetId" />
+                                                <input type="hidden" name="fileName" value="@a.FileName" />
+                                                <div class="mat-field">
+                                                    <label class="mat-label">Target environment</label>
+                                                    <select name="envId" class="mat-select" required>
+                                                        @foreach (var e in Model.Environments)
+                                                        {
+                                                            <option value="@e.Id">@e.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="mat-field">
+                                                    <label class="mat-label">Stack name (optional)</label>
+                                                    <input name="newName" class="mat-input" placeholder="keep original" />
+                                                </div>
+                                                <label class="mat-check"><input type="checkbox" name="overwriteVolumes" value="true" /><span>Overwrite existing volume data</span></label>
+                                                <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore stack from '@a.FileName'? (restore volumes, recreate &amp; deploy)"><icon name="refresh" /><span>Restore stack</span></button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                }
                                 <a class="mat-btn mat-btn--sm" href="/Backups/Targets?handler=Download&targetId=@Model.TargetId&fileName=@Uri.EscapeDataString(a.FileName)" title="Download"><icon name="download" /></a>
                                 <form method="post" asp-page-handler="Delete" data-confirm="Delete '@a.FileName' from this target?" style="display:inline;">
                                     <input type="hidden" name="targetId" value="@Model.TargetId" />

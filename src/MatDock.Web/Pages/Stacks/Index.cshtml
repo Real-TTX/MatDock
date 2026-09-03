@@ -188,9 +188,14 @@
                                 }
                                 <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /><span>Containers</span></a>
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId" title="Volumes"><icon name="volume" /><span>Volumes</span></a>
+                                <form method="post" asp-page-handler="BundleBackup" data-confirm="Full backup of '@r.Name' (all volumes + compose + image refs) to the default target?" style="display:inline;">
+                                    <input type="hidden" name="envId" value="@r.EnvId" />
+                                    <input type="hidden" name="project" value="@r.Name" />
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Full backup (volumes + compose)"><icon name="save" /><span>Backup</span></button>
+                                </form>
+                                <span style="flex:1 1 auto;"></span>
                                 @if (r.Managed && r.ManagedId is { } did)
                                 {
-                                    <span style="flex:1 1 auto;"></span>
                                     <form method="post" asp-page-handler="Delete" data-confirm="Delete stack '@r.Name' from MatDock? (Containers will not be stopped)" style="display:inline;">
                                         <input type="hidden" name="id" value="@did" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
@@ -262,6 +267,10 @@
                                         <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@id" title="Open (edit definition)"><icon name="external" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId" title="Volumes"><icon name="volume" /></a>
+                                        <form method="post" asp-page-handler="BundleBackup" data-confirm="Full backup of '@r.Name' (all volumes + compose + image refs) to the default target?" style="display:inline;">
+                                            <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Full backup (volumes + compose)"><icon name="save" /></button>
+                                        </form>
                                         <span style="width:8px;display:inline-block;"></span>
                                         <form method="post" asp-page-handler="Delete" data-confirm="Delete stack '@r.Name' from MatDock? (Containers will not be stopped)" style="display:inline;">
                                             <input type="hidden" name="id" value="@id" />
@@ -272,6 +281,10 @@
                                     {
                                         <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /><span>Containers</span></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId" title="Volumes"><icon name="volume" /></a>
+                                        <form method="post" asp-page-handler="BundleBackup" data-confirm="Full backup of '@r.Name' (all volumes + compose + image refs) to the default target?" style="display:inline;">
+                                            <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Full backup (volumes + compose)"><icon name="save" /><span>Backup</span></button>
+                                        </form>
                                     }
                                 </div>
                             </td>

@@ -1,3 +1,4 @@
+using MatDock.Core.Backups;
 using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
@@ -15,12 +16,17 @@ public class IndexModel : PageModel
     private readonly StackService _stackService;
     private readonly EnvironmentService _environmentService;
     private readonly ContainerService _containerService;
+    private readonly BundleBackupService _bundleService;
+    private readonly BackupTargetService _targetService;
 
-    public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService)
+    public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService,
+        BundleBackupService bundleService, BackupTargetService targetService)
     {
         _stackService = stackService;
         _environmentService = environmentService;
         _containerService = containerService;
+        _bundleService = bundleService;
+        _targetService = targetService;
     }
 
     /// <summary>Globally selected environment (0 = all), from the sidebar dropdown / cookie.</summary>
@@ -210,6 +216,24 @@ public class IndexModel : PageModel
         StatusMessage = deleted ? "Stack deleted (containers may still be running – stop them first)." : "Stack not found.";
         IsError = !deleted;
         return RedirectToPage();
+    }
+
+    /// <summary>Full backup of a stack (all volumes + compose + image refs) to the default target.</summary>
+    public async Task<IActionResult> OnPostBundleBackupAsync(long envId, string project)
+    {
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(new { view = View, Q, Status, Type });
+        }
+
+        var target = await _targetService.GetDefaultAsync(HttpContext.RequestAborted);
+        var (ok, message) = await _bundleService.BackupStackAsync(env, project, target, stopContainers: false, HttpContext.RequestAborted);
+        StatusMessage = $"{message} → {(target?.Name ?? "Local")}";
+        IsError = !ok;
+        return RedirectToPage(new { view = View, Q, Status, Type });
     }
 
     /// <summary>Start/stop/restart a single container from an expanded stack, staying on the current view.</summary>
