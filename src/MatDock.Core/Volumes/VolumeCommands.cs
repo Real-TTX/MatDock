@@ -86,6 +86,51 @@ public static partial class VolumeCommands
         return PathPrefix + $"{dockerHead} volume create '{volume}'";
     }
 
+    // Driver and --opt keys: letters, digits, underscore, dot, hyphen (no shell metacharacters).
+    [GeneratedRegex(@"^[a-zA-Z0-9_.-]+\z")]
+    private static partial Regex OptKeyRegex();
+
+    /// <summary>
+    /// Builds <c>docker volume create [--driver &lt;driver&gt;] [--opt &lt;k&gt;='&lt;v&gt;']... '&lt;name&gt;'</c>.
+    /// Name, driver and option keys are validated; option VALUES (paths, addresses, credentials) are
+    /// single-quoted so they may contain arbitrary characters without breaking the shell line.
+    /// </summary>
+    public static string CreateWithOptions(string volume, string? driver, IReadOnlyList<(string Key, string Value)> options, string dockerHead = "docker")
+    {
+        if (!IsValidVolumeName(volume))
+        {
+            throw new ArgumentException($"Invalid volume name: '{volume}'.", nameof(volume));
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append(PathPrefix).Append(dockerHead).Append(" volume create");
+
+        if (!string.IsNullOrWhiteSpace(driver))
+        {
+            if (!OptKeyRegex().IsMatch(driver))
+            {
+                throw new ArgumentException($"Invalid driver: '{driver}'.", nameof(driver));
+            }
+            sb.Append(" --driver ").Append(driver);
+        }
+
+        foreach (var (key, value) in options)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+            if (!OptKeyRegex().IsMatch(key))
+            {
+                throw new ArgumentException($"Invalid option key: '{key}'.", nameof(options));
+            }
+            sb.Append(" --opt ").Append(key).Append('=').Append(VolumeFileCommands.ShellQuote(value ?? string.Empty));
+        }
+
+        sb.Append(" '").Append(volume).Append('\'');
+        return sb.ToString();
+    }
+
     /// <summary>Command that tars the volume contents to stdout (source side).</summary>
     public static string Export(string volume, string image, string dockerHead = "docker")
     {

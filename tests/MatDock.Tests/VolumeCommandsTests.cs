@@ -45,6 +45,35 @@ public class VolumeCommandsTests
         => Assert.Contains("docker volume create 'data'", VolumeCommands.Create("data"));
 
     [Fact]
+    public void CreateWithOptions_builds_nfs_command_with_driver_and_quoted_opts()
+    {
+        var cmd = VolumeCommands.CreateWithOptions("nfsvol", "local", new List<(string, string)>
+        {
+            ("type", "nfs"),
+            ("o", "addr=10.0.0.5,rw,nfsvers=4"),
+            ("device", ":/export/appdata"),
+        });
+
+        Assert.Contains("docker volume create --driver local", cmd);
+        Assert.Contains("--opt type='nfs'", cmd);
+        Assert.Contains("--opt o='addr=10.0.0.5,rw,nfsvers=4'", cmd);
+        Assert.Contains("--opt device=':/export/appdata'", cmd);
+        Assert.Contains(" 'nfsvol'", cmd);
+    }
+
+    [Fact]
+    public void CreateWithOptions_quotes_values_and_rejects_bad_names_and_keys()
+    {
+        // A password with shell metacharacters must be safely single-quoted, not executed.
+        var cmd = VolumeCommands.CreateWithOptions("v", "local", new List<(string, string)> { ("o", "password=a'b;$(x)") });
+        Assert.Contains("--opt o='password=a'\\''b;$(x)'", cmd);
+
+        Assert.Throws<ArgumentException>(() => VolumeCommands.CreateWithOptions("$(evil)", "local", new List<(string, string)>()));
+        Assert.Throws<ArgumentException>(() => VolumeCommands.CreateWithOptions("v", "bad;driver", new List<(string, string)>()));
+        Assert.Throws<ArgumentException>(() => VolumeCommands.CreateWithOptions("v", "local", new List<(string, string)> { ("bad key", "x") }));
+    }
+
+    [Fact]
     public void Builders_throw_on_injection_attempt()
     {
         Assert.Throws<ArgumentException>(() => VolumeCommands.Export("evil; rm -rf /", "busybox"));

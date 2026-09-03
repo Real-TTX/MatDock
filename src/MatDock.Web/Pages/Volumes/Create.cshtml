@@ -1,0 +1,92 @@
+@page
+@model MatDock.Web.Pages.Volumes.CreateModel
+@{
+    ViewData["Title"] = "New volume";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>New volume</h1>
+        <span class="page-head__subtitle">A simple Docker volume or a network mount (NFS / CIFS-SMB)</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+<div class="card" style="max-width:720px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <div class="form-grid">
+                <mat-field label="Environment" asp-for="Input.EnvironmentId">
+                    <select asp-for="Input.EnvironmentId" class="mat-select">
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Name" asp-for="Input.Name" hint="Letters, digits, . _ - (must start alphanumeric).">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="e.g. app-data" />
+                </mat-field>
+
+                <mat-field label="Type" asp-for="Input.Type" class="span-2">
+                    <select asp-for="Input.Type" id="Input_Type" class="mat-select">
+                        <option value="simple">Simple (local)</option>
+                        <option value="nfs">NFS</option>
+                        <option value="cifs">CIFS / SMB</option>
+                        <option value="custom">Custom (driver + options)</option>
+                    </select>
+                </mat-field>
+            </div>
+
+            <div data-show-when="Input_Type=nfs" class="mat-form">
+                <div class="form-grid">
+                    <mat-field label="NFS server" asp-for="Input.NfsServer" hint="Host or IP of the NFS server.">
+                        <input asp-for="Input.NfsServer" class="mat-input" placeholder="10.0.0.5" />
+                    </mat-field>
+                    <mat-field label="Remote path" asp-for="Input.NfsPath" hint="Exported directory on the server.">
+                        <input asp-for="Input.NfsPath" class="mat-input" placeholder="/export/appdata" />
+                    </mat-field>
+                    <mat-field label="Mount options (o=)" asp-for="Input.NfsOptions" class="span-2" hint="Comma-separated, e.g. rw,nfsvers=4,soft.">
+                        <input asp-for="Input.NfsOptions" class="mat-input" />
+                    </mat-field>
+                </div>
+            </div>
+
+            <div data-show-when="Input_Type=cifs" class="mat-form">
+                <div class="form-grid">
+                    <mat-field label="Share" asp-for="Input.CifsShare" class="span-2" hint="UNC path, e.g. //nas/share/appdata.">
+                        <input asp-for="Input.CifsShare" class="mat-input" placeholder="//nas/share/appdata" />
+                    </mat-field>
+                    <mat-field label="Username" asp-for="Input.CifsUser">
+                        <input asp-for="Input.CifsUser" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Password" asp-for="Input.CifsPassword" hint="Stored in the volume's options on the host.">
+                        <input asp-for="Input.CifsPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                    <mat-field label="Mount options (o=)" asp-for="Input.CifsOptions" class="span-2" hint="Comma-separated, e.g. vers=3.0,file_mode=0644,dir_mode=0755.">
+                        <input asp-for="Input.CifsOptions" class="mat-input" />
+                    </mat-field>
+                </div>
+            </div>
+
+            <div data-show-when="Input_Type=custom" class="mat-form">
+                <mat-field label="Driver" asp-for="Input.CustomDriver">
+                    <input asp-for="Input.CustomDriver" class="mat-input" placeholder="local" />
+                </mat-field>
+                <mat-field label="Driver options" asp-for="Input.CustomOptions" hint="One key=value per line — each becomes a docker --opt.">
+                    <textarea asp-for="Input.CustomOptions" class="mat-textarea" rows="5" spellcheck="false" placeholder="type=nfs&#10;o=addr=10.0.0.5,rw&#10;device=:/export/appdata"></textarea>
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create volume</span></button>
+                <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

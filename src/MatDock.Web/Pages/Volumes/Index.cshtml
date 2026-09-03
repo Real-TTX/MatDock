@@ -116,16 +116,7 @@
     <mat-table-actions>
         @if (Model.Environments.Count > 0)
         {
-            <form method="post" asp-page-handler="CreateVolume" style="display:inline-flex;gap:6px;align-items:center;">
-                <select name="createEnvId" class="mat-select" aria-label="Target environment">
-                    @foreach (var env in Model.Environments)
-                    {
-                        <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
-                    }
-                </select>
-                <input name="newVolumeName" class="mat-input" placeholder="New volume" required style="width:160px;" />
-                <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create</span></button>
-            </form>
+            <a href="/Volumes/Create" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New volume</span></a>
         }
         <span class="toolbar-spacer"></span>
         <a href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>

@@ -20,5 +20,8 @@ public interface IEnvironmentConnectionService
     /// <summary>Creates a named volume (docker volume create). Returns an actionable message on failure.</summary>
     Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a volume with an explicit driver and <c>--opt</c> options (e.g. NFS/CIFS mounts).</summary>
+    Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, string? driver, IReadOnlyList<(string Key, string Value)> options, CancellationToken cancellationToken = default);
+
     Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 }

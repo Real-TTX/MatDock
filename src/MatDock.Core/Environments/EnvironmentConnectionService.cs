@@ -200,6 +200,40 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
+    public async Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, string? driver, IReadOnlyList<(string Key, string Value)> options, CancellationToken cancellationToken = default)
+    {
+        if (!VolumeCommands.IsValidVolumeName(name))
+        {
+            return (false, "Invalid volume name (letters, digits and . _ - allowed, must start alphanumeric).");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        string command;
+        try
+        {
+            var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+            command = VolumeCommands.CreateWithOptions(name, driver, options, head);
+        }
+        catch (ArgumentException ex)
+        {
+            return (false, ex.Message);
+        }
+
+        var result = RunCommand(client, command, settings);
+        return result.ExitStatus == 0
+            ? (true, $"Volume \"{name}\" created.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
     public async Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         using var client = _hostSessionFactory.Create(settings);
