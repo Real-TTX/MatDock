@@ -28,7 +28,7 @@ public class IndexModel : PageModel
     public bool IsAll => EnvId <= 0;
 
     [BindProperty(SupportsGet = true)]
-    public string View { get; set; } = "gallery";
+    public string View { get; set; } = "list";
 
     [BindProperty(SupportsGet = true)]
     public string? Q { get; set; }

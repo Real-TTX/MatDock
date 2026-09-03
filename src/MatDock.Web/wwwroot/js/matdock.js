@@ -149,6 +149,18 @@ function matdockPromptSubmit(btn, message, current) {
     if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
 }
 
+/* Expandable table rows (Stacks list): toggle the detail row that immediately follows the
+   clicked row and rotate the chevron. The detail row is a sibling <tr class="stack-detail">. */
+function matdockToggleRow(btn) {
+    var row = btn.closest("tr");
+    if (!row) { return; }
+    var detail = row.nextElementSibling;
+    if (!detail || !detail.classList.contains("stack-detail")) { return; }
+    var wasHidden = detail.hasAttribute("hidden");
+    if (wasHidden) { detail.removeAttribute("hidden"); } else { detail.setAttribute("hidden", ""); }
+    btn.classList.toggle("is-open", wasHidden);
+}
+
 /* Global environment selector (sidebar): persist the choice in a cookie and navigate to the current
    top-level section's list. Avoids mangling detail-page URLs (which would drop required id params). */
 function matdockSetEnv(value) {

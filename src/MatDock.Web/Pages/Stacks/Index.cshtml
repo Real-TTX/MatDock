@@ -18,6 +18,31 @@
         "restarting" or "created" or "paused" => "pill--offline",
         _ => "pill--unknown"
     };
+
+    // Container tiles for an expanded stack (shared by the gallery cards and the list detail rows).
+    async Task RenderTiles(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
+    {
+        if (r.Containers.Count == 0)
+        {
+            <div class="text-muted" style="font-size:.85rem;padding:2px;">No containers running for this stack.</div>
+        }
+        else
+        {
+            <div class="ctile-grid">
+                @foreach (var c in r.Containers)
+                {
+                    <a class="ctile" href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)">
+                        <div class="ctile__top">
+                            <span class="ctile__name">@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)</span>
+                            <span class="pill @StatePill(c.State)">@(string.IsNullOrEmpty(c.State) ? "?" : c.State)</span>
+                        </div>
+                        <div class="ctile__img">@c.Image</div>
+                        <div class="ctile__meta">@c.Status</div>
+                    </a>
+                }
+            </div>
+        }
+    }
 }
 
 <div class="page-head">
@@ -121,26 +146,7 @@
                         </summary>
 
                         <div class="stack-card__body">
-                            @if (r.Containers.Count == 0)
-                            {
-                                <div class="text-muted" style="font-size:.85rem;padding:2px 2px 10px;">No containers running for this stack.</div>
-                            }
-                            else
-                            {
-                                <div class="ctile-grid">
-                                    @foreach (var c in r.Containers)
-                                    {
-                                        <a class="ctile" href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)">
-                                            <div class="ctile__top">
-                                                <span class="ctile__name">@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)</span>
-                                                <span class="pill @StatePill(c.State)">@(string.IsNullOrEmpty(c.State) ? "?" : c.State)</span>
-                                            </div>
-                                            <div class="ctile__img">@c.Image</div>
-                                            <div class="ctile__meta">@c.Status</div>
-                                        </a>
-                                    }
-                                </div>
-                            }
+                            @{ await RenderTiles(r); }
 
                             <div class="stack-card__actions">
                                 @if (r.Managed && r.ManagedId is { } mid)
@@ -182,6 +188,7 @@
                     {
                         <tr>
                             <td>
+                                <button type="button" class="stack-toggle" onclick="matdockToggleRow(this)" aria-label="Expand containers"><icon name="chevron-right" /></button>
                                 @if (r.Managed && r.ManagedId is { } mid)
                                 {
                                     <a href="/Stacks/Edit?id=@mid"><strong>@r.Name</strong></a>
@@ -243,6 +250,9 @@
                                     }
                                 </div>
                             </td>
+                        </tr>
+                        <tr class="stack-detail" hidden>
+                            <td colspan="5">@{ await RenderTiles(r); }</td>
                         </tr>
                     }
                 </tbody>

@@ -503,6 +503,13 @@ table.ctable td.num { text-align: left; }
 .ctile__img { font-family: var(--mono); font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 5px; }
 .ctile__meta { font-size: .72rem; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Expandable stack rows in the list view */
+.stack-toggle { background: none; border: 0; cursor: pointer; color: var(--text-muted); padding: 2px; margin-right: 6px; display: inline-flex; vertical-align: middle; transition: transform .18s; }
+.stack-toggle:hover { color: var(--accent); }
+.stack-toggle.is-open { transform: rotate(90deg); }
+.stack-detail > td { background: var(--surface-2); padding: 12px 16px; }
+.stack-detail .ctile-grid { margin-top: 0; }
+
 /* Container tiles reuse .env-card; just the grid wrapper differs. */
 .cbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); padding: 14px; }
 
