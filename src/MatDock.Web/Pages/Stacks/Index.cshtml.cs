@@ -211,4 +211,21 @@ public class IndexModel : PageModel
         IsError = !deleted;
         return RedirectToPage();
     }
+
+    /// <summary>Start/stop/restart a single container from an expanded stack, staying on the current view.</summary>
+    public async Task<IActionResult> OnPostContainerActionAsync(long envId, string id, ContainerAction action)
+    {
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(new { view = View, Q, Status, Type });
+        }
+
+        var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
+        StatusMessage = $"{action} {id}: {message}";
+        IsError = !ok;
+        return RedirectToPage(new { view = View, Q, Status, Type });
+    }
 }

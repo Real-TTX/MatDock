@@ -95,7 +95,7 @@
                                         <a class="mat-btn mat-btn--sm" href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="Open"><icon name="external" /></a>
                                         @if (isAdmin)
                                         {
-                                            <a class="mat-btn mat-btn--sm" href="/Volumes/Files?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="File explorer"><icon name="edit" /></a>
+                                            <a class="mat-btn mat-btn--sm" href="/Volumes/Files?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="File explorer"><icon name="folder" /></a>
                                         }
                                         <button type="submit" asp-page-handler="Backup" name="single" value="@row.Environment.Id|@row.Volume.Name"
                                                 class="mat-btn mat-btn--sm" title="Create backup"><icon name="save" /></button>

@@ -31,14 +31,39 @@
             <div class="ctile-grid">
                 @foreach (var c in r.Containers)
                 {
-                    <a class="ctile" href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)">
+                    <div class="ctile">
                         <div class="ctile__top">
-                            <span class="ctile__name">@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)</span>
+                            <a class="ctile__name" href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)">@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)</a>
                             <span class="pill @StatePill(c.State)">@(string.IsNullOrEmpty(c.State) ? "?" : c.State)</span>
                         </div>
                         <div class="ctile__img">@c.Image</div>
                         <div class="ctile__meta">@c.Status</div>
-                    </a>
+                        <div class="ctile__actions">
+                            <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                            @if (c.IsRunning)
+                            {
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@r.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
+                                }
+                                <form method="post" asp-page-handler="ContainerAction" style="display:inline;">
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
+                                    <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
+                                </form>
+                                <form method="post" asp-page-handler="ContainerAction" data-confirm="Stop container '@c.Name'?" style="display:inline;">
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="x-circle" /></button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="ContainerAction" style="display:inline;">
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="check-circle" /></button>
+                                </form>
+                            }
+                        </div>
+                    </div>
                 }
             </div>
         }

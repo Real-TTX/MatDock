@@ -1,7 +1,9 @@
 @page
 @model MatDock.Web.Pages.Volumes.FileEditModel
 @{
-    ViewData["Title"] = "Edit file";
+    ViewData["Title"] = "File";
+    var backUrl = $"/Volumes/Files?envId={Model.EnvId}&volume={Uri.EscapeDataString(Model.Volume)}&path={Uri.EscapeDataString(Model.ParentPath)}";
+    var downloadUrl = $"/Volumes/Files?handler=Download&envId={Model.EnvId}&volume={Uri.EscapeDataString(Model.Volume)}&target={Uri.EscapeDataString(Model.Path)}";
 }
 
 <div class="page-head">
@@ -10,7 +12,8 @@
         <span class="page-head__subtitle mono">@Model.Volume · @Model.Environment?.Name</span>
     </div>
     <div class="mat-buttons">
-        <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+        <a href="@downloadUrl" class="mat-btn"><icon name="download" /><span>Download</span></a>
+        <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -25,9 +28,24 @@
 {
     <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
 }
+else if (Model.IsImage)
+{
+    <div class="card">
+        <div class="card__header"><icon name="eye" /><span>Preview</span></div>
+        <div class="card__body file-preview">
+            <img src="@downloadUrl" alt="@Model.FileName" />
+        </div>
+    </div>
+}
 else if (Model.IsBinary)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Binary file – cannot be edited here.</span></div>
+    <div class="card">
+        <div class="empty-state">
+            <div><icon name="file" /></div>
+            <p>Binary file – no text preview available.</p>
+            <a href="@downloadUrl" class="mat-btn mat-btn--primary"><icon name="download" /><span>Download</span></a>
+        </div>
+    </div>
 }
 else
 {
@@ -48,7 +66,8 @@ else
             {
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
             }
-            <a href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(Model.Volume)&path=@Uri.EscapeDataString(Model.ParentPath)" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
+            <a href="@downloadUrl" class="mat-btn"><icon name="download" /><span>Download</span></a>
+            <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>@(editable ? "Cancel" : "Back")</span></a>
         </mat-form-buttons>
     </form>
 }

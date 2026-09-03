@@ -26,6 +26,11 @@ public class FileEditModel : PageModel
     public DockerEnvironment? Environment { get; private set; }
     public string FileName => Path.Contains('/') ? Path[(Path.LastIndexOf('/') + 1)..] : Path;
     public string ParentPath => Path.Contains('/') ? Path[..Path.LastIndexOf('/')] : string.Empty;
+
+    /// <summary>Raster image types we can preview inline via the download stream (SVG stays text/source).</summary>
+    public bool IsImage => System.IO.Path.GetExtension(FileName).ToLowerInvariant()
+        is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".bmp" or ".ico" or ".avif";
+
     public bool IsBinary { get; private set; }
     public bool Truncated { get; private set; }
     public bool NonUtf8 { get; private set; }
