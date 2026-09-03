@@ -12,6 +12,43 @@
     string StatusPill(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
         => r.StatusKind switch { "running" => "pill--online", "partial" => "pill--offline", _ => "pill--unknown" };
 
+    var ci = System.Globalization.CultureInfo.InvariantCulture;
+    string Pct(double v) => Math.Clamp(v, 0, 100).ToString(ci);
+
+    (double Cpu, double Mem, bool Any) Agg(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
+    {
+        double cpu = 0, mem = 0; bool any = false;
+        foreach (var c in r.Containers)
+        {
+            if (c.CpuPercent is { } cv) { cpu += cv; any = true; }
+            if (c.MemPercent is { } mv) { mem += mv; any = true; }
+        }
+        return (cpu, mem, any);
+    }
+
+    // Aggregated CPU/RAM across a stack's containers (sum of per-container % of host).
+    void AggResources(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
+    {
+        var a = Agg(r);
+        if (!a.Any)
+        {
+            <span class="text-muted">–</span>
+            return;
+        }
+        <div class="res">
+            <div class="res__row" title="Aggregated RAM across the stack (% of host)">
+                <span class="res__k">RAM</span>
+                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(a.Mem))%"></span></span>
+                <span class="res__v">@(Math.Round(a.Mem).ToString(ci))%</span>
+            </div>
+            <div class="res__row" title="Aggregated CPU across the stack (% of host)">
+                <span class="res__k">CPU</span>
+                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(a.Cpu))%"></span></span>
+                <span class="res__v">@(a.Cpu.ToString("0.0", ci))%</span>
+            </div>
+        </div>
+    }
+
     // Container tiles for an expanded stack (shared by the gallery cards and the list detail rows).
     async Task RenderTiles(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
     {
@@ -164,6 +201,7 @@
                         </summary>
 
                         <div class="stack-card__body">
+                            <div style="margin:2px 0 10px;">@{ AggResources(r); }</div>
                             @{ await RenderTiles(r); }
 
                             <div class="stack-card__actions">
@@ -204,7 +242,7 @@
         {
             <table class="data">
                 <thead>
-                    <tr><th>Name</th><th>Environment</th><th>Status</th><th>Last deployed</th><th class="actions">Actions</th></tr>
+                    <tr><th>Name</th><th>Environment</th><th>Status</th><th>Resources</th><th>Last deployed</th><th class="actions">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var r in Model.Rows)
@@ -244,6 +282,7 @@
                                     <span class="text-muted">–</span>
                                 }
                             </td>
+                            <td class="res-cell">@{ AggResources(r); }</td>
                             <td class="text-muted nowrap">@(r.LastDeployedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
                                 <div class="row-actions">
@@ -275,7 +314,7 @@
                             </td>
                         </tr>
                         <tr class="stack-detail" hidden>
-                            <td colspan="5">@{ await RenderTiles(r); }</td>
+                            <td colspan="6">@{ await RenderTiles(r); }</td>
                         </tr>
                     }
                 </tbody>

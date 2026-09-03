@@ -6,6 +6,7 @@ using MatDock.Core.Stacks;
 using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MatDock.Web.Pages.Stacks;
 
@@ -18,15 +19,17 @@ public class IndexModel : PageModel
     private readonly ContainerService _containerService;
     private readonly BundleBackupService _bundleService;
     private readonly BackupTargetService _targetService;
+    private readonly IMemoryCache _cache;
 
     public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService,
-        BundleBackupService bundleService, BackupTargetService targetService)
+        BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache)
     {
         _stackService = stackService;
         _environmentService = environmentService;
         _containerService = containerService;
         _bundleService = bundleService;
         _targetService = targetService;
+        _cache = cache;
     }
 
     /// <summary>Globally selected environment (0 = all), from the sidebar dropdown / cookie.</summary>
@@ -94,10 +97,18 @@ public class IndexModel : PageModel
         using var gate = new SemaphoreSlim(4);
         var scans = enabled.Select(async env =>
         {
+            // Serve container+stats from the cache shared with the Dashboard so aggregated stack
+            // resources are available without re-sampling on every visit.
+            if (_cache.TryGetValue($"dash:containers:{env.Id}", out IReadOnlyList<DockerContainer>? cached) && cached is not null)
+            {
+                return (env, cached, error: (string?)null);
+            }
+
             await gate.WaitAsync(HttpContext.RequestAborted);
             try
             {
-                var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted, includeStats: false);
+                var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted, includeStats: true);
+                _cache.Set($"dash:containers:{env.Id}", containers, TimeSpan.FromSeconds(30));
                 return (env, containers, error: (string?)null);
             }
             catch (Exception ex)
