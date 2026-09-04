@@ -217,7 +217,7 @@
                                     </form>
                                     <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@mid" title="Open (edit definition)"><icon name="external" /><span>Open</span></a>
                                 }
-                                <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /><span>Containers</span></a>
+                                <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /><span>Volumes</span></a>
                                 <form method="post" asp-page-handler="BundleBackup" data-confirm="Full backup of '@r.Name' (all volumes + compose + image refs) to the default target?" style="display:inline;">
                                     <input type="hidden" name="envId" value="@r.EnvId" />
@@ -307,7 +307,7 @@
                                     }
                                     else
                                     {
-                                        <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /><span>Containers</span></a>
+                                        <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /></a>
                                     }
                                 </div>
