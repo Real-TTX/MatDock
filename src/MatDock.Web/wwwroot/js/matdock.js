@@ -98,27 +98,35 @@
         });
     });
 
-    /* ---------------- Bulk selection (tables with .row-check) ---------------- */
+    /* ---------------- Migrate page: source-volume multi-select ---------------- */
     (function () {
-        var checks = Array.prototype.slice.call(document.querySelectorAll(".row-check"));
-        if (!checks.length) { return; }
-        var selectAll = document.getElementById("select-all");
-        var countEl = document.getElementById("sel-count");
-        var bulkButtons = Array.prototype.slice.call(document.querySelectorAll("[data-bulk]"));
+        var picker = document.querySelector("[data-migrate-volumes]");
+        if (!picker) { return; }
+        var checks = Array.prototype.slice.call(picker.querySelectorAll(".mig-vol"));
+        var countEl = document.getElementById("mig-count");
+        var startBtn = document.getElementById("mig-start");
+        var rename = document.getElementById("mig-rename");
+        var multiNote = document.getElementById("mig-multi-note");
+        var selectAll = picker.querySelector("[data-vol-all]");
+        var selectNone = picker.querySelector("[data-vol-none]");
 
         function update() {
             var n = checks.filter(function (c) { return c.checked; }).length;
             if (countEl) { countEl.textContent = n; }
-            bulkButtons.forEach(function (b) { b.disabled = n === 0; });
-            if (selectAll) { selectAll.checked = n > 0 && n === checks.length; }
+            if (startBtn) { startBtn.disabled = n === 0; }
+            if (rename) { rename.hidden = n !== 1; }
+            if (multiNote) { multiNote.hidden = n <= 1; }
         }
 
-        if (selectAll) {
-            selectAll.addEventListener("change", function () {
-                checks.forEach(function (c) { c.checked = selectAll.checked; });
+        function setAll(value) {
+            return function (e) {
+                e.preventDefault();
+                checks.forEach(function (c) { c.checked = value; });
                 update();
-            });
+            };
         }
+        if (selectAll) { selectAll.addEventListener("click", setAll(true)); }
+        if (selectNone) { selectNone.addEventListener("click", setAll(false)); }
         checks.forEach(function (c) { c.addEventListener("change", update); });
         update();
     })();

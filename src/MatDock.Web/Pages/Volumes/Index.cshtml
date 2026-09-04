@@ -55,23 +55,10 @@
         }
         else
         {
-            <form method="post" id="bulk-form">
-                <input type="hidden" name="EnvId" value="@Model.EnvId" />
-                <input type="hidden" name="Q" value="@Model.Q" />
-                <div class="bulk-bar">
-                    <span class="bulk-bar__count"><strong id="sel-count">0</strong> selected</span>
-                    <button type="submit" asp-page-handler="BulkBackup" class="mat-btn mat-btn--sm" data-bulk disabled
-                            data-confirm="Back up the selected volumes now?"><icon name="save" /><span>Backup (selection)</span></button>
-                    <button type="submit" formaction="/Volumes/BulkMigrate" formmethod="post" class="mat-btn mat-btn--sm" data-bulk disabled><icon name="server" /><span>Migrate (selection)</span></button>
-                    <label class="mat-check" style="margin-left:auto;font-size:.85rem;white-space:nowrap;">
-                        <input type="checkbox" name="stopContainers" value="true" />
-                        <span>Stop containers for the backup</span>
-                    </label>
-                </div>
+            <form method="post">
                 <table class="data">
                     <thead>
                         <tr>
-                            <th style="width:36px;"><input type="checkbox" id="select-all" aria-label="Select all" /></th>
                             <th>Environment</th>
                             <th>Volume</th>
                             <th class="actions">Actions</th>
@@ -81,7 +68,6 @@
                         @foreach (var row in Model.Rows)
                         {
                             <tr>
-                                <td><input type="checkbox" class="row-check" name="selected" value="@row.Environment.Id|@row.Volume.Name" aria-label="select" /></td>
                                 <td><span class="mat-badge">@row.Environment.Name</span></td>
                                 <td class="wrap">
                                     <a href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"><strong>@row.Volume.Name</strong></a>

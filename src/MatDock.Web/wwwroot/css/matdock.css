@@ -319,9 +319,9 @@ table.ctable td.num { text-align: left; }
 /* Gallery inside a bordered mat-table needs inset so cards don't double up on the container border. */
 .mat-table .env-gallery { padding: 14px; }
 
-.bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap; }
-.bulk-bar__count { font-size: .85rem; color: var(--text-muted); }
 .mat-btn[disabled] { opacity: .5; cursor: not-allowed; }
+.mat-link { color: var(--accent); text-decoration: none; font-size: .82rem; }
+.mat-link:hover { text-decoration: underline; }
 
 /* ---- Environment gallery + gauges ---- */
 .view-toggle { display: inline-flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: var(--radius-sm); }
@@ -449,6 +449,12 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .migrate__env { font-size: 1.25rem; font-weight: 750; word-break: break-word; }
 .migrate__host { font-family: var(--mono); font-size: .82rem; color: var(--text-muted); margin-bottom: 14px; }
 .migrate__vol { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 12px; font-weight: 650; }
+.vol-picker { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.vol-picker__head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.vol-picker__list { max-height: 240px; overflow-y: auto; padding: 4px; }
+.vol-picker__row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-sm); margin: 0; font-weight: 500; }
+.vol-picker__row:hover { background: var(--surface); }
+.vol-picker__row span { display: inline-flex; align-items: center; gap: 6px; word-break: break-all; }
 
 .result-banner { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 18px; }
 .result-banner .mat-icon { font-size: 2.4rem; flex: 0 0 auto; }

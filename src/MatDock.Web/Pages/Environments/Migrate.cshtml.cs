@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Backups;
 using MatDock.Core.Containers;
+using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Volumes;
@@ -12,13 +13,20 @@ namespace MatDock.Web.Pages.Environments;
 public class MigrateModel : PageModel
 {
     private readonly EnvironmentService _environmentService;
+    private readonly IEnvironmentConnectionService _connectionService;
     private readonly VolumeMigrationService _migrationService;
     private readonly BackupTargetService _backupTargetService;
     private readonly ContainerService _containerService;
 
-    public MigrateModel(EnvironmentService environmentService, VolumeMigrationService migrationService, BackupTargetService backupTargetService, ContainerService containerService)
+    public MigrateModel(
+        EnvironmentService environmentService,
+        IEnvironmentConnectionService connectionService,
+        VolumeMigrationService migrationService,
+        BackupTargetService backupTargetService,
+        ContainerService containerService)
     {
         _environmentService = environmentService;
+        _connectionService = connectionService;
         _migrationService = migrationService;
         _backupTargetService = backupTargetService;
         _containerService = containerService;
@@ -30,21 +38,30 @@ public class MigrateModel : PageModel
     public DockerEnvironment? SourceEnvironment { get; private set; }
     public List<DockerEnvironment> TargetEnvironments { get; private set; } = new();
     public List<BackupTarget> BackupTargets { get; private set; } = new();
+
+    /// <summary>All volume names on the source environment (the multi-select list).</summary>
+    public List<string> AvailableVolumes { get; private set; } = new();
+
+    /// <summary>Set when the source volumes could not be listed (host unreachable).</summary>
+    public string? LoadError { get; private set; }
+
     public IReadOnlyList<DockerContainer> AffectedContainers { get; private set; } = new List<DockerContainer>();
-    public VolumeMigrationResult? Result { get; private set; }
+    public List<MigrationOutcome> Results { get; private set; } = new();
+
+    public sealed record MigrationOutcome(string Label, bool Success, string Message, List<string> Steps);
 
     public class InputModel
     {
         public long SourceEnvId { get; set; }
 
-        [Required]
-        public string SourceVolume { get; set; } = string.Empty;
+        /// <summary>One or more source volumes to migrate (checkboxes).</summary>
+        public List<string> SourceVolumes { get; set; } = new();
 
         [Range(1, long.MaxValue, ErrorMessage = "Please choose a target environment.")]
         public long TargetEnvId { get; set; }
 
-        [Required(ErrorMessage = "Please enter a target volume name.")]
-        public string TargetVolume { get; set; } = string.Empty;
+        /// <summary>Optional rename — only applied when exactly one source volume is selected.</summary>
+        public string? TargetVolume { get; set; }
 
         public bool Overwrite { get; set; }
 
@@ -57,11 +74,11 @@ public class MigrateModel : PageModel
         /// <summary>Keep the intermediate backup after a successful ViaBackup migration.</summary>
         public bool KeepBackup { get; set; } = true;
 
-        /// <summary>Stop the source volume's containers during the transfer, then restart them.</summary>
+        /// <summary>Stop the source volumes' containers during the transfer, then restart them.</summary>
         public bool StopContainers { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(long sourceId, string volume)
+    public async Task<IActionResult> OnGetAsync(long sourceId, string? volume)
     {
         var source = await _environmentService.GetAsync(sourceId, HttpContext.RequestAborted);
         if (source is null || !source.IsEnabled)
@@ -70,8 +87,11 @@ public class MigrateModel : PageModel
         }
 
         Input.SourceEnvId = sourceId;
-        Input.SourceVolume = volume;
-        Input.TargetVolume = volume;
+        if (!string.IsNullOrWhiteSpace(volume))
+        {
+            Input.SourceVolumes = new List<string> { volume };
+            Input.TargetVolume = volume;
+        }
         Input.KeepBackup = true;
 
         await LoadAsync();
@@ -87,14 +107,29 @@ public class MigrateModel : PageModel
             return NotFound();
         }
 
-        if (!VolumeCommands.IsValidVolumeName(Input.TargetVolume))
+        // Keep only real, valid selections (the checkboxes are drawn from the source's own list).
+        var volumes = Input.SourceVolumes
+            .Where(v => !string.IsNullOrWhiteSpace(v) && VolumeCommands.IsValidVolumeName(v))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (volumes.Count == 0)
         {
-            ModelState.AddModelError("Input.TargetVolume", "Only letters, numbers and . _ - are allowed (must start alphanumeric).");
+            ModelState.AddModelError("Input.SourceVolumes", "Please select at least one source volume.");
         }
 
         if (Input.TargetEnvId == Input.SourceEnvId)
         {
             ModelState.AddModelError("Input.TargetEnvId", "Source and target must be different.");
+        }
+
+        // A rename only makes sense for a single volume; with several, each keeps its name.
+        var rename = volumes.Count == 1 && !string.IsNullOrWhiteSpace(Input.TargetVolume)
+            ? Input.TargetVolume!.Trim()
+            : null;
+        if (rename is not null && !VolumeCommands.IsValidVolumeName(rename))
+        {
+            ModelState.AddModelError("Input.TargetVolume", "Only letters, numbers and . _ - are allowed (must start alphanumeric).");
         }
 
         if (!ModelState.IsValid)
@@ -109,37 +144,69 @@ public class MigrateModel : PageModel
             return Page();
         }
 
-        var targetVolume = Input.TargetVolume.Trim();
-        if (Input.Mode == MigrationMode.ViaBackup)
+        BackupTarget? backupTarget = null;
+        if (Input.Mode == MigrationMode.ViaBackup && Input.BackupTargetId > 0)
         {
-            BackupTarget? backupTarget = null;
-            if (Input.BackupTargetId > 0)
+            backupTarget = await _backupTargetService.GetAsync(Input.BackupTargetId, HttpContext.RequestAborted);
+            if (backupTarget is null)
             {
-                backupTarget = await _backupTargetService.GetAsync(Input.BackupTargetId, HttpContext.RequestAborted);
-                if (backupTarget is null)
-                {
-                    ModelState.AddModelError("Input.BackupTargetId", "Backup target not found.");
-                    return Page();
-                }
+                ModelState.AddModelError("Input.BackupTargetId", "Backup target not found.");
+                return Page();
             }
-
-            Result = await _migrationService.MigrateViaBackupAsync(
-                SourceEnvironment, Input.SourceVolume, target, targetVolume,
-                Input.Overwrite, backupTarget, Input.KeepBackup, Input.StopContainers, HttpContext.RequestAborted);
-            return Page();
         }
 
-        var request = new VolumeMigrationRequest
-        {
-            Source = _environmentService.BuildSettings(SourceEnvironment),
-            SourceVolume = Input.SourceVolume,
-            Target = _environmentService.BuildSettings(target),
-            TargetVolume = targetVolume,
-            Overwrite = Input.Overwrite,
-            StopContainers = Input.StopContainers
-        };
+        var sourceSettings = _environmentService.BuildSettings(SourceEnvironment);
+        var targetSettings = _environmentService.BuildSettings(target);
+        var results = new List<MigrationOutcome>();
+        // Two selected volumes resolving to the same target name would silently overwrite each other.
+        var targetNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        Result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
+        foreach (var volume in volumes)
+        {
+            var targetVolume = rename ?? volume;
+            var label = $"{volume} → {target.Name}/{targetVolume}";
+
+            if (!targetNames.Add(targetVolume))
+            {
+                results.Add(new MigrationOutcome(label, false,
+                    $"Target volume name \"{targetVolume}\" appears more than once – skipped to avoid overwriting.",
+                    new List<string>()));
+                continue;
+            }
+
+            try
+            {
+                VolumeMigrationResult result;
+                if (Input.Mode == MigrationMode.ViaBackup)
+                {
+                    result = await _migrationService.MigrateViaBackupAsync(
+                        SourceEnvironment, volume, target, targetVolume,
+                        Input.Overwrite, backupTarget, Input.KeepBackup, Input.StopContainers, HttpContext.RequestAborted);
+                }
+                else
+                {
+                    var request = new VolumeMigrationRequest
+                    {
+                        Source = sourceSettings,
+                        SourceVolume = volume,
+                        Target = targetSettings,
+                        TargetVolume = targetVolume,
+                        Overwrite = Input.Overwrite,
+                        StopContainers = Input.StopContainers
+                    };
+                    result = await _migrationService.MigrateAsync(request, HttpContext.RequestAborted);
+                }
+
+                results.Add(new MigrationOutcome(label, result.Success, result.Message, result.Steps));
+            }
+            catch (Exception ex)
+            {
+                // One volume's failure must not discard the rest of the batch's report.
+                results.Add(new MigrationOutcome(label, false, $"Error: {ex.Message}", new List<string>()));
+            }
+        }
+
+        Results = results;
         return Page();
     }
 
@@ -151,10 +218,43 @@ public class MigrateModel : PageModel
         TargetEnvironments = enabled.Where(e => e.Id != Input.SourceEnvId).ToList();
         BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
 
-        // Show which containers on the source use this volume (for the "stop during transfer" option).
-        if (SourceEnvironment is { IsEnabled: true } && VolumeCommands.IsValidVolumeName(Input.SourceVolume))
+        if (SourceEnvironment is { IsEnabled: true })
         {
-            AffectedContainers = await _containerService.ListByVolumeAsync(SourceEnvironment, Input.SourceVolume, HttpContext.RequestAborted);
+            try
+            {
+                var volumes = await _connectionService.ListVolumesAsync(
+                    _environmentService.BuildSettings(SourceEnvironment), HttpContext.RequestAborted);
+                AvailableVolumes = volumes
+                    .Select(v => v.Name)
+                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                LoadError = ex.Message;
+            }
+
+            // Show which containers on the source use the currently selected volumes.
+            var affected = new List<DockerContainer>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var volume in Input.SourceVolumes.Where(VolumeCommands.IsValidVolumeName))
+            {
+                try
+                {
+                    foreach (var c in await _containerService.ListByVolumeAsync(SourceEnvironment, volume, HttpContext.RequestAborted))
+                    {
+                        if (seen.Add(c.Name))
+                        {
+                            affected.Add(c);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Best-effort: the affected-container hint must not block the migration form.
+                }
+            }
+            AffectedContainers = affected;
         }
     }
 }

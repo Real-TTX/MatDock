@@ -1,37 +1,41 @@
 @page
 @model MatDock.Web.Pages.Environments.MigrateModel
 @{
-    ViewData["Title"] = "Migrate volume";
+    ViewData["Title"] = "Migrate volumes";
+    var selected = new HashSet<string>(Model.Input.SourceVolumes, StringComparer.Ordinal);
+    var selCount = Model.Input.SourceVolumes.Count;
 }
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Migrate volume</h1>
-        <span class="page-head__subtitle">Transfer a volume from one environment to another</span>
+        <h1>Migrate volumes</h1>
+        <span class="page-head__subtitle">Transfer one or more volumes from one environment to another</span>
     </div>
     <div class="mat-buttons">
         <a href="/Volumes?EnvId=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
-@if (Model.Result is not null)
+@if (Model.Results.Count > 0)
 {
-    <div class="result-banner @(Model.Result.Success ? "result-banner--ok" : "result-banner--fail")">
-        <icon name="@(Model.Result.Success ? "check-circle" : "x-circle")" />
+    var okCount = Model.Results.Count(r => r.Success);
+    <div class="result-banner @(okCount == Model.Results.Count ? "result-banner--ok" : "result-banner--fail")">
+        <icon name="@(okCount == Model.Results.Count ? "check-circle" : "alert")" />
         <div>
-            <div class="result-banner__big">@(Model.Result.Success ? "Migration successful" : "Migration failed")</div>
-            <div class="result-banner__sub">@Model.Result.Message</div>
+            <div class="result-banner__big">@okCount / @Model.Results.Count migrated</div>
+            <div class="result-banner__sub">Result of the migration</div>
         </div>
     </div>
-    @if (Model.Result.Steps.Count > 0)
-    {
-        <ul class="result-steps">
-            @foreach (var step in Model.Result.Steps)
-            {
-                <li><icon name="check-circle" /><span>@step</span></li>
-            }
-        </ul>
-    }
+    <ul class="result-steps">
+        @foreach (var r in Model.Results)
+        {
+            <li>
+                <icon name="@(r.Success ? "check-circle" : "x-circle")" />
+                <span><strong>@r.Label</strong> — @r.Message</span>
+            </li>
+        }
+    </ul>
+    <a href="/Volumes?EnvId=@Model.Input.SourceEnvId" class="mat-btn mat-btn--primary"><icon name="volume" /><span>Go to volumes</span></a>
 }
 
 @if (Model.SourceEnvironment is null)
@@ -45,11 +49,10 @@ else if (Model.TargetEnvironments.Count == 0)
         <span>A migration requires at least two environments. Create another environment first.</span>
     </div>
 }
-else
+else if (Model.Results.Count == 0)
 {
     <form method="post" data-confirm="Start migration now?">
         <input type="hidden" asp-for="Input.SourceEnvId" />
-        <input type="hidden" asp-for="Input.SourceVolume" />
         <div asp-validation-summary="ModelOnly"></div>
 
         <div class="migrate">
@@ -57,7 +60,35 @@ else
                 <h3><icon name="server" /><span>Source</span></h3>
                 <div class="migrate__env">@Model.SourceEnvironment.Name</div>
                 <div class="migrate__host">@Model.SourceEnvironment.Username@@@Model.SourceEnvironment.Host</div>
-                <div class="migrate__vol"><icon name="volume" /><span>@Model.Input.SourceVolume</span></div>
+
+                <label class="mat-label" style="display:block;margin-bottom:6px;">Volumes to migrate</label>
+                @if (Model.LoadError is not null)
+                {
+                    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.LoadError</span></div>
+                }
+                else if (Model.AvailableVolumes.Count == 0)
+                {
+                    <div class="alert alert--warning"><icon name="alert" /><span>No volumes on this environment.</span></div>
+                }
+                else
+                {
+                    <div class="vol-picker" data-migrate-volumes>
+                        <div class="vol-picker__head">
+                            <a href="#" class="mat-link" data-vol-all>Select all</a>
+                            <span class="text-muted">·</span>
+                            <a href="#" class="mat-link" data-vol-none>None</a>
+                        </div>
+                        <div class="vol-picker__list">
+                            @foreach (var v in Model.AvailableVolumes)
+                            {
+                                <label class="mat-check vol-picker__row">
+                                    <input type="checkbox" class="mig-vol" name="Input.SourceVolumes" value="@v" checked="@selected.Contains(v)" />
+                                    <span><icon name="volume" /> @v</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
 
             <div class="migrate__arrow"><icon name="chevron-right" /></div>
@@ -73,12 +104,16 @@ else
                             }
                         </select>
                     </mat-field>
-                    <mat-field label="Target volume" asp-for="Input.TargetVolume">
+                    <mat-field id="mig-rename" hidden="@(selCount != 1)" label="Target volume name" asp-for="Input.TargetVolume" hint="Rename on the target (single volume only).">
                         <input asp-for="Input.TargetVolume" class="mat-input" />
                     </mat-field>
+                    <div id="mig-multi-note" class="alert alert--info" hidden="@(selCount <= 1)">
+                        <icon name="volume" />
+                        <span>Each selected volume is created on the target with the same name.</span>
+                    </div>
                     <label class="mat-check">
                         <input asp-for="Input.Overwrite" type="checkbox" />
-                        <span>Overwrite if the target volume already contains data</span>
+                        <span>Overwrite if a target volume already contains data</span>
                     </label>
                 </div>
             </div>
@@ -113,12 +148,12 @@ else
                 </mat-field>
                 <label class="mat-check">
                     <input asp-for="Input.KeepBackup" type="checkbox" />
-                    <span>Keep backup after a successful migration (safety net)</span>
+                    <span>Keep backups after a successful migration (safety net)</span>
                 </label>
             </div>
             <div class="alert alert--info">
                 <icon name="save" />
-                <span>The source is first saved as a backup and then restored into the target. The backup is always kept if an error occurs and can be restored again. Requires free space (~volume size) at the backup target.</span>
+                <span>Each volume is first saved as a backup and then restored into the target. The backup is always kept if an error occurs and can be restored again. Requires free space (~volume size) at the backup target.</span>
             </div>
         </div>
 
@@ -126,7 +161,7 @@ else
             @if (Model.AffectedContainers.Count > 0)
             {
                 <div class="alert alert--info" style="flex-direction:column;align-items:stretch;gap:8px;">
-                    <div><icon name="box" /> <strong>@Model.AffectedContainers.Count container(s)</strong> use this volume:</div>
+                    <div><icon name="box" /> <strong>@Model.AffectedContainers.Count container(s)</strong> use the selected volume(s):</div>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
                         @foreach (var c in Model.AffectedContainers)
                         {
@@ -142,8 +177,8 @@ else
         </div>
 
         <mat-form-buttons>
-            <button type="submit" class="mat-btn mat-btn--primary">
-                <icon name="server" /><span>Start migration</span>
+            <button type="submit" id="mig-start" class="mat-btn mat-btn--primary" disabled="@(selCount == 0)">
+                <icon name="server" /><span>Start migration (<span id="mig-count">@selCount</span>)</span>
             </button>
             <a href="/Volumes?EnvId=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
         </mat-form-buttons>
