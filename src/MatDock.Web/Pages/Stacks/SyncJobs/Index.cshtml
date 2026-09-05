@@ -37,7 +37,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Repository</th>
-                        <th>Schedule</th>
+                        <th>Triggers</th>
                         <th>Composes</th>
                         <th>Last run</th>
                         <th class="actions">Actions</th>
@@ -49,9 +49,9 @@
                         <tr>
                             <td class="wrap">
                                 <a href="/Stacks/SyncJobs/Edit?id=@job.Id"><strong>@job.Name</strong></a>
-                                @if (!job.Enabled)
+                                @if (!job.ScheduleEnabled && !job.WebhookEnabled)
                                 {
-                                    <span class="tag-system" title="Disabled">disabled</span>
+                                    <span class="tag-system" title="Only manual 'Sync now'">manual only</span>
                                 }
                             </td>
                             <td class="wrap">
@@ -62,13 +62,17 @@
                                 }
                             </td>
                             <td>
-                                @if (string.IsNullOrEmpty(job.Cron))
+                                @if (job.ScheduleEnabled && !string.IsNullOrEmpty(job.Cron))
                                 {
-                                    <span class="text-muted">webhook / manual</span>
+                                    <span class="mono" title="Scheduled">@job.Cron</span>
                                 }
-                                else
+                                @if (job.WebhookEnabled)
                                 {
-                                    <span class="mono">@job.Cron</span>
+                                    <span class="tag-system" title="Webhook trigger">webhook</span>
+                                }
+                                @if (!job.ScheduleEnabled && !job.WebhookEnabled)
+                                {
+                                    <span class="text-muted">manual</span>
                                 }
                             </td>
                             <td><span class="mat-badge">@(Model.Counts.TryGetValue(job.Id, out var c) ? c : 0)</span></td>

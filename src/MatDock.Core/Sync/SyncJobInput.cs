@@ -20,7 +20,9 @@ public sealed class SyncJobInput
 
     public string? Cron { get; set; }
 
-    public bool Enabled { get; set; } = true;
+    public bool ScheduleEnabled { get; set; }
+
+    public bool WebhookEnabled { get; set; } = true;
 
     public SyncUpdateMode UpdateMode { get; set; } = SyncUpdateMode.OnGitChange;
 

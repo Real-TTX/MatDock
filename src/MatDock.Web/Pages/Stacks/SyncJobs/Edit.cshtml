@@ -14,6 +14,11 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert alert--success" style="max-width:900px;"><icon name="check-circle" /><span>@Model.StatusMessage</span></div>
+}
+
 <form method="post" class="mat-form" style="max-width:900px;">
     <input type="hidden" asp-for="Input.Id" />
     <div asp-validation-summary="ModelOnly"></div>
@@ -73,17 +78,43 @@
     </div>
 
     <div class="card" style="margin-bottom:16px;">
-        <div class="card__header"><icon name="clock" /><span>Schedule &amp; behavior</span></div>
+        <div class="card__header"><icon name="clock" /><span>Triggers</span></div>
         <div class="card__body">
-            <mat-field label="Schedule (cron, UTC — optional)" asp-for="Input.Cron" hint="Empty = webhook / manual only. e.g. 0 4 * * * = daily 04:00">
-                <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
-            </mat-field>
             <div class="mat-switches">
                 <label class="mat-switch">
-                    <input asp-for="Input.Enabled" type="checkbox" />
+                    <input asp-for="Input.ScheduleEnabled" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Enabled (scheduled + webhook triggers active)</span>
+                    <span class="mat-switch__label">Scheduled — deploy automatically on a cron schedule</span>
                 </label>
+            </div>
+            <div data-show-when="Input_ScheduleEnabled=true">
+                <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
+                    <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+                </mat-field>
+            </div>
+            <div class="mat-switches">
+                <label class="mat-switch">
+                    <input asp-for="Input.WebhookEnabled" type="checkbox" />
+                    <span class="mat-switch__slider"></span>
+                    <span class="mat-switch__label">Webhook — allow the webhook URL to trigger a deploy@(Model.IsEdit ? "" : " (URL shown after saving)")</span>
+                </label>
+            </div>
+            <p class="mat-hint">Manual <strong>Sync now</strong> is always available@(Model.IsEdit ? " (button below)." : " from the sync-jobs list.")</p>
+            @if (Model.IsEdit)
+            {
+                <div style="margin-top:6px;">
+                    <button type="submit" asp-page-handler="RunNow" name="id" value="@Model.Input.Id" class="mat-btn" formnovalidate>
+                        <icon name="refresh" /><span>Sync now</span>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="settings" /><span>Deploy behavior</span></div>
+        <div class="card__body">
+            <div class="mat-switches">
                 <label class="mat-switch">
                     <input asp-for="Input.OnlyOnChange" type="checkbox" />
                     <span class="mat-switch__slider"></span>

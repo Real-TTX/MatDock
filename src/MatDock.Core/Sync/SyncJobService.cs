@@ -234,7 +234,7 @@ public sealed class SyncJobService
 
         job.LastRunAt = DateTime.UtcNow;
         job.LastStatus = summary;
-        job.NextRunAt = job.Enabled ? SafeNext(job.Cron, DateTime.UtcNow) : null;
+        job.NextRunAt = job.ScheduleEnabled ? SafeNext(job.Cron, DateTime.UtcNow) : null;
         await _db.SaveChangesAsync(ct);
         return summary;
     }
@@ -245,7 +245,7 @@ public sealed class SyncJobService
         var now = DateTime.UtcNow;
 
         var missing = await _db.SyncJobs
-            .Where(j => j.Enabled && j.Cron != null && j.Cron != "" && j.NextRunAt == null)
+            .Where(j => j.ScheduleEnabled && j.Cron != null && j.Cron != "" && j.NextRunAt == null)
             .ToListAsync(ct);
         if (missing.Count > 0)
         {
@@ -257,7 +257,7 @@ public sealed class SyncJobService
         }
 
         var due = await _db.SyncJobs
-            .Where(j => j.Enabled && j.NextRunAt != null && j.NextRunAt <= now)
+            .Where(j => j.ScheduleEnabled && j.NextRunAt != null && j.NextRunAt <= now)
             .ToListAsync(ct);
 
         foreach (var job in due)
@@ -293,11 +293,12 @@ public sealed class SyncJobService
         job.Subdirectory = NormalizeSubdir(input.Subdirectory);
         job.GitCredentialId = input.GitCredentialId is > 0 ? input.GitCredentialId : null;
         job.Cron = string.IsNullOrWhiteSpace(input.Cron) ? null : input.Cron.Trim();
-        job.Enabled = input.Enabled;
+        job.ScheduleEnabled = input.ScheduleEnabled;
+        job.WebhookEnabled = input.WebhookEnabled;
         job.UpdateMode = input.UpdateMode;
         job.PullImages = input.PullImages;
         job.PruneRemoved = input.PruneRemoved;
-        job.NextRunAt = job.Enabled && job.Cron is not null ? SafeNext(job.Cron, DateTime.UtcNow) : null;
+        job.NextRunAt = job.ScheduleEnabled && job.Cron is not null ? SafeNext(job.Cron, DateTime.UtcNow) : null;
     }
 
     private static void ApplyItem(SyncJobItem item, SyncItemInput input)

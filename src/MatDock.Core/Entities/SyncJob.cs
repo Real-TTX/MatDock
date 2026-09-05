@@ -21,10 +21,14 @@ public class SyncJob : AuditableEntity
     /// <summary>Optional <see cref="GitCredential"/> for private repos.</summary>
     public long? GitCredentialId { get; set; }
 
-    /// <summary>Optional 5-field cron (UTC); null/empty = no schedule (webhook/manual only).</summary>
+    /// <summary>Optional 5-field cron (UTC); null/empty = no schedule.</summary>
     public string? Cron { get; set; }
 
-    public bool Enabled { get; set; } = true;
+    /// <summary>Trigger: run on the cron schedule.</summary>
+    public bool ScheduleEnabled { get; set; }
+
+    /// <summary>Trigger: allow the incoming webhook URL to start a sync.</summary>
+    public bool WebhookEnabled { get; set; } = true;
 
     /// <summary>Whether a scheduled/webhook trigger redeploys always or only when the commit changed.</summary>
     public SyncUpdateMode UpdateMode { get; set; } = SyncUpdateMode.OnGitChange;

@@ -30,6 +30,7 @@ public class EditModel : PageModel
     public List<GitRepo> SavedRepos { get; private set; } = new();
 
     public bool IsEdit => Input.Id > 0;
+    [TempData] public string? StatusMessage { get; set; }
     public string? ScanError { get; private set; }
     public int ScannedCount { get; private set; } = -1;
     public string? WebhookUrl { get; private set; }
@@ -43,7 +44,10 @@ public class EditModel : PageModel
         public string? Subdirectory { get; set; }
         public long? GitCredentialId { get; set; }
         public string? Cron { get; set; }
-        public bool Enabled { get; set; } = true;
+        /// <summary>Trigger toggle: run on the cron schedule.</summary>
+        public bool ScheduleEnabled { get; set; }
+        /// <summary>Trigger toggle: allow the webhook URL to start a sync.</summary>
+        public bool WebhookEnabled { get; set; } = true;
         /// <summary>Toggle: on = only deploy when the repo changed; off = always deploy on every trigger.</summary>
         public bool OnlyOnChange { get; set; } = true;
         public bool PullImages { get; set; }
@@ -82,7 +86,8 @@ public class EditModel : PageModel
                 Subdirectory = job.Subdirectory,
                 GitCredentialId = job.GitCredentialId,
                 Cron = job.Cron,
-                Enabled = job.Enabled,
+                ScheduleEnabled = job.ScheduleEnabled,
+                WebhookEnabled = job.WebhookEnabled,
                 OnlyOnChange = job.UpdateMode == SyncUpdateMode.OnGitChange,
                 PullImages = job.PullImages,
                 PruneRemoved = job.PruneRemoved,
@@ -153,7 +158,8 @@ public class EditModel : PageModel
             Subdirectory = Input.Subdirectory,
             GitCredentialId = Input.GitCredentialId,
             Cron = Input.Cron,
-            Enabled = Input.Enabled,
+            ScheduleEnabled = Input.ScheduleEnabled,
+            WebhookEnabled = Input.WebhookEnabled,
             UpdateMode = Input.OnlyOnChange ? SyncUpdateMode.OnGitChange : SyncUpdateMode.Always,
             PullImages = Input.PullImages,
             PruneRemoved = Input.PruneRemoved,
@@ -186,6 +192,13 @@ public class EditModel : PageModel
     public async Task<IActionResult> OnPostRegenerateAsync(long id)
     {
         await _syncJobs.RegenerateTokenAsync(id, HttpContext.RequestAborted);
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostRunNowAsync(long id)
+    {
+        var summary = await _syncJobs.RunNowAsync(id, force: true, HttpContext.RequestAborted);
+        TempData["StatusMessage"] = $"Sync: {summary}";
         return RedirectToPage(new { id });
     }
 

@@ -43,7 +43,8 @@
             var wanted = spec.slice(eq + 1).split(",");
             var control = document.getElementById(id);
             if (!control) { return; }
-            var value = control.value;
+            // Checkboxes expose a static .value ("true"); use the checked state so toggles can drive reveals.
+            var value = control.type === "checkbox" ? (control.checked ? "true" : "false") : control.value;
             el.classList.toggle("is-shown", wanted.indexOf(value) !== -1);
         });
     }

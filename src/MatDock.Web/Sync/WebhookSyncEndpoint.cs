@@ -23,9 +23,9 @@ public static class WebhookSyncEndpoint
 
         var jobs = context.RequestServices.GetRequiredService<SyncJobService>();
         var job = await jobs.FindByWebhookTokenAsync(token, ct);
-        if (job is null || !job.Enabled)
+        if (job is null || !job.WebhookEnabled)
         {
-            // Do not reveal whether the token exists but is disabled.
+            // Do not reveal whether the token exists but has the webhook trigger disabled.
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             await context.Response.WriteAsync("Not found.");
             return;
