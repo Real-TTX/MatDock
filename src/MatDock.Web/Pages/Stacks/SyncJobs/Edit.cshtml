@@ -43,6 +43,9 @@
                 <mat-field label="Branch / tag (optional)" asp-for="Input.GitReference">
                     <input asp-for="Input.GitReference" class="mat-input" placeholder="main" />
                 </mat-field>
+                <mat-field label="Subdirectory (optional)" asp-for="Input.Subdirectory" hint="Only scan compose files under this folder, e.g. stacks">
+                    <input asp-for="Input.Subdirectory" class="mat-input" placeholder="stacks" />
+                </mat-field>
                 <mat-field label="Credentials (private repos)" asp-for="Input.GitCredentialId">
                     <select asp-for="Input.GitCredentialId" class="mat-select">
                         <option value="">— none (public) —</option>
@@ -75,22 +78,28 @@
             <mat-field label="Schedule (cron, UTC — optional)" asp-for="Input.Cron" hint="Empty = webhook / manual only. e.g. 0 4 * * * = daily 04:00">
                 <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
             </mat-field>
-            <label class="mat-check">
-                <input asp-for="Input.Enabled" type="checkbox" />
-                <span>Enabled (scheduled + webhook triggers active)</span>
-            </label>
-            <label class="mat-check">
-                <input asp-for="Input.OnlyOnChange" type="checkbox" />
-                <span>Only deploy when the repo changed (off = redeploy on every trigger)</span>
-            </label>
-            <label class="mat-check">
-                <input asp-for="Input.PullImages" type="checkbox" />
-                <span>Pull images before deploy (<code>compose pull</code>) — updates <code>:latest</code></span>
-            </label>
-            <label class="mat-check">
-                <input asp-for="Input.PruneRemoved" type="checkbox" />
-                <span>Prune removed: <code>compose down</code> stacks whose compose was removed from the repo or deselected</span>
-            </label>
+            <div class="mat-switches">
+                <label class="mat-switch">
+                    <input asp-for="Input.Enabled" type="checkbox" />
+                    <span class="mat-switch__slider"></span>
+                    <span class="mat-switch__label">Enabled (scheduled + webhook triggers active)</span>
+                </label>
+                <label class="mat-switch">
+                    <input asp-for="Input.OnlyOnChange" type="checkbox" />
+                    <span class="mat-switch__slider"></span>
+                    <span class="mat-switch__label">Only deploy when the repo changed (off = redeploy on every trigger)</span>
+                </label>
+                <label class="mat-switch">
+                    <input asp-for="Input.PullImages" type="checkbox" />
+                    <span class="mat-switch__slider"></span>
+                    <span class="mat-switch__label">Pull images before deploy (<code>compose pull</code>) — updates <code>:latest</code></span>
+                </label>
+                <label class="mat-switch">
+                    <input asp-for="Input.PruneRemoved" type="checkbox" />
+                    <span class="mat-switch__slider"></span>
+                    <span class="mat-switch__label">Prune removed: <code>compose down</code> stacks whose compose was removed from the repo or deselected</span>
+                </label>
+            </div>
         </div>
     </div>
 

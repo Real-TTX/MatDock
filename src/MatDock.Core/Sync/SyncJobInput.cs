@@ -13,6 +13,9 @@ public sealed class SyncJobInput
 
     public string? GitReference { get; set; }
 
+    /// <summary>Optional repo-relative subdirectory to limit the scan to.</summary>
+    public string? Subdirectory { get; set; }
+
     public long? GitCredentialId { get; set; }
 
     public string? Cron { get; set; }

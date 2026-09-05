@@ -34,12 +34,36 @@ public sealed class SyncJobRunner
         _logger = logger;
     }
 
+    // Serializes concurrent runs of the SAME job (webhook + scheduler + manual) so they can't race on
+    // the unique (Name, Environment) stack index or on prune. Shared across DI scopes.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, SemaphoreSlim> JobGates = new();
+
     public async Task<string> RunAsync(SyncJob job, bool force, CancellationToken ct = default)
+    {
+        var gate = JobGates.GetOrAdd(job.Id, _ => new SemaphoreSlim(1, 1));
+        if (!await gate.WaitAsync(0, ct))
+        {
+            return "Already running — skipped.";
+        }
+
+        try
+        {
+            return await RunCoreAsync(job, force, ct);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<string> RunCoreAsync(SyncJob job, bool force, CancellationToken ct)
     {
         var items = await _db.SyncJobItems.Where(i => i.SyncJobId == job.Id).ToListAsync(ct);
         var active = items.Where(i => i.Enabled).ToList();
+        // The set of stacks that SHOULD exist = the enabled items (by name+env), independent of whether a
+        // given deploy succeeds this run. Prune compares against this, never against "deployed OK".
+        var activeKeys = new HashSet<(string, long)>(active.Select(i => (i.StackName, i.EnvironmentId)));
 
-        // Resolve git credentials once.
         GitCredentialSecret? secret = null;
         if (job.GitCredentialId is > 0)
         {
@@ -59,13 +83,33 @@ public sealed class SyncJobRunner
             }
         }
 
-        // Change detection: skip a clone entirely when nothing changed since the last successful run.
+        int ok = 0, fail = 0, pruned = 0, skipped = 0;
+
+        // Prune deselected / disabled / removed-from-config stacks first. This needs no clone, so it also
+        // works on "no changes" ticks (OnGitChange) — deselecting an item prunes it without a new commit.
+        if (job.PruneRemoved)
+        {
+            var jobStacks = await _db.Stacks.Where(s => s.SyncJobId == job.Id).ToListAsync(ct);
+            foreach (var s in jobStacks.Where(s => !activeKeys.Contains((s.Name, s.EnvironmentId))))
+            {
+                if (await PruneStackAsync(job, s, ct))
+                {
+                    pruned++;
+                }
+            }
+        }
+
+        // Change detection for the DEPLOY part only (prune above already ran).
         if (job.UpdateMode == SyncUpdateMode.OnGitChange && !force && !string.IsNullOrEmpty(job.LastCommitSha))
         {
             var remoteSha = await _gitRepo.GetRemoteHeadShaAsync(job.GitRepoUrl, job.GitReference, secret, ct);
             if (remoteSha is not null && string.Equals(remoteSha, job.LastCommitSha, StringComparison.OrdinalIgnoreCase))
             {
-                return $"No changes ({Short(remoteSha)}).";
+                if (pruned > 0)
+                {
+                    await _db.SaveChangesAsync(ct);
+                }
+                return $"No changes ({Short(remoteSha)})" + (pruned > 0 ? $", {pruned} pruned" : string.Empty) + ".";
             }
         }
 
@@ -79,28 +123,36 @@ public sealed class SyncJobRunner
             return $"Git error: {ex.Message}";
         }
 
-        var deployedStackIds = new HashSet<long>();
         var now = DateTime.UtcNow;
-        int ok = 0, fail = 0, pruned = 0, skipped = 0;
-
         try
         {
             foreach (var item in active)
             {
+                var relFsPath = item.ComposePath.Replace('/', Path.DirectorySeparatorChar);
+                if (!File.Exists(Path.Combine(scan.WorkDir, relFsPath)))
+                {
+                    // Compose no longer in the repo. Don't create a phantom stack; prune the existing one
+                    // (if any) when pruning is on, otherwise surface it as a failure.
+                    item.LastStatus = "Compose missing in repo";
+                    if (job.PruneRemoved)
+                    {
+                        var existing = await _db.Stacks.FirstOrDefaultAsync(
+                            s => s.SyncJobId == job.Id && s.Name == item.StackName && s.EnvironmentId == item.EnvironmentId, ct);
+                        if (existing is not null && await PruneStackAsync(job, existing, ct))
+                        {
+                            pruned++;
+                            continue;
+                        }
+                    }
+                    fail++;
+                    continue;
+                }
+
                 var (stack, conflict) = await UpsertStackAsync(job, item, ct);
                 if (conflict is not null)
                 {
                     item.LastStatus = conflict;
                     skipped++;
-                    continue;
-                }
-
-                // A compose that is no longer in the repo counts as "removed" (prune candidate).
-                var relFsPath = item.ComposePath.Replace('/', Path.DirectorySeparatorChar);
-                if (!File.Exists(Path.Combine(scan.WorkDir, relFsPath)))
-                {
-                    item.LastStatus = "Compose missing in repo";
-                    fail++;
                     continue;
                 }
 
@@ -111,7 +163,6 @@ public sealed class SyncJobRunner
                 {
                     item.LastDeployedAt = now;
                     ok++;
-                    deployedStackIds.Add(stack.Id);
                 }
                 else
                 {
@@ -119,26 +170,13 @@ public sealed class SyncJobRunner
                 }
             }
 
-            // Prune stacks that belong to this job but are no longer part of the active selection.
-            if (job.PruneRemoved)
+            // Advance the change-detection marker ONLY when everything that should deploy actually did,
+            // so OnGitChange retries a failed commit on the next scheduled/webhook tick.
+            if (fail == 0 && skipped == 0)
             {
-                var jobStacks = await _db.Stacks.Where(s => s.SyncJobId == job.Id).ToListAsync(ct);
-                foreach (var s in jobStacks.Where(s => !deployedStackIds.Contains(s.Id)))
-                {
-                    try
-                    {
-                        await _stacks.DownAsync(s.Id, ct);
-                        await _stacks.DeleteAsync(s.Id, ct);
-                        pruned++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Sync job {Name}: pruning stack {Stack} failed.", job.Name, s.Name);
-                    }
-                }
+                job.LastCommitSha = scan.CommitSha;
             }
 
-            job.LastCommitSha = scan.CommitSha;
             await _db.SaveChangesAsync(ct);
         }
         finally
@@ -152,6 +190,29 @@ public sealed class SyncJobRunner
         if (pruned > 0) { parts.Add($"{pruned} pruned"); }
         var sha = scan.CommitSha is null ? string.Empty : $" ({Short(scan.CommitSha)})";
         return string.Join(", ", parts) + sha;
+    }
+
+    /// <summary>Tears a stack down and removes its record — but only DELETES when the down actually
+    /// succeeded, so a failed <c>compose down</c> never leaves running containers without a DB record.</summary>
+    private async Task<bool> PruneStackAsync(SyncJob job, Stack stack, CancellationToken ct)
+    {
+        try
+        {
+            var (downOk, _) = await _stacks.DownAsync(stack.Id, ct);
+            if (!downOk)
+            {
+                _logger.LogWarning("Sync job {Name}: keeping stack {Stack} (compose down failed).", job.Name, stack.Name);
+                return false;
+            }
+
+            await _stacks.DeleteAsync(stack.Id, ct);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sync job {Name}: pruning stack {Stack} failed.", job.Name, stack.Name);
+            return false;
+        }
     }
 
     /// <summary>Finds or creates the managed stack for an item, refreshing its git source from the job.

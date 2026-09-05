@@ -72,6 +72,18 @@
 
             <div data-show-when="Source=git">
                 <div class="form-grid">
+                    @if (Model.SavedRepos.Count > 0)
+                    {
+                        <mat-field label="Use a saved repository (optional)" class="span-2" hint="Prefills the URL, branch and credentials below.">
+                            <select id="stack-repo-picker" class="mat-select">
+                                <option value="">— manual entry —</option>
+                                @foreach (var r in Model.SavedRepos)
+                                {
+                                    <option value="@r.Id" data-url="@r.Url" data-ref="@r.Reference" data-cred="@r.GitCredentialId">@r.Name</option>
+                                }
+                            </select>
+                        </mat-field>
+                    }
                     <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" class="span-2" hint="HTTPS URL, e.g. https://github.com/user/repo.git">
                         <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/user/repo.git" />
                     </mat-field>
@@ -105,3 +117,22 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var picker = document.getElementById('stack-repo-picker');
+            if (!picker) { return; }
+            picker.addEventListener('change', function () {
+                var opt = picker.selectedOptions[0];
+                if (!opt || !opt.value) { return; }
+                var url = document.querySelector('[name="Input.GitRepoUrl"]');
+                var ref = document.querySelector('[name="Input.GitReference"]');
+                var cred = document.querySelector('[name="Input.GitCredentialId"]');
+                if (url) { url.value = opt.getAttribute('data-url') || ''; }
+                if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
+                if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
+            });
+        })();
+    </script>
+}

@@ -155,8 +155,9 @@ public sealed class SyncJobService
         return (true, "Webhook URL regenerated.");
     }
 
-    /// <summary>Clones the repo and lists its compose files (for the editor's "Scan" step).</summary>
-    public async Task<SyncScanResult> ScanAsync(string repoUrl, string? reference, long? credentialId, CancellationToken ct = default)
+    /// <summary>Clones the repo and lists its compose files (for the editor's "Scan" step). When a
+    /// <paramref name="subdirectory"/> is given, only compose files under that folder are returned.</summary>
+    public async Task<SyncScanResult> ScanAsync(string repoUrl, string? reference, long? credentialId, string? subdirectory = null, CancellationToken ct = default)
     {
         var url = (repoUrl ?? string.Empty).Trim();
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -183,12 +184,32 @@ public sealed class SyncJobService
 
         try
         {
-            return new SyncScanResult(true, null, scan.CommitSha, scan.ComposeFiles);
+            var files = scan.ComposeFiles;
+            var subdir = NormalizeSubdir(subdirectory);
+            if (subdir is not null)
+            {
+                var prefix = subdir + "/";
+                files = files.Where(f => f.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            return new SyncScanResult(true, null, scan.CommitSha, files);
         }
         finally
         {
             GitRepositoryService.TryDelete(scan.WorkDir);
         }
+    }
+
+    /// <summary>Normalizes a repo subdirectory to a forward-slash path without leading/trailing slashes, or null.</summary>
+    private static string? NormalizeSubdir(string? subdirectory)
+    {
+        if (string.IsNullOrWhiteSpace(subdirectory))
+        {
+            return null;
+        }
+
+        var s = subdirectory.Trim().Replace('\\', '/').Trim('/');
+        return s.Length == 0 ? null : s;
     }
 
     /// <summary>Runs one sync job immediately (manual or webhook) and records the outcome.</summary>
@@ -269,6 +290,7 @@ public sealed class SyncJobService
         job.Name = input.Name.Replace('\r', ' ').Replace('\n', ' ').Trim();
         job.GitRepoUrl = input.GitRepoUrl.Trim();
         job.GitReference = string.IsNullOrWhiteSpace(input.GitReference) ? null : input.GitReference.Trim();
+        job.Subdirectory = NormalizeSubdir(input.Subdirectory);
         job.GitCredentialId = input.GitCredentialId is > 0 ? input.GitCredentialId : null;
         job.Cron = string.IsNullOrWhiteSpace(input.Cron) ? null : input.Cron.Trim();
         job.Enabled = input.Enabled;

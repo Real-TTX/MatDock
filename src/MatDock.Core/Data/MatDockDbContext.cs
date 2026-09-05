@@ -158,6 +158,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.GitRepoUrl).HasMaxLength(1000).IsRequired();
             e.Property(x => x.GitReference).HasMaxLength(200);
+            e.Property(x => x.Subdirectory).HasMaxLength(500);
             e.Property(x => x.Cron).HasMaxLength(120);
             e.Property(x => x.UpdateMode).HasConversion<int>();
             e.Property(x => x.WebhookToken).HasMaxLength(64).IsRequired();

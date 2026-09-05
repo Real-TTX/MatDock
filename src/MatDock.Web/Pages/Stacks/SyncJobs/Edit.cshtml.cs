@@ -40,6 +40,7 @@ public class EditModel : PageModel
         public string Name { get; set; } = string.Empty;
         public string GitRepoUrl { get; set; } = string.Empty;
         public string? GitReference { get; set; }
+        public string? Subdirectory { get; set; }
         public long? GitCredentialId { get; set; }
         public string? Cron { get; set; }
         public bool Enabled { get; set; } = true;
@@ -78,6 +79,7 @@ public class EditModel : PageModel
                 Name = job.Name,
                 GitRepoUrl = job.GitRepoUrl,
                 GitReference = job.GitReference,
+                Subdirectory = job.Subdirectory,
                 GitCredentialId = job.GitCredentialId,
                 Cron = job.Cron,
                 Enabled = job.Enabled,
@@ -97,7 +99,7 @@ public class EditModel : PageModel
         await LoadListsAsync();
         await RefreshWebhookAsync();
 
-        var scan = await _syncJobs.ScanAsync(Input.GitRepoUrl, Input.GitReference, Input.GitCredentialId, HttpContext.RequestAborted);
+        var scan = await _syncJobs.ScanAsync(Input.GitRepoUrl, Input.GitReference, Input.GitCredentialId, Input.Subdirectory, HttpContext.RequestAborted);
         if (!scan.Ok)
         {
             ScanError = scan.Error;
@@ -148,6 +150,7 @@ public class EditModel : PageModel
             Name = Input.Name,
             GitRepoUrl = Input.GitRepoUrl,
             GitReference = Input.GitReference,
+            Subdirectory = Input.Subdirectory,
             GitCredentialId = Input.GitCredentialId,
             Cron = Input.Cron,
             Enabled = Input.Enabled,

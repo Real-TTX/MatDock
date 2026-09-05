@@ -15,6 +15,9 @@ public class SyncJob : AuditableEntity
     /// <summary>Optional branch/tag; null = the repo default branch.</summary>
     public string? GitReference { get; set; }
 
+    /// <summary>Optional repo-relative subdirectory to scan (e.g. <c>stacks</c>); null = the whole repo.</summary>
+    public string? Subdirectory { get; set; }
+
     /// <summary>Optional <see cref="GitCredential"/> for private repos.</summary>
     public long? GitCredentialId { get; set; }
 

@@ -15,17 +15,20 @@ public class EditModel : PageModel
     private readonly EnvironmentService _environmentService;
     private readonly StackTemplateService _templateService;
     private readonly GitCredentialService _gitCredentialService;
+    private readonly GitRepoService _gitRepoService;
 
     public EditModel(
         StackService stackService,
         EnvironmentService environmentService,
         StackTemplateService templateService,
-        GitCredentialService gitCredentialService)
+        GitCredentialService gitCredentialService,
+        GitRepoService gitRepoService)
     {
         _stackService = stackService;
         _environmentService = environmentService;
         _templateService = templateService;
         _gitCredentialService = gitCredentialService;
+        _gitRepoService = gitRepoService;
     }
 
     [BindProperty] public InputModel Input { get; set; } = new();
@@ -33,6 +36,7 @@ public class EditModel : PageModel
     public bool IsEdit => Input.Id is > 0;
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<GitCredential> GitCredentials { get; private set; } = new();
+    public List<GitRepo> SavedRepos { get; private set; } = new();
     public string? FromTemplateName { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -205,5 +209,6 @@ public class EditModel : PageModel
     {
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         GitCredentials = await _gitCredentialService.GetAllAsync(HttpContext.RequestAborted);
+        SavedRepos = await _gitRepoService.GetAllAsync(HttpContext.RequestAborted);
     }
 }

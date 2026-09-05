@@ -290,8 +290,17 @@ public sealed partial class GitRepositoryService
             return "Branch/tag not found.";
         }
 
-        return "Git error: " + msg;
+        // The generic message can echo the raw repo URL, which may carry user:token@host credentials
+        // (this string is stored in LastStatus and logged on the webhook path) — strip any userinfo.
+        return "Git error: " + StripUserInfo(msg);
     }
+
+    /// <summary>Removes <c>user:pass@</c> userinfo from any http(s) URL inside a free-text message.</summary>
+    private static string StripUserInfo(string text)
+        => UserInfoRegex().Replace(text, "$1");
+
+    [GeneratedRegex(@"(https?://)[^/\s@]+@")]
+    private static partial Regex UserInfoRegex();
 
     /// <summary>Deletes a directory tree, clearing the read-only attribute that Git sets on pack files
     /// (otherwise <see cref="Directory.Delete(string, bool)"/> throws on Windows).</summary>
