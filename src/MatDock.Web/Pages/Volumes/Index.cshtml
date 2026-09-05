@@ -102,6 +102,10 @@
         {
             <a href="/Environments/Migrate?sourceId=@Model.EnvId" class="mat-btn"><icon name="server" /><span>Migrate</span></a>
         }
+        @if (isAdmin && Model.Environments.Count > 0)
+        {
+            <a href="/Volumes/Prune" class="mat-btn"><icon name="broom" /><span>Prune</span></a>
+        }
         <a href="/Backups" class="mat-btn"><icon name="save" /><span>Backups</span></a>
         <a href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>

@@ -30,4 +30,22 @@ public interface IEnvironmentConnectionService
     Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, string? driver, IReadOnlyList<(string Key, string Value)> options, CancellationToken cancellationToken = default);
 
     Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes all unused (dangling) volumes on the host — <c>docker volume prune</c>.</summary>
+    Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists networks together with the names that are unused (Docker's "dangling" filter — not used by
+    /// any container). Both are fetched over a single connection.
+    /// </summary>
+    Task<(IReadOnlyList<DockerNetwork> Networks, IReadOnlyCollection<string> UnusedNames)> ListNetworksWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Full detail of one network, or null if it does not exist.</summary>
+    Task<DockerNetworkDetail?> InspectNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a single network by name or id. Returns an actionable message on failure.</summary>
+    Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes all unused (custom) networks on the host — <c>docker network prune</c>.</summary>
+    Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 }

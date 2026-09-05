@@ -71,6 +71,36 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
         LastSettings = settings;
         return Task.FromResult((true, "ok"));
     }
+
+    public Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult(new PruneResult(true, 0, string.Empty));
+    }
+
+    public Task<(IReadOnlyList<DockerNetwork> Networks, IReadOnlyCollection<string> UnusedNames)> ListNetworksWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult<(IReadOnlyList<DockerNetwork>, IReadOnlyCollection<string>)>((new List<DockerNetwork>(), new HashSet<string>()));
+    }
+
+    public Task<DockerNetworkDetail?> InspectNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult<DockerNetworkDetail?>(new DockerNetworkDetail { Name = nameOrId, Driver = "bridge" });
+    }
+
+    public Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult((true, "ok"));
+    }
+
+    public Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult(new PruneResult(true, 0, string.Empty));
+    }
 }
 
 /// <summary>No-op storage factory for service tests that don't touch real storage.</summary>

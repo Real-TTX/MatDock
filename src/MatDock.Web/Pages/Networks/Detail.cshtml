@@ -1,0 +1,127 @@
+@page
+@model MatDock.Web.Pages.Networks.DetailModel
+@{
+    ViewData["Title"] = "Network details";
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@Model.NetworkName</h1>
+        <span class="page-head__subtitle">Network on @Model.Environment?.Name</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Networks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+
+@if (Model.Detail is null)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Network "@Model.NetworkName" was not found on this host.</span></div>
+}
+else
+{
+    var d = Model.Detail;
+
+    @if (isAdmin && !Model.IsPredefined)
+    {
+        <div class="mat-buttons" style="margin-bottom:16px;">
+            <form method="post" asp-page-handler="Remove" data-confirm="Remove network &quot;@d.Name&quot;?">
+                <input type="hidden" name="envId" value="@Model.EnvId" />
+                <input type="hidden" name="network" value="@d.Name" />
+                <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove network</span></button>
+            </form>
+        </div>
+    }
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="network" /><span>Details</span></div>
+        <div class="mat-table__scroll">
+            <table class="data">
+                <tbody>
+                    <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
+                    <tr><th>ID</th><td class="mono">@d.Id</td></tr>
+                    <tr><th>Driver</th><td>@d.Driver</td></tr>
+                    <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
+                    <tr><th>Internal</th><td>@(d.Internal ? "yes" : "no")</td></tr>
+                    <tr><th>Attachable</th><td>@(d.Attachable ? "yes" : "no")</td></tr>
+                    <tr><th>IPv6</th><td>@(d.EnableIPv6 ? "yes" : "no")</td></tr>
+                    @if (d.Subnets.Count > 0)
+                    {
+                        <tr><th>Subnets</th><td class="mono">@string.Join(", ", d.Subnets)</td></tr>
+                    }
+                    <tr><th>Created</th><td>@(d.CreatedAt ?? "–")</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (d.Options.Count > 0)
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__header"><icon name="settings" /><span>Options</span></div>
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
+                    <tbody>
+                        @foreach (var kv in d.Options)
+                        {
+                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (d.Labels.Count > 0)
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__header"><icon name="filter" /><span>Labels</span></div>
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
+                    <tbody>
+                        @foreach (var kv in d.Labels)
+                        {
+                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card__header"><icon name="box" /><span>Connected containers</span><span class="mat-badge">@d.Containers.Count</span></div>
+        @if (d.Containers.Count == 0)
+        {
+            <div class="empty-state"><div><icon name="box" /></div><p>No container is connected to this network.</p></div>
+        }
+        else
+        {
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <tbody>
+                        @foreach (var c in d.Containers)
+                        {
+                            <tr><td><strong>@c</strong></td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

@@ -3,6 +3,7 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Execution;
+using MatDock.Core.Networks;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
@@ -298,6 +299,142 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return HostStats.Parse(result.StdOut);
     }
 
+    public async Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return PruneResult.Fail(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, VolumeCommands.Prune(head), settings);
+        return result.ExitStatus == 0
+            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
+            : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    public async Task<(IReadOnlyList<DockerNetwork> Networks, IReadOnlyCollection<string> UnusedNames)> ListNetworksWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, NetworkCommands.List(head), settings);
+        if (result.ExitStatus != 0)
+        {
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+        }
+
+        var networks = ParseNetworks(result.StdOut);
+
+        // Best-effort on the same connection: which networks are unused (dangling / removable by prune).
+        var unused = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            var dangling = RunCommand(client, NetworkCommands.ListDangling(head), settings);
+            if (dangling.ExitStatus == 0)
+            {
+                foreach (var line in dangling.StdOut.Split('\n'))
+                {
+                    var name = line.Trim();
+                    if (name.Length > 0)
+                    {
+                        unused.Add(name);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Dangling-network probe failed for host {Host}.", settings.Host);
+        }
+
+        return (networks, unused);
+    }
+
+    public async Task<DockerNetworkDetail?> InspectNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default)
+    {
+        if (!NetworkCommands.IsValidNetworkRef(nameOrId))
+        {
+            return null;
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, NetworkCommands.InspectJson(nameOrId, head), settings);
+        return result.ExitStatus != 0 ? null : ParseNetworkDetail(result.StdOut);
+    }
+
+    public async Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default)
+    {
+        if (!NetworkCommands.IsValidNetworkRef(nameOrId))
+        {
+            return (false, "Invalid network name/id.");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, NetworkCommands.Remove(nameOrId, head), settings);
+        return result.ExitStatus == 0
+            ? (true, $"Network \"{nameOrId}\" removed.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    public async Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return PruneResult.Fail(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, NetworkCommands.Prune(head), settings);
+        return result.ExitStatus == 0
+            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
+            : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    /// <summary>Counts the deleted items in a <c>docker … prune</c> output (item lines carry no colon).</summary>
+    private static int CountPruneItems(string stdout)
+        => stdout.Split('\n')
+            .Select(l => l.Trim())
+            .Count(l => l.Length > 0 && !l.Contains(':'));
+
     /// <summary>Ordered access strategies to probe: default, sudo, then any discovered rootless sockets.</summary>
     private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(IHostSession client, SshConnectionSettings settings)
     {
@@ -435,5 +572,150 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         return result;
+    }
+
+    private static IReadOnlyList<DockerNetwork> ParseNetworks(string output)
+    {
+        var networks = new List<DockerNetwork>();
+        foreach (var line in output.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString()
+                    : null;
+
+                // `docker network ls --format json` reports Internal as the string "true"/"false".
+                var isInternal = string.Equals(Get("Internal"), "true", StringComparison.OrdinalIgnoreCase);
+
+                networks.Add(new DockerNetwork
+                {
+                    Id = Get("ID") ?? string.Empty,
+                    Name = Get("Name") ?? string.Empty,
+                    Driver = Get("Driver") ?? string.Empty,
+                    Scope = Get("Scope"),
+                    Internal = isInternal,
+                    CreatedAt = Get("CreatedAt"),
+                    Labels = ParseLabels(Get("Labels")),
+                });
+            }
+            catch (JsonException)
+            {
+                // Skip malformed lines rather than failing the whole listing.
+            }
+        }
+
+        return networks
+            .OrderBy(n => n.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static DockerNetworkDetail? ParseNetworkDetail(string json)
+    {
+        var line = DockerErrorMessages.FirstLine(json);
+        if (line is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            string? Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString()
+                : null;
+            bool Flag(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+
+            IReadOnlyDictionary<string, string> Obj(string name)
+            {
+                var map = new Dictionary<string, string>();
+                if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var p in v.EnumerateObject())
+                    {
+                        if (p.Value.ValueKind == JsonValueKind.String)
+                        {
+                            map[p.Name] = p.Value.GetString()!;
+                        }
+                    }
+                }
+
+                return map;
+            }
+
+            // IPAM.Config → "subnet → gateway" strings.
+            var subnets = new List<string>();
+            if (root.TryGetProperty("IPAM", out var ipam) && ipam.ValueKind == JsonValueKind.Object
+                && ipam.TryGetProperty("Config", out var cfg) && cfg.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var c in cfg.EnumerateArray())
+                {
+                    if (c.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    var subnet = c.TryGetProperty("Subnet", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+                    var gateway = c.TryGetProperty("Gateway", out var g) && g.ValueKind == JsonValueKind.String ? g.GetString() : null;
+                    if (!string.IsNullOrEmpty(subnet))
+                    {
+                        subnets.Add(string.IsNullOrEmpty(gateway) ? subnet! : $"{subnet} → {gateway}");
+                    }
+                }
+            }
+
+            // Containers is an object map (id → { Name, … }); collect the container names.
+            var containers = new List<string>();
+            if (root.TryGetProperty("Containers", out var cs) && cs.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var p in cs.EnumerateObject())
+                {
+                    if (p.Value.ValueKind == JsonValueKind.Object
+                        && p.Value.TryGetProperty("Name", out var n) && n.ValueKind == JsonValueKind.String)
+                    {
+                        containers.Add(n.GetString()!);
+                    }
+                }
+            }
+
+            return new DockerNetworkDetail
+            {
+                Id = Str("Id") ?? string.Empty,
+                Name = Str("Name") ?? string.Empty,
+                Driver = Str("Driver") ?? string.Empty,
+                Scope = Str("Scope"),
+                Internal = Flag("Internal"),
+                Attachable = Flag("Attachable"),
+                EnableIPv6 = Flag("EnableIPv6"),
+                CreatedAt = Str("Created"),
+                Subnets = subnets,
+                Containers = containers.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList(),
+                Options = Obj("Options"),
+                Labels = Obj("Labels"),
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

@@ -68,6 +68,65 @@ public sealed class DockerVolume
     public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
 }
 
+/// <summary>Outcome of a prune (volumes or networks): whether it ran, how many were removed, raw detail.</summary>
+public sealed record PruneResult(bool Success, int Removed, string Detail)
+{
+    public static PruneResult Fail(string message) => new(false, 0, message);
+}
+
+/// <summary>A Docker network as shown in the environment's network list.</summary>
+public sealed class DockerNetwork
+{
+    public string Id { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
+
+    public string Driver { get; init; } = string.Empty;
+
+    public string? Scope { get; init; }
+
+    /// <summary>True for internal (non-routable) networks.</summary>
+    public bool Internal { get; init; }
+
+    public string? CreatedAt { get; init; }
+
+    public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The three predefined networks that Docker never lets you remove or prune.</summary>
+    public bool IsPredefined =>
+        Name is "bridge" or "host" or "none";
+}
+
+/// <summary>Full detail of a Docker network from <c>docker network inspect</c>.</summary>
+public sealed class DockerNetworkDetail
+{
+    public string Id { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
+
+    public string Driver { get; init; } = string.Empty;
+
+    public string? Scope { get; init; }
+
+    public bool Internal { get; init; }
+
+    public bool Attachable { get; init; }
+
+    public bool EnableIPv6 { get; init; }
+
+    public string? CreatedAt { get; init; }
+
+    /// <summary>IPAM subnets, e.g. "172.18.0.0/16 → 172.18.0.1".</summary>
+    public IReadOnlyList<string> Subnets { get; init; } = new List<string>();
+
+    /// <summary>Names of the containers currently attached to this network.</summary>
+    public IReadOnlyList<string> Containers { get; init; } = new List<string>();
+
+    public IReadOnlyDictionary<string, string> Options { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
+}
+
 /// <summary>Full detail of a Docker volume from <c>docker volume inspect</c> (incl. driver options).</summary>
 public sealed class DockerVolumeDetail
 {

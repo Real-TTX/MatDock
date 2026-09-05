@@ -463,6 +463,7 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .vol-picker__row span { display: inline-flex; align-items: center; gap: 6px; word-break: break-all; }
 
 .tag-unused { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--warning, #b8860b); background: color-mix(in srgb, var(--warning, #d9a441) 18%, transparent); border: 1px solid color-mix(in srgb, var(--warning, #d9a441) 40%, transparent); vertical-align: middle; }
+.tag-system { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); vertical-align: middle; }
 
 .result-banner { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 18px; }
 .result-banner .mat-icon { font-size: 2.4rem; flex: 0 0 auto; }

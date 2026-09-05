@@ -192,4 +192,8 @@ public static partial class VolumeCommands
     /// <summary>Names (one per line) of volumes not referenced by any container — Docker's "dangling" filter.</summary>
     public static string VolumeListDangling(string dockerHead = "docker")
         => PathPrefix + dockerHead + " volume ls -q --filter dangling=true";
+
+    /// <summary>Removes all unused (dangling) volumes.</summary>
+    public static string Prune(string dockerHead = "docker")
+        => PathPrefix + dockerHead + " volume prune -f";
 }

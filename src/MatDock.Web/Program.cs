@@ -101,6 +101,9 @@ builder.Services.AddRazorPages(options =>
     // The volume file explorer can read/write arbitrary files inside volumes → admins only.
     options.Conventions.AuthorizePage("/Volumes/Files", "AdminOnly");
     options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");
+    // Prune permanently deletes unused volumes/networks → admins only.
+    options.Conventions.AuthorizePage("/Volumes/Prune", "AdminOnly");
+    options.Conventions.AuthorizePage("/Networks/Prune", "AdminOnly");
     // Managed stacks deploy arbitrary compose (= arbitrary containers/binds) → admins only.
     options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
     // App templates feed the stack editor (same power) → admins only.

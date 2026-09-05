@@ -1,0 +1,113 @@
+@page
+@model MatDock.Web.Pages.Networks.IndexModel
+@{
+    ViewData["Title"] = "Networks";
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Networks</h1>
+        <span class="page-head__subtitle">@(Model.EnvId > 0 ? "Docker networks of the selected environment" : "All Docker networks across all environments")</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert--warning">
+        <icon name="alert" />
+        <span>Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <form method="get" class="js-autosubmit" style="display:contents;">
+            <div class="search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (network, driver, environment)…" />
+            </div>
+            <span class="toolbar-spacer"></span>
+            <span class="text-muted"><strong>@Model.Rows.Count</strong> Networks</span>
+        </form>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="empty-state">
+                <div><icon name="network" /></div>
+                <p>No networks found.@(Model.Environments.Count == 0 ? " Create an environment first." : "")</p>
+            </div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Environment</th>
+                        <th>Network</th>
+                        <th>Driver</th>
+                        <th>Scope</th>
+                        <th class="actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td><span class="mat-badge">@row.Environment.Name</span></td>
+                            <td class="wrap">
+                                <a href="/Networks/Detail?envId=@row.Environment.Id&network=@Uri.EscapeDataString(row.Network.Name)"><strong>@row.Network.Name</strong></a>
+                                @if (row.Network.IsPredefined)
+                                {
+                                    <span class="tag-system" title="Predefined Docker network">system</span>
+                                }
+                                else if (row.Unused)
+                                {
+                                    <span class="tag-unused" title="Not used by any container">unused</span>
+                                }
+                                @if (row.Network.Internal)
+                                {
+                                    <div class="cell-sub">internal</div>
+                                }
+                            </td>
+                            <td>@row.Network.Driver</td>
+                            <td class="cell-sub">@(row.Network.Scope ?? "–")</td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Networks/Detail?envId=@row.Environment.Id&network=@Uri.EscapeDataString(row.Network.Name)" title="Open"><icon name="external" /></a>
+                                    @if (isAdmin && !row.Network.IsPredefined)
+                                    {
+                                        <form method="post" asp-page-handler="Remove" style="display:inline;"
+                                              data-confirm="Remove network &quot;@row.Network.Name&quot;?">
+                                            <input type="hidden" name="envId" value="@row.Environment.Id" />
+                                            <input type="hidden" name="name" value="@row.Network.Name" />
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Remove"><icon name="trash" /></button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+
+    <mat-table-actions>
+        <span class="toolbar-spacer"></span>
+        @if (isAdmin && Model.Environments.Count > 0)
+        {
+            <a href="/Networks/Prune" class="mat-btn"><icon name="broom" /><span>Prune</span></a>
+        }
+        <a href="/Networks?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
+    </mat-table-actions>
+</mat-table>

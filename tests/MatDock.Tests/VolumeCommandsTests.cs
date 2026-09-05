@@ -118,6 +118,13 @@ public class VolumeCommandsTests
     }
 
     [Fact]
+    public void Prune_removes_unused_volumes_non_interactively()
+    {
+        var cmd = VolumeCommands.Prune("docker");
+        Assert.Contains("docker volume prune -f", cmd);
+    }
+
+    [Fact]
     public void ServerVersion_keeps_doubled_go_template_braces()
     {
         var cmd = VolumeCommands.ServerVersion("sudo -n docker");
