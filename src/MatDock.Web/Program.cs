@@ -57,6 +57,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddMatDockCore();
 builder.Services.AddHostedService<BackupSchedulerService>();
+builder.Services.AddHostedService<SyncJobSchedulerService>();
 
 // ---------------------------------------------------------------------------
 // Authentication / authorization
@@ -110,6 +111,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Apps", "AdminOnly");
     // Git credentials hold secrets and drive stack clones → admins only.
     options.Conventions.AuthorizeFolder("/GitCredentials", "AdminOnly");
+    options.Conventions.AuthorizeFolder("/GitRepos", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 });
@@ -145,6 +147,10 @@ app.MapGet("/terminal/ws", MatDock.Web.Terminal.TerminalEndpoint.HandleAsync).Re
 
 // Live container logs (one-directional WebSocket, docker logs -f). Any authenticated user, like the Logs page.
 app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthorization();
+
+// Incoming Git webhook that triggers a sync job. Anonymous by design — the per-job URL token is the
+// secret (AllowAnonymous is required to escape the fallback "authenticated user" policy).
+app.MapPost("/webhooks/sync/{token}", MatDock.Web.Sync.WebhookSyncEndpoint.HandleAsync).AllowAnonymous();
 
 // ---------------------------------------------------------------------------
 // Database migration + first-run seed

@@ -90,11 +90,13 @@ public static partial class StackCommands
     /// compose file. Files are overlaid (never wiped) so bind-mounted runtime data survives a redeploy.
     /// $1 = stack name, $2 = compose path (both shell-quoted args, not embedded).
     /// </summary>
-    public static string GitSync(string dockerHead, string name, string composePath)
+    public static string GitSync(string dockerHead, string name, string composePath, bool pull = false)
     {
         Require(name);
+        // Optionally pull first so :latest images are refreshed before the (idempotent) up -d.
+        var pullStep = pull ? dockerHead + " compose -p \"$1\" -f \"$2\" pull; " : string.Empty;
         var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; mkdir -p \"$dir\"; "
-                   + "tar -C \"$dir\" -xf -; cd \"$dir\"; "
+                   + "tar -C \"$dir\" -xf -; cd \"$dir\"; " + pullStep
                    + dockerHead + " compose -p \"$1\" -f \"$2\" up -d";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";

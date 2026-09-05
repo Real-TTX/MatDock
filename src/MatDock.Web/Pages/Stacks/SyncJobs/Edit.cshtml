@@ -1,0 +1,196 @@
+@page
+@model MatDock.Web.Pages.Stacks.SyncJobs.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit sync job" : "New sync job";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">Discover a repo's compose files and deploy them as managed stacks</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Stacks/SyncJobs" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+<form method="post" class="mat-form" style="max-width:900px;">
+    <input type="hidden" asp-for="Input.Id" />
+    <div asp-validation-summary="ModelOnly"></div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="git" /><span>Repository</span></div>
+        <div class="card__body">
+            @if (Model.SavedRepos.Count > 0)
+            {
+                <mat-field label="Use a saved repository (optional)" hint="Prefills the URL, branch and credentials below.">
+                    <select id="repo-picker" class="mat-select">
+                        <option value="">— manual entry —</option>
+                        @foreach (var r in Model.SavedRepos)
+                        {
+                            <option value="@r.Id" data-url="@r.Url" data-ref="@r.Reference" data-cred="@r.GitCredentialId">@r.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            }
+            <mat-field label="Name" asp-for="Input.Name">
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. prod apps" />
+            </mat-field>
+            <div class="form-grid">
+                <mat-field label="Git repository URL" asp-for="Input.GitRepoUrl">
+                    <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/org/repo.git" />
+                </mat-field>
+                <mat-field label="Branch / tag (optional)" asp-for="Input.GitReference">
+                    <input asp-for="Input.GitReference" class="mat-input" placeholder="main" />
+                </mat-field>
+                <mat-field label="Credentials (private repos)" asp-for="Input.GitCredentialId">
+                    <select asp-for="Input.GitCredentialId" class="mat-select">
+                        <option value="">— none (public) —</option>
+                        @foreach (var c in Model.Credentials)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button type="submit" asp-page-handler="Scan" class="mat-btn" formnovalidate>
+                    <icon name="refresh" /><span>Scan repository for compose files</span>
+                </button>
+                @if (Model.ScanError is not null)
+                {
+                    <span class="mat-validation">@Model.ScanError</span>
+                }
+                else if (Model.ScannedCount >= 0)
+                {
+                    <span class="mat-hint">Found @Model.ScannedCount compose file(s).</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="clock" /><span>Schedule &amp; behavior</span></div>
+        <div class="card__body">
+            <mat-field label="Schedule (cron, UTC — optional)" asp-for="Input.Cron" hint="Empty = webhook / manual only. e.g. 0 4 * * * = daily 04:00">
+                <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+            </mat-field>
+            <label class="mat-check">
+                <input asp-for="Input.Enabled" type="checkbox" />
+                <span>Enabled (scheduled + webhook triggers active)</span>
+            </label>
+            <label class="mat-check">
+                <input asp-for="Input.OnlyOnChange" type="checkbox" />
+                <span>Only deploy when the repo changed (off = redeploy on every trigger)</span>
+            </label>
+            <label class="mat-check">
+                <input asp-for="Input.PullImages" type="checkbox" />
+                <span>Pull images before deploy (<code>compose pull</code>) — updates <code>:latest</code></span>
+            </label>
+            <label class="mat-check">
+                <input asp-for="Input.PruneRemoved" type="checkbox" />
+                <span>Prune removed: <code>compose down</code> stacks whose compose was removed from the repo or deselected</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__header"><icon name="layers" /><span>Compose files → environments</span></div>
+        <div class="card__body">
+            @if (Model.Input.Rows.Count == 0)
+            {
+                <div class="empty-state">
+                    <div><icon name="git" /></div>
+                    <p>Scan the repository above to list its compose files, then choose the target environment(s) per file.</p>
+                </div>
+            }
+            else if (Model.Environments.Count == 0)
+            {
+                <div class="alert alert--warning"><icon name="alert" /><span>No environments available — create one first.</span></div>
+            }
+            else
+            {
+                <div class="mat-table__scroll">
+                    <table class="data">
+                        <thead>
+                            <tr><th>Compose file</th><th>Stack name</th><th>Environments</th></tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < Model.Input.Rows.Count; i++)
+                            {
+                                var row = Model.Input.Rows[i];
+                                <tr>
+                                    <td class="wrap">
+                                        <span class="mono">@row.ComposePath</span>
+                                        @if (!row.InRepo)
+                                        {
+                                            <span class="tag-unused" title="No longer in the repo">removed</span>
+                                        }
+                                        <input type="hidden" name="Input.Rows[@i].ComposePath" value="@row.ComposePath" />
+                                    </td>
+                                    <td>
+                                        <input name="Input.Rows[@i].StackName" value="@row.StackName" class="mat-input" style="min-width:150px;" />
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                                            @foreach (var env in Model.Environments)
+                                            {
+                                                <label class="mat-check">
+                                                    <input type="checkbox" name="Input.Rows[@i].EnvironmentIds" value="@env.Id"
+                                                           checked="@row.EnvironmentIds.Contains(env.Id)" />
+                                                    <span>@env.Name</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mat-hint" style="margin-top:8px;">Tick one or more environments per compose file. Unticking every environment excludes that file (and prunes its stack if "Prune removed" is on).</p>
+            }
+        </div>
+    </div>
+
+    <mat-form-buttons>
+        <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+        <a href="/Stacks/SyncJobs" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </mat-form-buttons>
+</form>
+
+@if (Model.IsEdit && Model.WebhookUrl is not null)
+{
+    <div class="card" style="max-width:900px;margin-top:16px;">
+        <div class="card__header"><icon name="plug" /><span>Webhook</span></div>
+        <div class="card__body">
+            <p class="mat-hint">Add this URL as a <strong>push webhook</strong> in your Git host (GitHub/GitLab/Gitea). A POST to it triggers this sync. Keep it secret — the token authenticates the caller.</p>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input class="mat-input mono" style="min-width:420px;flex:1;" value="@Model.WebhookUrl" readonly onclick="this.select()" />
+                <form method="post" asp-page-handler="Regenerate" data-confirm="Regenerate the webhook URL? The old URL stops working.">
+                    <input type="hidden" name="id" value="@Model.Input.Id" />
+                    <button type="submit" class="mat-btn mat-btn--sm"><icon name="refresh" /><span>Regenerate</span></button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var picker = document.getElementById('repo-picker');
+            if (!picker) { return; }
+            picker.addEventListener('change', function () {
+                var opt = picker.selectedOptions[0];
+                if (!opt || !opt.value) { return; }
+                var url = document.querySelector('[name="Input.GitRepoUrl"]');
+                var ref = document.querySelector('[name="Input.GitReference"]');
+                var cred = document.querySelector('[name="Input.GitCredentialId"]');
+                if (url) { url.value = opt.getAttribute('data-url') || ''; }
+                if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
+                if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
+            });
+        })();
+    </script>
+}

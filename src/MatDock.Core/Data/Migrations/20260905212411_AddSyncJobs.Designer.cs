@@ -3,6 +3,7 @@ using System;
 using MatDock.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MatDock.Core.Data.Migrations
 {
     [DbContext(typeof(MatDockDbContext))]
-    partial class MatDockDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905212411_AddSyncJobs")]
+    partial class AddSyncJobs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -271,51 +274,6 @@ namespace MatDock.Core.Data.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("GitCredential", (string)null);
-                });
-
-            modelBuilder.Entity("MatDock.Core.Entities.GitRepo", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("GitCredentialId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Reference")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdateDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UpdateState")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("UpdateUserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name");
-
-                    b.ToTable("GitRepo", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.NotificationSettings", b =>

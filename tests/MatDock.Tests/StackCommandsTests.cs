@@ -59,6 +59,21 @@ public class StackCommandsTests
     }
 
     [Fact]
+    public void GitSync_with_pull_pulls_before_up()
+    {
+        var cmd = StackCommands.GitSync("docker", "media", "compose.yml", pull: true);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" pull;", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" up -d", cmd);
+    }
+
+    [Fact]
+    public void GitSync_without_pull_does_not_pull()
+    {
+        var cmd = StackCommands.GitSync("docker", "media", "compose.yml", pull: false);
+        Assert.DoesNotContain(" pull;", cmd);
+    }
+
+    [Fact]
     public void GitSync_single_quotes_a_malicious_compose_path()
     {
         // A path containing a single quote must be safely quoted, not break out of the arg.

@@ -29,6 +29,9 @@ public class MatDockDbContext : DbContext
     public DbSet<Stack> Stacks => Set<Stack>();
     public DbSet<StackTemplate> StackTemplates => Set<StackTemplate>();
     public DbSet<GitCredential> GitCredentials => Set<GitCredential>();
+    public DbSet<SyncJob> SyncJobs => Set<SyncJob>();
+    public DbSet<SyncJobItem> SyncJobItems => Set<SyncJobItem>();
+    public DbSet<GitRepo> GitRepos => Set<GitRepo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,6 +124,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.GitRepoUrl).HasMaxLength(1000);
             e.Property(x => x.GitReference).HasMaxLength(200);
             e.Property(x => x.GitComposePath).HasMaxLength(500);
+            e.HasIndex(x => x.SyncJobId);
             e.Ignore(x => x.IsGitBacked);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
@@ -143,6 +147,45 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.AuthType).HasConversion<int>();
             e.Property(x => x.Username).HasMaxLength(200);
+            e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<SyncJob>(e =>
+        {
+            e.ToTable("SyncJob");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.GitRepoUrl).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.GitReference).HasMaxLength(200);
+            e.Property(x => x.Cron).HasMaxLength(120);
+            e.Property(x => x.UpdateMode).HasConversion<int>();
+            e.Property(x => x.WebhookToken).HasMaxLength(64).IsRequired();
+            e.Property(x => x.LastCommitSha).HasMaxLength(64);
+            e.Property(x => x.LastStatus).HasMaxLength(400);
+            // The webhook token is the URL secret; look it up by equality, so keep it unique.
+            e.HasIndex(x => x.WebhookToken).IsUnique().HasFilter("\"UpdateState\" <> 0");
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<SyncJobItem>(e =>
+        {
+            e.ToTable("SyncJobItem");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ComposePath).HasMaxLength(500).IsRequired();
+            e.Property(x => x.StackName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.LastStatus).HasMaxLength(400);
+            e.HasIndex(x => x.SyncJobId);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<GitRepo>(e =>
+        {
+            e.ToTable("GitRepo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Url).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Reference).HasMaxLength(200);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });

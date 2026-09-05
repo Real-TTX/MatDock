@@ -30,6 +30,9 @@ public class Stack : AuditableEntity
 
     public string? LastStatus { get; set; }
 
+    /// <summary>When set, this stack is managed by a <see cref="SyncJob"/> (created/updated from a repo scan).</summary>
+    public long? SyncJobId { get; set; }
+
     /// <summary>True when the stack is deployed from a Git repository rather than the inline editor.</summary>
     public bool IsGitBacked => !string.IsNullOrWhiteSpace(GitRepoUrl);
 }

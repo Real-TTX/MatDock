@@ -165,13 +165,12 @@ public sealed class StackService
 
     private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, CancellationToken ct)
     {
+        // Early exit before cloning if the environment is unavailable.
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
         {
             return (false, prep.Message);
         }
-
-        var composePath = EffectiveComposePath(stack);
 
         GitCredentialSecret? secret = null;
         if (stack.GitCredentialId is > 0)
@@ -196,23 +195,7 @@ public sealed class StackService
         try
         {
             workDir = await _gitRepo.CloneToTempAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
-
-            var composeFull = Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(composeFull))
-            {
-                stack.LastStatus = "Compose file missing";
-                try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
-                return (false, $"Compose file not found in the repo: {composePath}");
-            }
-
-            var composeContent = await File.ReadAllTextAsync(composeFull, ct);
-
-            // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
-            var localDir = workDir;
-            var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath);
-            return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
-                (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
-                ct, beforePersist: s => s.ComposeYaml = composeContent);
+            return await DeployFromWorkDirAsync(stack, workDir, pull: false, ct);
         }
         catch (GitOperationException ex)
         {
@@ -227,6 +210,38 @@ public sealed class StackService
                 GitRepositoryService.TryDelete(workDir);
             }
         }
+    }
+
+    /// <summary>
+    /// Deploys a git-backed stack from an ALREADY-cloned working directory (skips the clone). Used by
+    /// sync jobs that clone a repo once and deploy many compose files from the same tree. The caller
+    /// owns <paramref name="workDir"/> and is responsible for deleting it.
+    /// </summary>
+    public async Task<(bool Ok, string Output)> DeployFromWorkDirAsync(Stack stack, string workDir, bool pull, CancellationToken ct = default)
+    {
+        var prep = await PrepareHostAsync(stack, ct);
+        if (!prep.Ok)
+        {
+            return (false, prep.Message);
+        }
+
+        var composePath = EffectiveComposePath(stack);
+        var composeFull = Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(composeFull))
+        {
+            stack.LastStatus = "Compose file missing";
+            try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
+            return (false, $"Compose file not found in the repo: {composePath}");
+        }
+
+        var composeContent = await File.ReadAllTextAsync(composeFull, ct);
+
+        // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
+        var localDir = workDir;
+        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull);
+        return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
+            (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
+            ct, beforePersist: s => s.ComposeYaml = composeContent);
     }
 
     private sealed record HostPrep(bool Ok, string Message, SshConnectionSettings? Settings, string? Head, TimeSpan Timeout);

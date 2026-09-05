@@ -1,0 +1,101 @@
+@page
+@model MatDock.Web.Pages.Stacks.SyncJobs.IndexModel
+@{
+    ViewData["Title"] = "Sync jobs";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Sync jobs</h1>
+        <span class="page-head__subtitle">Deploy all compose files of a Git repo as managed stacks — on a schedule or via webhook</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Stacks/SyncJobs/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New sync job</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<mat-table>
+    <mat-table-body>
+        @if (Model.Jobs.Count == 0)
+        {
+            <div class="empty-state">
+                <div><icon name="refresh" /></div>
+                <p>No sync jobs yet. Create one to sync a Git repo's compose files as managed stacks.</p>
+            </div>
+        }
+        else
+        {
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Repository</th>
+                        <th>Schedule</th>
+                        <th>Composes</th>
+                        <th>Last run</th>
+                        <th class="actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in Model.Jobs)
+                    {
+                        <tr>
+                            <td class="wrap">
+                                <a href="/Stacks/SyncJobs/Edit?id=@job.Id"><strong>@job.Name</strong></a>
+                                @if (!job.Enabled)
+                                {
+                                    <span class="tag-system" title="Disabled">disabled</span>
+                                }
+                            </td>
+                            <td class="wrap">
+                                <span class="mono">@job.GitRepoUrl</span>
+                                @if (!string.IsNullOrEmpty(job.GitReference))
+                                {
+                                    <div class="cell-sub">@job.GitReference</div>
+                                }
+                            </td>
+                            <td>
+                                @if (string.IsNullOrEmpty(job.Cron))
+                                {
+                                    <span class="text-muted">webhook / manual</span>
+                                }
+                                else
+                                {
+                                    <span class="mono">@job.Cron</span>
+                                }
+                            </td>
+                            <td><span class="mat-badge">@(Model.Counts.TryGetValue(job.Id, out var c) ? c : 0)</span></td>
+                            <td class="cell-sub">
+                                @(job.LastRunAt?.ToString("yyyy-MM-dd HH:mm") ?? "–")
+                                @if (!string.IsNullOrEmpty(job.LastStatus))
+                                {
+                                    <div class="cell-sub">@job.LastStatus</div>
+                                }
+                            </td>
+                            <td class="actions">
+                                <div class="row-actions">
+                                    <a class="mat-btn mat-btn--sm" href="/Stacks/SyncJobs/Edit?id=@job.Id" title="Edit"><icon name="edit" /></a>
+                                    <form method="post" asp-page-handler="Run" style="display:inline;" data-confirm="Run sync '@job.Name' now?">
+                                        <input type="hidden" name="id" value="@job.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Sync now"><icon name="refresh" /></button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Delete" style="display:inline;" data-confirm="Delete sync job '@job.Name'? (managed stacks keep running)">
+                                        <input type="hidden" name="id" value="@job.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </mat-table-body>
+</mat-table>

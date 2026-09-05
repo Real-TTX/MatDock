@@ -51,6 +51,16 @@ public enum GitAuthType
     // Future: SshKey = 1
 }
 
+/// <summary>When a sync job actually redeploys its stacks on a schedule/webhook trigger.</summary>
+public enum SyncUpdateMode
+{
+    /// <summary>Only redeploy when the repo's commit changed since the last run (default).</summary>
+    OnGitChange = 0,
+
+    /// <summary>Redeploy on every trigger (idempotent compose up; pairs well with "pull images" for :latest).</summary>
+    Always = 1
+}
+
 /// <summary>Where backup archives are stored.</summary>
 public enum BackupTargetType
 {

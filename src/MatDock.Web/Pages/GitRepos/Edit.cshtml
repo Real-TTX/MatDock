@@ -1,0 +1,61 @@
+@page
+@model MatDock.Web.Pages.GitRepos.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit git repository" : "New git repository";
+}
+
+<partial name="_SystemTabs" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">A saved repository to reuse in sync jobs</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/GitRepos" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+@if (Model.TestMessage is not null)
+{
+    <div class="alert @(Model.TestOk ? "alert--success" : "alert--error")">
+        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><span>@Model.TestMessage</span>
+    </div>
+}
+
+<div class="card" style="max-width:820px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <mat-field label="Name" asp-for="Input.Name">
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. prod apps repo" />
+            </mat-field>
+
+            <div class="form-grid">
+                <mat-field label="Repository URL" asp-for="Input.Url">
+                    <input asp-for="Input.Url" class="mat-input" placeholder="https://github.com/org/repo.git" />
+                </mat-field>
+                <mat-field label="Branch / tag (optional)" asp-for="Input.Reference">
+                    <input asp-for="Input.Reference" class="mat-input" placeholder="main" />
+                </mat-field>
+                <mat-field label="Credentials (private repos)" asp-for="Input.GitCredentialId">
+                    <select asp-for="Input.GitCredentialId" class="mat-select">
+                        <option value="">— none (public) —</option>
+                        @foreach (var c in Model.Credentials)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
+                <a href="/GitRepos" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

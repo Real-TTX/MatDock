@@ -68,7 +68,7 @@
                     </a>
                     @if (isAdmin)
                     {
-                        <a class="nav-link @(IsActive("/Stacks") ? "is-active" : "")" href="/Stacks">
+                        <a class="nav-link @(IsActive("/Stacks") && !IsActive("/Stacks/SyncJobs") ? "is-active" : "")" href="/Stacks">
                             <icon name="layers" /><span>Stacks</span>
                         </a>
                     }
@@ -88,6 +88,9 @@
                     {
                         <a class="nav-link @(IsActive("/Apps") ? "is-active" : "")" href="/Apps">
                             <icon name="template" /><span>Apps</span>
+                        </a>
+                        <a class="nav-link @(IsActive("/Stacks/SyncJobs") ? "is-active" : "")" href="/Stacks/SyncJobs">
+                            <icon name="refresh" /><span>Sync</span>
                         </a>
                         <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") ? "is-active" : "")" href="/Settings">
                             <icon name="settings" /><span>System</span>

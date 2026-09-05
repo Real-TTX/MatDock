@@ -41,6 +41,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Templates.StackTemplateService>();
         services.AddScoped<Git.GitCredentialService>();
         services.AddSingleton<Git.GitRepositoryService>();
+        services.AddScoped<Git.GitRepoService>();
+        services.AddScoped<Sync.SyncJobRunner>();
+        services.AddScoped<Sync.SyncJobService>();
         services.AddScoped<Notifications.NotificationSettingsService>();
         services.AddScoped<Notifications.INotificationService, Notifications.NotificationService>();
         services.AddHttpClient();
