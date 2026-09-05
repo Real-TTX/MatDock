@@ -236,13 +236,43 @@ public class EditModel : PageModel
             .ToList();
     }
 
-    private static string DeriveName(string composePath)
+    // Generic compose file stems that carry no meaning as a stack name — fall back to the folder instead.
+    private static readonly HashSet<string> GenericComposeNames =
+        new(StringComparer.OrdinalIgnoreCase) { "docker", "docker-compose", "compose" };
+
+    private string DeriveName(string composePath)
     {
         var segments = composePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var basis = segments.Length > 1
-            ? segments[^2]
-            : Path.GetFileNameWithoutExtension(composePath);
+        var fileStem = segments.Length > 0 ? Path.GetFileNameWithoutExtension(segments[^1]) : null;
+        var parentDir = segments.Length > 1 ? segments[^2] : null;
+
+        // Normally use the file name; if it's a generic compose name, take the parent directory instead;
+        // at the repo root (no parent) fall back to the repository name.
+        string? basis = fileStem;
+        if (string.IsNullOrEmpty(basis) || GenericComposeNames.Contains(basis))
+        {
+            basis = !string.IsNullOrEmpty(parentDir) ? parentDir : RepoName(Input.GitRepoUrl);
+        }
+
         return StackCommands.Slugify(basis);
+    }
+
+    /// <summary>The repository name from a Git URL (e.g. .../org/<c>repo</c>.git → "repo").</summary>
+    private static string? RepoName(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var u = url.Trim().TrimEnd('/');
+        if (u.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+        {
+            u = u[..^4];
+        }
+
+        var slash = u.LastIndexOf('/');
+        return slash >= 0 && slash < u.Length - 1 ? u[(slash + 1)..] : u;
     }
 
     private string BuildWebhookUrl(string token)
