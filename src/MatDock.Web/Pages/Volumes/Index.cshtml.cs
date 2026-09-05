@@ -1,9 +1,6 @@
-using MatDock.Core.Backups;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
-using MatDock.Core.Notifications;
-using MatDock.Core.Volumes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
@@ -17,24 +14,15 @@ public class IndexModel : PageModel
 
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
-    private readonly VolumeBackupService _backupService;
-    private readonly BackupTargetService _backupTargetService;
-    private readonly INotificationService _notifications;
     private readonly IMemoryCache _cache;
 
     public IndexModel(
         EnvironmentService environmentService,
         IEnvironmentConnectionService connectionService,
-        VolumeBackupService backupService,
-        BackupTargetService backupTargetService,
-        INotificationService notifications,
         IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
-        _backupService = backupService;
-        _backupTargetService = backupTargetService;
-        _notifications = notifications;
         _cache = cache;
     }
 
@@ -55,9 +43,9 @@ public class IndexModel : PageModel
     public List<VolumeRow> Rows { get; private set; } = new();
     public List<(string Environment, string Message)> Errors { get; private set; } = new();
 
-    public sealed record VolumeRow(DockerEnvironment Environment, DockerVolume Volume);
+    public sealed record VolumeRow(DockerEnvironment Environment, DockerVolume Volume, bool Unused);
 
-    private sealed record CachedVolumes(IReadOnlyList<DockerVolume> Volumes, string? Error);
+    private sealed record CachedVolumes(IReadOnlyList<DockerVolume> Volumes, IReadOnlyCollection<string> Unused, string? Error);
 
     public async Task OnGetAsync()
     {
@@ -93,12 +81,12 @@ public class IndexModel : PageModel
                 CachedVolumes entry;
                 try
                 {
-                    var volumes = await _connectionService.ListVolumesAsync(p.Settings, HttpContext.RequestAborted);
-                    entry = new CachedVolumes(volumes, null);
+                    var (volumes, unused) = await _connectionService.ListVolumesWithUsageAsync(p.Settings, HttpContext.RequestAborted);
+                    entry = new CachedVolumes(volumes, unused, null);
                 }
                 catch (Exception ex)
                 {
-                    entry = new CachedVolumes(Array.Empty<DockerVolume>(), ex.Message);
+                    entry = new CachedVolumes(Array.Empty<DockerVolume>(), Array.Empty<string>(), ex.Message);
                 }
 
                 _cache.Set(cacheKey, entry, CacheTtl);
@@ -121,7 +109,8 @@ public class IndexModel : PageModel
                 continue;
             }
 
-            rows.AddRange(entry.Volumes.Select(v => new VolumeRow(env, v)));
+            var unused = entry.Unused as IReadOnlySet<string> ?? new HashSet<string>(entry.Unused, StringComparer.Ordinal);
+            rows.AddRange(entry.Volumes.Select(v => new VolumeRow(env, v, unused.Contains(v.Name))));
         }
 
         if (!string.IsNullOrWhiteSpace(Q))
@@ -138,61 +127,5 @@ public class IndexModel : PageModel
             .OrderBy(r => r.Environment.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(r => r.Volume.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    public async Task<IActionResult> OnPostCreateVolumeAsync(long createEnvId, string newVolumeName)
-    {
-        var env = await _environmentService.GetAsync(createEnvId, HttpContext.RequestAborted);
-        if (env is null || !env.IsEnabled)
-        {
-            StatusMessage = "Environment not available (disabled or deleted).";
-            IsError = true;
-            return RedirectToPage(new { EnvId, Q });
-        }
-
-        var (ok, message) = await _connectionService.CreateVolumeAsync(_environmentService.BuildSettings(env), newVolumeName ?? string.Empty, HttpContext.RequestAborted);
-        StatusMessage = message;
-        IsError = !ok;
-        // Switch to that env and bypass the cache so the new volume shows immediately.
-        return RedirectToPage(new { EnvId = createEnvId, Q, Refresh = true });
-    }
-
-    public async Task<IActionResult> OnPostBackupAsync(string single, bool stopContainers)
-    {
-        var (envId, volume) = VolumeSelection.Parse(new[] { single }).FirstOrDefault();
-        if (volume is null)
-        {
-            StatusMessage = "Invalid selection.";
-            IsError = true;
-            return RedirectToPage(new { EnvId, Q });
-        }
-
-        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
-        if (env is null || !env.IsEnabled)
-        {
-            StatusMessage = "Environment not available (disabled or deleted).";
-            IsError = true;
-            return RedirectToPage(new { EnvId, Q });
-        }
-
-        var target = await _backupTargetService.GetDefaultAsync(HttpContext.RequestAborted);
-        var result = await _backupService.BackupAsync(env, volume, target, scheduleId: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
-        StatusMessage = $"{volume} → {(target?.Name ?? "Local")}: {result.Message}";
-        IsError = !result.Success;
-        await NotifyBackupAsync($"Manual backup: {volume}", $"{volume} → {(target?.Name ?? "Local")}: {result.Message}", result.Success);
-        return RedirectToPage(new { EnvId, Q });
-    }
-
-    /// <summary>Best-effort backup notification for manual/bulk runs; never fails the request.</summary>
-    private async Task NotifyBackupAsync(string title, string summary, bool success)
-    {
-        try
-        {
-            await _notifications.NotifyBackupResultAsync(title, summary, success, HttpContext.RequestAborted);
-        }
-        catch
-        {
-            // notifications are best-effort; a delivery failure must not affect the backup result page.
-        }
     }
 }

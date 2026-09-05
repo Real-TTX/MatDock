@@ -99,6 +99,53 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return ParseVolumes(result.StdOut);
     }
 
+    public async Task<(IReadOnlyList<DockerVolume> Volumes, IReadOnlyCollection<string> UnusedNames)> ListVolumesWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, VolumeCommands.VolumeList(head), settings);
+        if (result.ExitStatus != 0)
+        {
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+        }
+
+        var volumes = ParseVolumes(result.StdOut);
+
+        // Best-effort on the same connection: which volumes are unused (dangling). A probe failure must
+        // not fail the listing — the page still shows the volumes, just without the "unused" marker.
+        var unused = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            var dangling = RunCommand(client, VolumeCommands.VolumeListDangling(head), settings);
+            if (dangling.ExitStatus == 0)
+            {
+                foreach (var line in dangling.StdOut.Split('\n'))
+                {
+                    var name = line.Trim();
+                    if (name.Length > 0)
+                    {
+                        unused.Add(name);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Dangling-volume probe failed for host {Host}.", settings.Host);
+        }
+
+        return (volumes, unused);
+    }
+
     public async Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default)
     {
         if (!VolumeCommands.IsValidVolumeName(volume))

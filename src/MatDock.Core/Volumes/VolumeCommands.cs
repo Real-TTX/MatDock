@@ -188,4 +188,8 @@ public static partial class VolumeCommands
 
     public static string VolumeList(string dockerHead = "docker")
         => PathPrefix + dockerHead + " volume ls --format '{{json .}}'";
+
+    /// <summary>Names (one per line) of volumes not referenced by any container — Docker's "dangling" filter.</summary>
+    public static string VolumeListDangling(string dockerHead = "docker")
+        => PathPrefix + dockerHead + " volume ls -q --filter dangling=true";
 }

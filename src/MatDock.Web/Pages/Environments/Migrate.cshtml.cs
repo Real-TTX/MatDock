@@ -36,6 +36,10 @@ public class MigrateModel : PageModel
     public InputModel Input { get; set; } = new();
 
     public DockerEnvironment? SourceEnvironment { get; private set; }
+
+    /// <summary>All enabled environments — the source-environment picker.</summary>
+    public List<DockerEnvironment> SourceEnvironments { get; private set; } = new();
+
     public List<DockerEnvironment> TargetEnvironments { get; private set; } = new();
     public List<BackupTarget> BackupTargets { get; private set; } = new();
 
@@ -80,10 +84,12 @@ public class MigrateModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(long sourceId, string? volume)
     {
-        var source = await _environmentService.GetAsync(sourceId, HttpContext.RequestAborted);
-        if (source is null || !source.IsEnabled)
+        // The source can be chosen on the page; when none is given (e.g. the "Migrate" button on the
+        // all-environments volume list) fall back to the first enabled environment.
+        var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+        if (sourceId <= 0)
         {
-            return NotFound();
+            sourceId = enabled.FirstOrDefault()?.Id ?? 0;
         }
 
         Input.SourceEnvId = sourceId;
@@ -213,8 +219,9 @@ public class MigrateModel : PageModel
     private async Task LoadAsync()
     {
         SourceEnvironment = await _environmentService.GetAsync(Input.SourceEnvId, HttpContext.RequestAborted);
-        // Only active environments are valid migration targets.
+        // Only active environments are valid migration sources/targets.
         var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+        SourceEnvironments = enabled;
         TargetEnvironments = enabled.Where(e => e.Id != Input.SourceEnvId).ToList();
         BackupTargets = await _backupTargetService.GetAllAsync(HttpContext.RequestAborted);
 

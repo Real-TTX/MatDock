@@ -14,6 +14,12 @@ public interface IEnvironmentConnectionService
 
     Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Lists volumes together with the set of names that are unused (Docker's "dangling" filter — not
+    /// referenced by any container). Both are fetched over a single connection.
+    /// </summary>
+    Task<(IReadOnlyList<DockerVolume> Volumes, IReadOnlyCollection<string> UnusedNames)> ListVolumesWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
     /// <summary>Full detail (incl. driver options / remote share) of one volume, or null if it does not exist.</summary>
     Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default);
 

@@ -449,12 +449,20 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .migrate__env { font-size: 1.25rem; font-weight: 750; word-break: break-word; }
 .migrate__host { font-family: var(--mono); font-size: .82rem; color: var(--text-muted); margin-bottom: 14px; }
 .migrate__vol { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 12px; font-weight: 650; }
-.vol-picker { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.mig-source { width: 100%; }
+.vol-picker-label { display: block; margin: 14px 0 6px; }
+.vol-picker { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
+.vol-picker__search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+.vol-picker__search .mat-input { border: none; background: transparent; padding: 2px 0; box-shadow: none; }
+.vol-picker__search .mat-input:focus { outline: none; box-shadow: none; }
 .vol-picker__head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.vol-picker__count { margin-left: auto; font-size: .78rem; color: var(--text-muted); }
 .vol-picker__list { max-height: 240px; overflow-y: auto; padding: 4px; }
-.vol-picker__row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-sm); margin: 0; font-weight: 500; }
+.vol-picker__row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-sm); margin: 0; font-weight: 500; cursor: pointer; }
 .vol-picker__row:hover { background: var(--surface); }
 .vol-picker__row span { display: inline-flex; align-items: center; gap: 6px; word-break: break-all; }
+
+.tag-unused { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--warning, #b8860b); background: color-mix(in srgb, var(--warning, #d9a441) 18%, transparent); border: 1px solid color-mix(in srgb, var(--warning, #d9a441) 40%, transparent); vertical-align: middle; }
 
 .result-banner { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 18px; }
 .result-banner .mat-icon { font-size: 2.4rem; flex: 0 0 auto; }

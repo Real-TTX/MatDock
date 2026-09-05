@@ -98,17 +98,28 @@
         });
     });
 
-    /* ---------------- Migrate page: source-volume multi-select ---------------- */
+    /* ---------------- Select that navigates to a URL on change (data-nav-select="…{v}…") ------- */
+    document.querySelectorAll("[data-nav-select]").forEach(function (sel) {
+        sel.addEventListener("change", function () {
+            var tpl = sel.getAttribute("data-nav-select");
+            window.location.href = tpl.replace("{v}", encodeURIComponent(sel.value));
+        });
+    });
+
+    /* ---------------- Migrate page: source-volume multi-select + filter ---------------- */
     (function () {
         var picker = document.querySelector("[data-migrate-volumes]");
         if (!picker) { return; }
         var checks = Array.prototype.slice.call(picker.querySelectorAll(".mig-vol"));
+        var rows = Array.prototype.slice.call(picker.querySelectorAll(".vol-picker__row"));
         var countEl = document.getElementById("mig-count");
         var startBtn = document.getElementById("mig-start");
         var rename = document.getElementById("mig-rename");
         var multiNote = document.getElementById("mig-multi-note");
         var selectAll = picker.querySelector("[data-vol-all]");
         var selectNone = picker.querySelector("[data-vol-none]");
+        var filter = picker.querySelector("[data-vol-filter]");
+        var shownEl = picker.querySelector("[data-vol-shown]");
 
         function update() {
             var n = checks.filter(function (c) { return c.checked; }).length;
@@ -118,16 +129,35 @@
             if (multiNote) { multiNote.hidden = n <= 1; }
         }
 
-        function setAll(value) {
+        function applyFilter() {
+            var q = (filter ? filter.value : "").trim().toLowerCase();
+            var shown = 0;
+            rows.forEach(function (r) {
+                var name = (r.getAttribute("data-name") || "").toLowerCase();
+                var vis = q === "" || name.indexOf(q) !== -1;
+                r.hidden = !vis;
+                if (vis) { shown++; }
+            });
+            if (shownEl) { shownEl.textContent = shown; }
+        }
+
+        // "Select all" / "None" act on the currently visible (filtered) rows only.
+        function setVisible(value) {
             return function (e) {
                 e.preventDefault();
-                checks.forEach(function (c) { c.checked = value; });
+                rows.forEach(function (r) {
+                    if (r.hidden) { return; }
+                    var c = r.querySelector(".mig-vol");
+                    if (c) { c.checked = value; }
+                });
                 update();
             };
         }
-        if (selectAll) { selectAll.addEventListener("click", setAll(true)); }
-        if (selectNone) { selectNone.addEventListener("click", setAll(false)); }
+        if (selectAll) { selectAll.addEventListener("click", setVisible(true)); }
+        if (selectNone) { selectNone.addEventListener("click", setVisible(false)); }
+        if (filter) { filter.addEventListener("input", applyFilter); }
         checks.forEach(function (c) { c.addEventListener("change", update); });
+        applyFilter();
         update();
     })();
 

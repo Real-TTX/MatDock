@@ -111,6 +111,13 @@ public class VolumeCommandsTests
     }
 
     [Fact]
+    public void VolumeListDangling_lists_unused_volume_names_only()
+    {
+        var cmd = VolumeCommands.VolumeListDangling("docker");
+        Assert.Contains("docker volume ls -q --filter dangling=true", cmd);
+    }
+
+    [Fact]
     public void ServerVersion_keeps_doubled_go_template_braces()
     {
         var cmd = VolumeCommands.ServerVersion("sudo -n docker");

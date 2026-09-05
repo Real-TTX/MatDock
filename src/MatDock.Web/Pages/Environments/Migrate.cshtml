@@ -58,10 +58,14 @@ else if (Model.Results.Count == 0)
         <div class="migrate">
             <div class="migrate__side migrate__side--source">
                 <h3><icon name="server" /><span>Source</span></h3>
-                <div class="migrate__env">@Model.SourceEnvironment.Name</div>
-                <div class="migrate__host">@Model.SourceEnvironment.Username@@@Model.SourceEnvironment.Host</div>
+                <select class="mat-select mig-source" data-nav-select="/Environments/Migrate?sourceId={v}" aria-label="Source environment">
+                    @foreach (var env in Model.SourceEnvironments)
+                    {
+                        <option value="@env.Id" selected="@(env.Id == Model.Input.SourceEnvId)">@env.Name — @env.Host</option>
+                    }
+                </select>
 
-                <label class="mat-label" style="display:block;margin-bottom:6px;">Volumes to migrate</label>
+                <label class="mat-label vol-picker-label">Volumes to migrate</label>
                 @if (Model.LoadError is not null)
                 {
                     <div class="alert alert--error"><icon name="x-circle" /><span>@Model.LoadError</span></div>
@@ -73,15 +77,20 @@ else if (Model.Results.Count == 0)
                 else
                 {
                     <div class="vol-picker" data-migrate-volumes>
+                        <div class="vol-picker__search">
+                            <icon name="search" />
+                            <input type="search" class="mat-input" data-vol-filter placeholder="Filter volumes…" autocomplete="off" />
+                        </div>
                         <div class="vol-picker__head">
                             <a href="#" class="mat-link" data-vol-all>Select all</a>
                             <span class="text-muted">·</span>
                             <a href="#" class="mat-link" data-vol-none>None</a>
+                            <span class="vol-picker__count"><span data-vol-shown>@Model.AvailableVolumes.Count</span> / @Model.AvailableVolumes.Count</span>
                         </div>
                         <div class="vol-picker__list">
                             @foreach (var v in Model.AvailableVolumes)
                             {
-                                <label class="mat-check vol-picker__row">
+                                <label class="mat-check vol-picker__row" data-name="@v">
                                     <input type="checkbox" class="mig-vol" name="Input.SourceVolumes" value="@v" checked="@selected.Contains(v)" />
                                     <span><icon name="volume" /> @v</span>
                                 </label>
