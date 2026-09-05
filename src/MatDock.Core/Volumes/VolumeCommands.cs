@@ -193,7 +193,28 @@ public static partial class VolumeCommands
     public static string VolumeListDangling(string dockerHead = "docker")
         => PathPrefix + dockerHead + " volume ls -q --filter dangling=true";
 
-    /// <summary>Removes all unused (dangling) volumes.</summary>
-    public static string Prune(string dockerHead = "docker")
-        => PathPrefix + dockerHead + " volume prune -f";
+    /// <summary>
+    /// Emits one JSON object per unused (dangling) volume (<c>volume inspect --format '{{json .}}'</c>),
+    /// so the caller can classify each as a local volume or a remote network share (NFS/CIFS). Exits
+    /// non-zero if listing fails.
+    /// </summary>
+    public static string InspectDangling(string dockerHead = "docker")
+        => PathPrefix + "names=$(" + dockerHead + " volume ls -q --filter dangling=true) || exit 1; "
+         + "for v in $names; do " + dockerHead + " volume inspect \"$v\" --format '{{json .}}'; done";
+
+    /// <summary>Removes the given volumes by name (<c>docker volume rm 'a' 'b' …</c>). Names are validated.</summary>
+    public static string RemoveVolumes(IReadOnlyList<string> names, string dockerHead = "docker")
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(PathPrefix).Append(dockerHead).Append(" volume rm");
+        foreach (var name in names)
+        {
+            if (!IsValidVolumeName(name))
+            {
+                throw new ArgumentException($"Invalid volume name: '{name}'.", nameof(names));
+            }
+            sb.Append(" '").Append(name).Append('\'');
+        }
+        return sb.ToString();
+    }
 }

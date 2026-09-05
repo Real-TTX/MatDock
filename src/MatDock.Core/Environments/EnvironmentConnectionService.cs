@@ -299,8 +299,56 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         return HostStats.Parse(result.StdOut);
     }
 
-    public async Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DockerUnusedVolume>> ListUnusedVolumesDetailedAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, VolumeCommands.InspectDangling(head), settings);
+        if (result.ExitStatus != 0)
+        {
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+        }
+
+        var list = new List<DockerUnusedVolume>();
+        foreach (var line in result.StdOut.Split('\n'))
+        {
+            var detail = ParseVolumeDetail(line);
+            if (detail is not null && !string.IsNullOrEmpty(detail.Name))
+            {
+                list.Add(new DockerUnusedVolume(detail.Name, IsNetworkShare(detail.Options)));
+            }
+        }
+
+        return list;
+    }
+
+    public async Task<PruneResult> RemoveVolumesAsync(SshConnectionSettings settings, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+    {
+        if (names.Count == 0)
+        {
+            return new PruneResult(true, 0, "Nothing selected.");
+        }
+
+        string command;
+        try
+        {
+            var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+            command = VolumeCommands.RemoveVolumes(names, head);
+        }
+        catch (ArgumentException ex)
+        {
+            return PruneResult.Fail(ex.Message);
+        }
+
         using var client = _hostSessionFactory.Create(settings);
         try
         {
@@ -311,12 +359,18 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             return PruneResult.Fail(DockerErrorMessages.DescribeSshError(ex));
         }
 
-        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var result = RunCommand(client, VolumeCommands.Prune(head), settings);
+        var result = RunCommand(client, command, settings);
+        // `docker volume rm` prints each removed name to stdout; a non-zero exit means at least one failed.
+        var removed = result.StdOut.Split('\n').Count(l => l.Trim().Length > 0);
         return result.ExitStatus == 0
-            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
-            : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+            ? new PruneResult(true, removed, result.StdOut.Trim())
+            : new PruneResult(false, removed, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
+
+    /// <summary>A volume is a remote network share when its driver "type" option is a network filesystem.</summary>
+    private static bool IsNetworkShare(IReadOnlyDictionary<string, string> options)
+        => options.TryGetValue("type", out var t)
+           && t.ToLowerInvariant() is "nfs" or "nfs4" or "cifs" or "smb" or "smbfs";
 
     public async Task<(IReadOnlyList<DockerNetwork> Networks, IReadOnlyCollection<string> UnusedNames)> ListNetworksWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {

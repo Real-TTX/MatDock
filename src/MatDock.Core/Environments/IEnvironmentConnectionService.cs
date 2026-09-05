@@ -31,8 +31,14 @@ public interface IEnvironmentConnectionService
 
     Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 
-    /// <summary>Removes all unused (dangling) volumes on the host — <c>docker volume prune</c>.</summary>
-    Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Lists the unused (dangling) volumes, each classified as a local volume or a remote network share
+    /// (NFS/CIFS/SMB), so prune can protect network shares by default.
+    /// </summary>
+    Task<IReadOnlyList<DockerUnusedVolume>> ListUnusedVolumesDetailedAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes the given volumes by name. Returns how many were removed.</summary>
+    Task<PruneResult> RemoveVolumesAsync(SshConnectionSettings settings, IReadOnlyList<string> names, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Lists networks together with the names that are unused (Docker's "dangling" filter — not used by

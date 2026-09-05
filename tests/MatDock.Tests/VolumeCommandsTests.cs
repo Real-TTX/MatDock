@@ -118,10 +118,21 @@ public class VolumeCommandsTests
     }
 
     [Fact]
-    public void Prune_removes_unused_volumes_non_interactively()
+    public void InspectDangling_lists_and_inspects_each_unused_volume()
     {
-        var cmd = VolumeCommands.Prune("docker");
-        Assert.Contains("docker volume prune -f", cmd);
+        var cmd = VolumeCommands.InspectDangling("docker");
+        Assert.Contains("docker volume ls -q --filter dangling=true", cmd);
+        Assert.Contains("volume inspect", cmd);
+        Assert.Contains("'{{json .}}'", cmd);   // Go template must survive
+        Assert.Contains("|| exit 1", cmd);       // fail if listing fails
+    }
+
+    [Fact]
+    public void RemoveVolumes_builds_quoted_rm_and_validates()
+    {
+        var cmd = VolumeCommands.RemoveVolumes(new[] { "vol_a", "vol-b" }, "sudo -n docker");
+        Assert.Contains("sudo -n docker volume rm 'vol_a' 'vol-b'", cmd);
+        Assert.Throws<ArgumentException>(() => VolumeCommands.RemoveVolumes(new[] { "ok", "$(evil)" }));
     }
 
     [Fact]

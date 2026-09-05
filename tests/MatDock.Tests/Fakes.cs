@@ -72,10 +72,16 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
         return Task.FromResult((true, "ok"));
     }
 
-    public Task<PruneResult> PruneVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<DockerUnusedVolume>> ListUnusedVolumesDetailedAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult(new PruneResult(true, 0, string.Empty));
+        return Task.FromResult<IReadOnlyList<DockerUnusedVolume>>(new List<DockerUnusedVolume>());
+    }
+
+    public Task<PruneResult> RemoveVolumesAsync(SshConnectionSettings settings, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult(new PruneResult(true, names.Count, string.Empty));
     }
 
     public Task<(IReadOnlyList<DockerNetwork> Networks, IReadOnlyCollection<string> UnusedNames)> ListNetworksWithUsageAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)

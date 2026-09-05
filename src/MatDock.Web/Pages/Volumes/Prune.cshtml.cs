@@ -1,3 +1,4 @@
+using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using Microsoft.AspNetCore.Mvc;
@@ -5,7 +6,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MatDock.Web.Pages.Volumes;
 
-/// <summary>Preview + confirm for <c>docker volume prune</c> across the selected environment(s).</summary>
+/// <summary>Preview + confirm for pruning unused volumes, with separate opt-in for local volumes and
+/// remote network shares (NFS/CIFS) — network shares are excluded by default.</summary>
 public class PruneModel : PageModel
 {
     private readonly EnvironmentService _environmentService;
@@ -21,6 +23,12 @@ public class PruneModel : PageModel
     [BindProperty(SupportsGet = true)]
     public long? Env { get; set; }
 
+    /// <summary>Include local volumes (on by default).</summary>
+    [BindProperty] public bool IncludeLocal { get; set; } = true;
+
+    /// <summary>Include remote network shares NFS/CIFS (off by default — protects remote mounts).</summary>
+    [BindProperty] public bool IncludeShares { get; set; }
+
     public long EnvId { get; private set; }
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<EnvGroup> Groups { get; private set; } = new();
@@ -28,20 +36,41 @@ public class PruneModel : PageModel
     public List<PruneOutcome>? Results { get; private set; }
 
     public int TotalUnused => Groups.Sum(g => g.Volumes.Count);
+    public int LocalCount => Groups.Sum(g => g.Volumes.Count(v => !v.IsNetworkShare));
+    public int ShareCount => Groups.Sum(g => g.Volumes.Count(v => v.IsNetworkShare));
 
-    public sealed record EnvGroup(DockerEnvironment Environment, List<string> Volumes);
+    public sealed record EnvGroup(DockerEnvironment Environment, List<DockerUnusedVolume> Volumes);
     public sealed record PruneOutcome(string Environment, bool Success, int Removed, string Detail);
 
     public async Task OnGetAsync() => await LoadAsync();
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var targets = await ResolveTargetsAsync();
-        var results = new List<PruneOutcome>();
-        foreach (var env in targets)
+        await LoadAsync();
+
+        if (!IncludeLocal && !IncludeShares)
         {
-            var r = await _connectionService.PruneVolumesAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
-            results.Add(new PruneOutcome(env.Name, r.Success, r.Removed, r.Detail));
+            Results = new List<PruneOutcome>();
+            return Page();
+        }
+
+        var results = new List<PruneOutcome>();
+        foreach (var group in Groups)
+        {
+            // Remove exactly the volumes in the selected categories (targeted rm, not `volume prune`,
+            // so network shares can be protected — prune cannot filter by driver type).
+            var names = group.Volumes
+                .Where(v => v.IsNetworkShare ? IncludeShares : IncludeLocal)
+                .Select(v => v.Name)
+                .ToList();
+            if (names.Count == 0)
+            {
+                continue;
+            }
+
+            var r = await _connectionService.RemoveVolumesAsync(
+                _environmentService.BuildSettings(group.Environment), names, HttpContext.RequestAborted);
+            results.Add(new PruneOutcome(group.Environment.Name, r.Success, r.Removed, r.Detail));
         }
 
         Results = results;
@@ -76,14 +105,14 @@ public class PruneModel : PageModel
             {
                 try
                 {
-                    var (_, unused) = await _connectionService.ListVolumesWithUsageAsync(
+                    var unused = await _connectionService.ListUnusedVolumesDetailedAsync(
                         _environmentService.BuildSettings(env), HttpContext.RequestAborted);
-                    var names = unused.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
-                    return (env, names, error: (string?)null);
+                    var vols = unused.OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                    return (env, vols, error: (string?)null);
                 }
                 catch (Exception ex)
                 {
-                    return (env, names: new List<string>(), error: ex.Message);
+                    return (env, vols: new List<DockerUnusedVolume>(), error: ex.Message);
                 }
             }
             finally
@@ -96,15 +125,15 @@ public class PruneModel : PageModel
 
         Groups = new List<EnvGroup>();
         Errors = new List<(string, string)>();
-        foreach (var (env, names, error) in results)
+        foreach (var (env, vols, error) in results)
         {
             if (error is not null)
             {
                 Errors.Add((env.Name, error));
             }
-            else if (names.Count > 0)
+            else if (vols.Count > 0)
             {
-                Groups.Add(new EnvGroup(env, names));
+                Groups.Add(new EnvGroup(env, vols));
             }
         }
     }

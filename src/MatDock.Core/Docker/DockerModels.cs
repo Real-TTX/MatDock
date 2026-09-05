@@ -74,6 +74,9 @@ public sealed record PruneResult(bool Success, int Removed, string Detail)
     public static PruneResult Fail(string message) => new(false, 0, message);
 }
 
+/// <summary>An unused (dangling) volume plus whether it is a remote network share (NFS/CIFS/SMB).</summary>
+public sealed record DockerUnusedVolume(string Name, bool IsNetworkShare);
+
 /// <summary>A Docker network as shown in the environment's network list.</summary>
 public sealed class DockerNetwork
 {

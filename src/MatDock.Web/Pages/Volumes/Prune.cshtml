@@ -67,7 +67,10 @@
     {
         <div class="alert alert--warning">
             <icon name="alert" />
-            <span>The following <strong>@Model.TotalUnused</strong> unused volume(s) will be <strong>permanently deleted</strong>. This cannot be undone.</span>
+            <span>
+                <strong>@Model.LocalCount</strong> local volume(s) and <strong>@Model.ShareCount</strong> network share(s) are unused.
+                Selected volumes are <strong>permanently deleted</strong> (cannot be undone). Network shares are excluded by default.
+            </span>
         </div>
 
         @foreach (var g in Model.Groups)
@@ -80,9 +83,17 @@
                 <div class="mat-table__scroll" style="max-height:320px;">
                     <table class="data">
                         <tbody>
-                            @foreach (var name in g.Volumes)
+                            @foreach (var v in g.Volumes)
                             {
-                                <tr><td class="mono">@name</td></tr>
+                                <tr>
+                                    <td class="mono">
+                                        @v.Name
+                                        @if (v.IsNetworkShare)
+                                        {
+                                            <span class="tag-system" title="NFS/CIFS network share">share</span>
+                                        }
+                                    </td>
+                                </tr>
                             }
                         </tbody>
                     </table>
@@ -90,11 +101,23 @@
             </div>
         }
 
-        <form method="post" data-confirm="Permanently delete @Model.TotalUnused unused volume(s)? This cannot be undone.">
+        <form method="post" data-confirm="Permanently delete the selected unused volumes? This cannot be undone.">
             <input type="hidden" name="Env" value="@Model.EnvId" />
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card__body">
+                    <label class="mat-check">
+                        <input asp-for="IncludeLocal" type="checkbox" />
+                        <span>Local volumes (@Model.LocalCount)</span>
+                    </label>
+                    <label class="mat-check" style="margin-top:8px;">
+                        <input asp-for="IncludeShares" type="checkbox" />
+                        <span>Network shares — NFS/CIFS (@Model.ShareCount) — off by default</span>
+                    </label>
+                </div>
+            </div>
             <mat-form-buttons>
                 <button type="submit" class="mat-btn mat-btn--danger">
-                    <icon name="broom" /><span>Prune @Model.TotalUnused volume(s)</span>
+                    <icon name="broom" /><span>Prune selected volumes</span>
                 </button>
                 <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
             </mat-form-buttons>
