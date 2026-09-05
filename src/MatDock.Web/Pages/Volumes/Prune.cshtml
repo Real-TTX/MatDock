@@ -14,6 +14,17 @@
     </div>
 </div>
 
+<div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+    <label class="mat-label" for="prune-env">Environment</label>
+    <select id="prune-env" class="mat-select" data-nav-select="/Volumes/Prune?env={v}">
+        <option value="0" selected="@(Model.EnvId == 0)">All environments</option>
+        @foreach (var env in Model.Environments)
+        {
+            <option value="@env.Id" selected="@(Model.EnvId == env.Id)">@env.Name</option>
+        }
+    </select>
+</div>
+
 @if (Model.Results is not null)
 {
     var removed = Model.Results.Sum(r => r.Removed);
@@ -80,6 +91,7 @@
         }
 
         <form method="post" data-confirm="Permanently delete @Model.TotalUnused unused volume(s)? This cannot be undone.">
+            <input type="hidden" name="Env" value="@Model.EnvId" />
             <mat-form-buttons>
                 <button type="submit" class="mat-btn mat-btn--danger">
                     <icon name="broom" /><span>Prune @Model.TotalUnused volume(s)</span>

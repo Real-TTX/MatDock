@@ -17,7 +17,12 @@ public class PruneModel : PageModel
         _connectionService = connectionService;
     }
 
+    /// <summary>Prune scope: null = fall back to the global selection; 0 = all; otherwise a single env.</summary>
+    [BindProperty(SupportsGet = true)]
+    public long? Env { get; set; }
+
     public long EnvId { get; private set; }
+    public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<EnvGroup> Groups { get; private set; } = new();
     public List<(string Environment, string Message)> Errors { get; private set; } = new();
     public List<PruneOutcome>? Results { get; private set; }
@@ -46,14 +51,17 @@ public class PruneModel : PageModel
 
     private async Task<List<DockerEnvironment>> ResolveTargetsAsync()
     {
-        EnvId = MatDock.Web.Support.EnvSelection.Resolve(HttpContext) ?? 0;
-        var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
-        if (EnvId > 0 && enabled.All(e => e.Id != EnvId))
+        Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+
+        // Explicit ?env / hidden field wins; otherwise use the global (cookie) selection.
+        var scope = Env ?? MatDock.Web.Support.EnvSelection.Resolve(HttpContext) ?? 0;
+        if (scope > 0 && Environments.All(e => e.Id != scope))
         {
-            EnvId = 0;
+            scope = 0;
         }
 
-        return (EnvId > 0 ? enabled.Where(e => e.Id == EnvId) : enabled).ToList();
+        EnvId = scope;
+        return (scope > 0 ? Environments.Where(e => e.Id == scope) : Environments).ToList();
     }
 
     private async Task LoadAsync()

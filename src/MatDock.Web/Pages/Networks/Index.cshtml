@@ -106,7 +106,7 @@
         <span class="toolbar-spacer"></span>
         @if (isAdmin && Model.Environments.Count > 0)
         {
-            <a href="/Networks/Prune" class="mat-btn"><icon name="broom" /><span>Prune</span></a>
+            <a href="/Networks/Prune?env=@Model.EnvId" class="mat-btn"><icon name="broom" /><span>Prune</span></a>
         }
         <a href="/Networks?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
