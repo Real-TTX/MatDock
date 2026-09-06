@@ -40,7 +40,7 @@
                         <option value="Matcad">Matcad (REST API)</option>
                     </select>
                 </mat-field>
-                <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin, e.g. http://host:2019 — or the Matcad API base URL">
+                <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin, e.g. http://host:2019 — or the Matcad base URL, e.g. http://matcad:4433 (/api/v1 is added automatically)">
                     <input asp-for="Input.Url" class="mat-input" placeholder="http://host:2019" />
                 </mat-field>
                 <div data-show-when="Input_Provider=Caddy">
@@ -48,7 +48,7 @@
                         <input asp-for="Input.ServerName" class="mat-input" placeholder="srv0" />
                     </mat-field>
                 </div>
-                <mat-field label="API token (optional)" asp-for="Input.Token" hint="@(Model.IsEdit ? "Leave blank to keep the stored token" : "Bearer token, if the API requires one")">
+                <mat-field label="API key / token (optional)" asp-for="Input.Token" hint="@(Model.IsEdit ? "Leave blank to keep the stored key" : "Matcad: the shared X-Api-Key. Caddy: usually none.")">
                     <input asp-for="Input.Token" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
             </div>
