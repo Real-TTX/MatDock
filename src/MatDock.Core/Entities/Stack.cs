@@ -33,6 +33,10 @@ public class Stack : AuditableEntity
     /// <summary>When set, this stack is managed by a <see cref="SyncJob"/> (created/updated from a repo scan).</summary>
     public long? SyncJobId { get; set; }
 
+    /// <summary>Resolved MatDock app metadata (icon, actions, …) as JSON, captured on deploy from the
+    /// compose <c>x-matdock:</c> block and any sidecar/icon file. Null when the stack has no app metadata.</summary>
+    public string? AppMetaJson { get; set; }
+
     /// <summary>True when the stack is deployed from a Git repository rather than the inline editor.</summary>
     public bool IsGitBacked => !string.IsNullOrWhiteSpace(GitRepoUrl);
 }

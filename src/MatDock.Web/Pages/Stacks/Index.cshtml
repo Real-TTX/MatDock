@@ -173,9 +173,15 @@
             <div class="stack-grid">
                 @foreach (var r in Model.Rows)
                 {
+                    var app = MatDock.Web.Support.AppView.Parse(r.AppMetaJson);
+                    var appPort = app is null ? (int?)null : MatDock.Web.Support.AppView.PrimaryPort(r.Containers);
                     <details class="stack-card" open="@(Model.Rows.Count <= 3)">
                         <summary class="stack-card__head">
                             <span class="stack-card__chev"><icon name="chevron-right" /></span>
+                            @if (app?.Icon is not null)
+                            {
+                                <partial name="_AppIcon" model="app" />
+                            }
                             <div class="stack-card__title">
                                 <div class="stack-card__name">
                                     @r.Name
@@ -205,6 +211,17 @@
                             @{ await RenderTiles(r); }
 
                             <div class="stack-card__actions">
+                                @if (app is not null)
+                                {
+                                    foreach (var act in app.Actions)
+                                    {
+                                        var href = MatDock.Web.Support.AppView.ActionHref(act, r.EnvHost, appPort);
+                                        if (href is not null)
+                                        {
+                                            <a class="mat-btn mat-btn--sm mat-btn--primary" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@(string.IsNullOrEmpty(act.Icon) ? "external" : act.Icon)" /><span>@act.Name</span></a>
+                                        }
+                                    }
+                                }
                                 @if (r.Managed && r.ManagedId is { } mid)
                                 {
                                     <form method="post" asp-page-handler="Deploy" data-confirm="@(r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")" style="display:inline;">

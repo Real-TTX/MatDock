@@ -59,7 +59,7 @@ public class IndexModel : PageModel
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
-        IReadOnlyList<DockerContainer> Containers, string? EnvHost)
+        IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
@@ -157,7 +157,7 @@ public class IndexModel : PageModel
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
                 live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
                 live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(),
-                HostFor(envById, s.EnvironmentId)));
+                HostFor(envById, s.EnvironmentId), s.AppMetaJson));
         }
 
         foreach (var ((envId, project), d) in discovered)
@@ -169,7 +169,7 @@ public class IndexModel : PageModel
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
                 Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers,
-                HostFor(envById, envId)));
+                HostFor(envById, envId), null));
         }
 
         rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();

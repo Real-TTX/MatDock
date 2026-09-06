@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.Text;
+using MatDock.Core.Apps;
 using MatDock.Core.Configuration;
 using MatDock.Core.Data;
 using MatDock.Core.Docker;
@@ -160,7 +161,8 @@ public sealed class StackService
         var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
         var command = StackCommands.Deploy(prep.Head!, stack.Name);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
-            (s, c) => s.WriteAsync(yaml, c).AsTask(), ct);
+            (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
+            beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
     }
 
     private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, CancellationToken ct)
@@ -241,7 +243,96 @@ public sealed class StackService
         var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
-            ct, beforePersist: s => s.ComposeYaml = composeContent);
+            ct, beforePersist: s =>
+            {
+                s.ComposeYaml = composeContent;
+                s.AppMetaJson = BuildAppMetaJson(composeContent, localDir, composePath);
+            });
+    }
+
+    /// <summary>
+    /// Resolves MatDock app metadata for a stack: the compose <c>x-matdock:</c> block, overlaid by a
+    /// <c>matdock.yml|yaml|json</c> sidecar next to the compose (git only), with a file icon resolved to a
+    /// data URL. Returns JSON for storage, or null when there is no app metadata. Never throws.
+    /// </summary>
+    private string? BuildAppMetaJson(string composeYaml, string? workDir, string? composePath)
+    {
+        AppMetadata? meta;
+        try
+        {
+            meta = AppMetadataParser.FromCompose(composeYaml);
+
+            if (workDir is not null && composePath is not null)
+            {
+                var composeFull = Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar));
+                var dir = Path.GetDirectoryName(composeFull) ?? workDir;
+
+                foreach (var sidecar in new[] { "matdock.yml", "matdock.yaml", "matdock.json" })
+                {
+                    var path = Path.Combine(dir, sidecar);
+                    if (File.Exists(path))
+                    {
+                        meta = AppMetadataParser.Merge(meta, AppMetadataParser.FromSidecar(File.ReadAllText(path), sidecar));
+                        break;
+                    }
+                }
+
+                meta = ResolveIconFile(meta, dir);
+            }
+
+            // An unresolved file reference (inline stack, or missing/oversized file) must not render as text.
+            if (meta is not null && AppIcons.IsFileName(meta.Icon))
+            {
+                meta.Icon = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "App metadata parse failed.");
+            return null;
+        }
+
+        return meta is null || meta.IsEmpty ? null : AppMetadataParser.ToJson(meta);
+    }
+
+    private static AppMetadata? ResolveIconFile(AppMetadata? meta, string dir)
+    {
+        if (meta is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (AppIcons.IsFileName(meta.Icon))
+            {
+                var path = Path.Combine(dir, meta.Icon!.Replace('/', Path.DirectorySeparatorChar));
+                meta.Icon = File.Exists(path) ? AppIcons.ToDataUrl(File.ReadAllBytes(path), path) : null;
+            }
+
+            if (string.IsNullOrWhiteSpace(meta.Icon))
+            {
+                foreach (var name in AppIcons.DefaultFileNames)
+                {
+                    var path = Path.Combine(dir, name);
+                    if (File.Exists(path))
+                    {
+                        var url = AppIcons.ToDataUrl(File.ReadAllBytes(path), path);
+                        if (url is not null)
+                        {
+                            meta.Icon = url;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // best-effort icon resolution
+        }
+
+        return meta;
     }
 
     private sealed record HostPrep(bool Ok, string Message, SshConnectionSettings? Settings, string? Head, TimeSpan Timeout);

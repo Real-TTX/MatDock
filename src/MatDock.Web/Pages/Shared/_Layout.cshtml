@@ -63,6 +63,9 @@
                     <a class="nav-link @(IsActive("/") && path == "/" ? "is-active" : "")" href="/">
                         <icon name="dashboard" /><span>Dashboard</span>
                     </a>
+                    <a class="nav-link @(IsActive("/Launchpad") ? "is-active" : "")" href="/Launchpad">
+                        <icon name="apps" /><span>Apps</span>
+                    </a>
                     <a class="nav-link @(IsActive("/Environments") ? "is-active" : "")" href="/Environments">
                         <icon name="server" /><span>Environments</span>
                     </a>
@@ -87,7 +90,7 @@
                     @if (isAdmin)
                     {
                         <a class="nav-link @(IsActive("/Apps") ? "is-active" : "")" href="/Apps">
-                            <icon name="template" /><span>Apps</span>
+                            <icon name="template" /><span>Templates</span>
                         </a>
                         <a class="nav-link @(IsActive("/Stacks/SyncJobs") ? "is-active" : "")" href="/Stacks/SyncJobs">
                             <icon name="refresh" /><span>Sync</span>

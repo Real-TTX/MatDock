@@ -476,6 +476,18 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .tag-unused { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--warning, #b8860b); background: color-mix(in srgb, var(--warning, #d9a441) 18%, transparent); border: 1px solid color-mix(in srgb, var(--warning, #d9a441) 40%, transparent); vertical-align: middle; }
 .tag-system { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); vertical-align: middle; }
 
+/* App metadata (x-matdock): icon + launchpad tiles */
+.app-icon { width: 26px; height: 26px; border-radius: 7px; object-fit: cover; vertical-align: middle; flex: 0 0 auto; }
+.app-icon--glyph { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 17px; line-height: 1; background: var(--surface-2); border-radius: 7px; }
+.launch-cat { font-size: 1rem; margin: 18px 0 10px; }
+.launch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.launch-tile { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-1); }
+.launch-tile__icon .app-icon, .launch-tile__icon .app-icon--glyph { width: 44px; height: 44px; font-size: 26px; border-radius: 10px; }
+.launch-tile__name { font-weight: 750; font-size: 1.05rem; }
+.launch-tile__desc { color: var(--text-muted); font-size: .85rem; }
+.launch-tile__env { color: var(--text-muted); font-size: .78rem; display: flex; align-items: center; gap: 5px; }
+.launch-tile__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+
 .result-banner { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 18px; }
 .result-banner .mat-icon { font-size: 2.4rem; flex: 0 0 auto; }
 .result-banner--ok { background: var(--success-bg); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }

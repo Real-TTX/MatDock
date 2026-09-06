@@ -1,0 +1,16 @@
+@model MatDock.Core.Apps.AppMetadata
+@{
+    var kind = MatDock.Web.Support.AppView.KindOf(Model.Icon);
+}
+@if (kind == MatDock.Web.Support.AppView.IconKind.Image)
+{
+    <img class="app-icon" src="@Model.Icon" alt="" loading="lazy" />
+}
+else if (kind == MatDock.Web.Support.AppView.IconKind.Lucide)
+{
+    <span class="app-icon app-icon--glyph"><icon name="@Model.Icon" /></span>
+}
+else if (kind == MatDock.Web.Support.AppView.IconKind.Glyph)
+{
+    <span class="app-icon app-icon--glyph">@Model.Icon</span>
+}

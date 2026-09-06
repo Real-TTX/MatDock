@@ -55,6 +55,7 @@ public static class Icons
         ["play"] = "<polygon points='6 4 20 12 6 20 6 4'/>",
         ["stop"] = "<rect x='5' y='5' width='14' height='14' rx='2'/>",
         ["network"] = "<rect x='16' y='16' width='6' height='6' rx='1'/><rect x='2' y='16' width='6' height='6' rx='1'/><rect x='9' y='2' width='6' height='6' rx='1'/><path d='M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3'/><path d='M12 12V8'/>",
+        ["apps"] = "<rect x='3' y='3' width='7' height='7' rx='1.5'/><rect x='14' y='3' width='7' height='7' rx='1.5'/><rect x='3' y='14' width='7' height='7' rx='1.5'/><rect x='14' y='14' width='7' height='7' rx='1.5'/>",
         ["broom"] = "<path d='m16 22-1-4'/><path d='M19 13.99a1 1 0 0 0 1-1V12a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H5a2 2 0 0 0-2 2v.99a1 1 0 0 0 1 1'/><path d='M5 14h14l1.973 6.767A1 1 0 0 1 20 22H4a1 1 0 0 1-.973-1.233z'/><path d='m8 22 1-4'/>",
     };
 
