@@ -46,6 +46,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Sync.SyncJobService>();
         services.AddScoped<Notifications.NotificationSettingsService>();
         services.AddScoped<Notifications.INotificationService, Notifications.NotificationService>();
+        services.AddSingleton<Proxies.IProxyProvider, Proxies.CaddyProxyProvider>();
+        services.AddSingleton<Proxies.IProxyProvider, Proxies.MatcadProxyProvider>();
+        services.AddScoped<Proxies.ProxyConnectionService>();
         services.AddHttpClient();
 
         return services;

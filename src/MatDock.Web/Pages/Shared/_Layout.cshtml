@@ -1,5 +1,6 @@
 @using System.Security.Claims
 @inject MatDock.Core.Environments.EnvironmentService EnvSvc
+@inject MatDock.Core.Proxies.ProxyConnectionService ProxySvc
 @{
     var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
     bool IsActive(string prefix) => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
@@ -47,6 +48,8 @@
                 @{
                     var globalEnvs = await EnvSvc.GetEnabledAsync(Context.RequestAborted);
                     var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
+                    // The "Proxy" menu item only appears once a reverse proxy is configured (admins only).
+                    var hasProxy = isAdmin && await ProxySvc.AnyAsync(Context.RequestAborted);
                 }
                 <div class="sidebar__env">
                     <select id="global-env" class="mat-select" aria-label="Select environment"
@@ -90,6 +93,12 @@
                     <a class="nav-link @(IsActive("/Backups") || IsActive("/Schedules") ? "is-active" : "")" href="/Backups">
                         <icon name="save" /><span>Backups</span>
                     </a>
+                    @if (hasProxy)
+                    {
+                        <a class="nav-link @(IsActive("/Proxy") ? "is-active" : "")" href="/Proxy">
+                            <icon name="route" /><span>Proxy</span>
+                        </a>
+                    }
                     @if (isAdmin)
                     {
                         <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") ? "is-active" : "")" href="/Settings">

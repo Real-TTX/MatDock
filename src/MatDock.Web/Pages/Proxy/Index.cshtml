@@ -1,0 +1,107 @@
+@page
+@model MatDock.Web.Pages.Proxy.IndexModel
+@{
+    ViewData["Title"] = "Proxy";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Proxy routes</h1>
+        <span class="page-head__subtitle">Manage reverse-proxy routes (hostname → upstream)</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings/Proxies" class="mat-btn"><icon name="settings" /><span>Proxies</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+@if (Model.Connections.Count == 0)
+{
+    <div class="empty-state">
+        <div><icon name="route" /></div>
+        <p>No proxy configured. Add one under <a href="/Settings/Proxies">System → Proxies</a>.</p>
+    </div>
+    return;
+}
+
+@if (Model.Connections.Count > 1)
+{
+    <div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+        <label class="mat-label" for="conn-picker">Proxy</label>
+        <select id="conn-picker" class="mat-select" data-nav-select="/Proxy?ConnId={v}">
+            @foreach (var c in Model.Connections)
+            {
+                <option value="@c.Id" selected="@(Model.Selected?.Id == c.Id)">@c.Name (@c.Provider)</option>
+            }
+        </select>
+    </div>
+}
+
+@if (Model.Selected is not null)
+{
+    <div class="card" style="max-width:820px;margin-bottom:16px;">
+        <div class="card__header"><icon name="plus" /><span>Add route on @Model.Selected.Name</span></div>
+        <div class="card__body">
+            <form method="post" asp-page-handler="Add" class="mat-form">
+                <input type="hidden" name="connId" value="@Model.Selected.Id" />
+                <div class="form-grid">
+                    <mat-field label="Hostname">
+                        <input name="host" class="mat-input" placeholder="app.example.com" required />
+                    </mat-field>
+                    <mat-field label="Upstream (host:port)">
+                        <input name="upstream" class="mat-input" placeholder="10.0.0.5:8080" required />
+                    </mat-field>
+                </div>
+                <label class="mat-check">
+                    <input type="checkbox" name="tls" value="true" checked />
+                    <span>TLS / HTTPS</span>
+                </label>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Add route</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.RouteError is not null)
+    {
+        <div class="alert alert--warning"><icon name="alert" /><span>Could not load routes: @Model.RouteError</span></div>
+    }
+
+    <div class="card" style="padding:0;">
+        <table class="data">
+            <thead>
+                <tr><th>Hostname</th><th>Upstream</th><th>TLS</th><th class="actions">Actions</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Routes.Count == 0)
+                {
+                    <tr><td colspan="4"><div class="empty-state"><div><icon name="route" /></div><p>No MatDock-managed routes on this proxy yet.</p></div></td></tr>
+                }
+                @foreach (var r in Model.Routes)
+                {
+                    <tr>
+                        <td class="wrap"><strong>@r.Host</strong></td>
+                        <td class="mono">@r.Upstream</td>
+                        <td>@(r.Tls ? "yes" : "–")</td>
+                        <td class="actions">
+                            <div class="row-actions">
+                                <form method="post" asp-page-handler="Remove" data-confirm="Remove route @r.Host?" style="display:inline;">
+                                    <input type="hidden" name="connId" value="@Model.Selected.Id" />
+                                    <input type="hidden" name="routeId" value="@r.Id" />
+                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Remove"><icon name="trash" /></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

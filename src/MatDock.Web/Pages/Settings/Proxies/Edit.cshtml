@@ -1,0 +1,68 @@
+@page
+@model MatDock.Web.Pages.Settings.Proxies.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit proxy" : "New proxy";
+}
+
+<partial name="_SystemTabs" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@ViewData["Title"]</h1>
+        <span class="page-head__subtitle">A reverse proxy whose routes MatDock manages</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings/Proxies" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+@if (Model.TestMessage is not null)
+{
+    <div class="alert @(Model.TestOk ? "alert--success" : "alert--error")">
+        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><span>@Model.TestMessage</span>
+    </div>
+}
+
+<div class="card" style="max-width:820px;">
+    <div class="card__body">
+        <form method="post" class="mat-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <div asp-validation-summary="ModelOnly"></div>
+
+            <mat-field label="Name" asp-for="Input.Name">
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. edge proxy" />
+            </mat-field>
+
+            <div class="form-grid">
+                <mat-field label="Provider" asp-for="Input.Provider">
+                    <select asp-for="Input.Provider" id="Input_Provider" class="mat-select">
+                        <option value="Caddy">Caddy (Admin API)</option>
+                        <option value="Matcad">Matcad (REST API)</option>
+                    </select>
+                </mat-field>
+                <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin, e.g. http://host:2019 — or the Matcad API base URL">
+                    <input asp-for="Input.Url" class="mat-input" placeholder="http://host:2019" />
+                </mat-field>
+                <div data-show-when="Input_Provider=Caddy">
+                    <mat-field label="Caddy server name (optional)" asp-for="Input.ServerName" hint="Blank = auto-detect the first HTTP server">
+                        <input asp-for="Input.ServerName" class="mat-input" placeholder="srv0" />
+                    </mat-field>
+                </div>
+                <mat-field label="API token (optional)" asp-for="Input.Token" hint="@(Model.IsEdit ? "Leave blank to keep the stored token" : "Bearer token, if the API requires one")">
+                    <input asp-for="Input.Token" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+            </div>
+
+            <label class="mat-check">
+                <input asp-for="Input.Enabled" type="checkbox" />
+                <span>Enabled</span>
+            </label>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
+                <a href="/Settings/Proxies" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

@@ -61,6 +61,16 @@ public enum SyncUpdateMode
     Always = 1
 }
 
+/// <summary>Which reverse-proxy MatDock manages routes on.</summary>
+public enum ProxyProviderType
+{
+    /// <summary>Caddy server via its JSON Admin API (default port 2019).</summary>
+    Caddy = 0,
+
+    /// <summary>Matcad reverse proxy via its REST API.</summary>
+    Matcad = 1
+}
+
 /// <summary>Where backup archives are stored.</summary>
 public enum BackupTargetType
 {

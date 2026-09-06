@@ -113,6 +113,8 @@ builder.Services.AddRazorPages(options =>
     // Git credentials hold secrets and drive stack clones → admins only.
     options.Conventions.AuthorizeFolder("/GitCredentials", "AdminOnly");
     options.Conventions.AuthorizeFolder("/GitRepos", "AdminOnly");
+    // Reverse-proxy route management + connection config → admins only.
+    options.Conventions.AuthorizeFolder("/Proxy", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 });

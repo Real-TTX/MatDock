@@ -1,0 +1,55 @@
+@page
+@model MatDock.Web.Pages.Settings.Proxies.IndexModel
+@{
+    ViewData["Title"] = "Proxies";
+}
+
+<partial name="_SystemTabs" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Proxies</h1>
+        <span class="page-head__subtitle">Reverse proxies (Caddy / Matcad) whose routes MatDock manages</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings/Proxies/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New proxy</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="card" style="padding:0;">
+    <table class="data">
+        <thead>
+            <tr><th>Name</th><th>Provider</th><th>URL</th><th>Status</th><th class="actions">Actions</th></tr>
+        </thead>
+        <tbody>
+            @if (Model.Connections.Count == 0)
+            {
+                <tr><td colspan="5"><div class="empty-state"><div><icon name="route" /></div><p>No reverse proxies yet. Add one to manage its routes under the "Proxy" menu.</p></div></td></tr>
+            }
+            @foreach (var c in Model.Connections)
+            {
+                <tr>
+                    <td><a href="/Settings/Proxies/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
+                    <td>@c.Provider</td>
+                    <td class="wrap"><span class="mono">@c.Url</span></td>
+                    <td>@(c.Enabled ? "enabled" : "disabled")</td>
+                    <td class="actions">
+                        <div class="row-actions">
+                            <form method="post" asp-page-handler="Delete" data-confirm="Delete proxy '@c.Name'?" style="display:inline;">
+                                <input type="hidden" name="id" value="@c.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
