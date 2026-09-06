@@ -85,7 +85,6 @@
                             </td>
                             <td class="actions">
                                 <div class="row-actions">
-                                    <a class="mat-btn mat-btn--sm" href="/Stacks/SyncJobs/Edit?id=@job.Id" title="Edit"><icon name="edit" /></a>
                                     <form method="post" asp-page-handler="Run" style="display:inline;" data-confirm="Run sync '@job.Name' now?">
                                         <input type="hidden" name="id" value="@job.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Sync now"><icon name="refresh" /></button>

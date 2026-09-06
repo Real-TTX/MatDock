@@ -489,6 +489,11 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .launch-tile__desc { color: var(--text-muted); font-size: .85rem; }
 .launch-tile__env { color: var(--text-muted); font-size: .78rem; display: flex; align-items: center; gap: 5px; }
 .launch-tile__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.launch-tile--add { align-items: center; justify-content: center; text-align: center; gap: 8px; min-height: 150px; text-decoration: none; color: var(--text); border: 2px dashed color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); transition: background .12s, border-color .12s; }
+.launch-tile--add:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.launch-add__plus { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 26px; }
+.launch-add__label { font-weight: 750; font-size: 1.1rem; }
+.launch-add__sub { color: var(--text-muted); font-size: .82rem; }
 
 .result-banner { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 18px; }
 .result-banner .mat-icon { font-size: 2.4rem; flex: 0 0 auto; }

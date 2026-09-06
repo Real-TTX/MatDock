@@ -134,18 +134,7 @@
                                     <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
                                 }
                             }
-                            <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
-                                <input type="hidden" name="id" value="@env.Id" />
-                                <button type="submit" class="mat-btn mat-btn--sm" title="Test connection"><icon name="plug" /></button>
-                            </form>
-                            <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
-                                <input type="hidden" name="id" value="@env.Id" />
-                                <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
-                                <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Disable" : "Enable")">
-                                    <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
-                                </button>
-                            </form>
-                            <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a>
+                            <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Open"><icon name="external" /></a>
                         </div>
                     </div>
                 }
@@ -228,23 +217,7 @@
                                             <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
                                         }
                                     }
-                                    <form method="post" asp-page-handler="Test" asp-route-view="@Model.View" style="display:inline;">
-                                        <input type="hidden" name="id" value="@env.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Test connection"><icon name="plug" /></button>
-                                    </form>
-                                    <form method="post" asp-page-handler="Toggle" asp-route-view="@Model.View" style="display:inline;">
-                                        <input type="hidden" name="id" value="@env.Id" />
-                                        <input type="hidden" name="enable" value="@((!env.IsEnabled).ToString().ToLowerInvariant())" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="@(env.IsEnabled ? "Disable" : "Enable")">
-                                            <icon name="@(env.IsEnabled ? "lock" : "check-circle")" />
-                                        </button>
-                                    </form>
-                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a>
-                                    <span style="width:8px;display:inline-block;"></span>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Really delete environment '@env.Name'?" style="display:inline;">
-                                        <input type="hidden" name="id" value="@env.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                                    </form>
+                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Open"><icon name="external" /></a>
                                 </div>
                             </td>
                         </tr>

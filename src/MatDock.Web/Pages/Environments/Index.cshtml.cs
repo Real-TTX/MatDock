@@ -132,32 +132,6 @@ public class IndexModel : PageModel
         }
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        var deleted = await _environmentService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Environment deleted." : "Environment not found.";
-        IsError = !deleted;
-        return RedirectToPage();
-    }
-
-    public async Task<IActionResult> OnPostTestAsync(long id)
-    {
-        var result = await _environmentService.TestAndPersistAsync(id, HttpContext.RequestAborted);
-        StatusMessage = result.Message;
-        IsError = !result.Success;
-        return RedirectToPage(new { View });
-    }
-
-    public async Task<IActionResult> OnPostToggleAsync(long id, bool enable)
-    {
-        var ok = await _environmentService.SetEnabledAsync(id, enable, HttpContext.RequestAborted);
-        StatusMessage = ok
-            ? (enable ? "Environment enabled." : "Environment disabled – excluded from automatic runs and selection lists.")
-            : "Environment not found.";
-        IsError = !ok;
-        return RedirectToPage(new { View });
-    }
-
     private static IEnumerable<DockerEnvironment> Order<TKey>(IEnumerable<DockerEnvironment> source, Func<DockerEnvironment, TKey> key, bool descending)
         => descending ? source.OrderByDescending(key) : source.OrderBy(key);
 }

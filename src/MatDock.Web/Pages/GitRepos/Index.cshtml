@@ -42,7 +42,6 @@
                     <td class="text-muted">@(r.GitCredentialId is > 0 && Model.CredentialNames.TryGetValue(r.GitCredentialId.Value, out var n) ? n : "public")</td>
                     <td class="actions">
                         <div class="row-actions">
-                            <a class="mat-btn mat-btn--sm" href="/GitRepos/Edit?id=@r.Id" title="Edit"><icon name="edit" /></a>
                             <form method="post" asp-page-handler="Delete" data-confirm="Delete git repository @r.Name?" style="display:inline;">
                                 <input type="hidden" name="id" value="@r.Id" />
                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

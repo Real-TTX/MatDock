@@ -75,8 +75,6 @@
                             <td class="text-muted nowrap">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
                                 <div class="row-actions">
-                                    <a class="mat-btn mat-btn--sm" href="/Users/Edit?id=@u.Id" title="Edit"><icon name="edit" /></a>
-                                    <span style="width:8px;display:inline-block;"></span>
                                     @if (u.Id != currentUserId)
                                     {
                                         <form method="post" asp-page-handler="Delete" data-confirm="Really delete user @u.Username?" style="display:inline;">

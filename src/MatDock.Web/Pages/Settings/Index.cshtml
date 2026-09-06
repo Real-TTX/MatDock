@@ -71,7 +71,7 @@ else
                     @foreach (var t in Model.Targets)
                     {
                         <tr>
-                            <td><strong>@t.Name</strong></td>
+                            <td><a href="/Settings/BackupTargetEdit?id=@t.Id"><strong>@t.Name</strong></a></td>
                             <td>@t.Type</td>
                             <td class="cell-sub">@(t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "")</td>
                             <td>
@@ -93,8 +93,6 @@ else
                                         <input type="hidden" name="id" value="@t.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Test"><icon name="plug" /></button>
                                     </form>
-                                    <a class="mat-btn mat-btn--sm" href="/Settings/BackupTargetEdit?id=@t.Id" title="Edit"><icon name="edit" /></a>
-                                    <span style="width:8px;display:inline-block;"></span>
                                     <form method="post" asp-page-handler="Delete" data-confirm="Delete target @t.Name?" style="display:inline;">
                                         <input type="hidden" name="id" value="@t.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

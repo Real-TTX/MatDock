@@ -57,8 +57,6 @@
                                         <input type="hidden" name="id" value="@s.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Run now"><icon name="refresh" /></button>
                                     </form>
-                                    <a class="mat-btn mat-btn--sm" href="/Schedules/Edit?id=@s.Id" title="Edit"><icon name="edit" /></a>
-                                    <span style="width:8px;display:inline-block;"></span>
                                     <form method="post" asp-page-handler="Delete" data-confirm="Delete schedule '@s.Name'?" style="display:inline;">
                                         <input type="hidden" name="id" value="@s.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

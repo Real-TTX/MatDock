@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.Launchpad.IndexModel
 @{
     ViewData["Title"] = "Apps";
+    var isAdmin = User.IsInRole("Admin");
 }
 
 <div class="page-head">
@@ -11,11 +12,22 @@
     </div>
 </div>
 
+@if (isAdmin)
+{
+    <div class="launch-grid" style="margin-bottom:20px;">
+        <a class="launch-tile launch-tile--add" href="/Apps">
+            <span class="launch-add__plus"><icon name="plus" /></span>
+            <span class="launch-add__label">Add app</span>
+            <span class="launch-add__sub">Browse the Store &amp; install in one click</span>
+        </a>
+    </div>
+}
+
 @if (Model.TotalApps == 0)
 {
     <div class="empty-state">
         <div><icon name="apps" /></div>
-        <p>No apps yet. Add an <code>x-matdock:</code> block (icon, actions) to a compose file — or a <code>matdock.yml</code> next to it — and deploy it as a stack.</p>
+        <p>No apps yet.@(isAdmin ? " Install one from the Store above, or" : "") add an <code>x-matdock:</code> block (icon, actions) to a compose file — or a <code>matdock.yml</code> next to it — and deploy it as a stack.</p>
     </div>
 }
 

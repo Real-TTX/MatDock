@@ -41,8 +41,6 @@
                     <td class="text-muted">@(string.IsNullOrEmpty(c.Username) ? "–" : c.Username)</td>
                     <td class="actions">
                         <div class="row-actions">
-                            <a class="mat-btn mat-btn--sm" href="/GitCredentials/Edit?id=@c.Id" title="Edit"><icon name="edit" /></a>
-                            <span style="width:8px;display:inline-block;"></span>
                             <form method="post" asp-page-handler="Delete" data-confirm="Delete git credential @c.Name?" style="display:inline;">
                                 <input type="hidden" name="id" value="@c.Id" />
                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

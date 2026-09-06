@@ -111,5 +111,22 @@
                 <a href="/Environments" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
+
+        @if (Model.IsEdit)
+        {
+            <div class="mat-buttons" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+                <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                    <input type="hidden" name="id" value="@Model.Input.Id" />
+                    <input type="hidden" name="enable" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())" />
+                    <button type="submit" class="mat-btn" formnovalidate>
+                        <icon name="@(Model.IsEnabled ? "lock" : "check-circle")" /><span>@(Model.IsEnabled ? "Disable" : "Enable")</span>
+                    </button>
+                </form>
+                <form method="post" asp-page-handler="Delete" data-confirm="Really delete environment '@Model.Input.Name'? This cannot be undone." style="display:inline;">
+                    <input type="hidden" name="id" value="@Model.Input.Id" />
+                    <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Delete</span></button>
+                </form>
+            </div>
+        }
     </div>
 </div>

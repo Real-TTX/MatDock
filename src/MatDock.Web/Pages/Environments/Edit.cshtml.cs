@@ -24,6 +24,9 @@ public class EditModel : PageModel
 
     public bool IsEdit => Input.Id is > 0;
 
+    /// <summary>Enabled state of the loaded environment (for the Enable/Disable button on the edit page).</summary>
+    public bool IsEnabled { get; private set; } = true;
+
     public DockerConnectionResult? TestResult { get; private set; }
 
     /// <summary>Set after "Generate key pair"; shown so the user can install it on the host.</summary>
@@ -92,9 +95,28 @@ public class EditModel : PageModel
             }
 
             MapToInput(entity);
+            IsEnabled = entity.IsEnabled;
         }
 
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostToggleAsync(long id, bool enable)
+    {
+        var ok = await _environmentService.SetEnabledAsync(id, enable, HttpContext.RequestAborted);
+        StatusMessage = ok
+            ? (enable ? "Environment enabled." : "Environment disabled – excluded from automatic runs and selection lists.")
+            : "Environment not found.";
+        IsError = !ok;
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        var deleted = await _environmentService.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = deleted ? "Environment deleted." : "Environment not found.";
+        IsError = !deleted;
+        return RedirectToPage("/Environments/Index");
     }
 
     public async Task<IActionResult> OnPostSaveAsync()
