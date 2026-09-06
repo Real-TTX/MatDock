@@ -480,6 +480,8 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .app-icon { width: 26px; height: 26px; border-radius: 7px; object-fit: cover; vertical-align: middle; flex: 0 0 auto; }
 .app-icon--glyph { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 17px; line-height: 1; background: var(--surface-2); border-radius: 7px; }
 .launch-cat { font-size: 1rem; margin: 18px 0 10px; }
+.dash-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
+.dash-section-head h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin: 0; }
 .launch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-bottom: 8px; }
 .launch-tile { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-1); }
 .launch-tile__icon .app-icon, .launch-tile__icon .app-icon--glyph { width: 44px; height: 44px; font-size: 26px; border-radius: 10px; }

@@ -1,0 +1,38 @@
+@model MatDock.Web.Support.AppTile
+<div class="launch-tile">
+    <div class="launch-tile__icon">
+        @if (Model.Meta.Icon is not null)
+        {
+            <partial name="_AppIcon" model="Model.Meta" />
+        }
+        else
+        {
+            <span class="app-icon app-icon--glyph"><icon name="box" /></span>
+        }
+    </div>
+    <div class="launch-tile__body">
+        <div class="launch-tile__name">@Model.Name</div>
+        @if (!string.IsNullOrWhiteSpace(Model.Meta.Description))
+        {
+            <div class="launch-tile__desc">@Model.Meta.Description</div>
+        }
+        <div class="launch-tile__env">
+            <icon name="server" /> @Model.EnvName
+            <span class="pill @(Model.StatusKind == "running" ? "pill--online" : Model.StatusKind == "partial" ? "pill--offline" : "pill--unknown")" style="margin-left:6px;">@(Model.Total > 0 ? $"{Model.Running}/{Model.Total}" : "idle")</span>
+        </div>
+    </div>
+    <div class="launch-tile__actions">
+        @if (Model.OpenUrl is not null)
+        {
+            <a class="mat-btn mat-btn--sm mat-btn--primary" href="@Model.OpenUrl" target="_blank" rel="noopener"><icon name="external" /><span>Open</span></a>
+        }
+        @foreach (var act in Model.Meta.Actions)
+        {
+            var href = MatDock.Web.Support.AppView.ActionHref(act, Model.Host, Model.Port);
+            if (href is not null)
+            {
+                <a class="mat-btn mat-btn--sm" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@(string.IsNullOrEmpty(act.Icon) ? "external" : act.Icon)" /><span>@act.Name</span></a>
+            }
+        }
+    </div>
+</div>

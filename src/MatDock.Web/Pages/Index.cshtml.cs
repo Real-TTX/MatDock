@@ -23,6 +23,7 @@ public class IndexModel : PageModel
     private readonly ContainerService _containerService;
     private readonly BackupScheduleService _scheduleService;
     private readonly VolumeBackupService _volumeBackupService;
+    private readonly AppLaunchpadService _launchpad;
     private readonly IMemoryCache _cache;
 
     public IndexModel(
@@ -31,6 +32,7 @@ public class IndexModel : PageModel
         ContainerService containerService,
         BackupScheduleService scheduleService,
         VolumeBackupService volumeBackupService,
+        AppLaunchpadService launchpad,
         IMemoryCache cache)
     {
         _environmentService = environmentService;
@@ -38,6 +40,7 @@ public class IndexModel : PageModel
         _containerService = containerService;
         _scheduleService = scheduleService;
         _volumeBackupService = volumeBackupService;
+        _launchpad = launchpad;
         _cache = cache;
     }
 
@@ -58,6 +61,9 @@ public class IndexModel : PageModel
 
     public List<TopContainer> TopContainers { get; private set; } = new();
     public List<EventRow> RecentEvents { get; private set; } = new();
+
+    // App launchpad tiles (managed stacks with app metadata) for the "Apps" section.
+    public List<AppTile> AppTiles { get; private set; } = new();
 
     // Backup status
     public int BackupCount { get; private set; }
@@ -99,6 +105,9 @@ public class IndexModel : PageModel
 
         await LoadHostDataAsync(Environments, ct);
         await LoadBackupStatusAsync(selected, ct);
+
+        // Apps (managed stacks with app metadata) — reuses the container cache warmed above.
+        AppTiles = await _launchpad.GetTilesAsync(selected, ct);
     }
 
     private async Task LoadHostDataAsync(IReadOnlyList<DockerEnvironment> environments, CancellationToken ct)

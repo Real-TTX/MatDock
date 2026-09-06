@@ -15,6 +15,9 @@ public sealed class AppMetadata
     /// <summary>Icon: an http(s) URL, a data URL, a built-in icon name, or a single emoji/glyph.</summary>
     public string? Icon { get; set; }
 
+    /// <summary>Primary "open" link: an absolute http(s) URL or a "/relative" path against the app host+port.</summary>
+    public string? Url { get; set; }
+
     public string? Description { get; set; }
 
     public string? Category { get; set; }
@@ -25,6 +28,7 @@ public sealed class AppMetadata
     [JsonIgnore]
     public bool IsEmpty =>
         string.IsNullOrWhiteSpace(Name) && string.IsNullOrWhiteSpace(Icon)
+        && string.IsNullOrWhiteSpace(Url)
         && string.IsNullOrWhiteSpace(Description) && string.IsNullOrWhiteSpace(Category)
         && Actions.Count == 0;
 }

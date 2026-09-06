@@ -56,6 +56,33 @@ public static class AppView
         return null;
     }
 
+    /// <summary>
+    /// Resolves the app's primary "open" URL: the per-container <c>matdock.openurl</c> label wins, then the
+    /// <c>x-matdock.url</c> (absolute, or "/relative" against host+port), then the env base URL, then host:port.
+    /// </summary>
+    public static string? OpenHref(AppMetadata meta, string? containerOverride, string? envBaseUrl, string? host, int? port)
+    {
+        var over = OpenUrls.Resolve(containerOverride, null);
+        if (over is not null)
+        {
+            return over;
+        }
+
+        var fromMeta = ActionHref(new AppAction { Url = meta.Url ?? string.Empty }, host, port);
+        if (fromMeta is not null)
+        {
+            return fromMeta;
+        }
+
+        var baseUrl = OpenUrls.Resolve(envBaseUrl, null);
+        if (baseUrl is not null)
+        {
+            return baseUrl;
+        }
+
+        return host is not null && port is not null ? $"http://{host}:{port}" : null;
+    }
+
     /// <summary>The first published host port across a stack's containers (for the primary "open" link).</summary>
     public static int? PrimaryPort(IEnumerable<DockerContainer> containers)
     {

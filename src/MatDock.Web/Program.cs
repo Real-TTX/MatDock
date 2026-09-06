@@ -56,6 +56,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 builder.Services.AddMatDockCore();
+builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddHostedService<BackupSchedulerService>();
 builder.Services.AddHostedService<SyncJobSchedulerService>();
 

@@ -159,6 +159,21 @@ else
     </div>
 }
 
+@* ---- Apps ---- *@
+@if (Model.AppTiles.Count > 0)
+{
+    <div class="dash-section-head">
+        <h2><icon name="apps" /> <span>Apps</span></h2>
+        <a href="/Launchpad" class="mat-link">All apps →</a>
+    </div>
+    <div class="launch-grid" style="margin-bottom:20px;">
+        @foreach (var t in Model.AppTiles)
+        {
+            <partial name="_AppTile" model="t" />
+        }
+    </div>
+}
+
 @* ---- Top containers + recent activity ---- *@
 <div class="dash-cols">
     <div class="card">

@@ -11,11 +11,6 @@
     </div>
 </div>
 
-@foreach (var err in Model.LoadErrors)
-{
-    <div class="alert alert--warning"><icon name="alert" /><span>@err</span></div>
-}
-
 @if (Model.TotalApps == 0)
 {
     <div class="empty-state">
@@ -30,40 +25,7 @@
     <div class="launch-grid">
         @foreach (var t in group.Apps)
         {
-            <div class="launch-tile">
-                <div class="launch-tile__icon">
-                    @if (t.Meta.Icon is not null)
-                    {
-                        <partial name="_AppIcon" model="t.Meta" />
-                    }
-                    else
-                    {
-                        <span class="app-icon app-icon--glyph"><icon name="box" /></span>
-                    }
-                </div>
-                <div class="launch-tile__body">
-                    <div class="launch-tile__name">@t.Name</div>
-                    @if (!string.IsNullOrWhiteSpace(t.Meta.Description))
-                    {
-                        <div class="launch-tile__desc">@t.Meta.Description</div>
-                    }
-                    <div class="launch-tile__env"><icon name="server" /> @t.EnvName</div>
-                </div>
-                <div class="launch-tile__actions">
-                    @if (t.OpenUrl is not null)
-                    {
-                        <a class="mat-btn mat-btn--sm mat-btn--primary" href="@t.OpenUrl" target="_blank" rel="noopener"><icon name="external" /><span>Open</span></a>
-                    }
-                    @foreach (var act in t.Meta.Actions)
-                    {
-                        var href = MatDock.Web.Support.AppView.ActionHref(act, t.Host, t.Port);
-                        if (href is not null)
-                        {
-                            <a class="mat-btn mat-btn--sm" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@(string.IsNullOrEmpty(act.Icon) ? "external" : act.Icon)" /><span>@act.Name</span></a>
-                        }
-                    }
-                </div>
-            </div>
+            <partial name="_AppTile" model="t" />
         }
     </div>
 }

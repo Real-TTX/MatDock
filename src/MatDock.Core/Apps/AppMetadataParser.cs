@@ -107,6 +107,7 @@ public static class AppMetadataParser
         {
             Name = Pick(overlay.Name, baseMeta.Name),
             Icon = Pick(overlay.Icon, baseMeta.Icon),
+            Url = Pick(overlay.Url, baseMeta.Url),
             Description = Pick(overlay.Description, baseMeta.Description),
             Category = Pick(overlay.Category, baseMeta.Category),
             Actions = overlay.Actions.Count > 0 ? overlay.Actions : baseMeta.Actions,

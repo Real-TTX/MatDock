@@ -40,6 +40,14 @@ public class AppMetadataParserTests
     }
 
     [Fact]
+    public void FromCompose_reads_primary_url()
+    {
+        var m = AppMetadataParser.FromCompose("x-matdock:\n  name: A\n  url: /admin\nservices:\n  a:\n    image: nginx\n");
+        Assert.NotNull(m);
+        Assert.Equal("/admin", m!.Url);
+    }
+
+    [Fact]
     public void FromCompose_returns_null_without_x_matdock()
         => Assert.Null(AppMetadataParser.FromCompose("services:\n  a:\n    image: nginx\n"));
 
