@@ -135,7 +135,22 @@ if (!app.Environment.IsDevelopment())
 // Ensure the web-app manifest is served with the correct MIME type (some hosts omit it).
 var staticContentTypes = new FileExtensionContentTypeProvider();
 staticContentTypes.Mappings[".webmanifest"] = "application/manifest+json";
-app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticContentTypes,
+    OnPrepareResponse = ctx =>
+    {
+        // The service worker and manifest must always be revalidated so the browser
+        // detects a new version and updates the installed app on its own — never let a
+        // proxy or the HTTP cache pin an old copy.
+        var name = ctx.File.Name;
+        if (name.Equals("sw.js", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("manifest.webmanifest", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers.CacheControl = "no-cache";
+        }
+    },
+});
 app.UseWebSockets(new WebSocketOptions
 {
     // Detect dead/half-open terminal clients: ping periodically and abort the socket if no pong

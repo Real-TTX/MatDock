@@ -24,9 +24,12 @@ const PRECACHE = [
 ];
 
 self.addEventListener("install", (event) => {
+    // Best-effort precache: a single changed/removed asset must never block the new
+    // worker from installing, or updates would stall. skipWaiting() lets the fresh
+    // worker activate immediately instead of waiting for every tab to close.
     event.waitUntil(
         caches.open(CACHE)
-            .then((cache) => cache.addAll(PRECACHE))
+            .then((cache) => Promise.allSettled(PRECACHE.map((url) => cache.add(url))))
             .then(() => self.skipWaiting())
     );
 });
