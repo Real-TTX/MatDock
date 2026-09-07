@@ -4,8 +4,9 @@
     bool Is(string s) => sp.StartsWith(s, StringComparison.OrdinalIgnoreCase);
     var onNotifications = Is("/Settings/Notifications");
     var onProxies = Is("/Settings/Proxies");
-    var onBackupTargets = Is("/Settings") && !onNotifications && !onProxies && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase);
-    var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onBackupTargets;
+    var onRegistries = Is("/Settings/Registries");
+    var onBackupTargets = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase);
+    var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onBackupTargets;
 }
 <nav class="mat-tabs">
     <a class="mat-tabs__tab @(onGeneral ? "is-active" : "")" href="/Settings"><icon name="settings" /><span>General</span></a>
@@ -14,5 +15,6 @@
     <a class="mat-tabs__tab @(Is("/GitCredentials") ? "is-active" : "")" href="/GitCredentials"><icon name="key" /><span>Git credentials</span></a>
     <a class="mat-tabs__tab @(Is("/GitRepos") ? "is-active" : "")" href="/GitRepos"><icon name="git" /><span>Git repos</span></a>
     <a class="mat-tabs__tab @(onProxies ? "is-active" : "")" href="/Settings/Proxies"><icon name="route" /><span>Proxies</span></a>
+    <a class="mat-tabs__tab @(onRegistries ? "is-active" : "")" href="/Settings/Registries"><icon name="registry" /><span>Registries</span></a>
     <a class="mat-tabs__tab @(onBackupTargets ? "is-active" : "")" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
 </nav>

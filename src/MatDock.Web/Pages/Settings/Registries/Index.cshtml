@@ -1,0 +1,55 @@
+@page
+@model MatDock.Web.Pages.Settings.Registries.IndexModel
+@{
+    ViewData["Title"] = "Registries";
+}
+
+<partial name="_SystemTabs" />
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Registries</h1>
+        <span class="page-head__subtitle">Container registries for pulling private images and browsing repositories</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings/Registries/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New registry</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+<div class="card" style="padding:0;">
+    <table class="data">
+        <thead>
+            <tr><th>Name</th><th>Host</th><th>User</th><th>Status</th><th class="actions">Actions</th></tr>
+        </thead>
+        <tbody>
+            @if (Model.Registries.Count == 0)
+            {
+                <tr><td colspan="5"><div class="empty-state"><div><icon name="registry" /></div><p>No registries yet. Add one to pull private images and browse it under the "Registry" menu.</p></div></td></tr>
+            }
+            @foreach (var r in Model.Registries)
+            {
+                <tr>
+                    <td><a href="/Settings/Registries/Edit?id=@r.Id"><strong>@r.Name</strong></a></td>
+                    <td class="wrap"><span class="mono">@r.Host</span></td>
+                    <td>@r.Username</td>
+                    <td>@(r.Enabled ? "enabled" : "disabled")</td>
+                    <td class="actions">
+                        <div class="row-actions">
+                            <form method="post" asp-page-handler="Delete" data-confirm="Delete registry '@r.Name'?" style="display:inline;">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

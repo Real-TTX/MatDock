@@ -116,6 +116,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/GitRepos", "AdminOnly");
     // Reverse-proxy route management + connection config → admins only.
     options.Conventions.AuthorizeFolder("/Proxy", "AdminOnly");
+    // Registry browser (credentials + private image catalog) → admins only.
+    options.Conventions.AuthorizeFolder("/Registry", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 });

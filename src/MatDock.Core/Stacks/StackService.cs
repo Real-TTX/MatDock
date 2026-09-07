@@ -8,6 +8,7 @@ using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Git;
 using MatDock.Core.Execution;
+using MatDock.Core.Registries;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ public sealed class StackService
     private readonly EnvironmentService _environmentService;
     private readonly GitCredentialService _gitCredentials;
     private readonly GitRepositoryService _gitRepo;
+    private readonly RegistryService _registries;
     private readonly MatDockOptions _options;
     private readonly ILogger<StackService> _logger;
 
@@ -34,6 +36,7 @@ public sealed class StackService
         EnvironmentService environmentService,
         GitCredentialService gitCredentials,
         GitRepositoryService gitRepo,
+        RegistryService registries,
         IOptions<MatDockOptions> options,
         ILogger<StackService> logger)
     {
@@ -42,6 +45,7 @@ public sealed class StackService
         _environmentService = environmentService;
         _gitCredentials = gitCredentials;
         _gitRepo = gitRepo;
+        _registries = registries;
         _options = options.Value;
         _logger = logger;
     }
@@ -158,6 +162,8 @@ public sealed class StackService
             return (false, prep.Message);
         }
 
+        await LoginRegistriesAsync(prep, ct);
+
         var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
         var command = StackCommands.Deploy(prep.Head!, stack.Name);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
@@ -237,6 +243,8 @@ public sealed class StackService
         }
 
         var composeContent = await File.ReadAllTextAsync(composeFull, ct);
+
+        await LoginRegistriesAsync(prep, ct);
 
         // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
         var localDir = workDir;
@@ -383,6 +391,49 @@ public sealed class StackService
         catch (Exception ex) { _logger.LogWarning(ex, "Stack {Name}: status save after host op failed.", stack.Name); }
 
         return (ok, string.IsNullOrWhiteSpace(output) ? (ok ? "OK." : "Failed.") : output.Trim());
+    }
+
+    /// <summary>
+    /// Logs the target host into every enabled registry that has credentials, so private images can be
+    /// pulled by the following <c>compose up/pull</c>. Best-effort: a failed login is logged, not fatal
+    /// (the image may be public, or served by another registry).
+    /// </summary>
+    private async Task LoginRegistriesAsync(HostPrep prep, CancellationToken ct)
+    {
+        IReadOnlyList<RegistryLogin> logins;
+        try
+        {
+            logins = await _registries.GetEnabledLoginsAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load registry credentials for login.");
+            return;
+        }
+
+        foreach (var reg in logins)
+        {
+            if (string.IsNullOrWhiteSpace(reg.Username) || string.IsNullOrWhiteSpace(reg.Token))
+            {
+                continue; // anonymous entry — nothing to log in with
+            }
+
+            try
+            {
+                var command = StackCommands.Login(prep.Head!, reg.Host, reg.Username);
+                var token = Encoding.UTF8.GetBytes(reg.Token);
+                var (ok, output) = await ExecOnHostAsync(prep.Settings!, command,
+                    (s, c) => s.WriteAsync(token, c).AsTask(), TimeSpan.FromSeconds(30), ct);
+                if (!ok)
+                {
+                    _logger.LogWarning("docker login {Host} failed: {Output}", reg.Host, output.Trim());
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "docker login {Host} errored.", reg.Host);
+            }
+        }
     }
 
     private async Task<(bool Ok, string Output)> ExecOnHostAsync(

@@ -29,6 +29,22 @@ public class StackCommandsTests
         => Assert.False(StackCommands.IsValidName(name));
 
     [Fact]
+    public void Login_reads_password_from_stdin_and_quotes_host_and_user()
+    {
+        var cmd = StackCommands.Login("sudo -n docker", "ghcr.io", "me");
+        Assert.Contains("sudo -n docker login 'ghcr.io' -u 'me' --password-stdin", cmd);
+        Assert.DoesNotContain("-p ", cmd);   // never put the secret on the command line
+        Assert.EndsWith("2>&1", cmd);
+    }
+
+    [Fact]
+    public void Login_single_quotes_a_malicious_user()
+    {
+        var cmd = StackCommands.Login("docker", "reg.example.com", "a'b");
+        Assert.Contains("-u 'a'\\''b'", cmd);
+    }
+
+    [Fact]
     public void Deploy_builds_expected_command()
     {
         var cmd = StackCommands.Deploy("docker", "media");

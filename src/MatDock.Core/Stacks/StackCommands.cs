@@ -62,6 +62,18 @@ public static partial class StackCommands
         }
     }
 
+    /// <summary>
+    /// <c>docker login</c> for a registry. The token/password is read from stdin (<c>--password-stdin</c>)
+    /// so it never appears on the command line or in the host's process list. Host and user are
+    /// individually shell-quoted. Output merged (2&gt;&amp;1).
+    /// </summary>
+    public static string Login(string dockerHead, string host, string user)
+    {
+        var script = dockerHead + " login " + VolumeFileCommands.ShellQuote(host)
+                   + " -u " + VolumeFileCommands.ShellQuote(user) + " --password-stdin";
+        return VolumeCommands.PathPrefix + script + " 2>&1";
+    }
+
     /// <summary>Writes the compose YAML (from stdin) and runs <c>compose up -d</c>. Output merged (2&gt;&amp;1).</summary>
     public static string Deploy(string dockerHead, string name)
     {

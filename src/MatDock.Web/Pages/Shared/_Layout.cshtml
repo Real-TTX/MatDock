@@ -1,6 +1,7 @@
 @using System.Security.Claims
 @inject MatDock.Core.Environments.EnvironmentService EnvSvc
 @inject MatDock.Core.Proxies.ProxyConnectionService ProxySvc
+@inject MatDock.Core.Registries.RegistryService RegistrySvc
 @{
     var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
     bool IsActive(string prefix) => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
@@ -62,6 +63,8 @@
                     var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
                     // The "Proxy" menu item only appears once a reverse proxy is configured (admins only).
                     var hasProxy = isAdmin && await ProxySvc.AnyAsync(Context.RequestAborted);
+                    // The "Registry" menu item only appears once a registry is configured (admins only).
+                    var hasRegistry = isAdmin && await RegistrySvc.AnyAsync(Context.RequestAborted);
                 }
                 <div class="sidebar__env">
                     <select id="global-env" class="mat-select" aria-label="Select environment"
@@ -109,6 +112,12 @@
                     {
                         <a class="nav-link @(IsActive("/Proxy") ? "is-active" : "")" href="/Proxy">
                             <icon name="route" /><span>Proxy</span>
+                        </a>
+                    }
+                    @if (hasRegistry)
+                    {
+                        <a class="nav-link @(IsActive("/Registry") ? "is-active" : "")" href="/Registry">
+                            <icon name="registry" /><span>Registry</span>
                         </a>
                     }
                     @if (isAdmin)

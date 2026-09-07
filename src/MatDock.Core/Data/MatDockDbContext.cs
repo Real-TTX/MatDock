@@ -33,6 +33,7 @@ public class MatDockDbContext : DbContext
     public DbSet<SyncJobItem> SyncJobItems => Set<SyncJobItem>();
     public DbSet<GitRepo> GitRepos => Set<GitRepo>();
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
+    public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -200,6 +201,17 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Provider).HasConversion<int>();
             e.Property(x => x.Url).HasMaxLength(1000).IsRequired();
             e.Property(x => x.ServerName).HasMaxLength(200);
+            e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<ContainerRegistry>(e =>
+        {
+            e.ToTable("ContainerRegistry");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Host).HasMaxLength(255).IsRequired();
+            e.Property(x => x.Username).HasMaxLength(200);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });

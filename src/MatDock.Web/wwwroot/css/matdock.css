@@ -706,3 +706,9 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
     .page-head .mat-buttons { justify-content: stretch; }
     .page-head .mat-btn { flex: 1; }
 }
+
+/* Registry browser: repository list */
+.reg-repos { display: flex; flex-direction: column; gap: 2px; max-height: 460px; overflow: auto; }
+.reg-repo { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
+.reg-repo:hover { background: var(--surface-2); text-decoration: none; }
+.reg-repo.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }

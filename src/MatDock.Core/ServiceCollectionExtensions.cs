@@ -49,6 +49,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Proxies.IProxyProvider, Proxies.CaddyProxyProvider>();
         services.AddSingleton<Proxies.IProxyProvider, Proxies.MatcadProxyProvider>();
         services.AddScoped<Proxies.ProxyConnectionService>();
+        services.AddSingleton<Registries.RegistryApiClient>();
+        services.AddScoped<Registries.RegistryService>();
         services.AddHttpClient();
 
         return services;

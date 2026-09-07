@@ -1,0 +1,117 @@
+@page
+@model MatDock.Web.Pages.Registry.IndexModel
+@{
+    ViewData["Title"] = "Registry";
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Registry browser</h1>
+        <span class="page-head__subtitle">Browse repositories and tags on your container registries</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Settings/Registries" class="mat-btn"><icon name="settings" /><span>Registries</span></a>
+    </div>
+</div>
+
+@if (Model.Registries.Count == 0)
+{
+    <div class="empty-state">
+        <div><icon name="registry" /></div>
+        <p>No registry configured. Add one under <a href="/Settings/Registries">System → Registries</a>.</p>
+    </div>
+    return;
+}
+
+@if (Model.Registries.Count > 1)
+{
+    <div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+        <label class="mat-label" for="conn-picker">Registry</label>
+        <select id="conn-picker" class="mat-select" data-nav-select="/Registry?ConnId={v}">
+            @foreach (var r in Model.Registries)
+            {
+                <option value="@r.Id" selected="@(Model.Selected?.Id == r.Id)">@r.Name (@r.Host)</option>
+            }
+        </select>
+    </div>
+}
+
+@if (Model.Selected is not null)
+{
+    <div class="card" style="max-width:960px;margin-bottom:16px;">
+        <div class="card__header"><icon name="registry" /><span>Repositories on @Model.Selected.Host</span></div>
+        <div class="card__body">
+            <form method="get" class="mat-form" style="max-width:520px;margin-bottom:12px;">
+                <input type="hidden" name="ConnId" value="@Model.Selected.Id" />
+                <mat-field label="Open a repository by name" hint="e.g. library/nginx or myorg/app — needed for registries without a catalog (Docker Hub)">
+                    <div style="display:flex;gap:8px;">
+                        <input name="Repo" value="@Model.Repo" class="mat-input mono" placeholder="library/nginx" />
+                        <button type="submit" class="mat-btn"><icon name="search" /><span>Tags</span></button>
+                    </div>
+                </mat-field>
+            </form>
+
+            @if (Model.Catalog?.Error is not null)
+            {
+                <div class="alert alert--warning"><icon name="alert" /><span>@Model.Catalog.Error</span></div>
+            }
+            else if (Model.Catalog is not null)
+            {
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <input type="search" class="mat-input" placeholder="Filter repositories…" data-filter-table="#repo-list" style="max-width:320px;" />
+                    <span class="mat-hint">@Model.Catalog.Repositories.Count repositories</span>
+                </div>
+                @if (Model.Catalog.Repositories.Count == 0)
+                {
+                    <div class="empty-state"><div><icon name="box" /></div><p>No repositories reported by this registry.</p></div>
+                }
+                else
+                {
+                    <div id="repo-list" class="reg-repos">
+                        @foreach (var repo in Model.Catalog.Repositories)
+                        {
+                            <a class="reg-repo @(string.Equals(Model.Repo, repo, StringComparison.Ordinal) ? "is-active" : "")"
+                               data-filter-row href="/Registry?ConnId=@Model.Selected.Id&Repo=@Uri.EscapeDataString(repo)">
+                                <icon name="box" /><span class="mono">@repo</span>
+                            </a>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @if (Model.Tags is not null)
+    {
+        <div class="card" style="max-width:960px;">
+            <div class="card__header"><icon name="layers" /><span>Tags — <span class="mono">@Model.Tags.Repository</span></span></div>
+            <div class="card__body">
+                @if (Model.Tags.Error is not null)
+                {
+                    <div class="alert alert--warning"><icon name="alert" /><span>@Model.Tags.Error</span></div>
+                }
+                else if (Model.Tags.Tags.Count == 0)
+                {
+                    <div class="empty-state"><div><icon name="layers" /></div><p>No tags found for this repository.</p></div>
+                }
+                else
+                {
+                    <div class="mat-table__scroll">
+                        <table class="data">
+                            <thead><tr><th>Tag</th><th>Pull reference</th></tr></thead>
+                            <tbody>
+                                @foreach (var tag in Model.Tags.Tags)
+                                {
+                                    <tr>
+                                        <td><strong>@tag</strong></td>
+                                        <td class="mono">@Model.Selected.Host/@Model.Tags.Repository:@tag</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}

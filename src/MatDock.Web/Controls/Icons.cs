@@ -43,6 +43,7 @@ public static class Icons
         ["whale"] = "<path d='M2 13c2 0 2.5-2 4.5-2S9 13 11 13s2.5-2 4.5-2 2.5 2 4.5 2'/><path d='M3 13c0 4 3.5 7 9 7 4.5 0 7-2.5 8-5.5'/><path d='M20 14.5c1-.2 2-1 2-2.5'/><circle cx='8' cy='10' r='.6' fill='currentColor'/>",
         ["box"] = "<path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><polyline points='3.27 6.96 12 12.01 20.73 6.96'/><line x1='12' y1='22.08' x2='12' y2='12'/>",
         ["layers"] = "<polygon points='12 2 2 7 12 12 22 7 12 2'/><polyline points='2 17 12 22 22 17'/><polyline points='2 12 12 17 22 12'/>",
+        ["registry"] = "<ellipse cx='12' cy='5' rx='9' ry='3'/><path d='M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5'/><path d='M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3'/>",
         ["template"] = "<rect x='3' y='3' width='18' height='18' rx='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/>",
         ["download"] = "<path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/>",
         ["git"] = "<circle cx='18' cy='6' r='3'/><circle cx='6' cy='18' r='3'/><path d='M6 9v6'/><path d='M18 9a9 9 0 0 1-9 9'/>",
