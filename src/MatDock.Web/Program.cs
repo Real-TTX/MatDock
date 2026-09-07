@@ -6,6 +6,7 @@ using MatDock.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -131,7 +132,10 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 }
 
-app.UseStaticFiles();
+// Ensure the web-app manifest is served with the correct MIME type (some hosts omit it).
+var staticContentTypes = new FileExtensionContentTypeProvider();
+staticContentTypes.Mappings[".webmanifest"] = "application/manifest+json";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
 app.UseWebSockets(new WebSocketOptions
 {
     // Detect dead/half-open terminal clients: ping periodically and abort the socket if no pong

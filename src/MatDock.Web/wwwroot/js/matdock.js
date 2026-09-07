@@ -19,6 +19,9 @@
         document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
             btn.classList.toggle("is-active", btn.getAttribute("data-theme-set") === pref);
         });
+        // Keep the PWA / browser chrome colour in sync with the active surface.
+        var meta = document.getElementById("meta-theme-color");
+        if (meta) { meta.setAttribute("content", dark ? "#15202e" : "#ffffff"); }
     }
 
     document.querySelectorAll("[data-theme-set]").forEach(function (btn) {

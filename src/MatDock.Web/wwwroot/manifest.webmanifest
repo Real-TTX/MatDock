@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "MatDock",
+  "short_name": "MatDock",
+  "description": "Manage Docker across environments — stacks, containers, volumes, backups and reverse-proxy routes.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#0d1520",
+  "background_color": "#0d1520",
+  "categories": ["utilities", "productivity", "developer"],
+  "icons": [
+    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/img/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "short_name": "Dashboard", "url": "/", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Apps", "short_name": "Apps", "url": "/Launchpad", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Containers", "short_name": "Containers", "url": "/Containers", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Volumes", "short_name": "Volumes", "url": "/Volumes", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

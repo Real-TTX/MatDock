@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Offline · MatDock</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #f4f7fb; color: #1a2433;
+        }
+        .card {
+            text-align: center; max-width: 360px; width: 100%;
+            padding: 40px 32px; border-radius: 16px;
+            background: #ffffff; box-shadow: 0 10px 34px rgba(13, 21, 32, .14);
+        }
+        img { width: 76px; height: 76px; border-radius: 18px; }
+        h1 { font-size: 1.2rem; margin: 18px 0 6px; }
+        p { margin: 0 0 22px; line-height: 1.5; opacity: .82; }
+        button {
+            border: 0; border-radius: 10px; padding: 11px 20px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; color: #fff; background: #2496ed;
+        }
+        button:hover { filter: brightness(1.05); }
+        @media (prefers-color-scheme: dark) {
+            body { background: #0d1520; color: #e6ecf5; }
+            .card { background: #15202e; box-shadow: 0 10px 34px rgba(0, 0, 0, .45); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="/img/icon.svg" alt="MatDock" />
+        <h1>You're offline</h1>
+        <p>MatDock can't reach the server right now. Check your connection, then try again.</p>
+        <button type="button" onclick="location.reload()">Retry</button>
+    </div>
+</body>
+</html>

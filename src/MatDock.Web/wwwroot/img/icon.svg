@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MatDock">
+  <rect width="512" height="512" fill="#0d1520"/>
+  <!-- Whale + container stack, scaled from the 64-grid brand mark and kept inside the maskable safe zone. -->
+  <g transform="translate(0,12) scale(8)">
+    <rect x="17" y="22" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <rect x="28" y="22" width="9" height="8" rx="1.4" fill="#c9e6ff"/>
+    <rect x="39" y="22" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <rect x="33.5" y="13" width="9" height="8" rx="1.4" fill="#8fd0a6"/>
+    <rect x="22.5" y="13" width="9" height="8" rx="1.4" fill="#eaf4ff"/>
+    <path d="M10 32c0 0 6 2 22 2s22-2 22-2c1.1 0 1.9 1 1.7 2.1C54.4 42 46 48 32 48S9.6 42 8.3 34.1C8.1 33 8.9 32 10 32Z" fill="#2496ed"/>
+    <circle cx="18.5" cy="38" r="1.8" fill="#0d1520"/>
+  </g>
+</svg>

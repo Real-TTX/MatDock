@@ -16,15 +16,27 @@
     <meta name="color-scheme" content="light dark" />
     <title>@ViewData["Title"] · MatDock</title>
     <link rel="icon" href="~/img/favicon.svg" type="image/svg+xml" />
+    <link rel="mask-icon" href="~/img/logo.svg" color="#2496ed" />
+    <link rel="apple-touch-icon" href="~/img/apple-touch-icon.png" />
+    <link rel="manifest" href="~/manifest.webmanifest" />
+    <meta name="theme-color" id="meta-theme-color" content="#0d1520" />
+    <meta name="application-name" content="MatDock" />
+    <meta name="apple-mobile-web-app-title" content="MatDock" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="stylesheet" href="~/css/matdock.css" asp-append-version="true" />
     <script>
-        // Apply the saved theme before first paint to avoid a flash.
+        // Apply the saved theme before first paint to avoid a flash, and match the
+        // browser chrome (address/status bar) to the active surface colour.
         (function () {
             try {
                 var t = localStorage.getItem('matdock-theme') || 'system';
                 var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
                 document.documentElement.setAttribute('data-theme-pref', t);
+                var m = document.getElementById('meta-theme-color');
+                if (m) { m.setAttribute('content', dark ? '#15202e' : '#ffffff'); }
             } catch (e) { }
         })();
     </script>
@@ -152,6 +164,7 @@
     }
 
     <script src="~/js/matdock.js" asp-append-version="true"></script>
+    <script src="~/js/pwa.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
