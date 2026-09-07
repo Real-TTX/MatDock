@@ -86,13 +86,11 @@
                     <span class="mat-switch__slider"></span>
                     <span class="mat-switch__label">Scheduled — deploy automatically on a cron schedule</span>
                 </label>
-            </div>
-            <div data-show-when="Input_ScheduleEnabled=true">
-                <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
-                    <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
-                </mat-field>
-            </div>
-            <div class="mat-switches">
+                <div data-show-when="Input_ScheduleEnabled=true">
+                    <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
+                        <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+                    </mat-field>
+                </div>
                 <label class="mat-switch">
                     <input asp-for="Input.WebhookEnabled" type="checkbox" />
                     <span class="mat-switch__slider"></span>
