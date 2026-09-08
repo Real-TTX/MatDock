@@ -55,7 +55,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.PruneImagesAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.PruneNetworksAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.SummaryAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.HealthAlertAction>();
         services.AddScoped<Schedules.ScheduleService>();
+        services.AddSingleton<Schedules.IScheduleEventBus, Schedules.ScheduleEventBus>();
         services.AddHttpClient();
 
         return services;

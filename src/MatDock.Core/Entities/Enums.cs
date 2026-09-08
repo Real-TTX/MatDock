@@ -85,7 +85,8 @@ public enum ScheduleAction
     PruneImages = 1,
     PruneNetworks = 2,
     Summary = 3,
-    Backup = 4
+    Backup = 4,
+    HealthAlert = 5
 }
 
 /// <summary>Internal events that can trigger a scheduled task (Phase 2).</summary>

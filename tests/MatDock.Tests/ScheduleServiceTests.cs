@@ -91,6 +91,46 @@ public class ScheduleServiceTests
         Assert.Equal(1, notifier.NotifyCalls);
     }
 
+    [Fact]
+    public async Task DispatchEvent_runs_only_the_matching_event_task()
+    {
+        using var db = new TestDatabase();
+        var action = new StubAction(ScheduleAction.Summary, (true, "ok"));
+        var svc = Service(db, action);
+        await svc.CreateAsync(new ScheduleInput
+        {
+            Name = "on-deploy-fail",
+            Trigger = ScheduleTrigger.Event,
+            Event = ScheduleEvent.DeployFailed,
+            Action = ScheduleAction.Summary,
+            Enabled = true,
+        });
+
+        Assert.Equal(1, await svc.DispatchEventAsync(ScheduleEvent.DeployFailed, 1, "stack"));
+        Assert.Equal(0, await svc.DispatchEventAsync(ScheduleEvent.BackupFailed, 1, null));
+        Assert.Equal(1, action.Calls);
+    }
+
+    [Fact]
+    public async Task DispatchEvent_respects_environment_scope()
+    {
+        using var db = new TestDatabase();
+        var action = new StubAction(ScheduleAction.Summary, (true, "ok"));
+        var svc = Service(db, action);
+        await svc.CreateAsync(new ScheduleInput
+        {
+            Name = "env-5-offline",
+            Trigger = ScheduleTrigger.Event,
+            Event = ScheduleEvent.EnvironmentOffline,
+            Action = ScheduleAction.Summary,
+            EnvironmentId = 5,
+            Enabled = true,
+        });
+
+        Assert.Equal(0, await svc.DispatchEventAsync(ScheduleEvent.EnvironmentOffline, 9, null));
+        Assert.Equal(1, await svc.DispatchEventAsync(ScheduleEvent.EnvironmentOffline, 5, null));
+    }
+
     private sealed class StubAction : IScheduleAction
     {
         private readonly (bool, string) _result;

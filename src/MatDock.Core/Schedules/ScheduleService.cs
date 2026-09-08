@@ -119,6 +119,26 @@ public sealed class ScheduleService
         return due.Count;
     }
 
+    /// <summary>Runs every enabled event-triggered task subscribed to <paramref name="evt"/> (matching the
+    /// environment, or global). Returns how many ran.</summary>
+    public async Task<int> DispatchEventAsync(ScheduleEvent evt, long? environmentId, string? detail, CancellationToken ct = default)
+    {
+        var tasks = await _db.ScheduledTasks
+            .Where(s => s.Enabled && s.Trigger == ScheduleTrigger.Event && s.Event == evt
+                        && (s.EnvironmentId == null || s.EnvironmentId == environmentId))
+            .ToListAsync(ct);
+
+        foreach (var task in tasks)
+        {
+            var summary = await RunAndNotifyAsync(task, ct);
+            task.LastRunAt = DateTime.UtcNow;
+            task.LastStatus = string.IsNullOrEmpty(detail) ? summary : $"[{detail}] {summary}";
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return tasks.Count;
+    }
+
     private async Task<string> RunAndNotifyAsync(ScheduledTask task, CancellationToken ct)
     {
         bool ok;

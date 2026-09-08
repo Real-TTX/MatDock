@@ -28,6 +28,7 @@
                 <mat-field label="Action" asp-for="Input.Action">
                     <select asp-for="Input.Action" id="Input_Action" class="mat-select">
                         <option value="Summary">Status summary (notification)</option>
+                        <option value="HealthAlert">Health alert (notify on problems)</option>
                         <option value="PruneVolumes">Prune volumes</option>
                         <option value="PruneImages">Prune images</option>
                         <option value="PruneNetworks">Prune networks</option>
@@ -70,13 +71,12 @@
                     </mat-field>
                 </div>
                 <div data-show-when="Input_Trigger=Event">
-                    <mat-field label="On event" asp-for="Input.Event" hint="Event triggers are being rolled out (Phase 2)">
+                    <mat-field label="On event" asp-for="Input.Event" hint="Runs the action when this internal event occurs">
                         <select asp-for="Input.Event" class="mat-select">
                             <option value="DeployFailed">Deploy failed</option>
                             <option value="BackupFailed">Backup failed</option>
                             <option value="SyncFailed">Sync failed</option>
                             <option value="EnvironmentOffline">Environment offline</option>
-                            <option value="ContainerDied">Container died</option>
                         </select>
                     </mat-field>
                 </div>

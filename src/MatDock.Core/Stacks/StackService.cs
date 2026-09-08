@@ -9,6 +9,7 @@ using MatDock.Core.Environments;
 using MatDock.Core.Git;
 using MatDock.Core.Execution;
 using MatDock.Core.Registries;
+using MatDock.Core.Schedules;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ public sealed class StackService
     private readonly GitCredentialService _gitCredentials;
     private readonly GitRepositoryService _gitRepo;
     private readonly RegistryService _registries;
+    private readonly IScheduleEventBus _events;
     private readonly MatDockOptions _options;
     private readonly ILogger<StackService> _logger;
 
@@ -37,6 +39,7 @@ public sealed class StackService
         GitCredentialService gitCredentials,
         GitRepositoryService gitRepo,
         RegistryService registries,
+        IScheduleEventBus events,
         IOptions<MatDockOptions> options,
         ILogger<StackService> logger)
     {
@@ -46,6 +49,7 @@ public sealed class StackService
         _gitCredentials = gitCredentials;
         _gitRepo = gitRepo;
         _registries = registries;
+        _events = events;
         _options = options.Value;
         _logger = logger;
     }
@@ -378,6 +382,7 @@ public sealed class StackService
             _logger.LogInformation(ex, "Stack {Name} host op (deploy={Deploy}) failed.", stack.Name, deploy);
             stack.LastStatus = "Error";
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
+            if (deploy) { await _events.PublishAsync(ScheduleEvent.DeployFailed, stack.EnvironmentId, stack.Name, ct); }
             return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
         }
 
@@ -389,6 +394,8 @@ public sealed class StackService
         stack.LastStatus = ok ? (deploy ? "Deployed" : "Stopped") : (deploy ? "Deploy failed" : "Down failed");
         try { await _db.SaveChangesAsync(ct); }
         catch (Exception ex) { _logger.LogWarning(ex, "Stack {Name}: status save after host op failed.", stack.Name); }
+
+        if (deploy && !ok) { await _events.PublishAsync(ScheduleEvent.DeployFailed, stack.EnvironmentId, stack.Name, ct); }
 
         return (ok, string.IsNullOrWhiteSpace(output) ? (ok ? "OK." : "Failed.") : output.Trim());
     }

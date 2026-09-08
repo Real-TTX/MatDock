@@ -1,6 +1,7 @@
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Git;
+using MatDock.Core.Schedules;
 using MatDock.Core.Stacks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public sealed class SyncJobRunner
     private readonly StackService _stacks;
     private readonly GitCredentialService _gitCredentials;
     private readonly GitRepositoryService _gitRepo;
+    private readonly IScheduleEventBus _events;
     private readonly ILogger<SyncJobRunner> _logger;
 
     public SyncJobRunner(
@@ -25,12 +27,14 @@ public sealed class SyncJobRunner
         StackService stacks,
         GitCredentialService gitCredentials,
         GitRepositoryService gitRepo,
+        IScheduleEventBus events,
         ILogger<SyncJobRunner> logger)
     {
         _db = db;
         _stacks = stacks;
         _gitCredentials = gitCredentials;
         _gitRepo = gitRepo;
+        _events = events;
         _logger = logger;
     }
 
@@ -183,6 +187,8 @@ public sealed class SyncJobRunner
         {
             GitRepositoryService.TryDelete(scan.WorkDir);
         }
+
+        if (fail > 0) { await _events.PublishAsync(ScheduleEvent.SyncFailed, null, job.Name, ct); }
 
         var parts = new List<string> { $"{ok} deployed" };
         if (fail > 0) { parts.Add($"{fail} failed"); }

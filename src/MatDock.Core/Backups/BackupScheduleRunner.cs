@@ -1,6 +1,7 @@
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Schedules;
 using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public sealed class BackupScheduleRunner
     private readonly EnvironmentService _environmentService;
     private readonly VolumeBackupService _backupService;
     private readonly Notifications.INotificationService _notifications;
+    private readonly IScheduleEventBus _events;
     private readonly ILogger<BackupScheduleRunner> _logger;
 
     public BackupScheduleRunner(
@@ -21,12 +23,14 @@ public sealed class BackupScheduleRunner
         EnvironmentService environmentService,
         VolumeBackupService backupService,
         Notifications.INotificationService notifications,
+        IScheduleEventBus events,
         ILogger<BackupScheduleRunner> logger)
     {
         _db = db;
         _environmentService = environmentService;
         _backupService = backupService;
         _notifications = notifications;
+        _events = events;
         _logger = logger;
     }
 
@@ -94,6 +98,11 @@ public sealed class BackupScheduleRunner
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Notification for schedule {Name} failed.", schedule.Name);
+        }
+
+        if (failures.Count > 0)
+        {
+            await _events.PublishAsync(ScheduleEvent.BackupFailed, schedule.EnvironmentId, schedule.Name, ct);
         }
 
         return summary;

@@ -157,3 +157,45 @@ public sealed class SummaryAction : ScheduleActionBase, IScheduleAction
         return ok ? (true, $"Summary sent for {envs.Count} environment(s).") : (false, message);
     }
 }
+
+/// <summary>Checks target environments (reachability + disk/RAM thresholds) and sends an alert on problems.</summary>
+public sealed class HealthAlertAction : ScheduleActionBase, IScheduleAction
+{
+    private const int ThresholdPercent = 90;
+
+    private readonly INotificationService _notifications;
+
+    public HealthAlertAction(EnvironmentService e, IEnvironmentConnectionService c, INotificationService notifications) : base(e, c)
+        => _notifications = notifications;
+
+    public ScheduleAction Type => ScheduleAction.HealthAlert;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var envs = await TargetsAsync(task, ct);
+        var problems = new List<string>();
+
+        foreach (var env in envs)
+        {
+            try
+            {
+                var st = await Connection.GetHostStatsAsync(Environments.BuildSettings(env), ct);
+                if (st.DiskPercent >= ThresholdPercent) { problems.Add($"{env.Name}: disk {st.DiskPercent:0}%"); }
+                if (st.MemPercent >= ThresholdPercent) { problems.Add($"{env.Name}: RAM {st.MemPercent:0}%"); }
+            }
+            catch (Exception ex)
+            {
+                problems.Add($"{env.Name}: unreachable ({ex.Message})");
+            }
+        }
+
+        if (problems.Count == 0)
+        {
+            return (true, $"All {envs.Count} environment(s) healthy.");
+        }
+
+        var body = "MatDock health alert:\n\n- " + string.Join("\n- ", problems);
+        await _notifications.NotifyAsync("MatDock health alert", body, ct);
+        return (false, $"{problems.Count} problem(s): {string.Join("; ", problems)}");
+    }
+}

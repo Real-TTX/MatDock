@@ -61,6 +61,7 @@ builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddHostedService<BackupSchedulerService>();
 builder.Services.AddHostedService<SyncJobSchedulerService>();
 builder.Services.AddHostedService<ScheduleRunnerService>();
+builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 
 // ---------------------------------------------------------------------------
 // Authentication / authorization
