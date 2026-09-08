@@ -55,9 +55,15 @@ public sealed class TableFrameTagHelper : TagHelper
         }
         builder.AppendHtml("</div>");
 
+        // Only render the pagination band when it actually has content — a suppressed pagination control
+        // (single page) leaves just whitespace, which must not show as an empty padded row before the footer.
         if (frame.Pagination is not null)
         {
-            builder.AppendHtml("<div class=\"mat-table__pagination\">").AppendHtml(frame.Pagination).AppendHtml("</div>");
+            var paginationHtml = Render(frame.Pagination);
+            if (!string.IsNullOrWhiteSpace(paginationHtml))
+            {
+                builder.AppendHtml("<div class=\"mat-table__pagination\">").AppendHtml(new HtmlString(paginationHtml)).AppendHtml("</div>");
+            }
         }
 
         if (frame.Actions is not null)
@@ -66,6 +72,14 @@ public sealed class TableFrameTagHelper : TagHelper
         }
 
         output.Content.SetHtmlContent(builder);
+    }
+
+    /// <summary>Renders captured slot content to a string so empty (whitespace-only) slots can be skipped.</summary>
+    private static string Render(IHtmlContent content)
+    {
+        using var writer = new StringWriter();
+        content.WriteTo(writer, System.Text.Encodings.Web.HtmlEncoder.Default);
+        return writer.ToString();
     }
 }
 

@@ -22,13 +22,20 @@ public sealed class PaginationTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (Model is null || Model.TotalItems == 0)
+        if (Model is null)
         {
             output.SuppressOutput();
             return;
         }
 
         Model.Normalize();
+
+        // Nothing to page: hide the whole control (no summary-only band before the table footer).
+        if (Model.TotalItems == 0 || Model.TotalPages <= 1)
+        {
+            output.SuppressOutput();
+            return;
+        }
 
         output.TagName = "nav";
         output.Attributes.SetAttribute("class", "mat-pagination");

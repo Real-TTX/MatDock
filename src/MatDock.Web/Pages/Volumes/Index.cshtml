@@ -64,7 +64,7 @@
                     @foreach (var row in Model.Rows)
                     {
                         <tr>
-                            <td><span class="mat-badge">@row.Environment.Name</span></td>
+                            <td class="nowrap">@row.Environment.Name</td>
                             <td class="wrap">
                                 <a href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"><strong>@row.Volume.Name</strong></a>
                                 @if (row.Unused)

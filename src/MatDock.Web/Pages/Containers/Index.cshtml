@@ -4,7 +4,8 @@
 @{
     ViewData["Title"] = "Containers";
     var ci = System.Globalization.CultureInfo.InvariantCulture;
-    var showEnv = Model.IsAll;
+    // Environment is always shown as the first column, consistent with the Stacks/Volumes/Networks lists.
+    var showEnv = true;
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsInRole("Admin");
 
@@ -82,7 +83,7 @@
         <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
             @if (showEnv)
             {
-                <td class="cell-sub nowrap">@env.Name</td>
+                <td class="nowrap">@env.Name</td>
             }
             <td class="wrap">
                 <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>

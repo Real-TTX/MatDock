@@ -63,7 +63,7 @@
                     @foreach (var row in Model.Rows)
                     {
                         <tr>
-                            <td><span class="mat-badge">@row.Environment.Name</span></td>
+                            <td class="nowrap">@row.Environment.Name</td>
                             <td class="wrap">
                                 <a href="/Networks/Detail?envId=@row.Environment.Id&network=@Uri.EscapeDataString(row.Network.Name)"><strong>@row.Network.Name</strong></a>
                                 @if (row.Network.IsPredefined)
