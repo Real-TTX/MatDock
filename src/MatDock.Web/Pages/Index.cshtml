@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Dashboard";
     var scopeName = Model.IsAll ? "all environments" : (Model.Environments.FirstOrDefault()?.Name ?? "environment");
+    var isAdmin = User.IsInRole("Admin");
     string GaugeClass(double p) => p >= 90 ? "gauge__fill--crit" : p >= 70 ? "gauge__fill--warn" : "";
     string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
 
@@ -47,126 +48,59 @@
     </div>
 </div>
 
+@* ---- Key figures (clickable) ---- *@
 <div class="stat-grid" style="margin-bottom:22px;">
-    <div class="stat">
+    <a class="stat" href="/Environments">
         <div class="stat__icon"><icon name="server" /></div>
         <div>
             <div class="stat__value">@Model.TotalEnvironments</div>
             <div class="stat__label">Environments</div>
         </div>
-    </div>
-    <div class="stat stat--ok">
+    </a>
+    <a class="stat stat--ok" href="/Environments">
         <div class="stat__icon"><icon name="check-circle" /></div>
         <div>
             <div class="stat__value">@Model.OnlineCount</div>
             <div class="stat__label">Online</div>
         </div>
-    </div>
+    </a>
     @if (Model.AttentionCount > 0)
     {
-        <div class="stat stat--warn">
+        <a class="stat stat--warn" href="/Environments">
             <div class="stat__icon"><icon name="alert" /></div>
             <div>
                 <div class="stat__value">@Model.AttentionCount</div>
                 <div class="stat__label">Attention</div>
             </div>
-        </div>
+        </a>
     }
-    <div class="stat">
+    <a class="stat" href="/Containers">
         <div class="stat__icon"><icon name="box" /></div>
         <div>
             <div class="stat__value">@Model.RunningContainersTotal</div>
             <div class="stat__label">Running containers</div>
         </div>
-    </div>
+    </a>
     @if (Model.DisabledCount > 0)
     {
-        <div class="stat stat--muted">
+        <a class="stat stat--muted" href="/Environments">
             <div class="stat__icon"><icon name="lock" /></div>
             <div>
                 <div class="stat__value">@Model.DisabledCount</div>
                 <div class="stat__label">Disabled</div>
             </div>
-        </div>
+        </a>
     }
 </div>
 
-@* ---- Environment usage tiles ---- *@
-<div class="section-head"><icon name="server" /><span>Environment usage</span></div>
-@if (Model.Environments.Count == 0)
-{
-    <div class="card">
-        <div class="empty-state">
-            <div><icon name="server" /></div>
-            <p>No enabled environments to show.</p>
-            <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create your first environment</span></a>
-        </div>
-    </div>
-}
-else
-{
-    <div class="env-gallery" style="margin-bottom:24px;">
-        @foreach (var env in Model.Environments)
-        {
-            var st = Model.Stats.TryGetValue(env.Id, out var s) ? s : new MatDock.Core.Docker.HostStats();
-            var running = Model.RunningCounts.TryGetValue(env.Id, out var rc) ? rc : (st.RunningContainers ?? 0);
-            var cpuPct = (int)Math.Round(st.CpuPercent);
-            var memPct = (int)Math.Round(st.MemPercent);
-            var diskPct = (int)Math.Round(st.DiskPercent);
-            <div class="env-card">
-                <div class="env-card__head">
-                    <div>
-                        <div class="env-card__name"><a href="/Environments/Edit?id=@env.Id">@env.Name</a></div>
-                        <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
-                    </div>
-                    <partial name="_StatusPill" model="env.Status" />
-                </div>
-
-                <div class="env-card__gauges">
-                    <div class="gauge">
-                        <span class="gauge__label">CPU</span>
-                        <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.CpuPercent)" style="width:@(cpuPct)%"></span></span>
-                        <span class="gauge__value @(st.Cores is null ? "gauge__value--muted" : "")">@(st.Cores is null ? "–" : $"{cpuPct}%")</span>
-                    </div>
-                    <div class="gauge">
-                        <span class="gauge__label">RAM</span>
-                        <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.MemPercent)" style="width:@(memPct)%"></span></span>
-                        <span class="gauge__value @(st.MemTotalBytes is null ? "gauge__value--muted" : "")">@(st.MemTotalBytes is null ? "–" : $"{Fb(st.MemUsedBytes ?? 0)}/{Fb(st.MemTotalBytes.Value)}")</span>
-                    </div>
-                    <div class="gauge">
-                        <span class="gauge__label">Disk</span>
-                        <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.DiskPercent)" style="width:@(diskPct)%"></span></span>
-                        <span class="gauge__value @(st.DiskTotalBytes is null ? "gauge__value--muted" : "")">@(st.DiskTotalBytes is null ? "–" : $"{Fb(st.DiskUsedBytes ?? 0)}/{Fb(st.DiskTotalBytes.Value)}")</span>
-                    </div>
-                </div>
-
-                <div class="env-card__foot">
-                    <span class="mat-badge"><icon name="box" /> @running running</span>
-                    <span style="flex:1 1 auto;"></span>
-                    <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
-                    }
-                    <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
-                    }
-                </div>
-            </div>
-        }
-    </div>
-}
-
-@* ---- Apps ---- *@
+@* ---- Apps (full width: tiles need room) ---- *@
 @if (Model.AppTiles.Count > 0)
 {
     <div class="dash-section-head">
         <h2><icon name="apps" /> <span>Apps</span></h2>
         <a href="/Launchpad" class="mat-link">All apps →</a>
     </div>
-    <div class="launch-grid" style="margin-bottom:20px;">
+    <div class="launch-grid" style="margin-bottom:22px;">
         @foreach (var t in Model.AppTiles)
         {
             <partial name="_AppTile" model="t" />
@@ -174,133 +108,212 @@ else
     </div>
 }
 
-@* ---- Top containers + recent activity ---- *@
-<div class="dash-cols">
-    <div class="card">
-        <div class="card__header"><icon name="box" /><span>Top containers by usage</span></div>
-        <div class="card__body" style="padding:0;">
-            @if (Model.TopContainers.Count == 0)
+@* ---- Main content + right rail ---- *@
+<div class="dash-layout">
+    <div class="dash-main">
+        <section>
+            <div class="dash-section-head">
+                <h2><icon name="server" /> <span>Environment usage</span></h2>
+                <a href="/Environments" class="mat-link">Manage →</a>
+            </div>
+            @if (Model.Environments.Count == 0)
             {
-                <div class="empty-state"><div><icon name="box" /></div><p>No running containers.</p></div>
-            }
-            else
-            {
-                <div class="mat-table__scroll">
-                    <table class="data">
-                        <thead>
-                            <tr><th>Container</th>@if (Model.IsAll) { <th>Environment</th> }<th class="num">CPU</th><th class="num">RAM</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var t in Model.TopContainers)
-                            {
-                                var c = t.Container;
-                                <tr>
-                                    <td>
-                                        <a href="/Containers/ContainerDetail?envId=@t.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
-                                        <div class="text-muted" style="font-size:.78rem;">@c.Image</div>
-                                    </td>
-                                    @if (Model.IsAll)
-                                    {
-                                        <td class="text-muted">@t.EnvName</td>
-                                    }
-                                    <td class="num">
-                                        @if (c.CpuPercent is not null)
-                                        {
-                                            <div>@($"{c.CpuPercent:0.0}")%</div>
-                                            <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.CpuPercent.Value)))%"></span></span>
-                                        }
-                                        else { <span class="text-muted">–</span> }
-                                    </td>
-                                    <td class="num" title="@c.MemUsage">
-                                        @if (c.MemPercent is not null)
-                                        {
-                                            <div>@($"{c.MemPercent:0.0}")%</div>
-                                            <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.MemPercent.Value)))%"></span></span>
-                                        }
-                                        else { <span class="text-muted">–</span> }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                <div class="card">
+                    <div class="empty-state">
+                        <div><icon name="server" /></div>
+                        <p>No enabled environments to show.</p>
+                        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create your first environment</span></a>
+                    </div>
                 </div>
             }
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card__header"><icon name="clock" /><span>Recent activity</span></div>
-        <div class="card__body" style="padding:0;">
-            @if (Model.RecentEvents.Count == 0)
-            {
-                <div class="empty-state"><div><icon name="clock" /></div><p>No recent container events.</p></div>
-            }
             else
             {
-                <ul class="feed">
-                    @foreach (var row in Model.RecentEvents)
+                <div class="env-gallery">
+                    @foreach (var env in Model.Environments)
                     {
-                        var ev = row.Event;
-                        var style = EventStyle(ev.Kind);
-                        <li class="feed__item">
-                            <span class="feed__dot @style.Cls"><icon name="@style.Icon" /></span>
-                            <div class="feed__body">
-                                <div><strong>@ev.ContainerName</strong> <span class="text-muted">@ev.Kind</span></div>
-                                <div class="feed__meta">@(Model.IsAll ? row.EnvName + " · " : "")@Ago(ev.TimeUtc)</div>
+                        var st = Model.Stats.TryGetValue(env.Id, out var s) ? s : new MatDock.Core.Docker.HostStats();
+                        var running = Model.RunningCounts.TryGetValue(env.Id, out var rc) ? rc : (st.RunningContainers ?? 0);
+                        var cpuPct = (int)Math.Round(st.CpuPercent);
+                        var memPct = (int)Math.Round(st.MemPercent);
+                        var diskPct = (int)Math.Round(st.DiskPercent);
+                        <div class="env-card">
+                            <div class="env-card__head">
+                                <div>
+                                    <div class="env-card__name"><a href="/Environments/Edit?id=@env.Id">@env.Name</a></div>
+                                    <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
+                                </div>
+                                <partial name="_StatusPill" model="env.Status" />
                             </div>
-                        </li>
-                    }
-                </ul>
-            }
-        </div>
-    </div>
-</div>
 
-@* ---- Backup status ---- *@
-<div class="card" style="margin-top:24px;">
-    <div class="card__header">
-        <icon name="download" /><span>Backups</span>
-        <span style="flex:1 1 auto;"></span>
-        <a href="/Backups" class="mat-btn mat-btn--sm"><icon name="external" /><span>History</span></a>
-    </div>
-    <div class="card__body">
-        <div class="dash-metrics">
-            <div class="dash-metric">
-                <div class="dash-metric__value">@Model.BackupCount</div>
-                <div class="dash-metric__label">Backups</div>
-            </div>
-            <div class="dash-metric">
-                <div class="dash-metric__value">@Fb(Model.BackupBytes)</div>
-                <div class="dash-metric__label">Total size</div>
-            </div>
-            <div class="dash-metric">
-                <div class="dash-metric__value">@(Model.LastBackupUtc is { } lb ? Ago(lb) : "–")</div>
-                <div class="dash-metric__label">Last backup</div>
-            </div>
-            <div class="dash-metric">
-                <div class="dash-metric__value">@(Model.NextBackupUtc is { } nb ? InFuture(nb) : "–")</div>
-                <div class="dash-metric__label">Next run (@Model.SchedulesEnabledCount active)</div>
-            </div>
-            <div class="dash-metric">
-                <div class="dash-metric__value">
-                    @if (Model.LastRunUtc is null)
-                    {
-                        <span class="text-muted">–</span>
-                    }
-                    else if (Model.LastRunOk == true)
-                    {
-                        <span class="pill pill--online"><icon name="check-circle" /> OK</span>
-                    }
-                    else if (Model.LastRunOk == false)
-                    {
-                        <span class="pill pill--error"><icon name="x-circle" /> Failed</span>
-                    }
-                    else
-                    {
-                        <span class="pill pill--unknown">@(string.IsNullOrWhiteSpace(Model.LastRunSummary) ? "Unknown" : Model.LastRunSummary)</span>
+                            <div class="env-card__gauges">
+                                <div class="gauge">
+                                    <span class="gauge__label">CPU</span>
+                                    <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.CpuPercent)" style="width:@(cpuPct)%"></span></span>
+                                    <span class="gauge__value @(st.Cores is null ? "gauge__value--muted" : "")">@(st.Cores is null ? "–" : $"{cpuPct}%")</span>
+                                </div>
+                                <div class="gauge">
+                                    <span class="gauge__label">RAM</span>
+                                    <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.MemPercent)" style="width:@(memPct)%"></span></span>
+                                    <span class="gauge__value @(st.MemTotalBytes is null ? "gauge__value--muted" : "")">@(st.MemTotalBytes is null ? "–" : $"{Fb(st.MemUsedBytes ?? 0)}/{Fb(st.MemTotalBytes.Value)}")</span>
+                                </div>
+                                <div class="gauge">
+                                    <span class="gauge__label">Disk</span>
+                                    <span class="gauge__track"><span class="gauge__fill @GaugeClass(st.DiskPercent)" style="width:@(diskPct)%"></span></span>
+                                    <span class="gauge__value @(st.DiskTotalBytes is null ? "gauge__value--muted" : "")">@(st.DiskTotalBytes is null ? "–" : $"{Fb(st.DiskUsedBytes ?? 0)}/{Fb(st.DiskTotalBytes.Value)}")</span>
+                                </div>
+                            </div>
+
+                            <div class="env-card__foot">
+                                <span class="mat-badge"><icon name="box" /> @running running</span>
+                                <span style="flex:1 1 auto;"></span>
+                                <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
+                                @if (isAdmin)
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
+                                }
+                                <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                                @if (isAdmin)
+                                {
+                                    <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
+                                }
+                            </div>
+                        </div>
                     }
                 </div>
-                <div class="dash-metric__label">Last scheduled run@(Model.LastRunUtc is { } lr ? $" · {Ago(lr)}" : "")</div>
+            }
+        </section>
+
+        <div class="card">
+            <div class="card__header">
+                <icon name="box" /><span>Top containers by usage</span>
+                <span style="flex:1 1 auto;"></span>
+                <a href="/Containers" class="mat-btn mat-btn--sm"><icon name="external" /><span>All</span></a>
+            </div>
+            <div class="card__body" style="padding:0;">
+                @if (Model.TopContainers.Count == 0)
+                {
+                    <div class="empty-state"><div><icon name="box" /></div><p>No running containers.</p></div>
+                }
+                else
+                {
+                    <div class="mat-table__scroll">
+                        <table class="data">
+                            <thead>
+                                <tr><th>Container</th>@if (Model.IsAll) { <th>Environment</th> }<th class="num">CPU</th><th class="num">RAM</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in Model.TopContainers)
+                                {
+                                    var c = t.Container;
+                                    <tr>
+                                        <td>
+                                            <a href="/Containers/ContainerDetail?envId=@t.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
+                                            <div class="text-muted" style="font-size:.78rem;">@c.Image</div>
+                                        </td>
+                                        @if (Model.IsAll)
+                                        {
+                                            <td class="text-muted">@t.EnvName</td>
+                                        }
+                                        <td class="num">
+                                            @if (c.CpuPercent is not null)
+                                            {
+                                                <div>@($"{c.CpuPercent:0.0}")%</div>
+                                                <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.CpuPercent.Value)))%"></span></span>
+                                            }
+                                            else { <span class="text-muted">–</span> }
+                                        </td>
+                                        <td class="num" title="@c.MemUsage">
+                                            @if (c.MemPercent is not null)
+                                            {
+                                                <div>@($"{c.MemPercent:0.0}")%</div>
+                                                <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.MemPercent.Value)))%"></span></span>
+                                            }
+                                            else { <span class="text-muted">–</span> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-rail">
+        <div class="card">
+            <div class="card__header"><icon name="clock" /><span>Recent activity</span></div>
+            <div class="card__body" style="padding:0;">
+                @if (Model.RecentEvents.Count == 0)
+                {
+                    <div class="empty-state"><div><icon name="clock" /></div><p>No recent container events.</p></div>
+                }
+                else
+                {
+                    <ul class="feed">
+                        @foreach (var row in Model.RecentEvents)
+                        {
+                            var ev = row.Event;
+                            var style = EventStyle(ev.Kind);
+                            <li class="feed__item">
+                                <span class="feed__dot @style.Cls"><icon name="@style.Icon" /></span>
+                                <div class="feed__body">
+                                    <div><strong>@ev.ContainerName</strong> <span class="text-muted">@ev.Kind</span></div>
+                                    <div class="feed__meta">@(Model.IsAll ? row.EnvName + " · " : "")@Ago(ev.TimeUtc)</div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card__header">
+                <icon name="download" /><span>Backups</span>
+                <span style="flex:1 1 auto;"></span>
+                <a href="/Backups" class="mat-btn mat-btn--sm"><icon name="external" /><span>History</span></a>
+            </div>
+            <div class="card__body">
+                <div class="dash-metrics">
+                    <div class="dash-metric">
+                        <div class="dash-metric__value">@Model.BackupCount</div>
+                        <div class="dash-metric__label">Backups</div>
+                    </div>
+                    <div class="dash-metric">
+                        <div class="dash-metric__value">@Fb(Model.BackupBytes)</div>
+                        <div class="dash-metric__label">Total size</div>
+                    </div>
+                    <div class="dash-metric">
+                        <div class="dash-metric__value">@(Model.LastBackupUtc is { } lb ? Ago(lb) : "–")</div>
+                        <div class="dash-metric__label">Last backup</div>
+                    </div>
+                    <div class="dash-metric">
+                        <div class="dash-metric__value">@(Model.NextBackupUtc is { } nb ? InFuture(nb) : "–")</div>
+                        <div class="dash-metric__label">Next run (@Model.SchedulesEnabledCount active)</div>
+                    </div>
+                    <div class="dash-metric">
+                        <div class="dash-metric__value">
+                            @if (Model.LastRunUtc is null)
+                            {
+                                <span class="text-muted">–</span>
+                            }
+                            else if (Model.LastRunOk == true)
+                            {
+                                <span class="pill pill--online"><icon name="check-circle" /> OK</span>
+                            }
+                            else if (Model.LastRunOk == false)
+                            {
+                                <span class="pill pill--error"><icon name="x-circle" /> Failed</span>
+                            }
+                            else
+                            {
+                                <span class="pill pill--unknown">@(string.IsNullOrWhiteSpace(Model.LastRunSummary) ? "Unknown" : Model.LastRunSummary)</span>
+                            }
+                        </div>
+                        <div class="dash-metric__label">Last scheduled run@(Model.LastRunUtc is { } lr ? $" · {Ago(lr)}" : "")</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
