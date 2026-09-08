@@ -230,8 +230,11 @@ public sealed class ScheduleService
         {
             All = input.OptionAll,
             IncludeShares = input.OptionIncludeShares,
-            BackupScheduleId = input.Action == ScheduleAction.Backup ? input.BackupScheduleId : null,
-            SyncJobId = input.Action == ScheduleAction.Sync ? input.SyncJobId : null,
+            VolumesCsv = input.Action == ScheduleAction.Backup ? input.VolumesCsv : null,
+            BackupTargetId = input.Action == ScheduleAction.Backup ? input.BackupTargetId : null,
+            RetentionCount = input.Action == ScheduleAction.Backup ? input.RetentionCount : 0,
+            RetentionDays = input.Action == ScheduleAction.Backup ? input.RetentionDays : 0,
+            StopContainers = input.Action == ScheduleAction.Backup && input.StopContainers,
         }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)
@@ -248,13 +251,16 @@ public sealed class ScheduleService
         {
             return "Please enter a valid cron expression (5 fields, UTC).";
         }
-        if (input.Action == ScheduleAction.Backup && input.BackupScheduleId is not > 0)
+        if (input.Action == ScheduleAction.Backup)
         {
-            return "Please select a backup definition to run.";
-        }
-        if (input.Action == ScheduleAction.Sync && input.SyncJobId is not > 0)
-        {
-            return "Please select a sync job to run.";
+            if (input.EnvironmentId is not > 0)
+            {
+                return "Please select a target environment for the backup.";
+            }
+            if (string.IsNullOrWhiteSpace(input.VolumesCsv))
+            {
+                return "Please enter at least one volume to back up.";
+            }
         }
         return null;
     }

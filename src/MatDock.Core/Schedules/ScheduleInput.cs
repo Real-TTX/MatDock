@@ -15,7 +15,10 @@ public sealed class ScheduleInput
     public long? EnvironmentId { get; set; }
     public bool OptionAll { get; set; }
     public bool OptionIncludeShares { get; set; }
-    public long? BackupScheduleId { get; set; }
-    public long? SyncJobId { get; set; }
+    public string? VolumesCsv { get; set; }
+    public long? BackupTargetId { get; set; }
+    public int RetentionCount { get; set; }
+    public int RetentionDays { get; set; }
+    public bool StopContainers { get; set; }
     public bool NotifyOnResult { get; set; }
 }

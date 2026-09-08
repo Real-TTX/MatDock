@@ -39,7 +39,7 @@ public class ScheduleUnificationMigratorTests
         Assert.Equal("backup", backup.SourceKind);
         Assert.Equal(ScheduleTrigger.Cron, backup.Trigger);
         Assert.NotNull(backup.NextRunAt);
-        Assert.Equal(backup.SourceId, ScheduleOptions.Parse(backup.OptionsJson).BackupScheduleId);
+        Assert.Equal("pgdata", ScheduleOptions.Parse(backup.OptionsJson).VolumesCsv);
 
         var sync = Assert.Single(tasks, t => t.Action == ScheduleAction.Sync);
         Assert.Equal("sync", sync.SourceKind);

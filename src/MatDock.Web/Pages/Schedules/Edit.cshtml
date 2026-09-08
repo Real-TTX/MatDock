@@ -32,8 +32,7 @@
                         <option value="PruneVolumes">Prune volumes</option>
                         <option value="PruneImages">Prune images</option>
                         <option value="PruneNetworks">Prune networks</option>
-                        <option value="Backup">Backup (run a backup definition)</option>
-                        <option value="Sync">Sync (run a GitOps sync job)</option>
+                        <option value="Backup">Backup volumes</option>
                     </select>
                 </mat-field>
                 <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Applies to all enabled environments when left on 'All'">
@@ -60,26 +59,30 @@
                 </label>
             </div>
             <div data-show-when="Input_Action=Backup">
-                <mat-field label="Backup definition" asp-for="Input.BackupScheduleId" hint="Volumes, target and retention come from this definition (managed under Backups)">
-                    <select asp-for="Input.BackupScheduleId" class="mat-select">
-                        <option value="">— select —</option>
-                        @foreach (var b in Model.BackupSchedules)
-                        {
-                            <option value="@b.Id">@b.Name</option>
-                        }
-                    </select>
+                <mat-field label="Volumes" asp-for="Input.VolumesCsv" hint="One volume name per line. Requires a target environment above.">
+                    <textarea asp-for="Input.VolumesCsv" class="mat-input" rows="3" placeholder="pgdata&#10;redis-data"></textarea>
                 </mat-field>
-            </div>
-            <div data-show-when="Input_Action=Sync">
-                <mat-field label="Sync job" asp-for="Input.SyncJobId" hint="The GitOps sync job to run (managed under Sync)">
-                    <select asp-for="Input.SyncJobId" class="mat-select">
-                        <option value="">— select —</option>
-                        @foreach (var s in Model.SyncJobs)
-                        {
-                            <option value="@s.Id">@s.Name</option>
-                        }
-                    </select>
-                </mat-field>
+                <div class="form-grid">
+                    <mat-field label="Backup target" asp-for="Input.BackupTargetId" hint="Where archives are stored">
+                        <select asp-for="Input.BackupTargetId" class="mat-select">
+                            <option value="">Local (/data/backups)</option>
+                            @foreach (var t in Model.BackupTargets)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                    </mat-field>
+                    <mat-field label="Keep newest (0 = unlimited)" asp-for="Input.RetentionCount">
+                        <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="Delete older than N days (0 = off)" asp-for="Input.RetentionDays">
+                        <input asp-for="Input.RetentionDays" type="number" min="0" class="mat-input" />
+                    </mat-field>
+                </div>
+                <label class="mat-check">
+                    <input asp-for="Input.StopContainers" type="checkbox" />
+                    <span>Stop the volume's containers during backup (consistent snapshot)</span>
+                </label>
             </div>
 
             <div class="form-grid">

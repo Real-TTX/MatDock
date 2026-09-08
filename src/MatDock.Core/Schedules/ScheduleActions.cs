@@ -1,10 +1,10 @@
 using System.Text;
-using MatDock.Core.Backups;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Notifications;
 using MatDock.Core.Sync;
+using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
 
 namespace MatDock.Core.Schedules;
@@ -204,48 +204,110 @@ public sealed class HealthAlertAction : ScheduleActionBase, IScheduleAction
     }
 }
 
-/// <summary>Runs a referenced BackupSchedule definition (volumes/target/retention) via the backup runner.</summary>
+/// <summary>Backs up the configured volumes of the target environment (self-contained: volumes/target/
+/// retention live in the task options) and prunes this task's own archives by retention.</summary>
 public sealed class BackupAction : IScheduleAction
 {
-    private static readonly string[] FailureMarkers = { "failed", "error", "not found", "no volumes", "disabled", "deleted" };
-
     private readonly MatDockDbContext _db;
-    private readonly BackupScheduleRunner _runner;
+    private readonly EnvironmentService _environments;
+    private readonly VolumeBackupService _backup;
 
-    public BackupAction(MatDockDbContext db, BackupScheduleRunner runner)
+    public BackupAction(MatDockDbContext db, EnvironmentService environments, VolumeBackupService backup)
     {
         _db = db;
-        _runner = runner;
+        _environments = environments;
+        _backup = backup;
     }
 
     public ScheduleAction Type => ScheduleAction.Backup;
 
     public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
     {
+        if (task.EnvironmentId is not > 0)
+        {
+            return (false, "No environment selected for backup.");
+        }
+
+        var env = await _environments.GetAsync(task.EnvironmentId.Value, ct);
+        if (env is null || !env.IsEnabled)
+        {
+            return (false, "Environment not available (disabled or deleted).");
+        }
+
         var opt = ScheduleOptions.Parse(task.OptionsJson);
-        if (opt.BackupScheduleId is not { } id)
+        var volumes = (opt.VolumesCsv ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (volumes.Count == 0)
         {
-            return (false, "No backup definition referenced.");
+            return (false, "No volumes selected.");
         }
 
-        var schedule = await _db.BackupSchedules.FirstOrDefaultAsync(s => s.Id == id, ct);
-        if (schedule is null)
+        BackupTarget? target = null;
+        if (opt.BackupTargetId is { } tid)
         {
-            return (false, "Referenced backup definition not found.");
+            target = await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == tid, ct);
+            if (target is null)
+            {
+                return (false, "Backup target has been deleted.");
+            }
         }
 
-        var summary = await _runner.RunAsync(schedule, ct);
+        var ok = 0;
+        var failures = new List<string>();
+        foreach (var volume in volumes)
+        {
+            ct.ThrowIfCancellationRequested();
+            var result = await _backup.BackupAsync(env, volume, target, scheduleId: null, ct,
+                stopContainers: opt.StopContainers, scheduledTaskId: task.Id);
+            if (result.Success)
+            {
+                ok++;
+                await ApplyRetentionAsync(task.Id, volume, opt, ct);
+            }
+            else
+            {
+                failures.Add($"{volume}: {result.Message}");
+            }
+        }
 
-        // Keep the backup definition's own status current (the Backups UI reads it).
-        schedule.LastRunAt = DateTime.UtcNow;
-        schedule.LastStatus = summary;
-        await _db.SaveChangesAsync(ct);
-
-        return (Ok(summary), summary);
+        var summary = $"{ok}/{volumes.Count} volumes backed up";
+        if (failures.Count > 0)
+        {
+            summary += " – " + string.Join("; ", failures.Take(3));
+        }
+        return (failures.Count == 0, summary);
     }
 
-    private static bool Ok(string summary)
-        => !FailureMarkers.Any(m => summary.Contains(m, StringComparison.OrdinalIgnoreCase));
+    private async Task ApplyRetentionAsync(long taskId, string volume, ScheduleOptions opt, CancellationToken ct)
+    {
+        if (opt.RetentionCount <= 0 && opt.RetentionDays <= 0)
+        {
+            return;
+        }
+
+        var backups = await _db.VolumeBackups
+            .Where(b => b.ScheduledTaskId == taskId && b.VolumeName == volume)
+            .OrderByDescending(b => b.CreateDate)
+            .ToListAsync(ct);
+
+        var toDelete = new HashSet<long>();
+        if (opt.RetentionCount > 0 && backups.Count > opt.RetentionCount)
+        {
+            foreach (var old in backups.Skip(opt.RetentionCount)) { toDelete.Add(old.Id); }
+        }
+        if (opt.RetentionDays > 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-opt.RetentionDays);
+            foreach (var old in backups.Where(b => b.CreateDate < cutoff)) { toDelete.Add(old.Id); }
+        }
+
+        foreach (var id in toDelete)
+        {
+            await _backup.DeleteAsync(id, ct);
+        }
+    }
 }
 
 /// <summary>Runs a referenced SyncJob (GitOps) via the sync runner.</summary>

@@ -3,7 +3,6 @@ using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Schedules;
-using MatDock.Core.Sync;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -13,22 +12,19 @@ public class EditModel : PageModel
 {
     private readonly ScheduleService _service;
     private readonly EnvironmentService _environments;
-    private readonly BackupScheduleService _backups;
-    private readonly SyncJobService _syncJobs;
+    private readonly BackupTargetService _backupTargets;
 
-    public EditModel(ScheduleService service, EnvironmentService environments, BackupScheduleService backups, SyncJobService syncJobs)
+    public EditModel(ScheduleService service, EnvironmentService environments, BackupTargetService backupTargets)
     {
         _service = service;
         _environments = environments;
-        _backups = backups;
-        _syncJobs = syncJobs;
+        _backupTargets = backupTargets;
     }
 
     [BindProperty] public InputModel Input { get; set; } = new();
 
     public List<DockerEnvironment> Environments { get; private set; } = new();
-    public List<BackupSchedule> BackupSchedules { get; private set; } = new();
-    public List<SyncJob> SyncJobs { get; private set; } = new();
+    public List<BackupTarget> BackupTargets { get; private set; } = new();
     public bool IsEdit => Input.Id is > 0;
 
     [TempData] public string? StatusMessage { get; set; }
@@ -49,8 +45,11 @@ public class EditModel : PageModel
         public long? EnvironmentId { get; set; }
         public bool OptionAll { get; set; }
         public bool OptionIncludeShares { get; set; }
-        public long? BackupScheduleId { get; set; }
-        public long? SyncJobId { get; set; }
+        public string? VolumesCsv { get; set; }
+        public long? BackupTargetId { get; set; }
+        public int RetentionCount { get; set; }
+        public int RetentionDays { get; set; }
+        public bool StopContainers { get; set; }
         public bool NotifyOnResult { get; set; }
     }
 
@@ -62,6 +61,12 @@ public class EditModel : PageModel
         {
             var t = await _service.GetAsync(id.Value, HttpContext.RequestAborted);
             if (t is null) { return RedirectToPage("Index"); }
+
+            // Sync schedules are managed in the Sync editor (single source of truth for their timing).
+            if (t.SourceKind == ScheduleService.SyncSource && t.SourceId is { } sid)
+            {
+                return Redirect($"/Stacks/SyncJobs/Edit?id={sid}");
+            }
 
             var opt = ScheduleOptions.Parse(t.OptionsJson);
             Input = new InputModel
@@ -76,8 +81,11 @@ public class EditModel : PageModel
                 EnvironmentId = t.EnvironmentId,
                 OptionAll = opt.All,
                 OptionIncludeShares = opt.IncludeShares,
-                BackupScheduleId = opt.BackupScheduleId,
-                SyncJobId = opt.SyncJobId,
+                VolumesCsv = opt.VolumesCsv,
+                BackupTargetId = opt.BackupTargetId,
+                RetentionCount = opt.RetentionCount,
+                RetentionDays = opt.RetentionDays,
+                StopContainers = opt.StopContainers,
                 NotifyOnResult = t.NotifyOnResult,
             };
         }
@@ -119,8 +127,7 @@ public class EditModel : PageModel
     {
         var ct = HttpContext.RequestAborted;
         Environments = await _environments.GetAllAsync(ct);
-        BackupSchedules = await _backups.GetAllAsync(ct);
-        SyncJobs = await _syncJobs.GetAllAsync(ct);
+        BackupTargets = await _backupTargets.GetAllAsync(ct);
     }
 
     private ScheduleInput ToInput() => new()
@@ -135,8 +142,11 @@ public class EditModel : PageModel
         EnvironmentId = Input.EnvironmentId,
         OptionAll = Input.OptionAll,
         OptionIncludeShares = Input.OptionIncludeShares,
-        BackupScheduleId = Input.BackupScheduleId,
-        SyncJobId = Input.SyncJobId,
+        VolumesCsv = Input.VolumesCsv,
+        BackupTargetId = Input.BackupTargetId,
+        RetentionCount = Input.RetentionCount,
+        RetentionDays = Input.RetentionDays,
+        StopContainers = Input.StopContainers,
         NotifyOnResult = Input.NotifyOnResult,
     };
 }

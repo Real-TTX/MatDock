@@ -25,6 +25,10 @@ public class VolumeBackup : AuditableEntity
     /// <summary>The schedule that created this backup; <c>null</c> for manual/on-demand backups. Retention only prunes a schedule's own archives.</summary>
     public long? BackupScheduleId { get; set; }
 
+    /// <summary>The ScheduledTask (Backup action) that created this backup; <c>null</c> otherwise. Retention for a
+    /// Schedules-driven backup only prunes that task's own archives.</summary>
+    public long? ScheduledTaskId { get; set; }
+
     public long SizeBytes { get; set; }
 
     public string? Note { get; set; }

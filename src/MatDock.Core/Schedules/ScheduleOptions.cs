@@ -11,9 +11,23 @@ public sealed class ScheduleOptions
     /// <summary>Volumes: also remove unused network shares (NFS/CIFS), not just local volumes.</summary>
     public bool IncludeShares { get; set; }
 
-    /// <summary>Backup action: the BackupSchedule definition (volumes/target/retention) to execute.</summary>
-    public long? BackupScheduleId { get; set; }
+    // --- Backup action (self-contained) ---
+    /// <summary>Volume names to back up, one per line.</summary>
+    public string? VolumesCsv { get; set; }
 
+    /// <summary>Backup target id, or null for local storage.</summary>
+    public long? BackupTargetId { get; set; }
+
+    /// <summary>Keep only the newest N archives per volume (0 = unlimited).</summary>
+    public int RetentionCount { get; set; }
+
+    /// <summary>Delete archives older than N days (0 = disabled).</summary>
+    public int RetentionDays { get; set; }
+
+    /// <summary>Stop the volume's containers during the backup for a consistent snapshot.</summary>
+    public bool StopContainers { get; set; }
+
+    // --- Sync action (reference) ---
     /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
     public long? SyncJobId { get; set; }
 

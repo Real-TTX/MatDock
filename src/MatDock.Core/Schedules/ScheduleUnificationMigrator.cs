@@ -55,7 +55,14 @@ public sealed class ScheduleUnificationMigrator
                 Cron = b.Cron,
                 Action = ScheduleAction.Backup,
                 EnvironmentId = b.EnvironmentId,
-                OptionsJson = new ScheduleOptions { BackupScheduleId = b.Id }.ToJson(),
+                OptionsJson = new ScheduleOptions
+                {
+                    VolumesCsv = b.VolumesCsv,
+                    BackupTargetId = b.BackupTargetId,
+                    RetentionCount = b.RetentionCount,
+                    RetentionDays = b.RetentionDays,
+                    StopContainers = b.StopContainers,
+                }.ToJson(),
                 NextRunAt = b.Enabled ? SafeNext(b.Cron, now) : null,
                 SourceKind = BackupKind,
                 SourceId = b.Id,
