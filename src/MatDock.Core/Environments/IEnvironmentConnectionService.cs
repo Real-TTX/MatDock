@@ -54,4 +54,13 @@ public interface IEnvironmentConnectionService
 
     /// <summary>Removes all unused (custom) networks on the host — <c>docker network prune</c>.</summary>
     Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Lists the Docker images on the host (tagged first, dangling last).</summary>
+    Task<IReadOnlyList<DockerImage>> ListImagesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a single image by reference or id. <paramref name="force"/> maps to <c>docker image rm -f</c>.</summary>
+    Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default);
+
+    /// <summary>Prunes dangling images, or all unused images when <paramref name="all"/> is set.</summary>
+    Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default);
 }

@@ -68,6 +68,31 @@ public sealed class DockerVolume
     public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
 }
 
+/// <summary>A Docker image as shown in the environment's image list.</summary>
+public sealed class DockerImage
+{
+    public string Id { get; init; } = string.Empty;
+
+    public string Repository { get; init; } = string.Empty;
+
+    public string Tag { get; init; } = string.Empty;
+
+    public string? Digest { get; init; }
+
+    public string? CreatedAt { get; init; }
+
+    public string? CreatedSince { get; init; }
+
+    /// <summary>Human-readable size straight from Docker (e.g. "142MB").</summary>
+    public string? Size { get; init; }
+
+    /// <summary>A dangling image has neither repository nor tag (shown as &lt;none&gt;).</summary>
+    public bool Dangling => Repository is "<none>" or "" || Tag is "<none>";
+
+    /// <summary>Display reference: repo:tag, or the id for dangling images.</summary>
+    public string Reference => Dangling ? Id : $"{Repository}:{Tag}";
+}
+
 /// <summary>Outcome of a prune (volumes or networks): whether it ran, how many were removed, raw detail.</summary>
 public sealed record PruneResult(bool Success, int Removed, string Detail)
 {

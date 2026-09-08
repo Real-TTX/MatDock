@@ -107,6 +107,24 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
         LastSettings = settings;
         return Task.FromResult(new PruneResult(true, 0, string.Empty));
     }
+
+    public Task<IReadOnlyList<DockerImage>> ListImagesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult<IReadOnlyList<DockerImage>>(new List<DockerImage>());
+    }
+
+    public Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult((true, "ok"));
+    }
+
+    public Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult(new PruneResult(true, 0, string.Empty));
+    }
 }
 
 /// <summary>No-op storage factory for service tests that don't touch real storage.</summary>

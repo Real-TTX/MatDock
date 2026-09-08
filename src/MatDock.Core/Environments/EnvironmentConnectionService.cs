@@ -3,6 +3,7 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Execution;
+using MatDock.Core.Images;
 using MatDock.Core.Networks;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
@@ -483,6 +484,71 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
+    public async Task<IReadOnlyList<DockerImage>> ListImagesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            throw new InvalidOperationException(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, ImageCommands.List(head), settings);
+        if (result.ExitStatus != 0)
+        {
+            throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+        }
+
+        return ParseImages(result.StdOut);
+    }
+
+    public async Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default)
+    {
+        if (!ImageCommands.IsValidImageRef(reference))
+        {
+            return (false, "Invalid image reference.");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, ImageCommands.Remove(reference, force, head), settings);
+        return result.ExitStatus == 0
+            ? (true, $"Image \"{reference}\" removed.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    public async Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return PruneResult.Fail(DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, ImageCommands.Prune(all, head), settings);
+        return result.ExitStatus == 0
+            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
+            : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
     /// <summary>Counts the deleted items in a <c>docker … prune</c> output (item lines carry no colon).</summary>
     private static int CountPruneItems(string stdout)
         => stdout.Split('\n')
@@ -626,6 +692,55 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         return result;
+    }
+
+    private static IReadOnlyList<DockerImage> ParseImages(string output)
+    {
+        var images = new List<DockerImage>();
+        foreach (var line in output.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString()
+                    : null;
+
+                images.Add(new DockerImage
+                {
+                    Id = Get("ID") ?? string.Empty,
+                    Repository = Get("Repository") ?? string.Empty,
+                    Tag = Get("Tag") ?? string.Empty,
+                    Digest = Get("Digest") is { Length: > 0 } d && d != "<none>" ? d : null,
+                    CreatedAt = Get("CreatedAt"),
+                    CreatedSince = Get("CreatedSince"),
+                    Size = Get("Size"),
+                });
+            }
+            catch (JsonException)
+            {
+                // Skip malformed lines rather than failing the whole listing.
+            }
+        }
+
+        // Tagged images first (alphabetical), dangling ones last.
+        return images
+            .OrderBy(i => i.Dangling)
+            .ThenBy(i => i.Repository, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(i => i.Tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static IReadOnlyList<DockerNetwork> ParseNetworks(string output)
