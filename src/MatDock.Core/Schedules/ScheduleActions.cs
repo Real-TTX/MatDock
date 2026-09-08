@@ -1,7 +1,11 @@
 using System.Text;
+using MatDock.Core.Backups;
+using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Notifications;
+using MatDock.Core.Sync;
+using Microsoft.EntityFrameworkCore;
 
 namespace MatDock.Core.Schedules;
 
@@ -197,5 +201,89 @@ public sealed class HealthAlertAction : ScheduleActionBase, IScheduleAction
         var body = "MatDock health alert:\n\n- " + string.Join("\n- ", problems);
         await _notifications.NotifyAsync("MatDock health alert", body, ct);
         return (false, $"{problems.Count} problem(s): {string.Join("; ", problems)}");
+    }
+}
+
+/// <summary>Runs a referenced BackupSchedule definition (volumes/target/retention) via the backup runner.</summary>
+public sealed class BackupAction : IScheduleAction
+{
+    private static readonly string[] FailureMarkers = { "failed", "error", "not found", "no volumes", "disabled", "deleted" };
+
+    private readonly MatDockDbContext _db;
+    private readonly BackupScheduleRunner _runner;
+
+    public BackupAction(MatDockDbContext db, BackupScheduleRunner runner)
+    {
+        _db = db;
+        _runner = runner;
+    }
+
+    public ScheduleAction Type => ScheduleAction.Backup;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+        if (opt.BackupScheduleId is not { } id)
+        {
+            return (false, "No backup definition referenced.");
+        }
+
+        var schedule = await _db.BackupSchedules.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (schedule is null)
+        {
+            return (false, "Referenced backup definition not found.");
+        }
+
+        var summary = await _runner.RunAsync(schedule, ct);
+
+        // Keep the backup definition's own status current (the Backups UI reads it).
+        schedule.LastRunAt = DateTime.UtcNow;
+        schedule.LastStatus = summary;
+        await _db.SaveChangesAsync(ct);
+
+        return (Ok(summary), summary);
+    }
+
+    private static bool Ok(string summary)
+        => !FailureMarkers.Any(m => summary.Contains(m, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>Runs a referenced SyncJob (GitOps) via the sync runner.</summary>
+public sealed class SyncAction : IScheduleAction
+{
+    private readonly MatDockDbContext _db;
+    private readonly SyncJobRunner _runner;
+
+    public SyncAction(MatDockDbContext db, SyncJobRunner runner)
+    {
+        _db = db;
+        _runner = runner;
+    }
+
+    public ScheduleAction Type => ScheduleAction.Sync;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+        if (opt.SyncJobId is not { } id)
+        {
+            return (false, "No sync job referenced.");
+        }
+
+        var job = await _db.SyncJobs.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (job is null)
+        {
+            return (false, "Referenced sync job not found.");
+        }
+
+        var summary = await _runner.RunAsync(job, force: false, ct);
+
+        job.LastRunAt = DateTime.UtcNow;
+        job.LastStatus = summary;
+        await _db.SaveChangesAsync(ct);
+
+        var ok = !summary.Contains("failed", StringComparison.OrdinalIgnoreCase)
+                 && !summary.Contains("error", StringComparison.OrdinalIgnoreCase);
+        return (ok, summary);
     }
 }

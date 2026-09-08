@@ -1,5 +1,6 @@
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
+using MatDock.Core.Schedules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,14 +11,22 @@ public sealed class BackupScheduleService
 {
     private readonly MatDockDbContext _db;
     private readonly BackupScheduleRunner _runner;
+    private readonly ScheduleService _schedules;
     private readonly ILogger<BackupScheduleService> _logger;
 
-    public BackupScheduleService(MatDockDbContext db, BackupScheduleRunner runner, ILogger<BackupScheduleService> logger)
+    public BackupScheduleService(MatDockDbContext db, BackupScheduleRunner runner, ScheduleService schedules, ILogger<BackupScheduleService> logger)
     {
         _db = db;
         _runner = runner;
+        _schedules = schedules;
         _logger = logger;
     }
+
+    /// <summary>Keeps the unified Schedules entry that drives this backup's timing in sync.</summary>
+    private Task SyncTaskAsync(BackupSchedule schedule, CancellationToken ct)
+        => _schedules.UpsertSourceTaskAsync(ScheduleService.BackupSource, schedule.Id, $"Backup: {schedule.Name}",
+            schedule.EnvironmentId, schedule.Cron, schedule.Enabled, ScheduleAction.Backup,
+            new ScheduleOptions { BackupScheduleId = schedule.Id }, ct);
 
     public Task<List<BackupSchedule>> GetAllAsync(CancellationToken ct = default)
         => _db.BackupSchedules.AsNoTracking().OrderBy(s => s.Name).ToListAsync(ct);
@@ -31,6 +40,7 @@ public sealed class BackupScheduleService
         ApplyInput(schedule, input);
         _db.BackupSchedules.Add(schedule);
         await _db.SaveChangesAsync(ct);
+        await SyncTaskAsync(schedule, ct);
         return schedule;
     }
 
@@ -44,6 +54,7 @@ public sealed class BackupScheduleService
 
         ApplyInput(schedule, input);
         await _db.SaveChangesAsync(ct);
+        await SyncTaskAsync(schedule, ct);
         return true;
     }
 
@@ -57,6 +68,7 @@ public sealed class BackupScheduleService
 
         _db.BackupSchedules.Remove(schedule);
         await _db.SaveChangesAsync(ct);
+        await _schedules.RemoveSourceTaskAsync(ScheduleService.BackupSource, id, ct);
         return true;
     }
 

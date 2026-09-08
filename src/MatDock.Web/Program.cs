@@ -58,8 +58,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
-builder.Services.AddHostedService<BackupSchedulerService>();
-builder.Services.AddHostedService<SyncJobSchedulerService>();
+// Backup schedules and sync-job cron are now driven by the unified Schedules runner (see the
+// startup migration below); the standalone backup/sync scheduler services are intentionally not
+// registered anymore to avoid double-runs. Webhook-triggered syncs still run via their endpoint.
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 
@@ -184,5 +185,19 @@ app.MapPost("/webhooks/sync/{token}", MatDock.Web.Sync.WebhookSyncEndpoint.Handl
 // Database migration + first-run seed
 // ---------------------------------------------------------------------------
 await DbBootstrapper.InitializeAsync(app.Services, app.Logger);
+
+// One-time (idempotent) unification: mirror existing backup schedules and sync-job cron into the
+// generic Schedules so a single runner drives their timing. Originals are kept (reversible).
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        await scope.ServiceProvider.GetRequiredService<MatDock.Core.Schedules.ScheduleUnificationMigrator>().MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Schedule unification migration failed.");
+    }
+}
 
 app.Run();

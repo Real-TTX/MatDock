@@ -228,7 +228,9 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Cron).HasMaxLength(120);
             e.Property(x => x.OptionsJson).HasMaxLength(2000);
             e.Property(x => x.LastStatus).HasMaxLength(1000);
+            e.Property(x => x.SourceKind).HasMaxLength(20);
             e.HasIndex(x => x.Name);
+            e.HasIndex(x => new { x.SourceKind, x.SourceId });
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

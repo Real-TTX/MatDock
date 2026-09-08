@@ -10,6 +10,10 @@ namespace MatDock.Core.Schedules;
 /// <summary>CRUD for scheduled tasks plus running due (cron) tasks and manual/event dispatch.</summary>
 public sealed class ScheduleService
 {
+    /// <summary>SourceKind values linking a task back to the BackupSchedule/SyncJob it mirrors.</summary>
+    public const string BackupSource = "backup";
+    public const string SyncSource = "sync";
+
     private readonly MatDockDbContext _db;
     private readonly IEnumerable<IScheduleAction> _actions;
     private readonly INotificationService _notifications;
@@ -119,6 +123,40 @@ public sealed class ScheduleService
         return due.Count;
     }
 
+    /// <summary>Creates or updates the ScheduledTask that mirrors a BackupSchedule/SyncJob so the unified
+    /// runner drives its timing live (called by those definition services on save).</summary>
+    public async Task UpsertSourceTaskAsync(string kind, long sourceId, string name, long? environmentId,
+        string cron, bool enabled, ScheduleAction action, ScheduleOptions options, CancellationToken ct = default)
+    {
+        var task = await _db.ScheduledTasks.FirstOrDefaultAsync(t => t.SourceKind == kind && t.SourceId == sourceId, ct);
+        if (task is null)
+        {
+            task = new ScheduledTask { SourceKind = kind, SourceId = sourceId };
+            _db.ScheduledTasks.Add(task);
+        }
+
+        task.Name = name;
+        task.Trigger = ScheduleTrigger.Cron;
+        task.Cron = cron;
+        task.Action = action;
+        task.EnvironmentId = environmentId;
+        task.Enabled = enabled;
+        task.OptionsJson = options.ToJson();
+        task.NextRunAt = enabled ? SafeNext(cron, DateTime.UtcNow) : null;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Removes the mirrored ScheduledTask for a deleted/disabled source, if any.</summary>
+    public async Task RemoveSourceTaskAsync(string kind, long sourceId, CancellationToken ct = default)
+    {
+        var task = await _db.ScheduledTasks.FirstOrDefaultAsync(t => t.SourceKind == kind && t.SourceId == sourceId, ct);
+        if (task is not null)
+        {
+            _db.ScheduledTasks.Remove(task);
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
     /// <summary>Runs every enabled event-triggered task subscribed to <paramref name="evt"/> (matching the
     /// environment, or global). Returns how many ran.</summary>
     public async Task<int> DispatchEventAsync(ScheduleEvent evt, long? environmentId, string? detail, CancellationToken ct = default)
@@ -188,7 +226,13 @@ public sealed class ScheduleService
         task.Action = input.Action;
         task.EnvironmentId = input.EnvironmentId is > 0 ? input.EnvironmentId : null;
         task.NotifyOnResult = input.NotifyOnResult;
-        task.OptionsJson = new ScheduleOptions { All = input.OptionAll, IncludeShares = input.OptionIncludeShares }.ToJson();
+        task.OptionsJson = new ScheduleOptions
+        {
+            All = input.OptionAll,
+            IncludeShares = input.OptionIncludeShares,
+            BackupScheduleId = input.Action == ScheduleAction.Backup ? input.BackupScheduleId : null,
+            SyncJobId = input.Action == ScheduleAction.Sync ? input.SyncJobId : null,
+        }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)
             : null;
@@ -203,6 +247,14 @@ public sealed class ScheduleService
         if (input.Trigger == ScheduleTrigger.Cron && !CronSchedule.IsValid(input.Cron))
         {
             return "Please enter a valid cron expression (5 fields, UTC).";
+        }
+        if (input.Action == ScheduleAction.Backup && input.BackupScheduleId is not > 0)
+        {
+            return "Please select a backup definition to run.";
+        }
+        if (input.Action == ScheduleAction.Sync && input.SyncJobId is not > 0)
+        {
+            return "Please select a sync job to run.";
         }
         return null;
     }

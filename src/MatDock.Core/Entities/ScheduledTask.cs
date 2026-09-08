@@ -35,4 +35,11 @@ public class ScheduledTask : AuditableEntity
     public DateTime? NextRunAt { get; set; }
 
     public string? LastStatus { get; set; }
+
+    /// <summary>Origin of an auto-migrated task ("backup" or "sync"), or null for a hand-created one.
+    /// Together with <see cref="SourceId"/> it makes the one-time unification migration idempotent.</summary>
+    public string? SourceKind { get; set; }
+
+    /// <summary>Id of the source BackupSchedule/SyncJob this task was migrated from, or null.</summary>
+    public long? SourceId { get; set; }
 }

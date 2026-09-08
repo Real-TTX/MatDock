@@ -3,6 +3,7 @@ using MatDock.Core.Backups;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Git;
+using MatDock.Core.Schedules;
 using MatDock.Core.Stacks;
 using MatDock.Core.Volumes;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public sealed class SyncJobService
     private readonly GitCredentialService _gitCredentials;
     private readonly GitRepositoryService _gitRepo;
     private readonly SyncJobRunner _runner;
+    private readonly ScheduleService _schedules;
     private readonly ILogger<SyncJobService> _logger;
 
     public SyncJobService(
@@ -27,14 +29,23 @@ public sealed class SyncJobService
         GitCredentialService gitCredentials,
         GitRepositoryService gitRepo,
         SyncJobRunner runner,
+        ScheduleService schedules,
         ILogger<SyncJobService> logger)
     {
         _db = db;
         _gitCredentials = gitCredentials;
         _gitRepo = gitRepo;
         _runner = runner;
+        _schedules = schedules;
         _logger = logger;
     }
+
+    /// <summary>Keeps the unified Schedules entry driving this job's cron in sync (removed when cron is off).</summary>
+    private Task SyncTaskAsync(SyncJob job, CancellationToken ct)
+        => job.ScheduleEnabled && !string.IsNullOrWhiteSpace(job.Cron)
+            ? _schedules.UpsertSourceTaskAsync(ScheduleService.SyncSource, job.Id, $"Sync: {job.Name}", null,
+                job.Cron!, true, ScheduleAction.Sync, new ScheduleOptions { SyncJobId = job.Id }, ct)
+            : _schedules.RemoveSourceTaskAsync(ScheduleService.SyncSource, job.Id, ct);
 
     public Task<List<SyncJob>> GetAllAsync(CancellationToken ct = default)
         => _db.SyncJobs.AsNoTracking().OrderBy(j => j.Name).ToListAsync(ct);
@@ -76,6 +87,7 @@ public sealed class SyncJobService
             _db.SyncJobItems.Add(item);
         }
         await _db.SaveChangesAsync(ct);
+        await SyncTaskAsync(job, ct);
 
         return (true, "Sync job created.", job.Id);
     }
@@ -121,6 +133,7 @@ public sealed class SyncJobService
         }
 
         await _db.SaveChangesAsync(ct);
+        await SyncTaskAsync(job, ct);
         return (true, "Sync job saved.");
     }
 
@@ -139,6 +152,7 @@ public sealed class SyncJobService
         _db.SyncJobs.Remove(job);
         // Managed stacks are left running; their SyncJobId simply dangles (shown as a normal stack).
         await _db.SaveChangesAsync(ct);
+        await _schedules.RemoveSourceTaskAsync(ScheduleService.SyncSource, id, ct);
         return true;
     }
 

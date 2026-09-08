@@ -11,6 +11,12 @@ public sealed class ScheduleOptions
     /// <summary>Volumes: also remove unused network shares (NFS/CIFS), not just local volumes.</summary>
     public bool IncludeShares { get; set; }
 
+    /// <summary>Backup action: the BackupSchedule definition (volumes/target/retention) to execute.</summary>
+    public long? BackupScheduleId { get; set; }
+
+    /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
+    public long? SyncJobId { get; set; }
+
     public static ScheduleOptions Parse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))

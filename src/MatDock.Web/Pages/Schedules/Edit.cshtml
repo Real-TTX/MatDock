@@ -32,6 +32,8 @@
                         <option value="PruneVolumes">Prune volumes</option>
                         <option value="PruneImages">Prune images</option>
                         <option value="PruneNetworks">Prune networks</option>
+                        <option value="Backup">Backup (run a backup definition)</option>
+                        <option value="Sync">Sync (run a GitOps sync job)</option>
                     </select>
                 </mat-field>
                 <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Applies to all enabled environments when left on 'All'">
@@ -56,6 +58,28 @@
                     <input asp-for="Input.OptionIncludeShares" type="checkbox" />
                     <span>Also remove unused <strong>network shares</strong> (NFS/CIFS), not just local volumes</span>
                 </label>
+            </div>
+            <div data-show-when="Input_Action=Backup">
+                <mat-field label="Backup definition" asp-for="Input.BackupScheduleId" hint="Volumes, target and retention come from this definition (managed under Backups)">
+                    <select asp-for="Input.BackupScheduleId" class="mat-select">
+                        <option value="">— select —</option>
+                        @foreach (var b in Model.BackupSchedules)
+                        {
+                            <option value="@b.Id">@b.Name</option>
+                        }
+                    </select>
+                </mat-field>
+            </div>
+            <div data-show-when="Input_Action=Sync">
+                <mat-field label="Sync job" asp-for="Input.SyncJobId" hint="The GitOps sync job to run (managed under Sync)">
+                    <select asp-for="Input.SyncJobId" class="mat-select">
+                        <option value="">— select —</option>
+                        @foreach (var s in Model.SyncJobs)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </mat-field>
             </div>
 
             <div class="form-grid">
