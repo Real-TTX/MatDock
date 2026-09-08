@@ -60,6 +60,7 @@ builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddHostedService<BackupSchedulerService>();
 builder.Services.AddHostedService<SyncJobSchedulerService>();
+builder.Services.AddHostedService<ScheduleRunnerService>();
 
 // ---------------------------------------------------------------------------
 // Authentication / authorization
@@ -118,6 +119,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Proxy", "AdminOnly");
     // Registry browser (credentials + private image catalog) → admins only.
     options.Conventions.AuthorizeFolder("/Registry", "AdminOnly");
+    // Scheduled tasks run prune/notification actions → admins only.
+    options.Conventions.AuthorizeFolder("/Schedules", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 });

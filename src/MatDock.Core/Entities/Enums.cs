@@ -71,6 +71,33 @@ public enum ProxyProviderType
     Matcad = 1
 }
 
+/// <summary>What fires a scheduled task: a cron time trigger or an internal event.</summary>
+public enum ScheduleTrigger
+{
+    Cron = 0,
+    Event = 1
+}
+
+/// <summary>What a scheduled task does when it fires.</summary>
+public enum ScheduleAction
+{
+    PruneVolumes = 0,
+    PruneImages = 1,
+    PruneNetworks = 2,
+    Summary = 3,
+    Backup = 4
+}
+
+/// <summary>Internal events that can trigger a scheduled task (Phase 2).</summary>
+public enum ScheduleEvent
+{
+    DeployFailed = 0,
+    BackupFailed = 1,
+    SyncFailed = 2,
+    EnvironmentOffline = 3,
+    ContainerDied = 4
+}
+
 /// <summary>Where backup archives are stored.</summary>
 public enum BackupTargetType
 {

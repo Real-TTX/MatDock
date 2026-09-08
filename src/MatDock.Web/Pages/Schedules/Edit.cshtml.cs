@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Schedules;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -9,192 +9,115 @@ namespace MatDock.Web.Pages.Schedules;
 
 public class EditModel : PageModel
 {
-    private readonly BackupScheduleService _scheduleService;
-    private readonly EnvironmentService _environmentService;
-    private readonly BackupTargetService _targetService;
-    private readonly IEnvironmentConnectionService _connectionService;
+    private readonly ScheduleService _service;
+    private readonly EnvironmentService _environments;
 
-    public EditModel(
-        BackupScheduleService scheduleService,
-        EnvironmentService environmentService,
-        BackupTargetService targetService,
-        IEnvironmentConnectionService connectionService)
+    public EditModel(ScheduleService service, EnvironmentService environments)
     {
-        _scheduleService = scheduleService;
-        _environmentService = environmentService;
-        _targetService = targetService;
-        _connectionService = connectionService;
+        _service = service;
+        _environments = environments;
     }
 
-    [BindProperty]
-    public InputModel Input { get; set; } = new();
+    [BindProperty] public InputModel Input { get; set; } = new();
 
-    public bool IsEdit => Input.Id is > 0;
     public List<DockerEnvironment> Environments { get; private set; } = new();
-    public List<BackupTarget> Targets { get; private set; } = new();
-    public List<string> AvailableVolumes { get; private set; } = new();
-    public string? VolumeLoadError { get; private set; }
+    public bool IsEdit => Input.Id is > 0;
 
-    public class InputModel
+    [TempData] public string? StatusMessage { get; set; }
+
+    public sealed class InputModel
     {
         public long? Id { get; set; }
 
-        [Required(ErrorMessage = "Please enter a name.")]
+        [Required(ErrorMessage = "Name is required.")]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
-        [Range(1, long.MaxValue, ErrorMessage = "Please select an environment.")]
-        public long EnvironmentId { get; set; }
-
-        public List<string> SelectedVolumes { get; set; } = new();
-
-        [Display(Name = "Additional volumes (one per line)")]
-        public string? ExtraVolumes { get; set; }
-
-        public long? BackupTargetId { get; set; }
-
-        [Required(ErrorMessage = "Please enter a cron expression.")]
-        public string Cron { get; set; } = "0 3 * * *";
-
-        [Range(0, int.MaxValue)]
-        public int RetentionCount { get; set; } = 7;
-
-        [Range(0, int.MaxValue)]
-        public int RetentionDays { get; set; }
-
         public bool Enabled { get; set; } = true;
-
-        public bool StopContainers { get; set; }
+        public ScheduleTrigger Trigger { get; set; } = ScheduleTrigger.Cron;
+        public string? Cron { get; set; } = "0 4 * * *";
+        public ScheduleEvent Event { get; set; } = ScheduleEvent.DeployFailed;
+        public ScheduleAction Action { get; set; } = ScheduleAction.Summary;
+        public long? EnvironmentId { get; set; }
+        public bool OptionAll { get; set; }
+        public bool OptionIncludeShares { get; set; }
+        public bool NotifyOnResult { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
     {
-        await LoadListsAsync();
+        await LoadAsync();
 
         if (id is > 0)
         {
-            var s = await _scheduleService.GetAsync(id.Value, HttpContext.RequestAborted);
-            if (s is null)
-            {
-                return NotFound();
-            }
+            var t = await _service.GetAsync(id.Value, HttpContext.RequestAborted);
+            if (t is null) { return RedirectToPage("Index"); }
 
+            var opt = ScheduleOptions.Parse(t.OptionsJson);
             Input = new InputModel
             {
-                Id = s.Id,
-                Name = s.Name,
-                EnvironmentId = s.EnvironmentId,
-                SelectedVolumes = s.Volumes.ToList(),
-                BackupTargetId = s.BackupTargetId,
-                Cron = s.Cron,
-                RetentionCount = s.RetentionCount,
-                RetentionDays = s.RetentionDays,
-                Enabled = s.Enabled,
-                StopContainers = s.StopContainers
+                Id = t.Id,
+                Name = t.Name,
+                Enabled = t.Enabled,
+                Trigger = t.Trigger,
+                Cron = t.Cron ?? "0 4 * * *",
+                Event = t.Event,
+                Action = t.Action,
+                EnvironmentId = t.EnvironmentId,
+                OptionAll = opt.All,
+                OptionIncludeShares = opt.IncludeShares,
+                NotifyOnResult = t.NotifyOnResult,
             };
-
-            await LoadVolumesAsync(s.EnvironmentId);
         }
 
-        return Page();
-    }
-
-    public async Task<IActionResult> OnPostLoadVolumesAsync()
-    {
-        await LoadListsAsync();
-        await LoadVolumesAsync(Input.EnvironmentId);
-        ModelState.Clear();
         return Page();
     }
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
-        await LoadListsAsync();
+        await LoadAsync();
+        if (!ModelState.IsValid) { return Page(); }
 
-        if (!CronSchedule.IsValid(Input.Cron))
-        {
-            ModelState.AddModelError("Input.Cron", "Invalid cron expression (5 fields, e.g. 0 3 * * *).");
-        }
-
-        var volumes = CombineVolumes();
-        if (volumes.Count == 0)
-        {
-            ModelState.AddModelError("Input.SelectedVolumes", "Please select or enter at least one volume.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            await LoadVolumesAsync(Input.EnvironmentId);
-            return Page();
-        }
-
-        var input = new BackupScheduleInput
-        {
-            Name = Input.Name,
-            EnvironmentId = Input.EnvironmentId,
-            VolumesCsv = string.Join('\n', volumes),
-            BackupTargetId = Input.BackupTargetId,
-            Cron = Input.Cron,
-            RetentionCount = Input.RetentionCount,
-            RetentionDays = Input.RetentionDays,
-            Enabled = Input.Enabled,
-            StopContainers = Input.StopContainers
-        };
-
+        var input = ToInput();
         if (IsEdit)
         {
-            var ok = await _scheduleService.UpdateAsync(Input.Id!.Value, input, HttpContext.RequestAborted);
-            if (!ok)
-            {
-                return NotFound();
-            }
+            var (ok, message) = await _service.UpdateAsync(Input.Id!.Value, input, HttpContext.RequestAborted);
+            if (!ok) { ModelState.AddModelError(string.Empty, message); return Page(); }
         }
         else
         {
-            await _scheduleService.CreateAsync(input, HttpContext.RequestAborted);
+            var (ok, message, _) = await _service.CreateAsync(input, HttpContext.RequestAborted);
+            if (!ok) { ModelState.AddModelError(string.Empty, message); return Page(); }
         }
 
-        return RedirectToPage("/Schedules/Index");
+        StatusMessage = "Schedule saved.";
+        return RedirectToPage("Index");
     }
 
-    private List<string> CombineVolumes()
+    public async Task<IActionResult> OnPostRunNowAsync()
     {
-        var result = new List<string>(Input.SelectedVolumes);
-        if (!string.IsNullOrWhiteSpace(Input.ExtraVolumes))
+        if (Input.Id is > 0)
         {
-            result.AddRange(Input.ExtraVolumes.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            StatusMessage = await _service.RunNowAsync(Input.Id.Value, HttpContext.RequestAborted);
         }
-
-        return result.Where(v => v.Length > 0).Distinct(StringComparer.Ordinal).ToList();
+        return RedirectToPage("Index");
     }
 
-    private async Task LoadListsAsync()
+    private async Task LoadAsync()
+        => Environments = await _environments.GetAllAsync(HttpContext.RequestAborted);
+
+    private ScheduleInput ToInput() => new()
     {
-        Environments = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
-        Targets = await _targetService.GetAllAsync(HttpContext.RequestAborted);
-    }
-
-    private async Task LoadVolumesAsync(long environmentId)
-    {
-        if (environmentId <= 0)
-        {
-            return;
-        }
-
-        var env = Environments.FirstOrDefault(e => e.Id == environmentId);
-        if (env is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var volumes = await _connectionService.ListVolumesAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
-            AvailableVolumes = volumes.Select(v => v.Name).ToList();
-        }
-        catch (Exception ex)
-        {
-            VolumeLoadError = ex.Message;
-        }
-    }
+        Id = Input.Id ?? 0,
+        Name = Input.Name,
+        Enabled = Input.Enabled,
+        Trigger = Input.Trigger,
+        Cron = Input.Cron,
+        Event = Input.Event,
+        Action = Input.Action,
+        EnvironmentId = Input.EnvironmentId,
+        OptionAll = Input.OptionAll,
+        OptionIncludeShares = Input.OptionIncludeShares,
+        NotifyOnResult = Input.NotifyOnResult,
+    };
 }

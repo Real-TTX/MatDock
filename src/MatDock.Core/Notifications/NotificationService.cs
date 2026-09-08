@@ -16,6 +16,10 @@ public interface INotificationService
 
     /// <summary>Sends a test notification via all enabled channels; returns an aggregated result.</summary>
     Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default);
+
+    /// <summary>Sends a generic notification (e.g. a scheduled report or a schedule run result) via all
+    /// enabled channels, regardless of the backup success/failure preferences. Best-effort per channel.</summary>
+    Task<(bool Ok, string Message)> NotifyAsync(string subject, string body, CancellationToken ct = default);
 }
 
 /// <summary>Delivers notifications by e-mail (SMTP) and/or HTTP webhook. Every channel is best-effort.</summary>
@@ -59,6 +63,19 @@ public sealed class NotificationService : INotificationService
         return errors.Count == 0
             ? (true, "Test notification sent.")
             : (false, string.Join(" · ", errors));
+    }
+
+    public async Task<(bool Ok, string Message)> NotifyAsync(string subject, string body, CancellationToken ct = default)
+    {
+        var s = await _settingsService.GetAsync(ct);
+        if (!s.SmtpEnabled && !s.WebhookEnabled)
+        {
+            return (false, "No notification channel enabled (SMTP and webhook are off).");
+        }
+
+        var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
+        var errors = await DispatchAsync(s, safeSubject, body, safeSubject, success: true, ct);
+        return errors.Count == 0 ? (true, "Notification sent.") : (false, string.Join(" · ", errors));
     }
 
     private async Task<List<string>> DispatchAsync(NotificationSettings s, string subject, string body, string scheduleName, bool success, CancellationToken ct)

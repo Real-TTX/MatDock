@@ -1,6 +1,6 @@
-using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Schedules;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -8,43 +8,38 @@ namespace MatDock.Web.Pages.Schedules;
 
 public class IndexModel : PageModel
 {
-    private readonly BackupScheduleService _scheduleService;
-    private readonly EnvironmentService _environmentService;
+    private readonly ScheduleService _service;
+    private readonly EnvironmentService _environments;
 
-    public IndexModel(BackupScheduleService scheduleService, EnvironmentService environmentService)
+    public IndexModel(ScheduleService service, EnvironmentService environments)
     {
-        _scheduleService = scheduleService;
-        _environmentService = environmentService;
+        _service = service;
+        _environments = environments;
     }
-
-    public List<BackupSchedule> Items { get; private set; } = new();
-    public Dictionary<long, string> EnvironmentNames { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
 
+    public List<ScheduledTask> Tasks { get; private set; } = new();
+    public Dictionary<long, string> EnvNames { get; private set; } = new();
+
     public async Task OnGetAsync()
     {
-        Items = await _scheduleService.GetAllAsync(HttpContext.RequestAborted);
-        EnvironmentNames = (await _environmentService.GetAllAsync(HttpContext.RequestAborted))
-            .ToDictionary(e => e.Id, e => e.Name);
-    }
-
-    public async Task<IActionResult> OnPostRunAsync(long id)
-    {
-        var summary = await _scheduleService.RunNowAsync(id, HttpContext.RequestAborted);
-        StatusMessage = $"Executed: {summary}";
-        // Summary starts with "<ok>/<total> volumes backed up"; error if not all succeeded (or non-standard summary).
-        var m = System.Text.RegularExpressions.Regex.Match(summary, @"^(\d+)/(\d+)\b");
-        IsError = m.Success ? m.Groups[1].Value != m.Groups[2].Value : true;
-        return RedirectToPage();
+        Tasks = await _service.GetAllAsync(HttpContext.RequestAborted);
+        EnvNames = (await _environments.GetAllAsync(HttpContext.RequestAborted)).ToDictionary(e => e.Id, e => e.Name);
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
-        var deleted = await _scheduleService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Schedule deleted." : "Schedule not found.";
-        IsError = !deleted;
+        await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Schedule deleted.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostRunNowAsync(long id)
+    {
+        var summary = await _service.RunNowAsync(id, HttpContext.RequestAborted);
+        StatusMessage = summary;
         return RedirectToPage();
     }
 }

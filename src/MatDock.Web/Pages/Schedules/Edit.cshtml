@@ -7,7 +7,10 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
-        <span class="page-head__subtitle">Automatic backup of selected volumes</span>
+        <span class="page-head__subtitle">A cron- or event-triggered task (prune, status summary, …)</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
@@ -18,97 +21,82 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <mat-field label="Name" asp-for="Input.Name">
-                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nightly prod backup" />
+                <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nightly prune" />
             </mat-field>
 
             <div class="form-grid">
-                <mat-field label="Environment (source)" asp-for="Input.EnvironmentId">
-                    <select asp-for="Input.EnvironmentId" id="EnvironmentId" class="mat-select">
-                        <option value="0">— select —</option>
+                <mat-field label="Action" asp-for="Input.Action">
+                    <select asp-for="Input.Action" id="Input_Action" class="mat-select">
+                        <option value="Summary">Status summary (notification)</option>
+                        <option value="PruneVolumes">Prune volumes</option>
+                        <option value="PruneImages">Prune images</option>
+                        <option value="PruneNetworks">Prune networks</option>
+                    </select>
+                </mat-field>
+                <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Applies to all enabled environments when left on 'All'">
+                    <select asp-for="Input.EnvironmentId" class="mat-select">
+                        <option value="">All environments</option>
                         @foreach (var env in Model.Environments)
                         {
                             <option value="@env.Id">@env.Name</option>
                         }
                     </select>
                 </mat-field>
-                <mat-field label="Target">
-                    <select asp-for="Input.BackupTargetId" class="mat-select">
-                        <option value="">Local (MatDock)</option>
-                        @foreach (var t in Model.Targets)
-                        {
-                            <option value="@t.Id">@t.Name</option>
-                        }
-                    </select>
-                </mat-field>
             </div>
 
-            @{
-                // Show live host volumes plus any already-selected ones (so volumes that are offline or
-                // were entered manually still render and round-trip instead of being silently dropped).
-                var shownVolumes = Model.AvailableVolumes
-                    .Union(Model.Input.SelectedVolumes, StringComparer.Ordinal)
-                    .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            <div class="mat-field">
-                <label class="mat-label">Volumes</label>
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-                    <button type="submit" asp-page-handler="LoadVolumes" class="mat-btn mat-btn--sm" formnovalidate><icon name="refresh" /><span>Load environment's volumes</span></button>
-                    @if (Model.VolumeLoadError is not null)
-                    {
-                        <span class="mat-validation">Live list unavailable (@Model.VolumeLoadError) – saved volumes are retained.</span>
-                    }
-                </div>
-                @if (shownVolumes.Count > 0)
-                {
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;">
-                        @foreach (var vol in shownVolumes)
-                        {
-                            <label class="mat-check">
-                                <input type="checkbox" name="Input.SelectedVolumes" value="@vol"
-                                       checked="@(Model.Input.SelectedVolumes.Contains(vol))" />
-                                <span>@vol</span>
-                            </label>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <span class="mat-hint">Select an environment and click 'Load volumes' – or enter them manually below.</span>
-                }
-                <span asp-validation-for="Input.SelectedVolumes" class="mat-validation"></span>
+            <div data-show-when="Input_Action=PruneImages">
+                <label class="mat-check">
+                    <input asp-for="Input.OptionAll" type="checkbox" />
+                    <span>Prune <strong>all</strong> unused images (not just dangling)</span>
+                </label>
             </div>
-
-            <mat-field label="Additional volumes (one per line)" asp-for="Input.ExtraVolumes" hint="For hosts that are currently unreachable.">
-                <textarea asp-for="Input.ExtraVolumes" class="mat-textarea" rows="3"></textarea>
-            </mat-field>
+            <div data-show-when="Input_Action=PruneVolumes">
+                <label class="mat-check">
+                    <input asp-for="Input.OptionIncludeShares" type="checkbox" />
+                    <span>Also remove unused <strong>network shares</strong> (NFS/CIFS), not just local volumes</span>
+                </label>
+            </div>
 
             <div class="form-grid">
-                <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 3 * * * = daily at 03:00">
-                    <input asp-for="Input.Cron" class="mat-input" placeholder="0 3 * * *" />
+                <mat-field label="Trigger" asp-for="Input.Trigger">
+                    <select asp-for="Input.Trigger" id="Input_Trigger" class="mat-select">
+                        <option value="Cron">Time (cron)</option>
+                        <option value="Event">Event</option>
+                    </select>
                 </mat-field>
-                <mat-field label="Enabled">
-                    <label class="mat-check" style="margin-top:8px;">
-                        <input asp-for="Input.Enabled" type="checkbox" />
-                        <span>Schedule enabled</span>
-                    </label>
-                </mat-field>
-                <mat-field label="Container">
-                    <label class="mat-check" style="margin-top:8px;">
-                        <input asp-for="Input.StopContainers" type="checkbox" />
-                        <span>Stop containers during the backup, then restart them (consistent snapshot)</span>
-                    </label>
-                </mat-field>
-                <mat-field label="Retention: count" asp-for="Input.RetentionCount" hint="Keep the newest N per volume (0 = unlimited)">
-                    <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
-                </mat-field>
-                <mat-field label="Retention: days" asp-for="Input.RetentionDays" hint="Delete older ones (0 = off)">
-                    <input asp-for="Input.RetentionDays" type="number" min="0" class="mat-input" />
-                </mat-field>
+                <div data-show-when="Input_Trigger=Cron">
+                    <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
+                        <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+                    </mat-field>
+                </div>
+                <div data-show-when="Input_Trigger=Event">
+                    <mat-field label="On event" asp-for="Input.Event" hint="Event triggers are being rolled out (Phase 2)">
+                        <select asp-for="Input.Event" class="mat-select">
+                            <option value="DeployFailed">Deploy failed</option>
+                            <option value="BackupFailed">Backup failed</option>
+                            <option value="SyncFailed">Sync failed</option>
+                            <option value="EnvironmentOffline">Environment offline</option>
+                            <option value="ContainerDied">Container died</option>
+                        </select>
+                    </mat-field>
+                </div>
             </div>
+
+            <label class="mat-check">
+                <input asp-for="Input.NotifyOnResult" type="checkbox" />
+                <span>Send a notification with the run result</span>
+            </label>
+            <label class="mat-check">
+                <input asp-for="Input.Enabled" type="checkbox" />
+                <span>Enabled</span>
+            </label>
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                @if (Model.IsEdit)
+                {
+                    <button type="submit" asp-page-handler="RunNow" class="mat-btn" formnovalidate><icon name="refresh" /><span>Run now</span></button>
+                }
                 <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>

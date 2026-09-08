@@ -34,6 +34,7 @@ public class MatDockDbContext : DbContext
     public DbSet<GitRepo> GitRepos => Set<GitRepo>();
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
+    public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -212,6 +213,21 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Host).HasMaxLength(255).IsRequired();
             e.Property(x => x.Username).HasMaxLength(200);
+            e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<ScheduledTask>(e =>
+        {
+            e.ToTable("ScheduledTask");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Trigger).HasConversion<int>();
+            e.Property(x => x.Action).HasConversion<int>();
+            e.Property(x => x.Event).HasConversion<int>();
+            e.Property(x => x.Cron).HasMaxLength(120);
+            e.Property(x => x.OptionsJson).HasMaxLength(2000);
+            e.Property(x => x.LastStatus).HasMaxLength(1000);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });

@@ -1,15 +1,38 @@
 @page
+@using MatDock.Core.Entities
 @model MatDock.Web.Pages.Schedules.IndexModel
 @{
     ViewData["Title"] = "Schedules";
-}
 
-<partial name="_BackupTabs" />
+    string ActionLabel(ScheduleAction a) => a switch
+    {
+        ScheduleAction.PruneVolumes => "Prune volumes",
+        ScheduleAction.PruneImages => "Prune images",
+        ScheduleAction.PruneNetworks => "Prune networks",
+        ScheduleAction.Summary => "Status summary",
+        ScheduleAction.Backup => "Backup",
+        _ => a.ToString()
+    };
+
+    string Ago(DateTime? utc)
+    {
+        if (utc is not { } t) { return "–"; }
+        var d = DateTime.UtcNow - t;
+        if (d < TimeSpan.Zero) { d = TimeSpan.Zero; }
+        if (d.TotalMinutes < 1) { return "just now"; }
+        if (d.TotalMinutes < 60) { return $"{(int)d.TotalMinutes} min ago"; }
+        if (d.TotalHours < 24) { return $"{(int)d.TotalHours} h ago"; }
+        return $"{(int)d.TotalDays} d ago";
+    }
+}
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Backup schedules</h1>
-        <span class="page-head__subtitle">Automatic backups with retention</span>
+        <h1>Schedules</h1>
+        <span class="page-head__subtitle">Automated tasks — prune, reports and more, on a cron or event trigger</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Schedules/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New schedule</span></a>
     </div>
 </div>
 
@@ -20,57 +43,54 @@
     </div>
 }
 
-<mat-table>
-    <mat-table-body>
-        @if (Model.Items.Count == 0)
-        {
-            <div class="empty-state"><div><icon name="clock" /></div><p>No schedules yet. Create one.</p></div>
-        }
-        else
-        {
-            <table class="data">
-                <thead>
-                    <tr><th>Name</th><th>Environment</th><th>Volumes</th><th>Schedule (UTC)</th><th>Retention</th><th>Status</th><th>Next run</th><th class="actions">Actions</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var s in Model.Items)
-                    {
-                        <tr>
-                            <td>
-                                <a href="/Schedules/Edit?id=@s.Id"><strong>@s.Name</strong></a>
-                                @if (!s.Enabled)
-                                {
-                                    <span class="mat-badge">disabled</span>
-                                }
-                            </td>
-                            <td>@(Model.EnvironmentNames.TryGetValue(s.EnvironmentId, out var n) ? n : $"#{s.EnvironmentId}")</td>
-                            <td>@s.Volumes.Count()</td>
-                            <td class="mono">@s.Cron</td>
-                            <td class="cell-sub">
-                                @(s.RetentionCount > 0 ? $"max {s.RetentionCount}" : "∞")@(s.RetentionDays > 0 ? $", {s.RetentionDays}d" : "")
-                            </td>
-                            <td class="cell-sub">@(s.LastStatus ?? "–")</td>
-                            <td class="text-muted nowrap">@(s.Enabled ? (s.NextRunAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "–") : "–")</td>
-                            <td class="actions">
-                                <div class="row-actions">
-                                    <form method="post" asp-page-handler="Run" data-confirm="Run schedule '@s.Name' now?" style="display:inline;">
-                                        <input type="hidden" name="id" value="@s.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Run now"><icon name="refresh" /></button>
-                                    </form>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete schedule '@s.Name'?" style="display:inline;">
-                                        <input type="hidden" name="id" value="@s.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </mat-table-body>
-
-    <mat-table-actions>
-        <a href="/Schedules/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New schedule</span></a>
-    </mat-table-actions>
-</mat-table>
+<div class="card" style="padding:0;">
+    <table class="data">
+        <thead>
+            <tr><th>Name</th><th>Trigger</th><th>Action</th><th>Environment</th><th>Next run</th><th>Last run</th><th class="actions">Actions</th></tr>
+        </thead>
+        <tbody>
+            @if (Model.Tasks.Count == 0)
+            {
+                <tr><td colspan="7"><div class="empty-state"><div><icon name="clock" /></div><p>No schedules yet. Create one to prune unused resources or send a status summary automatically.</p></div></td></tr>
+            }
+            @foreach (var t in Model.Tasks)
+            {
+                <tr>
+                    <td>
+                        <a href="/Schedules/Edit?id=@t.Id"><strong>@t.Name</strong></a>
+                        @if (!t.Enabled)
+                        {
+                            <span class="tag-unused" title="Disabled">disabled</span>
+                        }
+                    </td>
+                    <td>
+                        @if (t.Trigger == ScheduleTrigger.Cron)
+                        {
+                            <span class="mono">@t.Cron</span>
+                        }
+                        else
+                        {
+                            <span class="mat-badge"><icon name="alert" /> @t.Event</span>
+                        }
+                    </td>
+                    <td>@ActionLabel(t.Action)</td>
+                    <td class="nowrap">@(t.EnvironmentId is { } eid && Model.EnvNames.TryGetValue(eid, out var n) ? n : "All environments")</td>
+                    <td class="cell-sub nowrap">@(t.Trigger == ScheduleTrigger.Cron ? (t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–") : "on event")</td>
+                    <td class="cell-sub" title="@t.LastStatus">@Ago(t.LastRunAt)</td>
+                    <td class="actions">
+                        <div class="row-actions">
+                            <form method="post" asp-page-handler="RunNow" style="display:inline;">
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm" title="Run now"><icon name="refresh" /></button>
+                            </form>
+                            <form method="post" asp-page-handler="Delete" data-confirm="Delete schedule '@t.Name'?" style="display:inline;">
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

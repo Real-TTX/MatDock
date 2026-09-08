@@ -51,6 +51,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Proxies.ProxyConnectionService>();
         services.AddSingleton<Registries.RegistryApiClient>();
         services.AddScoped<Registries.RegistryService>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.PruneVolumesAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.PruneImagesAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.PruneNetworksAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.SummaryAction>();
+        services.AddScoped<Schedules.ScheduleService>();
         services.AddHttpClient();
 
         return services;
