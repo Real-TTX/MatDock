@@ -85,6 +85,16 @@ public static partial class StackCommands
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
+    /// <summary>Writes the compose YAML (from stdin), pulls newer images, then runs <c>compose up -d</c>.</summary>
+    public static string Update(string dockerHead, string name)
+    {
+        Require(name);
+        var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; mkdir -p \"$dir\"; "
+                   + "cat > \"$dir/docker-compose.yml\"; cd \"$dir\"; "
+                   + dockerHead + " compose -p \"$name\" pull; " + dockerHead + " compose -p \"$name\" up -d";
+        return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
+    }
+
     /// <summary><c>compose down</c> for the stack (from its dir). Output merged.</summary>
     public static string Down(string dockerHead, string name, string composePath)
     {

@@ -100,11 +100,43 @@ public sealed partial class RegistryApiClient
         }
     }
 
-    private async Task<HttpResponseMessage> SendAuthedAsync(HttpClient client, RegistryLogin login, string path, string? scope, CancellationToken ct)
+    /// <summary>Manifest digest (<c>Docker-Content-Digest</c>) for repo:tag, or null if unavailable.</summary>
+    public async Task<string?> GetDigestAsync(RegistryLogin login, string repo, string tag, CancellationToken ct = default)
+    {
+        if (!IsValidRepo(repo) || string.IsNullOrWhiteSpace(tag))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var client = _httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(15);
+            using var resp = await SendAuthedAsync(client, login, $"/v2/{repo}/manifests/{Uri.EscapeDataString(tag)}",
+                $"repository:{repo}:pull", ct, HttpMethod.Head, ManifestAccept);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            return resp.Headers.TryGetValues("Docker-Content-Digest", out var v) ? v.FirstOrDefault() : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Digest lookup failed for {Repo}:{Tag} on {Host}.", repo, tag, login.Host);
+            return null;
+        }
+    }
+
+    private const string ManifestAccept =
+        "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, " +
+        "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json";
+
+    private async Task<HttpResponseMessage> SendAuthedAsync(HttpClient client, RegistryLogin login, string path, string? scope,
+        CancellationToken ct, HttpMethod? method = null, string? accept = null)
     {
         var url = BaseUrl(login) + path;
 
-        var first = await client.SendAsync(Request(login, url, bearer: null), HttpCompletionOption.ResponseHeadersRead, ct);
+        var first = await client.SendAsync(Request(login, url, bearer: null, method: method, accept: accept), HttpCompletionOption.ResponseHeadersRead, ct);
         if (first.StatusCode != HttpStatusCode.Unauthorized || first.Headers.WwwAuthenticate.Count == 0)
         {
             return first;
@@ -114,7 +146,7 @@ public sealed partial class RegistryApiClient
         if (string.Equals(challenge.Scheme, "Basic", StringComparison.OrdinalIgnoreCase))
         {
             first.Dispose();
-            return await client.SendAsync(Request(login, url, bearer: null, forceBasic: true), HttpCompletionOption.ResponseHeadersRead, ct);
+            return await client.SendAsync(Request(login, url, bearer: null, forceBasic: true, method: method, accept: accept), HttpCompletionOption.ResponseHeadersRead, ct);
         }
 
         if (!string.Equals(challenge.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
@@ -127,16 +159,17 @@ public sealed partial class RegistryApiClient
         if (token is null)
         {
             // Couldn't get a token; retry once more anonymously so the caller sees a meaningful status.
-            return await client.SendAsync(Request(login, url, bearer: null), HttpCompletionOption.ResponseHeadersRead, ct);
+            return await client.SendAsync(Request(login, url, bearer: null, method: method, accept: accept), HttpCompletionOption.ResponseHeadersRead, ct);
         }
 
-        return await client.SendAsync(Request(login, url, bearer: token), HttpCompletionOption.ResponseHeadersRead, ct);
+        return await client.SendAsync(Request(login, url, bearer: token, method: method, accept: accept), HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
-    private static HttpRequestMessage Request(RegistryLogin login, string url, string? bearer, bool forceBasic = false)
+    private static HttpRequestMessage Request(RegistryLogin login, string url, string? bearer, bool forceBasic = false,
+        HttpMethod? method = null, string? accept = null)
     {
-        var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.Accept.ParseAdd("application/json");
+        var req = new HttpRequestMessage(method ?? HttpMethod.Get, url);
+        req.Headers.Accept.ParseAdd(accept ?? "application/json");
         if (bearer is not null)
         {
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);

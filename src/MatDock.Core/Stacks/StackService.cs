@@ -137,7 +137,19 @@ public sealed class StackService
             return (false, "Stack not found.");
         }
 
-        return stack.IsGitBacked ? await GitDeployAsync(stack, ct) : await InlineDeployAsync(stack, ct);
+        return stack.IsGitBacked ? await GitDeployAsync(stack, pull: false, ct) : await InlineDeployAsync(stack, pull: false, ct);
+    }
+
+    /// <summary>Pulls newer images and redeploys the stack (manual update). Same paths as deploy, but with a pull.</summary>
+    public async Task<(bool Ok, string Output)> UpdateAsync(long id, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        return stack.IsGitBacked ? await GitDeployAsync(stack, pull: true, ct) : await InlineDeployAsync(stack, pull: true, ct);
     }
 
     public async Task<(bool Ok, string Output)> DownAsync(long id, CancellationToken ct = default)
@@ -158,7 +170,7 @@ public sealed class StackService
         return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct);
     }
 
-    private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, CancellationToken ct)
+    private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, bool pull, CancellationToken ct)
     {
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
@@ -169,13 +181,13 @@ public sealed class StackService
         await LoginRegistriesAsync(prep, ct);
 
         var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
-        var command = StackCommands.Deploy(prep.Head!, stack.Name);
+        var command = pull ? StackCommands.Update(prep.Head!, stack.Name) : StackCommands.Deploy(prep.Head!, stack.Name);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
     }
 
-    private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, CancellationToken ct)
+    private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, bool pull, CancellationToken ct)
     {
         // Early exit before cloning if the environment is unavailable.
         var prep = await PrepareHostAsync(stack, ct);
@@ -207,7 +219,7 @@ public sealed class StackService
         try
         {
             workDir = await _gitRepo.CloneToTempAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
-            return await DeployFromWorkDirAsync(stack, workDir, pull: false, ct);
+            return await DeployFromWorkDirAsync(stack, workDir, pull, ct);
         }
         catch (GitOperationException ex)
         {

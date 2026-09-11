@@ -79,6 +79,35 @@ public class RegistryApiTests
         Assert.StartsWith("https://registry-1.docker.io/v2/", Assert.Single(handler.Captured).Url);
     }
 
+    [Fact]
+    public async Task GetDigest_follows_bearer_and_reads_content_digest_header()
+    {
+        var handler = new RoutingHandler(req =>
+        {
+            var url = req.RequestUri!.ToString();
+            if (url.Contains("/manifests/") && req.Headers.Authorization is null)
+            {
+                return Resp(HttpStatusCode.Unauthorized, wwwAuth: "Bearer realm=\"https://ghcr.io/token\",service=\"ghcr.io\"");
+            }
+            if (url.StartsWith("https://ghcr.io/token"))
+            {
+                return Resp(HttpStatusCode.OK, json: "{\"token\":\"t\"}");
+            }
+            if (url.Contains("/manifests/") && req.Headers.Authorization?.Scheme == "Bearer")
+            {
+                var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(string.Empty) };
+                r.Headers.TryAddWithoutValidation("Docker-Content-Digest", "sha256:deadbeef");
+                return r;
+            }
+            return Resp(HttpStatusCode.InternalServerError);
+        });
+
+        var digest = await Client(handler).GetDigestAsync(new RegistryLogin("ghcr.io", "me", "pat", Insecure: false), "org/app", "1.0");
+
+        Assert.Equal("sha256:deadbeef", digest);
+        Assert.Contains(handler.Captured, c => c.Method == "HEAD" && c.AuthScheme == "Bearer");
+    }
+
     [Theory]
     [InlineData("library/nginx", true)]
     [InlineData("myorg/app", true)]

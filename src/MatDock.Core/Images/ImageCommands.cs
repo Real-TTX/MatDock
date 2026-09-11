@@ -20,8 +20,9 @@ public static partial class ImageCommands
         => !string.IsNullOrEmpty(reference) && ImageRefRegex().IsMatch(reference);
 
     // NOTE: the Go-template braces are built by concatenation (not interpolation) so "{{json .}}" survives.
+    // --digests populates the RepoDigest (sha256) so update detection can compare it to the registry.
     public static string List(string dockerHead = "docker")
-        => VolumeCommands.PathPrefix + dockerHead + " image ls --format '{{json .}}'";
+        => VolumeCommands.PathPrefix + dockerHead + " image ls --digests --format '{{json .}}'";
 
     public static string Remove(string reference, bool force, string dockerHead = "docker")
     {

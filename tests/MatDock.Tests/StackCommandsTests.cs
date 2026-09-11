@@ -56,6 +56,16 @@ public class StackCommandsTests
     }
 
     [Fact]
+    public void Update_pulls_before_up()
+    {
+        var cmd = StackCommands.Update("docker", "media");
+        Assert.Contains("cat > \"$dir/docker-compose.yml\"", cmd);
+        Assert.Contains("docker compose -p \"$name\" pull;", cmd);
+        Assert.Contains("docker compose -p \"$name\" up -d", cmd);
+        Assert.EndsWith("2>&1", cmd);
+    }
+
+    [Fact]
     public void Down_builds_expected_command()
     {
         var cmd = StackCommands.Down("sudo -n docker", "media", "docker-compose.yml");

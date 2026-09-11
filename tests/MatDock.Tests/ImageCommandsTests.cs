@@ -31,7 +31,7 @@ public class ImageCommandsTests
     public void List_builds_json_format_command()
     {
         var cmd = ImageCommands.List("docker");
-        Assert.Contains("docker image ls --format '{{json .}}'", cmd);
+        Assert.Contains("docker image ls --digests --format '{{json .}}'", cmd);
     }
 
     [Fact]

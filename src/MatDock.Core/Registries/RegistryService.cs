@@ -117,6 +117,32 @@ public sealed class RegistryService
             : await _api.ListTagsAsync(ToLogin(reg), repo, ct);
     }
 
+    /// <summary>Current manifest digest for an image (host/repo:tag), using configured creds for the host
+    /// or anonymous access. Used by update detection. Returns null if unavailable.</summary>
+    public async Task<string?> GetDigestForImageAsync(string host, string repo, string tag, CancellationToken ct = default)
+    {
+        var login = await ResolveLoginForHostAsync(host, ct);
+        return await _api.GetDigestAsync(login, repo, tag, ct);
+    }
+
+    private async Task<RegistryLogin> ResolveLoginForHostAsync(string host, CancellationToken ct)
+    {
+        var norm = NormalizeHost(host);
+        var regs = await _db.ContainerRegistries.AsNoTracking().Where(r => r.Enabled).ToListAsync(ct);
+        var match = regs.FirstOrDefault(r => HostMatches(r.Host, norm));
+        return match is not null ? ToLogin(match) : new RegistryLogin(norm, string.Empty, null, Insecure: false);
+    }
+
+    private static bool HostMatches(string a, string b)
+    {
+        static string Canon(string h)
+        {
+            h = NormalizeHost(h);
+            return h is "index.docker.io" ? "docker.io" : h;
+        }
+        return string.Equals(Canon(a), Canon(b), StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Enabled registries with decrypted credentials, for <c>docker login</c> before a deploy.</summary>
     public async Task<IReadOnlyList<RegistryLogin>> GetEnabledLoginsAsync(CancellationToken ct = default)
     {

@@ -1,0 +1,92 @@
+@page
+@model MatDock.Web.Pages.Stacks.UpdateModel
+@{
+    ViewData["Title"] = "Updates";
+    string Short(string? digest) => string.IsNullOrEmpty(digest) ? "–"
+        : (digest.StartsWith("sha256:") ? digest[7..] : digest) is var h && h.Length > 12 ? h[..12] : h;
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>Updates @(Model.Stack is null ? "" : "· " + Model.Stack.Name)</h1>
+        <span class="page-head__subtitle">Image updates for this stack@(Model.EnvName is null ? "" : " on " + Model.EnvName)</span>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Stacks/Update?id=@Model.Id" class="mat-btn"><icon name="refresh" /><span>Re-check</span></a>
+        <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
+@if (Model.Report?.Error is not null)
+{
+    <div class="alert alert--warning"><icon name="alert" /><span>Could not check for updates: @Model.Report.Error</span></div>
+}
+
+@if (Model.Report is not null && Model.Report.Error is null)
+{
+    var updates = Model.Report.UpdatesAvailable;
+    <div class="alert @(updates > 0 ? "alert--warning" : "alert--success")">
+        <icon name="@(updates > 0 ? "alert" : "check-circle")" />
+        <span>@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</span>
+    </div>
+
+    <div class="card" style="padding:0;margin-bottom:16px;">
+        <table class="data">
+            <thead>
+                <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Report.Images.Count == 0)
+                {
+                    <tr><td colspan="5"><div class="empty-state"><div><icon name="image" /></div><p>No running images found for this stack.</p></div></td></tr>
+                }
+                @foreach (var img in Model.Report.Images)
+                {
+                    <tr>
+                        <td>@img.Service</td>
+                        <td class="wrap"><span class="mono">@img.Image</span></td>
+                        <td>
+                            @if (img.UpdateAvailable)
+                            {
+                                <span class="pill pill--offline"><icon name="alert" /> Update</span>
+                            }
+                            else if (img.Note is not null)
+                            {
+                                <span class="cell-sub">@img.Note</span>
+                            }
+                            else
+                            {
+                                <span class="pill pill--online"><icon name="check-circle" /> Up to date</span>
+                            }
+                        </td>
+                        <td class="mono cell-sub" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
+                        <td class="mono cell-sub" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="max-width:620px;">
+        <div class="card__header"><icon name="refresh" /><span>Run update</span></div>
+        <div class="card__body">
+            <p class="mat-hint" style="margin-bottom:12px;">Pulls newer images and redeploys the stack (<code>compose pull</code> + <code>up -d</code>).</p>
+            <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
+                <label class="mat-check" style="margin-bottom:12px;">
+                    <input asp-for="PreBackup" type="checkbox" />
+                    <span>Back up the stack's volumes before updating</span>
+                </label>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Update now</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </div>
+}

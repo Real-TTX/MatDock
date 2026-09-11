@@ -233,6 +233,7 @@
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Stop"><icon name="x-circle" /></button>
                                     </form>
                                     <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@mid" title="Open (edit definition)"><icon name="external" /><span>Open</span></a>
+                                    <a class="mat-btn mat-btn--sm" href="/Stacks/Update?id=@mid" title="Check for image updates"><icon name="image" /><span>Updates</span></a>
                                 }
                                 <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /><span>Volumes</span></a>
@@ -314,6 +315,7 @@
                                             <button type="submit" class="mat-btn mat-btn--sm" title="Stop"><icon name="stop" /></button>
                                         </form>
                                         <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@id" title="Open (edit definition)"><icon name="external" /></a>
+                                        <a class="mat-btn mat-btn--sm" href="/Stacks/Update?id=@id" title="Check for image updates"><icon name="image" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /></a>
                                         <span style="width:8px;display:inline-block;"></span>

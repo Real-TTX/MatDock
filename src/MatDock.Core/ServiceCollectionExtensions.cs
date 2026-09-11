@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.SyncAction>();
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
+        services.AddScoped<Updates.UpdateService>();
         services.AddSingleton<Schedules.IScheduleEventBus, Schedules.ScheduleEventBus>();
         services.AddHttpClient();
 
