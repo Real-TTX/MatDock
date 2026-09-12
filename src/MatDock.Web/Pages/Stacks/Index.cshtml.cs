@@ -244,6 +244,34 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public Task<IActionResult> OnPostProjectStartAsync(long envId, string project) => ProjectActionAsync(envId, project, "start");
+    public Task<IActionResult> OnPostProjectStopAsync(long envId, string project) => ProjectActionAsync(envId, project, "stop");
+    public Task<IActionResult> OnPostProjectRestartAsync(long envId, string project) => ProjectActionAsync(envId, project, "restart");
+
+    /// <summary>Lifecycle for a discovered (external) compose project — by project label, no managed record.</summary>
+    private async Task<IActionResult> ProjectActionAsync(long envId, string project, string verb)
+    {
+        var redirect = new { view = View, Q, Status, Type };
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(redirect);
+        }
+
+        var (ok, output) = verb switch
+        {
+            "start" => await _stackService.ProjectStartAsync(env, project, HttpContext.RequestAborted),
+            "stop" => await _stackService.ProjectStopAsync(env, project, HttpContext.RequestAborted),
+            _ => await _stackService.ProjectRestartAsync(env, project, HttpContext.RequestAborted),
+        };
+        StatusMessage = ok ? $"Stack '{project}' {verb}." : $"{verb} failed.";
+        IsError = !ok;
+        Output = output;
+        return RedirectToPage(redirect);
+    }
+
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);

@@ -210,6 +210,41 @@ public sealed class StackService
             successStatus: "Started", failureStatus: "Start failed");
     }
 
+    // ---- Discovered (external) stacks: lifecycle by compose project label (no managed record) ----
+
+    public Task<(bool Ok, string Output)> ProjectStartAsync(DockerEnvironment env, string project, CancellationToken ct = default)
+        => ProjectActionAsync(env, project, StackCommands.ProjectStart, ct);
+
+    public Task<(bool Ok, string Output)> ProjectStopAsync(DockerEnvironment env, string project, CancellationToken ct = default)
+        => ProjectActionAsync(env, project, StackCommands.ProjectStop, ct);
+
+    public Task<(bool Ok, string Output)> ProjectRestartAsync(DockerEnvironment env, string project, CancellationToken ct = default)
+        => ProjectActionAsync(env, project, StackCommands.ProjectRestart, ct);
+
+    private async Task<(bool Ok, string Output)> ProjectActionAsync(DockerEnvironment env, string project, Func<string, string, string> build, CancellationToken ct)
+    {
+        if (!StackCommands.IsValidName(project))
+        {
+            return (false, "Invalid project name.");
+        }
+        if (!env.IsEnabled)
+        {
+            return (false, "Environment not available (disabled).");
+        }
+
+        var settings = _environmentService.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.MigrationTimeoutSeconds));
+        try
+        {
+            return await ExecOnHostAsync(settings, build(head, project), writeStdin: null, timeout, ct);
+        }
+        catch (Exception ex)
+        {
+            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
+        }
+    }
+
     private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, bool pull, CancellationToken ct)
     {
         var prep = await PrepareHostAsync(stack, ct);

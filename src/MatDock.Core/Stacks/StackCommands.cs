@@ -107,6 +107,28 @@ public static partial class StackCommands
     public static string Start(string dockerHead, string name, string composePath)
         => Lifecycle(dockerHead, name, composePath, "start");
 
+    // ---- Discovered (external) stacks: operate by compose project label, no compose file needed ----
+
+    /// <summary>Starts all containers of a discovered compose project (by label).</summary>
+    public static string ProjectStart(string dockerHead, string project) => ProjectDocker(dockerHead, project, allContainers: true, "start");
+
+    /// <summary>Stops the running containers of a discovered compose project (by label).</summary>
+    public static string ProjectStop(string dockerHead, string project) => ProjectDocker(dockerHead, project, allContainers: false, "stop");
+
+    /// <summary>Restarts the containers of a discovered compose project (by label).</summary>
+    public static string ProjectRestart(string dockerHead, string project) => ProjectDocker(dockerHead, project, allContainers: true, "restart");
+
+    private static string ProjectDocker(string dockerHead, string project, bool allContainers, string verb)
+    {
+        Require(project); // a compose project name follows the same rules as a stack name
+        var psFlag = allContainers ? "-aq" : "-q";
+        // $1 = project (validated + shell-quoted arg). No inner single quotes so the whole body quotes cleanly.
+        var script = "ids=$(" + dockerHead + " ps " + psFlag + " --filter label=com.docker.compose.project=\"$1\"); "
+                   + "if [ -z \"$ids\" ]; then echo \"No matching containers.\"; else " + dockerHead + " " + verb + " $ids; fi";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(project) + " 2>&1";
+    }
+
     private static string Lifecycle(string dockerHead, string name, string composePath, string verb)
     {
         Require(name);

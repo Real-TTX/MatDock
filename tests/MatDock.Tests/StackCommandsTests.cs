@@ -94,6 +94,29 @@ public class StackCommandsTests
     }
 
     [Fact]
+    public void Project_lifecycle_filters_by_compose_label()
+    {
+        var stop = StackCommands.ProjectStop("docker", "media");
+        Assert.Contains("--filter label=com.docker.compose.project=\"$1\"", stop);
+        Assert.Contains("docker ps -q ", stop);            // stop targets running containers
+        Assert.Contains("docker stop $ids", stop);
+        Assert.Contains("sh 'media'", stop);               // project passed as a quoted arg
+
+        var start = StackCommands.ProjectStart("docker", "media");
+        Assert.Contains("docker ps -aq ", start);          // start targets all containers
+        Assert.Contains("docker start $ids", start);
+
+        Assert.Contains("docker restart $ids", StackCommands.ProjectRestart("docker", "media"));
+    }
+
+    [Fact]
+    public void Project_lifecycle_rejects_injection_name()
+    {
+        Assert.Throws<System.ArgumentException>(() => StackCommands.ProjectStop("docker", "$(evil)"));
+        Assert.Throws<System.ArgumentException>(() => StackCommands.ProjectStart("docker", "a b"));
+    }
+
+    [Fact]
     public void GitSync_builds_expected_command()
     {
         var cmd = StackCommands.GitSync("docker", "media", "stacks/app/compose.yml");
