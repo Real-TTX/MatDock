@@ -228,9 +228,17 @@
                                         <input type="hidden" name="id" value="@mid" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")"><icon name="@(r.GitBacked ? "git" : "refresh")" /><span>Redeploy</span></button>
                                     </form>
-                                    <form method="post" asp-page-handler="Down" data-confirm="Stop stack '@r.Name' (compose down)?" style="display:inline;">
+                                    <form method="post" asp-page-handler="Start" style="display:inline;">
                                         <input type="hidden" name="id" value="@mid" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Stop"><icon name="x-circle" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Start (compose start)"><icon name="play" /></button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?" style="display:inline;">
+                                        <input type="hidden" name="id" value="@mid" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Stop (compose stop)"><icon name="stop" /></button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Down" data-confirm="Down stack '@r.Name'? (compose down: stop &amp; remove containers)" style="display:inline;">
+                                        <input type="hidden" name="id" value="@mid" />
+                                        <button type="submit" class="mat-btn mat-btn--sm" title="Down (stop &amp; remove)"><icon name="x-circle" /></button>
                                     </form>
                                     <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@mid" title="Open (edit definition)"><icon name="external" /><span>Open</span></a>
                                     <a class="mat-btn mat-btn--sm" href="/Stacks/Update?id=@mid" title="Check for image updates"><icon name="image" /><span>Updates</span></a>
@@ -310,9 +318,17 @@
                                             <input type="hidden" name="id" value="@id" />
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")"><icon name="@(r.GitBacked ? "git" : "refresh")" /></button>
                                         </form>
-                                        <form method="post" asp-page-handler="Down" data-confirm="Stop stack '@r.Name' (compose down)?" style="display:inline;">
+                                        <form method="post" asp-page-handler="Start" style="display:inline;">
                                             <input type="hidden" name="id" value="@id" />
-                                            <button type="submit" class="mat-btn mat-btn--sm" title="Stop"><icon name="stop" /></button>
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Start (compose start)"><icon name="play" /></button>
+                                        </form>
+                                        <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?" style="display:inline;">
+                                            <input type="hidden" name="id" value="@id" />
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Stop (compose stop)"><icon name="stop" /></button>
+                                        </form>
+                                        <form method="post" asp-page-handler="Down" data-confirm="Down stack '@r.Name'? (compose down: stop &amp; remove containers)" style="display:inline;">
+                                            <input type="hidden" name="id" value="@id" />
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Down (stop &amp; remove)"><icon name="x-circle" /></button>
                                         </form>
                                         <a class="mat-btn mat-btn--sm" href="/Stacks/Edit?id=@id" title="Open (edit definition)"><icon name="external" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Stacks/Update?id=@id" title="Check for image updates"><icon name="image" /></a>

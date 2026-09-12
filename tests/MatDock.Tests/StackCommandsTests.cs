@@ -75,6 +75,25 @@ public class StackCommandsTests
     }
 
     [Fact]
+    public void Stop_and_Start_build_expected_commands()
+    {
+        var stop = StackCommands.Stop("docker", "media", "docker-compose.yml");
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" stop", stop);
+        Assert.Contains("sh 'media' 'docker-compose.yml'", stop);
+
+        var start = StackCommands.Start("sudo -n docker", "media", "compose.yml");
+        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" start", start);
+        Assert.EndsWith("2>&1", start);
+    }
+
+    [Fact]
+    public void Stop_start_reject_injection_name()
+    {
+        Assert.Throws<System.ArgumentException>(() => StackCommands.Stop("docker", "$(evil)", "docker-compose.yml"));
+        Assert.Throws<System.ArgumentException>(() => StackCommands.Start("docker", "a;b", "docker-compose.yml"));
+    }
+
+    [Fact]
     public void GitSync_builds_expected_command()
     {
         var cmd = StackCommands.GitSync("docker", "media", "stacks/app/compose.yml");

@@ -170,6 +170,46 @@ public sealed class StackService
         return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct);
     }
 
+    /// <summary><c>compose stop</c>: stops the stack's containers but keeps them (fast restart).</summary>
+    public async Task<(bool Ok, string Output)> StopAsync(long id, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        var prep = await PrepareHostAsync(stack, ct);
+        if (!prep.Ok)
+        {
+            return (false, prep.Message);
+        }
+
+        var command = StackCommands.Stop(prep.Head!, stack.Name, EffectiveComposePath(stack));
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+            successStatus: "Stopped", failureStatus: "Stop failed");
+    }
+
+    /// <summary><c>compose start</c>: starts the stack's previously-stopped containers.</summary>
+    public async Task<(bool Ok, string Output)> StartAsync(long id, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        var prep = await PrepareHostAsync(stack, ct);
+        if (!prep.Ok)
+        {
+            return (false, prep.Message);
+        }
+
+        var command = StackCommands.Start(prep.Head!, stack.Name, EffectiveComposePath(stack));
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+            successStatus: "Started", failureStatus: "Start failed");
+    }
+
     private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, bool pull, CancellationToken ct)
     {
         var prep = await PrepareHostAsync(stack, ct);
@@ -381,7 +421,7 @@ public sealed class StackService
     private async Task<(bool Ok, string Output)> ExecuteAndPersistAsync(
         Stack stack, bool deploy, HostPrep prep, string command,
         Func<Stream, CancellationToken, Task>? writeStdin, CancellationToken ct,
-        Action<Stack>? beforePersist = null)
+        Action<Stack>? beforePersist = null, string? successStatus = null, string? failureStatus = null)
     {
         bool ok;
         string output;
@@ -403,7 +443,9 @@ public sealed class StackService
         {
             stack.LastDeployedAt = DateTime.UtcNow;
         }
-        stack.LastStatus = ok ? (deploy ? "Deployed" : "Stopped") : (deploy ? "Deploy failed" : "Down failed");
+        stack.LastStatus = ok
+            ? (successStatus ?? (deploy ? "Deployed" : "Stopped"))
+            : (failureStatus ?? (deploy ? "Deploy failed" : "Down failed"));
         try { await _db.SaveChangesAsync(ct); }
         catch (Exception ex) { _logger.LogWarning(ex, "Stack {Name}: status save after host op failed.", stack.Name); }
 

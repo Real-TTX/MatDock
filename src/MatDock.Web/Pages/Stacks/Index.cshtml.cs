@@ -226,6 +226,24 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostStopAsync(long id)
+    {
+        var (ok, output) = await _stackService.StopAsync(id, HttpContext.RequestAborted);
+        StatusMessage = ok ? "Stack stopped." : "Stop failed.";
+        IsError = !ok;
+        Output = output;
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostStartAsync(long id)
+    {
+        var (ok, output) = await _stackService.StartAsync(id, HttpContext.RequestAborted);
+        StatusMessage = ok ? "Stack started." : "Start failed.";
+        IsError = !ok;
+        Output = output;
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);

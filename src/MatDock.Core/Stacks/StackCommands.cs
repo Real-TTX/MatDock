@@ -95,14 +95,25 @@ public static partial class StackCommands
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
-    /// <summary><c>compose down</c> for the stack (from its dir). Output merged.</summary>
+    /// <summary><c>compose down</c> for the stack (stops and removes containers). Output merged.</summary>
     public static string Down(string dockerHead, string name, string composePath)
+        => Lifecycle(dockerHead, name, composePath, "down");
+
+    /// <summary><c>compose stop</c> for the stack (stops containers, keeps them). Output merged.</summary>
+    public static string Stop(string dockerHead, string name, string composePath)
+        => Lifecycle(dockerHead, name, composePath, "stop");
+
+    /// <summary><c>compose start</c> for the stack (starts previously-stopped containers). Output merged.</summary>
+    public static string Start(string dockerHead, string name, string composePath)
+        => Lifecycle(dockerHead, name, composePath, "start");
+
+    private static string Lifecycle(string dockerHead, string name, string composePath, string verb)
     {
         Require(name);
         // $1 = stack name (validated), $2 = compose file path (relative). Both passed as separate,
         // individually shell-quoted args so no user value is embedded in the single-quoted script body.
         var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; cd \"$dir\"; "
-                   + dockerHead + " compose -p \"$1\" -f \"$2\" down";
+                   + dockerHead + " compose -p \"$1\" -f \"$2\" " + verb;
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
     }
