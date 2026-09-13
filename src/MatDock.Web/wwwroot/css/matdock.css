@@ -197,6 +197,13 @@ h2 { font-size: 1.2rem; }
 .mat-btn--primary:hover { background: var(--grad-accent); border-color: var(--accent-strong); filter: brightness(1.05); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
 .mat-btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .mat-btn--danger:hover { filter: brightness(1.06); background: var(--danger); }
+/* Tinted action variants (recognizable but not as loud as a full fill) — for lifecycle buttons. */
+.mat-btn--success { background: color-mix(in srgb, var(--success) 14%, transparent); border-color: color-mix(in srgb, var(--success) 45%, transparent); color: var(--success); }
+.mat-btn--success:hover { background: color-mix(in srgb, var(--success) 24%, transparent); color: var(--success); }
+.mat-btn--warning { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: color-mix(in srgb, var(--warning) 48%, transparent); color: var(--warning); }
+.mat-btn--warning:hover { background: color-mix(in srgb, var(--warning) 26%, transparent); color: var(--warning); }
+.mat-btn--info { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); }
+.mat-btn--info:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--accent); }
 .mat-btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .mat-btn--ghost:hover { background: var(--surface-2); color: var(--text); }
 .mat-btn--sm { padding: 6px 10px; font-size: .82rem; }
