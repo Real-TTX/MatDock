@@ -122,6 +122,36 @@ public class IndexModel : PageModel
                 gate.Release();
             }
         });
+        // Volume counts per environment — started concurrently with the container scan so they never add
+        // sequential latency (compose volumes are named "<project>_<vol>"); cached + best-effort.
+        using var vgate = new SemaphoreSlim(4);
+        var vscans = enabled.Select(async env =>
+        {
+            var key = $"stacks:vols:{env.Id}";
+            if (_cache.TryGetValue(key, out IReadOnlyList<string>? cachedVols) && cachedVols is not null)
+            {
+                return (env.Id, cachedVols);
+            }
+
+            await vgate.WaitAsync(HttpContext.RequestAborted);
+            try
+            {
+                var vols = await _connectionService.ListVolumesAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
+                var names = (IReadOnlyList<string>)vols.Select(v => v.Name).ToList();
+                _cache.Set(key, names, TimeSpan.FromSeconds(60));
+                return (env.Id, names);
+            }
+            catch
+            {
+                return (env.Id, (IReadOnlyList<string>)Array.Empty<string>());
+            }
+            finally
+            {
+                vgate.Release();
+            }
+        });
+        var volumeTask = Task.WhenAll(vscans);
+
         var results = await Task.WhenAll(scans);
 
         foreach (var (env, containers, error) in results)
@@ -148,35 +178,11 @@ public class IndexModel : PageModel
             }
         }
 
-        // Volume counts per environment (compose volumes are named "<project>_<vol>"), cached + best-effort.
+        // Volume counts per environment — gathered from the scan that ran concurrently with the container scan.
         var volNamesByEnv = new Dictionary<long, IReadOnlyList<string>>();
-        using (var vgate = new SemaphoreSlim(4))
+        foreach (var (envId, names) in await volumeTask)
         {
-            var vscans = enabled.Select(async env =>
-            {
-                var key = $"stacks:vols:{env.Id}";
-                if (_cache.TryGetValue(key, out IReadOnlyList<string>? cachedVols) && cachedVols is not null)
-                {
-                    return (env.Id, cachedVols);
-                }
-
-                await vgate.WaitAsync(HttpContext.RequestAborted);
-                try
-                {
-                    var vols = await _connectionService.ListVolumesAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
-                    var names = (IReadOnlyList<string>)vols.Select(v => v.Name).ToList();
-                    _cache.Set(key, names, TimeSpan.FromSeconds(60));
-                    return (env.Id, names);
-                }
-                catch
-                {
-                    return (env.Id, (IReadOnlyList<string>)Array.Empty<string>());
-                }
-            });
-            foreach (var (envId, names) in await Task.WhenAll(vscans))
-            {
-                volNamesByEnv[envId] = names;
-            }
+            volNamesByEnv[envId] = names;
         }
 
         int VolCount(long envId, string project)
