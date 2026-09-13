@@ -18,7 +18,6 @@
         <a class="launch-tile launch-tile--add" href="/Apps">
             <span class="launch-add__plus"><icon name="plus" /></span>
             <span class="launch-add__label">Add app</span>
-            <span class="launch-add__sub">Browse the Store &amp; install in one click</span>
         </a>
     </div>
 }
@@ -27,7 +26,7 @@
 {
     <div class="empty-state">
         <div><icon name="apps" /></div>
-        <p>No apps yet.@(isAdmin ? " Install one from the Store above, or" : "") add an <code>x-matdock:</code> block (icon, actions) to a compose file — or a <code>matdock.yml</code> next to it — and deploy it as a stack.</p>
+        <p>No apps yet.@(isAdmin ? " Install one from the Store above." : "")</p>
     </div>
 }
 
