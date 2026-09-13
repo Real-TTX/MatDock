@@ -28,7 +28,7 @@
         <div class="card__body">
             @if (Model.SavedRepos.Count > 0)
             {
-                <mat-field label="Use a saved repository (optional)" hint="Prefills the URL, branch and credentials below.">
+                <mat-field label="Saved repository (optional)">
                     <select id="repo-picker" class="mat-select">
                         <option value="">— manual entry —</option>
                         @foreach (var r in Model.SavedRepos)
@@ -48,7 +48,7 @@
                 <mat-field label="Branch / tag (optional)" asp-for="Input.GitReference">
                     <input asp-for="Input.GitReference" class="mat-input" placeholder="main" />
                 </mat-field>
-                <mat-field label="Subdirectory (optional)" asp-for="Input.Subdirectory" hint="Only scan compose files under this folder, e.g. stacks">
+                <mat-field label="Subdirectory (optional)" asp-for="Input.Subdirectory">
                     <input asp-for="Input.Subdirectory" class="mat-input" placeholder="stacks" />
                 </mat-field>
                 <mat-field label="Credentials (private repos)" asp-for="Input.GitCredentialId">
@@ -63,7 +63,7 @@
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <button type="submit" asp-page-handler="Scan" class="mat-btn" formnovalidate>
-                    <icon name="refresh" /><span>Scan repository for compose files</span>
+                    <icon name="refresh" /><span>Scan repository</span>
                 </button>
                 @if (Model.ScanError is not null)
                 {
@@ -84,20 +84,19 @@
                 <label class="mat-switch">
                     <input asp-for="Input.ScheduleEnabled" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Scheduled — deploy automatically on a cron schedule</span>
+                    <span class="mat-switch__label">Scheduled</span>
                 </label>
                 <div data-show-when="Input_ScheduleEnabled=true">
-                    <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
+                    <mat-field label="Cron (UTC)" asp-for="Input.Cron">
                         <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
                     </mat-field>
                 </div>
                 <label class="mat-switch">
                     <input asp-for="Input.WebhookEnabled" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Webhook — allow the webhook URL to trigger a deploy@(Model.IsEdit ? "" : " (URL shown after saving)")</span>
+                    <span class="mat-switch__label">Webhook</span>
                 </label>
             </div>
-            <p class="mat-hint">Manual <strong>Sync now</strong> is always available@(Model.IsEdit ? " (button below)." : " from the sync-jobs list.")</p>
             @if (Model.IsEdit)
             {
                 <div style="margin-top:6px;">
@@ -116,17 +115,17 @@
                 <label class="mat-switch">
                     <input asp-for="Input.OnlyOnChange" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Only deploy when the repo changed (off = redeploy on every trigger)</span>
+                    <span class="mat-switch__label">Only deploy on change</span>
                 </label>
                 <label class="mat-switch">
                     <input asp-for="Input.PullImages" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Pull images before deploy (<code>compose pull</code>) — updates <code>:latest</code></span>
+                    <span class="mat-switch__label">Pull images before deploy</span>
                 </label>
                 <label class="mat-switch">
                     <input asp-for="Input.PruneRemoved" type="checkbox" />
                     <span class="mat-switch__slider"></span>
-                    <span class="mat-switch__label">Prune removed: <code>compose down</code> stacks whose compose was removed from the repo or deselected</span>
+                    <span class="mat-switch__label">Prune removed / deselected stacks</span>
                 </label>
             </div>
         </div>
@@ -186,7 +185,6 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mat-hint" style="margin-top:8px;">Tick one or more environments per compose file. Unticking every environment excludes that file (and prunes its stack if "Prune removed" is on).</p>
             }
         </div>
     </div>
@@ -202,7 +200,7 @@
     <div class="card" style="max-width:900px;margin-top:16px;">
         <div class="card__header"><icon name="plug" /><span>Webhook</span></div>
         <div class="card__body">
-            <p class="mat-hint">Add this URL as a <strong>push webhook</strong> in your Git host (GitHub/GitLab/Gitea). A POST to it triggers this sync. Keep it secret — the token authenticates the caller.</p>
+            <p class="mat-hint">Add as a <strong>push webhook</strong> in your Git host. Keep it secret.</p>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input class="mat-input mono" style="min-width:420px;flex:1;" value="@Model.WebhookUrl" readonly onclick="this.select()" />
                 <form method="post" asp-page-handler="Regenerate" data-confirm="Regenerate the webhook URL? The old URL stops working.">
