@@ -12,6 +12,11 @@
     string StatusPill(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
         => r.StatusKind switch { "running" => "pill--online", "partial" => "pill--offline", _ => "pill--unknown" };
 
+    (string Icon, string Cls, string Label) StatusBadge(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
+        => r.IsRunning ? ("play", "pill--online", "running")
+         : r.IsPartial ? ("alert", "pill--offline", "partial")
+         : ("pause", "pill--unknown", "stopped");
+
     var ci = System.Globalization.CultureInfo.InvariantCulture;
     string Pct(double v) => Math.Clamp(v, 0, 100).ToString(ci);
 
@@ -292,7 +297,7 @@
         {
             <table class="data">
                 <thead>
-                    <tr><th>Name</th><th>Environment</th><th>Status</th><th>Resources</th><th>Last deployed</th><th class="actions">Actions</th></tr>
+                    <tr><th>Name</th><th>Source</th><th>Environment</th><th>Status</th><th class="num">Containers</th><th class="num">Volumes</th><th>Resources</th><th class="actions">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var r in Model.Rows)
@@ -308,32 +313,40 @@
                                 {
                                     <strong>@r.Name</strong>
                                 }
-                                @if (r.GitBacked)
-                                {
-                                    <span class="pill" title="Git-backed" style="margin-left:6px;"><icon name="git" /> Git</span>
-                                }
+                            </td>
+                            <td>
                                 @if (r.Discovered)
                                 {
-                                    <span class="mat-badge" title="Running on the host, not managed by MatDock" style="margin-left:6px;">External</span>
+                                    <span class="mat-badge" title="Running on the host, not managed by MatDock">External</span>
+                                }
+                                else if (r.GitBacked)
+                                {
+                                    <span class="pill" title="Git-backed"><icon name="git" /> Git</span>
+                                }
+                                else
+                                {
+                                    <span class="cell-sub">Managed</span>
                                 }
                             </td>
                             <td>@r.EnvName</td>
                             <td>
                                 @if (r.Total > 0)
                                 {
-                                    <span class="pill @StatusPill(r)">@r.Running/@r.Total running</span>
+                                    var sb = StatusBadge(r);
+                                    <span class="pill @sb.Cls"><icon name="@sb.Icon" /> @sb.Label</span>
                                 }
                                 else if (r.Managed)
                                 {
-                                    <span class="cell-sub">@(r.LastStatus ?? "–")</span>
+                                    <span class="cell-sub">@(r.LastStatus ?? "idle")</span>
                                 }
                                 else
                                 {
                                     <span class="text-muted">–</span>
                                 }
                             </td>
+                            <td class="num"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Containers.Count</a></td>
+                            <td class="num"><a href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack">@r.VolumeCount</a></td>
                             <td class="res-cell">@{ AggResources(r); }</td>
-                            <td class="text-muted nowrap">@(r.LastDeployedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="actions">
                                 <div class="row-actions">
                                     @if (r.Managed && r.ManagedId is { } id)
@@ -397,7 +410,7 @@
                             </td>
                         </tr>
                         <tr class="stack-detail" hidden>
-                            <td colspan="6">@{ await RenderTiles(r); }</td>
+                            <td colspan="8">@{ await RenderTiles(r); }</td>
                         </tr>
                     }
                 </tbody>

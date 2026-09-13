@@ -17,16 +17,18 @@ public class IndexModel : PageModel
     private readonly StackService _stackService;
     private readonly EnvironmentService _environmentService;
     private readonly ContainerService _containerService;
+    private readonly IEnvironmentConnectionService _connectionService;
     private readonly BundleBackupService _bundleService;
     private readonly BackupTargetService _targetService;
     private readonly IMemoryCache _cache;
 
     public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService,
-        BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache)
+        IEnvironmentConnectionService connectionService, BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache)
     {
         _stackService = stackService;
         _environmentService = environmentService;
         _containerService = containerService;
+        _connectionService = connectionService;
         _bundleService = bundleService;
         _targetService = targetService;
         _cache = cache;
@@ -59,7 +61,7 @@ public class IndexModel : PageModel
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
-        IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson)
+        IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson, int VolumeCount = 0)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
@@ -146,6 +148,42 @@ public class IndexModel : PageModel
             }
         }
 
+        // Volume counts per environment (compose volumes are named "<project>_<vol>"), cached + best-effort.
+        var volNamesByEnv = new Dictionary<long, IReadOnlyList<string>>();
+        using (var vgate = new SemaphoreSlim(4))
+        {
+            var vscans = enabled.Select(async env =>
+            {
+                var key = $"stacks:vols:{env.Id}";
+                if (_cache.TryGetValue(key, out IReadOnlyList<string>? cachedVols) && cachedVols is not null)
+                {
+                    return (env.Id, cachedVols);
+                }
+
+                await vgate.WaitAsync(HttpContext.RequestAborted);
+                try
+                {
+                    var vols = await _connectionService.ListVolumesAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
+                    var names = (IReadOnlyList<string>)vols.Select(v => v.Name).ToList();
+                    _cache.Set(key, names, TimeSpan.FromSeconds(60));
+                    return (env.Id, names);
+                }
+                catch
+                {
+                    return (env.Id, (IReadOnlyList<string>)Array.Empty<string>());
+                }
+            });
+            foreach (var (envId, names) in await Task.WhenAll(vscans))
+            {
+                volNamesByEnv[envId] = names;
+            }
+        }
+
+        int VolCount(long envId, string project)
+            => volNamesByEnv.TryGetValue(envId, out var names)
+                ? names.Count(n => n.Equals(project, StringComparison.Ordinal) || n.StartsWith(project + "_", StringComparison.Ordinal))
+                : 0;
+
         var rows = new List<StackRow>();
         var managedKeys = new HashSet<(long, string)>();
         foreach (var s in managed)
@@ -157,7 +195,7 @@ public class IndexModel : PageModel
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
                 live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
                 live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(),
-                HostFor(envById, s.EnvironmentId), s.AppMetaJson));
+                HostFor(envById, s.EnvironmentId), s.AppMetaJson, VolCount(s.EnvironmentId, s.Name)));
         }
 
         foreach (var ((envId, project), d) in discovered)
@@ -169,7 +207,7 @@ public class IndexModel : PageModel
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
                 Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers,
-                HostFor(envById, envId), null));
+                HostFor(envById, envId), null, VolCount(envId, project)));
         }
 
         rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
