@@ -52,9 +52,7 @@
                 <thead>
                     <tr>
                         <th>Environment</th>
-                        <th>Repository</th>
-                        <th>Tag</th>
-                        <th>Image ID</th>
+                        <th>Image</th>
                         <th>Size</th>
                         <th>Created</th>
                         <th>Status</th>
@@ -68,14 +66,12 @@
                         <tr>
                             <td class="nowrap">@row.Environment.Name</td>
                             <td class="wrap">
-                                <strong>@(img.Dangling ? "<none>" : img.Repository)</strong>
+                                <strong>@img.Reference</strong>
                                 @if (img.Dangling)
                                 {
                                     <span class="tag-unused" title="Dangling image (untagged)">dangling</span>
                                 }
                             </td>
-                            <td class="cell-sub">@(string.IsNullOrEmpty(img.Tag) || img.Tag == "<none>" ? "–" : img.Tag)</td>
-                            <td class="mono cell-sub">@img.Id</td>
                             <td class="nowrap">@(img.Size ?? "–")</td>
                             <td class="cell-sub nowrap">@(img.CreatedSince ?? "–")</td>
                             <td>
