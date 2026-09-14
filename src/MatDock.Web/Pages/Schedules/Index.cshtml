@@ -44,8 +44,17 @@
     </div>
 }
 
-<div class="card" style="padding:0;">
-    <table class="data">
+<mat-table>
+    <mat-table-toolbar>
+        <div class="search">
+            <icon name="search" />
+            <input type="search" class="mat-input" placeholder="Search schedules…" data-filter-table="#sched-table" autocomplete="off" />
+        </div>
+        <span class="toolbar-spacer"></span>
+        <span class="text-muted"><strong>@Model.Tasks.Count</strong> Schedules</span>
+    </mat-table-toolbar>
+    <mat-table-body>
+    <table class="data" id="sched-table">
         <thead>
             <tr><th>Name</th><th>Trigger</th><th>Action</th><th>Environment</th><th>Next run</th><th>Last run</th><th class="actions">Actions</th></tr>
         </thead>
@@ -94,4 +103,5 @@
             }
         </tbody>
     </table>
-</div>
+    </mat-table-body>
+</mat-table>

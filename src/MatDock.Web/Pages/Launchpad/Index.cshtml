@@ -28,14 +28,25 @@
         <p>No apps yet.@(isAdmin ? " Install one from the Store above." : "")</p>
     </div>
 }
-
-@foreach (var group in Model.Groups)
+else
 {
-    <h2 class="launch-cat">@group.Category <span class="text-muted">(@group.Apps.Count)</span></h2>
-    <div class="launch-grid">
-        @foreach (var t in group.Apps)
-        {
-            <partial name="_AppTile" model="t" />
-        }
+    <div class="fs-toolbar">
+        <div class="search">
+            <icon name="search" />
+            <input type="search" class="mat-input" placeholder="Search apps…" data-filter-table="#apps-wrap" autocomplete="off" />
+        </div>
     </div>
 }
+
+<div id="apps-wrap">
+    @foreach (var group in Model.Groups)
+    {
+        <h2 class="launch-cat">@group.Category <span class="text-muted">(@group.Apps.Count)</span></h2>
+        <div class="launch-grid">
+            @foreach (var t in group.Apps)
+            {
+                <partial name="_AppTile" model="t" />
+            }
+        </div>
+    }
+</div>

@@ -1,5 +1,5 @@
 @model MatDock.Web.Support.AppTile
-<div class="launch-tile">
+<div class="launch-tile" data-filter-row data-name="@($"{Model.Name} {Model.EnvName} {Model.Meta.Description}".ToLowerInvariant())">
     <div class="launch-tile__icon">
         @if (Model.Meta.Icon is not null)
         {

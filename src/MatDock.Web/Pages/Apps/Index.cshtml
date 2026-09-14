@@ -41,10 +41,16 @@
 }
 else
 {
-    <div class="app-grid">
+    <div class="fs-toolbar">
+        <div class="search">
+            <icon name="search" />
+            <input type="search" class="mat-input" placeholder="Search apps…" data-filter-table="#app-grid" autocomplete="off" />
+        </div>
+    </div>
+    <div class="app-grid" id="app-grid">
         @foreach (var t in Model.Templates)
         {
-            <div class="app-card">
+            <div class="app-card" data-filter-row>@* filterable by the search above *@
                 <div class="app-card__head">
                     @if (!string.IsNullOrEmpty(t.IconUrl))
                     {
