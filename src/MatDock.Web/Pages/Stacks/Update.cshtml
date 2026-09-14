@@ -9,7 +9,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Updates @(Model.Stack is null ? "" : "· " + Model.Stack.Name)</h1>
-        <span class="page-head__subtitle">Image updates for this stack@(Model.EnvName is null ? "" : " on " + Model.EnvName)</span>
     </div>
     <div class="mat-buttons">
         <a href="/Stacks/Update?id=@Model.Id" class="mat-btn"><icon name="refresh" /><span>Re-check</span></a>

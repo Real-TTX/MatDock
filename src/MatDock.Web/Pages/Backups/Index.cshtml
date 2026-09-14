@@ -10,7 +10,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Backups</h1>
-        <span class="page-head__subtitle">Backed-up volume archives@(string.IsNullOrEmpty(Model.Volume) ? "" : $" · filtered: {Model.Volume}")</span>
     </div>
     <div class="mat-buttons">
         <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="volume" /><span>Go to volumes</span></a>
@@ -45,7 +44,7 @@
         {
             <div class="empty-state">
                 <div><icon name="save" /></div>
-                <p>No backups yet. Create one from the volumes list.</p>
+                <p>No backups yet.</p>
             </div>
         }
         else

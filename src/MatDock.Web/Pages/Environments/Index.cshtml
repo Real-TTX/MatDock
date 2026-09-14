@@ -8,13 +8,12 @@
     string ViewUrl(string v) => $"/Environments?view={v}"
         + $"&Q={Uri.EscapeDataString(Model.Q ?? string.Empty)}"
         + $"&Status={Uri.EscapeDataString(Model.Status ?? string.Empty)}"
-        + $"&Sort={Uri.EscapeDataString(Model.Sort)}&Dir={Uri.EscapeDataString(Model.Dir)}";
+        + $"&SortKey={Uri.EscapeDataString(Model.SortKey)}";
 }
 
 <div class="page-head">
     <div class="page-head__title">
         <h1>Environments</h1>
-        <span class="page-head__subtitle">Manage Docker environments over SSH</span>
     </div>
 </div>
 
@@ -45,21 +44,21 @@
             </div>
             <div class="toolbar-field">
                 <label for="sort-field">Sort</label>
-                <select id="sort-field" name="Sort" class="mat-select">
-                    <option value="name" selected="@(Model.Sort == "name")">Name</option>
-                    <option value="host" selected="@(Model.Sort == "host")">Host</option>
-                    <option value="status" selected="@(Model.Sort == "status")">Status</option>
-                    <option value="checked" selected="@(Model.Sort == "checked")">Last checked</option>
-                </select>
-                <select name="Dir" class="mat-select" aria-label="Direction">
-                    <option value="asc" selected="@(Model.Dir == "asc")">↑</option>
-                    <option value="desc" selected="@(Model.Dir == "desc")">↓</option>
+                <select id="sort-field" name="SortKey" class="mat-select">
+                    <option value="NameAsc" selected="@(Model.SortKey == "NameAsc")">A–Z: Name</option>
+                    <option value="NameDesc" selected="@(Model.SortKey == "NameDesc")">Z–A: Name</option>
+                    <option value="HostAsc" selected="@(Model.SortKey == "HostAsc")">A–Z: Host</option>
+                    <option value="HostDesc" selected="@(Model.SortKey == "HostDesc")">Z–A: Host</option>
+                    <option value="StatusAsc" selected="@(Model.SortKey == "StatusAsc")">A–Z: Status</option>
+                    <option value="StatusDesc" selected="@(Model.SortKey == "StatusDesc")">Z–A: Status</option>
+                    <option value="CheckedDesc" selected="@(Model.SortKey == "CheckedDesc")">9–0: Last checked</option>
+                    <option value="CheckedAsc" selected="@(Model.SortKey == "CheckedAsc")">0–9: Last checked</option>
                 </select>
             </div>
         </form>
         <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
-            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>List</span></a>
-            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")"><icon name="dashboard" /><span>Gallery</span></a>
+            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
+            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Gallery" aria-label="Gallery"><icon name="dashboard" /></a>
         </div>
     </mat-table-toolbar>
 
@@ -123,11 +122,11 @@
                             <span style="flex:1 1 auto;"></span>
                             @if (env.IsEnabled)
                             {
-                                <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
                                 @if (User.IsInRole("Admin"))
                                 {
                                     <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
                                 }
+                                <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                                 @if (User.IsInRole("Admin"))
                                 {
@@ -206,11 +205,11 @@
                                 <div class="row-actions">
                                     @if (env.IsEnabled)
                                     {
-                                        <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
                                         @if (User.IsInRole("Admin"))
                                         {
                                             <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
                                         }
+                                        <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                                         @if (User.IsInRole("Admin"))
                                         {

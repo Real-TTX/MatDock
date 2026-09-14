@@ -31,7 +31,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Schedules</h1>
-        <span class="page-head__subtitle">Automated tasks — prune, reports and more, on a cron or event trigger</span>
     </div>
     <div class="mat-buttons">
         <a href="/Schedules/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New schedule</span></a>
@@ -53,7 +52,7 @@
         <tbody>
             @if (Model.Tasks.Count == 0)
             {
-                <tr><td colspan="7"><div class="empty-state"><div><icon name="clock" /></div><p>No schedules yet. Create one to prune unused resources or send a status summary automatically.</p></div></td></tr>
+                <tr><td colspan="7"><div class="empty-state"><div><icon name="clock" /></div><p>No schedules yet.</p></div></td></tr>
             }
             @foreach (var t in Model.Tasks)
             {

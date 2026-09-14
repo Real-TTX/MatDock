@@ -10,7 +10,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Users</h1>
-        <span class="page-head__subtitle">Local accounts &amp; roles</span>
     </div>
 </div>
 
@@ -30,15 +29,15 @@
             </div>
             <div class="toolbar-field">
                 <label for="sort-field">Sort</label>
-                <select id="sort-field" name="Sort" class="mat-select">
-                    <option value="username" selected="@(Model.Sort == "username")">Username</option>
-                    <option value="displayname" selected="@(Model.Sort == "displayname")">Display name</option>
-                    <option value="role" selected="@(Model.Sort == "role")">Role</option>
-                    <option value="lastlogin" selected="@(Model.Sort == "lastlogin")">Last login</option>
-                </select>
-                <select name="Dir" class="mat-select" aria-label="Direction">
-                    <option value="asc" selected="@(Model.Dir == "asc")">↑</option>
-                    <option value="desc" selected="@(Model.Dir == "desc")">↓</option>
+                <select id="sort-field" name="SortKey" class="mat-select">
+                    <option value="UsernameAsc" selected="@(Model.SortKey == "UsernameAsc")">A–Z: Username</option>
+                    <option value="UsernameDesc" selected="@(Model.SortKey == "UsernameDesc")">Z–A: Username</option>
+                    <option value="DisplayNameAsc" selected="@(Model.SortKey == "DisplayNameAsc")">A–Z: Display name</option>
+                    <option value="DisplayNameDesc" selected="@(Model.SortKey == "DisplayNameDesc")">Z–A: Display name</option>
+                    <option value="RoleAsc" selected="@(Model.SortKey == "RoleAsc")">A–Z: Role</option>
+                    <option value="RoleDesc" selected="@(Model.SortKey == "RoleDesc")">Z–A: Role</option>
+                    <option value="LastLoginDesc" selected="@(Model.SortKey == "LastLoginDesc")">9–0: Last login</option>
+                    <option value="LastLoginAsc" selected="@(Model.SortKey == "LastLoginAsc")">0–9: Last login</option>
                 </select>
             </div>
         </form>

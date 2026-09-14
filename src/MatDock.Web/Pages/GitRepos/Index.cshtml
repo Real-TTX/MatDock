@@ -9,7 +9,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Git repositories</h1>
-        <span class="page-head__subtitle">Saved repositories to reuse in sync jobs and Git-backed stacks</span>
     </div>
     <div class="mat-buttons">
         <a href="/GitRepos/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New git repository</span></a>
@@ -31,7 +30,7 @@
         <tbody>
             @if (Model.Repos.Count == 0)
             {
-                <tr><td colspan="5"><div class="empty-state"><div><icon name="git" /></div><p>No git repositories yet. Add one to reuse it in sync jobs.</p></div></td></tr>
+                <tr><td colspan="5"><div class="empty-state"><div><icon name="git" /></div><p>No git repositories yet.</p></div></td></tr>
             }
             @foreach (var r in Model.Repos)
             {

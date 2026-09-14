@@ -10,7 +10,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>@Model.Title</h1>
-        <span class="page-head__subtitle">@(Model.Container is null ? $"SSH shell to {Model.EnvName}" : $"docker exec in container on {Model.EnvName}")</span>
     </div>
     <div class="mat-buttons">
         <a href="@backHref" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>

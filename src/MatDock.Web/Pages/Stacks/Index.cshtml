@@ -108,7 +108,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Stacks</h1>
-        <span class="page-head__subtitle">Managed &amp; discovered Compose stacks</span>
     </div>
     <div class="mat-buttons">
         <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New Stack</span></a>
@@ -160,8 +159,8 @@
         </form>
         <span class="text-muted" style="font-size:.85rem;margin-left:6px;"><strong>@Model.Rows.Count</strong>@(Model.Rows.Count != Model.TotalCount ? $" / {Model.TotalCount}" : "")</span>
         <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
-            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")"><icon name="dashboard" /><span>Tiles</span></a>
-            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>List</span></a>
+            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
+            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
         </div>
     </mat-table-toolbar>
 
@@ -170,7 +169,7 @@
         {
             <div class="empty-state">
                 <div><icon name="layers" /></div>
-                <p>No stacks. Create one or select an environment with Compose projects.</p>
+                <p>No stacks yet.</p>
             </div>
         }
         else if (isGallery)
@@ -297,12 +296,13 @@
         {
             <table class="data">
                 <thead>
-                    <tr><th>Name</th><th>Source</th><th>Environment</th><th>Status</th><th class="num">Containers</th><th class="num">Volumes</th><th>Resources</th><th class="actions">Actions</th></tr>
+                    <tr><th>Environment</th><th>Name</th><th>Source</th><th>Status</th><th class="num">Containers</th><th class="num">Volumes</th><th>Resources</th><th class="actions">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var r in Model.Rows)
                     {
                         <tr>
+                            <td>@r.EnvName</td>
                             <td>
                                 <button type="button" class="stack-toggle" onclick="matdockToggleRow(this)" aria-label="Expand containers"><icon name="chevron-right" /></button>
                                 @if (r.Managed && r.ManagedId is { } mid)
@@ -328,7 +328,6 @@
                                     <span class="cell-sub">Managed</span>
                                 }
                             </td>
-                            <td>@r.EnvName</td>
                             <td>
                                 @if (r.Total > 0)
                                 {

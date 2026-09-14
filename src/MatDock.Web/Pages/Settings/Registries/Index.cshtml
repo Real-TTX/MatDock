@@ -9,7 +9,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Registries</h1>
-        <span class="page-head__subtitle">Container registries for pulling private images and browsing repositories</span>
     </div>
     <div class="mat-buttons">
         <a href="/Settings/Registries/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New registry</span></a>
@@ -31,7 +30,7 @@
         <tbody>
             @if (Model.Registries.Count == 0)
             {
-                <tr><td colspan="5"><div class="empty-state"><div><icon name="registry" /></div><p>No registries yet. Add one to pull private images and browse it under the "Registry" menu.</p></div></td></tr>
+                <tr><td colspan="5"><div class="empty-state"><div><icon name="registry" /></div><p>No registries yet.</p></div></td></tr>
             }
             @foreach (var r in Model.Registries)
             {

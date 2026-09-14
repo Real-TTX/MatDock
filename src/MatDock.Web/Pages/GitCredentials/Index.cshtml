@@ -9,7 +9,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Git credentials</h1>
-        <span class="page-head__subtitle">Credentials for cloning private stack repositories</span>
     </div>
     <div class="mat-buttons">
         <a href="/GitCredentials/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New git credential</span></a>
@@ -31,7 +30,7 @@
         <tbody>
             @if (Model.Credentials.Count == 0)
             {
-                <tr><td colspan="4"><div class="empty-state"><div><icon name="key" /></div><p>No git credentials yet. Create one to clone private repositories.</p></div></td></tr>
+                <tr><td colspan="4"><div class="empty-state"><div><icon name="key" /></div><p>No git credentials yet.</p></div></td></tr>
             }
             @foreach (var c in Model.Credentials)
             {

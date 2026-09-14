@@ -105,7 +105,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Containers</h1>
-        <span class="page-head__subtitle">@(Model.IsAll ? "All containers across all environments" : "Containers in the selected environment")</span>
     </div>
 </div>
 
@@ -136,15 +135,15 @@
         </div>
         <span class="text-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of @Model.Rows.Count</span>
         <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
-            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")"><icon name="menu" /><span>List</span></a>
-            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")"><icon name="dashboard" /><span>Tiles</span></a>
+            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
+            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
         </div>
     </mat-table-toolbar>
 
     <mat-table-body>
         @if (Model.Environments.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>No active environment. Create one or enable one.</p></div>
+            <div class="empty-state"><div><icon name="box" /></div><p>No active environment.</p></div>
         }
         else if (Model.Rows.Count == 0)
         {

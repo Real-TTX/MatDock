@@ -34,10 +34,7 @@ public class IndexModel : PageModel
     public string? Q { get; set; }
 
     [BindProperty(SupportsGet = true)]
-    public string Sort { get; set; } = "name";
-
-    [BindProperty(SupportsGet = true)]
-    public string Dir { get; set; } = "asc";
+    public string SortKey { get; set; } = "NameAsc";
 
     [BindProperty(SupportsGet = true)]
     public string? Status { get; set; }
@@ -71,12 +68,12 @@ public class IndexModel : PageModel
             query = query.Where(e => e.Status == statusFilter);
         }
 
-        var descending = string.Equals(Dir, "desc", Ic);
-        query = Sort.ToLowerInvariant() switch
+        var descending = SortKey.EndsWith("Desc", Ic);
+        query = SortKey switch
         {
-            "host" => Order(query, e => e.Host, descending),
-            "status" => Order(query, e => (int)e.Status, descending),
-            "checked" => Order(query, e => e.LastCheckedAt ?? DateTime.MinValue, descending),
+            "HostAsc" or "HostDesc" => Order(query, e => e.Host, descending),
+            "StatusAsc" or "StatusDesc" => Order(query, e => (int)e.Status, descending),
+            "CheckedAsc" or "CheckedDesc" => Order(query, e => e.LastCheckedAt ?? DateTime.MinValue, descending),
             _ => Order(query, e => e.Name, descending)
         };
 

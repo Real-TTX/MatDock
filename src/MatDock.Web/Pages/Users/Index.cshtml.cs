@@ -23,10 +23,7 @@ public class IndexModel : PageModel
     public string? Q { get; set; }
 
     [BindProperty(SupportsGet = true)]
-    public string Sort { get; set; } = "username";
-
-    [BindProperty(SupportsGet = true)]
-    public string Dir { get; set; } = "asc";
+    public string SortKey { get; set; } = "UsernameAsc";
 
     [BindProperty(SupportsGet = true, Name = "page")]
     public int PageNumber { get; set; } = 1;
@@ -48,12 +45,12 @@ public class IndexModel : PageModel
             query = query.Where(u => u.Username.Contains(s, Ic) || u.DisplayName.Contains(s, Ic));
         }
 
-        var descending = string.Equals(Dir, "desc", Ic);
-        query = Sort.ToLowerInvariant() switch
+        var descending = SortKey.EndsWith("Desc", Ic);
+        query = SortKey switch
         {
-            "displayname" => Order(query, u => u.DisplayName, descending),
-            "role" => Order(query, u => (int)u.Role, descending),
-            "lastlogin" => Order(query, u => u.LastLoginAt ?? DateTime.MinValue, descending),
+            "DisplayNameAsc" or "DisplayNameDesc" => Order(query, u => u.DisplayName, descending),
+            "RoleAsc" or "RoleDesc" => Order(query, u => (int)u.Role, descending),
+            "LastLoginAsc" or "LastLoginDesc" => Order(query, u => u.LastLoginAt ?? DateTime.MinValue, descending),
             _ => Order(query, u => u.Username, descending)
         };
 

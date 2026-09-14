@@ -9,7 +9,6 @@
 <div class="page-head">
     <div class="page-head__title">
         <h1>Proxies</h1>
-        <span class="page-head__subtitle">Reverse proxies (Caddy / Matcad) whose routes MatDock manages</span>
     </div>
     <div class="mat-buttons">
         <a href="/Settings/Proxies/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New proxy</span></a>
@@ -31,7 +30,7 @@
         <tbody>
             @if (Model.Connections.Count == 0)
             {
-                <tr><td colspan="5"><div class="empty-state"><div><icon name="route" /></div><p>No reverse proxies yet. Add one to manage its routes under the "Proxy" menu.</p></div></td></tr>
+                <tr><td colspan="5"><div class="empty-state"><div><icon name="route" /></div><p>No reverse proxies yet.</p></div></td></tr>
             }
             @foreach (var c in Model.Connections)
             {
