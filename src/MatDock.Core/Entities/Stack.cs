@@ -14,6 +14,11 @@ public class Stack : AuditableEntity
 
     public string ComposeYaml { get; set; } = string.Empty;
 
+    /// <summary>Optional <c>.env</c> file contents for the inline stack (variable substitution + defaults).
+    /// Written to <c>~/.matdock/stacks/&lt;name&gt;/.env</c> on deploy; null/empty removes it. Git-backed
+    /// stacks manage their own <c>.env</c> from the repo, so this stays null for them.</summary>
+    public string? EnvContent { get; set; }
+
     /// <summary>When set, the stack is git-backed: the compose (and any bind-mounted files) come from this repo.</summary>
     public string? GitRepoUrl { get; set; }
 

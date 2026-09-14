@@ -75,24 +75,40 @@ public static partial class StackCommands
     }
 
     /// <summary>Writes the compose YAML (from stdin) and runs <c>compose up -d</c>. Output merged (2&gt;&amp;1).</summary>
-    public static string Deploy(string dockerHead, string name)
+    public static string Deploy(string dockerHead, string name, string? envContent = null)
     {
         Require(name);
         // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
         // single quotes, so it reaches the remote sh verbatim. YAML arrives on stdin via `cat`.
         var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; mkdir -p \"$dir\"; "
-                   + "cat > \"$dir/docker-compose.yml\"; cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
+                   + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
     /// <summary>Writes the compose YAML (from stdin), pulls newer images, then runs <c>compose up -d</c>.</summary>
-    public static string Update(string dockerHead, string name)
+    public static string Update(string dockerHead, string name, string? envContent = null)
     {
         Require(name);
         var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; mkdir -p \"$dir\"; "
-                   + "cat > \"$dir/docker-compose.yml\"; cd \"$dir\"; "
+                   + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; "
                    + dockerHead + " compose -p \"$name\" pull; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
+    }
+
+    /// <summary>
+    /// Shell fragment that (re)writes the stack's <c>.env</c> deterministically: decode base64-embedded
+    /// content when provided, otherwise delete a stale <c>.env</c> so cleared variables take effect on the
+    /// next deploy. Base64 contains only <c>[A-Za-z0-9+/=]</c>, so it is safe inside the single-quoted body.
+    /// </summary>
+    private static string EnvStep(string? envContent)
+    {
+        if (string.IsNullOrEmpty(envContent))
+        {
+            return "rm -f \"$dir/.env\"; ";
+        }
+
+        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(envContent.Replace("\r\n", "\n")));
+        return "echo " + b64 + " | base64 -d > \"$dir/.env\"; ";
     }
 
     /// <summary><c>compose down</c> for the stack (stops and removes containers). Output merged.</summary>

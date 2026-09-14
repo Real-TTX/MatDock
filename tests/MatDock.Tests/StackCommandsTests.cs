@@ -66,6 +66,27 @@ public class StackCommandsTests
     }
 
     [Fact]
+    public void Deploy_with_env_writes_dotenv_via_base64()
+    {
+        var env = "FOO=bar\nBAZ=qux";
+        var cmd = StackCommands.Deploy("docker", "media", env);
+        var b64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(env));
+        Assert.Contains("echo " + b64 + " | base64 -d > \"$dir/.env\"", cmd);
+
+        // base64 has no single quotes, so the single-quoted sh -c body stays intact.
+        var start = cmd.IndexOf("sh -c '", System.StringComparison.Ordinal) + "sh -c '".Length;
+        var end = cmd.LastIndexOf("' 2>&1", System.StringComparison.Ordinal);
+        Assert.DoesNotContain("'", cmd.Substring(start, end - start));
+    }
+
+    [Fact]
+    public void Deploy_without_env_removes_stale_dotenv()
+    {
+        var cmd = StackCommands.Deploy("docker", "media");
+        Assert.Contains("rm -f \"$dir/.env\"", cmd);
+    }
+
+    [Fact]
     public void Down_builds_expected_command()
     {
         var cmd = StackCommands.Down("sudo -n docker", "media", "docker-compose.yml");

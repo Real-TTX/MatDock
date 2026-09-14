@@ -64,8 +64,11 @@
             </div>
 
             <div data-show-when="Source=inline">
-                <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Stored on the host at ~/.matdock/stacks/&lt;name&gt;/docker-compose.yml and deployed with 'docker compose up -d'.">
-                    <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="16" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
+                <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml">
+                    <textarea asp-for="Input.ComposeYaml" class="mat-textarea code-editor" data-code="yaml" rows="18" spellcheck="false" wrap="off" placeholder="services:&#10;  app:&#10;    image: nginx:alpine&#10;    environment:&#10;      - TZ=${TZ}"></textarea>
+                </mat-field>
+                <mat-field label="Environment variables (.env)" asp-for="Input.EnvContent" hint="One KEY=value per line, used for ${VAR} substitution in the compose file.">
+                    <textarea asp-for="Input.EnvContent" class="mat-textarea code-editor" data-code="env" rows="6" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin&#10;PUID=1000"></textarea>
                 </mat-field>
             </div>
 

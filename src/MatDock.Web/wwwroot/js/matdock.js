@@ -179,6 +179,72 @@
         });
     });
 
+    /* ---------------- Lightweight code editor (YAML / .env) ----------------
+       Overlay highlighter: a transparent <textarea> sits over a syntax-coloured <pre>,
+       scroll-synced. No dependencies/CDN; activated on <textarea data-code="yaml|env">. */
+    (function () {
+        function esc(s) {
+            return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function hlYaml(src) {
+            return esc(src).replace(
+                /(^[ \t]*#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*)|(^[ \t]*(?:- )?)([A-Za-z0-9_.\-]+)(:)(?=\s|$)|(#.*$)/gm,
+                function (m, cfull, str, varr, kpre, key, colon, cinl) {
+                    if (cfull !== undefined) { return '<span class="t-com">' + cfull + '</span>'; }
+                    if (str !== undefined) { return '<span class="t-str">' + str + '</span>'; }
+                    if (varr !== undefined) { return '<span class="t-var">' + varr + '</span>'; }
+                    if (key !== undefined) { return kpre + '<span class="t-key">' + key + '</span>' + colon; }
+                    if (cinl !== undefined) { return '<span class="t-com">' + cinl + '</span>'; }
+                    return m;
+                });
+        }
+
+        function hlEnv(src) {
+            return esc(src).replace(
+                /(^[ \t]*#.*$)|(\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*)|(^[ \t]*(?:export[ \t]+)?)([A-Za-z_][A-Za-z0-9_]*)(=)/gm,
+                function (m, com, varr, kpre, key, eq) {
+                    if (com !== undefined) { return '<span class="t-com">' + com + '</span>'; }
+                    if (varr !== undefined) { return '<span class="t-var">' + varr + '</span>'; }
+                    if (key !== undefined) { return kpre + '<span class="t-key">' + key + '</span>' + eq; }
+                    return m;
+                });
+        }
+
+        document.querySelectorAll("textarea[data-code]").forEach(function (ta) {
+            var hl = ta.getAttribute("data-code") === "env" ? hlEnv : hlYaml;
+
+            var wrap = document.createElement("div");
+            wrap.className = "code-wrap";
+            var pre = document.createElement("pre");
+            pre.className = "code-hl";
+            pre.setAttribute("aria-hidden", "true");
+            var code = document.createElement("code");
+            pre.appendChild(code);
+
+            ta.parentNode.insertBefore(wrap, ta);
+            wrap.appendChild(pre);
+            wrap.appendChild(ta);
+
+            function render() { code.innerHTML = hl(ta.value) + "\n"; }
+            function sync() { pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft; }
+
+            ta.addEventListener("input", function () { render(); sync(); });
+            ta.addEventListener("scroll", sync);
+            // Tab inserts two spaces instead of moving focus (indentation-friendly).
+            ta.addEventListener("keydown", function (e) {
+                if (e.key === "Tab" && !e.shiftKey) {
+                    e.preventDefault();
+                    var s = ta.selectionStart, en = ta.selectionEnd;
+                    ta.value = ta.value.slice(0, s) + "  " + ta.value.slice(en);
+                    ta.selectionStart = ta.selectionEnd = s + 2;
+                    render(); sync();
+                }
+            });
+            render();
+        });
+    })();
+
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
         var form = e.target;

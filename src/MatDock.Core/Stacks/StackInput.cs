@@ -7,6 +7,9 @@ public sealed class StackInput
     public long EnvironmentId { get; set; }
     public string ComposeYaml { get; set; } = string.Empty;
 
+    /// <summary>Optional <c>.env</c> file contents (inline stacks only).</summary>
+    public string? EnvContent { get; set; }
+
     // Optional Git source. When GitRepoUrl is set the stack is git-backed and ComposeYaml is a cache.
     public string? GitRepoUrl { get; set; }
     public string? GitReference { get; set; }

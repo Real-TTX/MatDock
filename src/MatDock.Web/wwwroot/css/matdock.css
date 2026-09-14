@@ -250,6 +250,29 @@ h2 { font-size: 1.2rem; }
 .mat-input.input-validation-error, .mat-select.input-validation-error, .mat-textarea.input-validation-error { border-color: var(--danger); }
 .mat-input::placeholder { color: var(--text-muted); }
 
+/* Code editor: a transparent <textarea> over a syntax-highlighted <pre> (wired in matdock.js).
+   Both layers share identical font metrics + padding so the caret aligns with the coloured text. */
+.code-wrap { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
+.code-wrap > .code-hl,
+.code-wrap > textarea.code-editor {
+    margin: 0; padding: 9px 12px; border: 0;
+    font-family: var(--mono); font-size: .85rem; line-height: 1.55;
+    tab-size: 2; white-space: pre; box-sizing: border-box;
+}
+.code-wrap > .code-hl { position: absolute; inset: 0; overflow: hidden; color: var(--text); background: transparent; pointer-events: none; z-index: 0; }
+.code-wrap > .code-hl code { font: inherit; white-space: pre; display: block; }
+.code-wrap > textarea.code-editor {
+    position: relative; z-index: 1; display: block; width: 100%;
+    min-height: 90px; resize: vertical; overflow: auto;
+    background: transparent; color: transparent; caret-color: var(--text);
+}
+.code-wrap > textarea.code-editor:focus { outline: none; }
+.code-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.code-hl .t-key { color: var(--accent); }
+.code-hl .t-str { color: var(--success); }
+.code-hl .t-var { color: var(--warning); }
+.code-hl .t-com { color: var(--text-muted); font-style: italic; }
+
 .mat-check { display: flex; align-items: center; gap: 9px; font-size: .9rem; cursor: pointer; }
 .mat-check input { width: 17px; height: 17px; accent-color: var(--accent); }
 

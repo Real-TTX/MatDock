@@ -256,7 +256,9 @@ public sealed class StackService
         await LoginRegistriesAsync(prep, ct);
 
         var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
-        var command = pull ? StackCommands.Update(prep.Head!, stack.Name) : StackCommands.Deploy(prep.Head!, stack.Name);
+        var command = pull
+            ? StackCommands.Update(prep.Head!, stack.Name, stack.EnvContent)
+            : StackCommands.Deploy(prep.Head!, stack.Name, stack.EnvContent);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
@@ -589,18 +591,21 @@ public sealed class StackService
 
         if (repo is null)
         {
-            // Inline stack: keep the editor YAML, clear any git source.
+            // Inline stack: keep the editor YAML + .env, clear any git source.
             stack.GitReference = null;
             stack.GitComposePath = null;
             stack.GitCredentialId = null;
             stack.ComposeYaml = input.ComposeYaml ?? string.Empty;
+            stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
         else
         {
             // Git-backed: ComposeYaml is a cache filled on deploy; don't overwrite from the (hidden) editor.
+            // The repo carries its own .env, so MatDock does not manage one.
             stack.GitReference = string.IsNullOrWhiteSpace(input.GitReference) ? null : input.GitReference.Trim();
             stack.GitComposePath = string.IsNullOrWhiteSpace(input.GitComposePath) ? null : input.GitComposePath.Trim();
             stack.GitCredentialId = input.GitCredentialId is > 0 ? input.GitCredentialId : null;
+            stack.EnvContent = null;
         }
     }
 

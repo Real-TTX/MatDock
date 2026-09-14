@@ -61,6 +61,9 @@ public class EditModel : PageModel
         // "non-nullable reference type is required" model validation; ValidateSource enforces it for inline.
         public string? ComposeYaml { get; set; }
 
+        /// <summary>Optional .env file for the inline stack (variable substitution + defaults).</summary>
+        public string? EnvContent { get; set; }
+
         // Git source
         public string? GitRepoUrl { get; set; }
         public string? GitReference { get; set; }
@@ -87,6 +90,7 @@ public class EditModel : PageModel
                 EnvironmentId = stack.EnvironmentId,
                 Source = stack.IsGitBacked ? "git" : "inline",
                 ComposeYaml = stack.ComposeYaml,
+                EnvContent = stack.EnvContent,
                 GitRepoUrl = stack.GitRepoUrl,
                 GitReference = stack.GitReference,
                 GitComposePath = stack.GitComposePath,
@@ -190,6 +194,7 @@ public class EditModel : PageModel
             Name = Input.Name,
             EnvironmentId = Input.EnvironmentId,
             ComposeYaml = isGit ? string.Empty : (Input.ComposeYaml ?? string.Empty),
+            EnvContent = isGit ? null : Input.EnvContent,
             GitRepoUrl = isGit ? Input.GitRepoUrl : null,
             GitReference = isGit ? Input.GitReference : null,
             GitComposePath = isGit ? Input.GitComposePath : null,
