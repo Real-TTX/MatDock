@@ -84,6 +84,7 @@ public class IndexModel : PageModel
 
         var removed = 0;
         var errors = new List<string>();
+        var reclaimed = new List<string>();
         var anyOk = false;
         foreach (var env in targets)
         {
@@ -91,7 +92,12 @@ public class IndexModel : PageModel
             {
                 var result = await _connectionService.PruneImagesAsync(
                     _environmentService.BuildSettings(env), all: false, HttpContext.RequestAborted);
-                if (result.Success) { removed += result.Removed; anyOk = true; }
+                if (result.Success)
+                {
+                    removed += result.Removed;
+                    anyOk = true;
+                    if (!string.IsNullOrEmpty(result.Reclaimed)) { reclaimed.Add(result.Reclaimed); }
+                }
                 else { errors.Add($"{env.Name}: {result.Detail}"); }
             }
             catch (Exception ex)
@@ -100,9 +106,10 @@ public class IndexModel : PageModel
             }
         }
 
+        var freed = reclaimed.Count > 0 ? $", freed {string.Join(" + ", reclaimed)}" : "";
         StatusMessage = errors.Count == 0
-            ? $"Pruned {removed} dangling image(s)."
-            : $"Pruned {removed} dangling image(s); errors: {string.Join(" · ", errors)}";
+            ? $"Pruned {removed} dangling image(s){freed}."
+            : $"Pruned {removed} dangling image(s){freed}; errors: {string.Join(" · ", errors)}";
         IsError = !anyOk && errors.Count > 0;
         return RedirectToPage(new { EnvId, Q, Refresh = true });
     }

@@ -83,19 +83,24 @@ public sealed class PruneImagesAction : ScheduleActionBase, IScheduleAction
         var envs = await TargetsAsync(task, ct);
         if (envs.Count == 0) { return (false, "No target environment."); }
 
-        var removed = 0; var errors = new List<string>();
+        var removed = 0; var errors = new List<string>(); var reclaimed = new List<string>();
         foreach (var env in envs)
         {
             try
             {
                 var result = await Connection.PruneImagesAsync(Environments.BuildSettings(env), opt.All, ct);
-                if (result.Success) { removed += result.Removed; }
+                if (result.Success)
+                {
+                    removed += result.Removed;
+                    if (!string.IsNullOrEmpty(result.Reclaimed)) { reclaimed.Add(result.Reclaimed); }
+                }
                 else { errors.Add($"{env.Name}: {result.Detail}"); }
             }
             catch (Exception ex) { errors.Add($"{env.Name}: {ex.Message}"); }
         }
 
-        return PruneVolumesAction.Result($"Pruned {removed} image(s) across {envs.Count} environment(s).", errors);
+        var freed = reclaimed.Count > 0 ? $", freed {string.Join(" + ", reclaimed)}" : "";
+        return PruneVolumesAction.Result($"Pruned {removed} image(s){freed} across {envs.Count} environment(s).", errors);
     }
 }
 

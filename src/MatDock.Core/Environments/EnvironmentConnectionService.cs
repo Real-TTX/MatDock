@@ -480,7 +480,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         var result = RunCommand(client, NetworkCommands.Prune(head), settings);
         return result.ExitStatus == 0
-            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
+            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim(), ParseReclaimed(result.StdOut))
             : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
@@ -545,7 +545,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         var result = RunCommand(client, ImageCommands.Prune(all, head), settings);
         return result.ExitStatus == 0
-            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim())
+            ? new PruneResult(true, CountPruneItems(result.StdOut), result.StdOut.Trim(), ParseReclaimed(result.StdOut))
             : PruneResult.Fail(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
@@ -554,6 +554,21 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         => stdout.Split('\n')
             .Select(l => l.Trim())
             .Count(l => l.Length > 0 && !l.Contains(':'));
+
+    /// <summary>Extracts Docker's "Total reclaimed space: X" value from a prune output, or null if absent/zero.</summary>
+    private static string? ParseReclaimed(string stdout)
+    {
+        foreach (var line in stdout.Split('\n'))
+        {
+            var idx = line.IndexOf("reclaimed space:", StringComparison.OrdinalIgnoreCase);
+            if (idx >= 0)
+            {
+                var val = line[(idx + "reclaimed space:".Length)..].Trim();
+                return string.IsNullOrEmpty(val) || val is "0B" or "0 B" ? null : val;
+            }
+        }
+        return null;
+    }
 
     /// <summary>Ordered access strategies to probe: default, sudo, then any discovered rootless sockets.</summary>
     private IReadOnlyList<(bool UseSudo, string? DockerHost)> BuildCandidates(IHostSession client, SshConnectionSettings settings)

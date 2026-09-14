@@ -93,8 +93,9 @@ public sealed class DockerImage
     public string Reference => Dangling ? Id : $"{Repository}:{Tag}";
 }
 
-/// <summary>Outcome of a prune (volumes or networks): whether it ran, how many were removed, raw detail.</summary>
-public sealed record PruneResult(bool Success, int Removed, string Detail)
+/// <summary>Outcome of a prune (volumes/images/networks): whether it ran, how many were removed, raw
+/// detail, and the reclaimed disk space as reported by Docker (null when Docker reports none).</summary>
+public sealed record PruneResult(bool Success, int Removed, string Detail, string? Reclaimed = null)
 {
     public static PruneResult Fail(string message) => new(false, 0, message);
 }
