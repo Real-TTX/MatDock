@@ -36,6 +36,14 @@
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, mountpoint, environment)…" />
             </div>
+            <div class="toolbar-field">
+                <label for="filter-status"><icon name="filter" /></label>
+                <select id="filter-status" name="Status" class="mat-select">
+                    <option value="">All</option>
+                    <option value="used" selected="@(Model.Status == "used")">Used</option>
+                    <option value="unused" selected="@(Model.Status == "unused")">Unused</option>
+                </select>
+            </div>
             <span class="toolbar-spacer"></span>
             <span class="text-muted"><strong>@Model.Rows.Count</strong> Volumes</span>
         </form>

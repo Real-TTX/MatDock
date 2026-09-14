@@ -32,6 +32,10 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Q { get; set; }
 
+    /// <summary>Usage filter: "" (all), "used", or "unused".</summary>
+    [BindProperty(SupportsGet = true)]
+    public string? Status { get; set; }
+
     [BindProperty(SupportsGet = true)]
     public long EnvId { get; set; }
 
@@ -121,6 +125,15 @@ public class IndexModel : PageModel
                 r.Volume.Driver.Contains(s, Ic) ||
                 (r.Volume.Mountpoint ?? string.Empty).Contains(s, Ic) ||
                 r.Environment.Name.Contains(s, Ic)).ToList();
+        }
+
+        if (string.Equals(Status, "unused", Ic))
+        {
+            rows = rows.Where(r => r.Unused).ToList();
+        }
+        else if (string.Equals(Status, "used", Ic))
+        {
+            rows = rows.Where(r => !r.Unused).ToList();
         }
 
         Rows = rows

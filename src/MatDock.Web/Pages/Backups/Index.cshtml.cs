@@ -22,7 +22,14 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Volume { get; set; }
 
+    /// <summary>Filter by source environment name; empty = all.</summary>
+    [BindProperty(SupportsGet = true)]
+    public string? Env { get; set; }
+
     public List<VolumeBackup> Items { get; private set; } = new();
+
+    /// <summary>Distinct source-environment names across all backups (for the filter dropdown).</summary>
+    public List<string> EnvNames { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
@@ -30,11 +37,22 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         var all = await _backupService.GetAllAsync(HttpContext.RequestAborted);
+        EnvNames = all.Select(b => b.SourceEnvironmentName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         IEnumerable<VolumeBackup> query = all;
 
         if (!string.IsNullOrWhiteSpace(Volume))
         {
             query = query.Where(b => b.VolumeName.Equals(Volume, Ic));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Env))
+        {
+            query = query.Where(b => b.SourceEnvironmentName.Equals(Env, Ic));
         }
 
         if (!string.IsNullOrWhiteSpace(Q))
@@ -51,6 +69,6 @@ public class IndexModel : PageModel
         var deleted = await _backupService.DeleteAsync(id, HttpContext.RequestAborted);
         StatusMessage = deleted ? "Backup deleted." : "Backup not found.";
         IsError = !deleted;
-        return RedirectToPage(new { Q, Volume });
+        return RedirectToPage(new { Q, Volume, Env });
     }
 }
