@@ -852,8 +852,8 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                 }
             }
 
-            // Containers is an object map (id → { Name, … }); collect the container names.
-            var containers = new List<string>();
+            // Containers is an object map (id → { Name, … }); keep id + name for deep links.
+            var containers = new List<NetworkContainer>();
             if (root.TryGetProperty("Containers", out var cs) && cs.ValueKind == JsonValueKind.Object)
             {
                 foreach (var p in cs.EnumerateObject())
@@ -861,7 +861,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                     if (p.Value.ValueKind == JsonValueKind.Object
                         && p.Value.TryGetProperty("Name", out var n) && n.ValueKind == JsonValueKind.String)
                     {
-                        containers.Add(n.GetString()!);
+                        containers.Add(new NetworkContainer(p.Name, n.GetString()!));
                     }
                 }
             }
@@ -877,7 +877,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                 EnableIPv6 = Flag("EnableIPv6"),
                 CreatedAt = Str("Created"),
                 Subnets = subnets,
-                Containers = containers.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList(),
+                Containers = containers.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList(),
                 Options = Obj("Options"),
                 Labels = Obj("Labels"),
             };

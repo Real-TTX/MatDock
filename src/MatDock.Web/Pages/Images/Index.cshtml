@@ -106,9 +106,9 @@
 
     <mat-table-actions>
         <span class="toolbar-spacer"></span>
-        @if (isAdmin && Model.EnvId > 0)
+        @if (isAdmin)
         {
-            <form method="post" asp-page-handler="Prune" data-confirm="Remove all dangling (untagged) images in this environment?" style="display:inline;">
+            <form method="post" asp-page-handler="Prune" data-confirm="Remove all dangling (untagged) images in @(Model.EnvId > 0 ? "this environment" : "all environments")?" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <button type="submit" class="mat-btn"><icon name="broom" /><span>Prune dangling</span></button>
             </form>

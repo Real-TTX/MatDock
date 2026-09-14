@@ -72,18 +72,38 @@ public class IndexModel : PageModel
             return Forbid();
         }
 
-        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
-        if (env is null || !env.IsEnabled)
+        // A specific environment prunes just that host; "all" (envId <= 0) prunes every enabled host.
+        var enabled = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
+        var targets = envId > 0 ? enabled.Where(e => e.Id == envId).ToList() : enabled;
+        if (targets.Count == 0)
         {
-            StatusMessage = "Select a specific environment to prune its images.";
+            StatusMessage = "No environment available to prune.";
             IsError = true;
             return RedirectToPage(new { EnvId, Q });
         }
 
-        var result = await _connectionService.PruneImagesAsync(
-            _environmentService.BuildSettings(env), all: false, HttpContext.RequestAborted);
-        StatusMessage = result.Success ? $"Pruned {result.Removed} dangling image(s)." : result.Detail;
-        IsError = !result.Success;
+        var removed = 0;
+        var errors = new List<string>();
+        var anyOk = false;
+        foreach (var env in targets)
+        {
+            try
+            {
+                var result = await _connectionService.PruneImagesAsync(
+                    _environmentService.BuildSettings(env), all: false, HttpContext.RequestAborted);
+                if (result.Success) { removed += result.Removed; anyOk = true; }
+                else { errors.Add($"{env.Name}: {result.Detail}"); }
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{env.Name}: {ex.Message}");
+            }
+        }
+
+        StatusMessage = errors.Count == 0
+            ? $"Pruned {removed} dangling image(s)."
+            : $"Pruned {removed} dangling image(s); errors: {string.Join(" · ", errors)}";
+        IsError = !anyOk && errors.Count > 0;
         return RedirectToPage(new { EnvId, Q, Refresh = true });
     }
 

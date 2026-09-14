@@ -332,6 +332,9 @@ table.data thead th.actions {
     background: var(--surface-2);
 }
 table.data tbody tr:hover td.actions { background: var(--surface-2); }
+/* A plain card wrapping a full-bleed data table must clip, or the header's background overflows the
+   card's rounded corners (e.g. the Schedules list). */
+.card:has(> table.data) { overflow: hidden; }
 
 .row-actions { display: inline-flex; gap: 6px; }
 

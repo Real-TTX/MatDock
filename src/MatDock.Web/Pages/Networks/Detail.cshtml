@@ -120,7 +120,7 @@ else
                     <tbody>
                         @foreach (var c in d.Containers)
                         {
-                            <tr><td><strong>@c</strong></td></tr>
+                            <tr><td><a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a></td></tr>
                         }
                     </tbody>
                 </table>

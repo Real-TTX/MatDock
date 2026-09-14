@@ -125,6 +125,9 @@ public sealed class DockerNetwork
         Name is "bridge" or "host" or "none";
 }
 
+/// <summary>A container attached to a network: its id (for deep links) and display name.</summary>
+public sealed record NetworkContainer(string Id, string Name);
+
 /// <summary>Full detail of a Docker network from <c>docker network inspect</c>.</summary>
 public sealed class DockerNetworkDetail
 {
@@ -147,8 +150,8 @@ public sealed class DockerNetworkDetail
     /// <summary>IPAM subnets, e.g. "172.18.0.0/16 → 172.18.0.1".</summary>
     public IReadOnlyList<string> Subnets { get; init; } = new List<string>();
 
-    /// <summary>Names of the containers currently attached to this network.</summary>
-    public IReadOnlyList<string> Containers { get; init; } = new List<string>();
+    /// <summary>Containers currently attached to this network (id + name, for deep links).</summary>
+    public IReadOnlyList<NetworkContainer> Containers { get; init; } = new List<NetworkContainer>();
 
     public IReadOnlyDictionary<string, string> Options { get; init; } = new Dictionary<string, string>();
 
