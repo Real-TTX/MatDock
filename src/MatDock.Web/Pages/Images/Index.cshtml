@@ -57,6 +57,7 @@
                         <th>Image ID</th>
                         <th>Size</th>
                         <th>Created</th>
+                        <th>Status</th>
                         <th class="actions">Actions</th>
                     </tr>
                 </thead>
@@ -77,6 +78,16 @@
                             <td class="mono cell-sub">@img.Id</td>
                             <td class="nowrap">@(img.Size ?? "–")</td>
                             <td class="cell-sub nowrap">@(img.CreatedSince ?? "–")</td>
+                            <td>
+                                @if (row.InUse)
+                                {
+                                    <span class="pill pill--online" title="Used by @string.Join(", ", row.UsedBy)"><icon name="check-circle" /> Used</span>
+                                }
+                                else
+                                {
+                                    <span class="pill pill--unknown" title="No container uses this image"><icon name="alert" /> Unused</span>
+                                }
+                            </td>
                             <td class="actions">
                                 <div class="row-actions">
                                     @if (isAdmin)

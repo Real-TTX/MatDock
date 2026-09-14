@@ -1,3 +1,4 @@
+using MatDock.Core.Containers;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
@@ -14,12 +15,14 @@ public class IndexModel : PageModel
 
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
+    private readonly ContainerService _containerService;
     private readonly IMemoryCache _cache;
 
-    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, IMemoryCache cache)
+    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, ContainerService containerService, IMemoryCache cache)
     {
         _environmentService = environmentService;
         _connectionService = connectionService;
+        _containerService = containerService;
         _cache = cache;
     }
 
@@ -34,9 +37,9 @@ public class IndexModel : PageModel
     public List<ImageRow> Rows { get; private set; } = new();
     public List<(string Environment, string Message)> Errors { get; private set; } = new();
 
-    public sealed record ImageRow(DockerEnvironment Environment, DockerImage Image);
+    public sealed record ImageRow(DockerEnvironment Environment, DockerImage Image, bool InUse, IReadOnlyList<string> UsedBy);
 
-    private sealed record CachedImages(IReadOnlyList<DockerImage> Images, string? Error);
+    private sealed record CachedImages(IReadOnlyList<DockerImage> Images, IReadOnlyList<DockerContainer> Containers, string? Error);
 
     public async Task OnGetAsync() => await LoadAsync();
 
@@ -114,11 +117,22 @@ public class IndexModel : PageModel
                 try
                 {
                     var images = await _connectionService.ListImagesAsync(p.Settings, HttpContext.RequestAborted);
-                    entry = new CachedImages(images, null);
+                    // Containers (no stats — we only need their image refs to flag Used/Unused). Best-effort.
+                    IReadOnlyList<DockerContainer> containers;
+                    try
+                    {
+                        containers = await _containerService.ListAsync(p.Env, HttpContext.RequestAborted, includeStats: false);
+                    }
+                    catch
+                    {
+                        containers = Array.Empty<DockerContainer>();
+                    }
+
+                    entry = new CachedImages(images, containers, null);
                 }
                 catch (Exception ex)
                 {
-                    entry = new CachedImages(Array.Empty<DockerImage>(), ex.Message);
+                    entry = new CachedImages(Array.Empty<DockerImage>(), Array.Empty<DockerContainer>(), ex.Message);
                 }
 
                 _cache.Set(cacheKey, entry, CacheTtl);
@@ -141,7 +155,15 @@ public class IndexModel : PageModel
                 continue;
             }
 
-            rows.AddRange(entry.Images.Select(i => new ImageRow(env, i)));
+            foreach (var img in entry.Images)
+            {
+                var usedBy = entry.Containers
+                    .Where(c => Uses(c, img))
+                    .Select(c => c.Name)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                rows.Add(new ImageRow(env, img, usedBy.Count > 0, usedBy));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(Q))
@@ -160,5 +182,46 @@ public class IndexModel : PageModel
             .ThenBy(r => r.Image.Repository, StringComparer.OrdinalIgnoreCase)
             .ThenBy(r => r.Image.Tag, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    // Whether a container runs on a given image. docker ps reports the image as repo:tag, repo@sha256,
+    // or a (short) id for untagged images — so we match on all three.
+    private static bool Uses(DockerContainer c, DockerImage img)
+    {
+        var ci = c.Image?.Trim() ?? string.Empty;
+        if (ci.Length == 0)
+        {
+            return false;
+        }
+
+        if (!img.Dangling)
+        {
+            if (string.Equals(ci, img.Reference, Ic))
+            {
+                return true;
+            }
+
+            // "repo" with no tag implies :latest.
+            if (string.Equals(img.Tag, "latest", Ic) && string.Equals(ci, img.Repository, Ic))
+            {
+                return true;
+            }
+        }
+
+        if (img.Digest is { Length: > 0 } dg && ci.Contains(dg, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (img.Id.Length > 0)
+        {
+            var shortId = img.Id.Length > 12 ? img.Id[..12] : img.Id;
+            if (ci.Contains(shortId, Ic) || (shortId.Length > 0 && shortId.Contains(ci, Ic) && ci.Length >= 6))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

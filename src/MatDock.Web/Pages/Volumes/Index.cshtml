@@ -56,6 +56,7 @@
                     <tr>
                         <th>Environment</th>
                         <th>Volume</th>
+                        <th>Status</th>
                         <th class="actions">Actions</th>
                     </tr>
                 </thead>
@@ -66,13 +67,19 @@
                             <td class="nowrap">@row.Environment.Name</td>
                             <td class="wrap">
                                 <a href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"><strong>@row.Volume.Name</strong></a>
-                                @if (row.Unused)
-                                {
-                                    <span class="tag-unused" title="Not used by any container">unused</span>
-                                }
                                 @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
                                 {
                                     <div class="cell-sub">@row.Volume.Mountpoint</div>
+                                }
+                            </td>
+                            <td>
+                                @if (row.Unused)
+                                {
+                                    <span class="pill pill--unknown" title="Not used by any container"><icon name="alert" /> Unused</span>
+                                }
+                                else
+                                {
+                                    <span class="pill pill--online" title="Mounted by at least one container"><icon name="check-circle" /> Used</span>
                                 }
                             </td>
                             <td class="actions">

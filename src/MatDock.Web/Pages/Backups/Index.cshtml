@@ -51,14 +51,14 @@
         {
             <table class="data">
                 <thead>
-                    <tr><th>Volume</th><th>Environment (source)</th><th>Target</th><th class="num">Size</th><th>Created</th><th class="actions">Actions</th></tr>
+                    <tr><th>Environment</th><th>Volume</th><th>Target</th><th class="num">Size</th><th>Created</th><th class="actions">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var b in Model.Items)
                     {
                         <tr>
+                            <td class="nowrap">@b.SourceEnvironmentName</td>
                             <td><strong>@b.VolumeName</strong></td>
-                            <td>@b.SourceEnvironmentName</td>
                             <td><span class="mat-badge">@(b.BackupTargetName ?? "Local")</span></td>
                             <td class="num">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
                             <td class="text-muted nowrap">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>

@@ -20,6 +20,9 @@ public class DetailModel : PageModel
         _containerService = containerService;
     }
 
+    [TempData] public string? StatusMessage { get; set; }
+    [TempData] public bool IsError { get; set; }
+
     public long EnvId { get; private set; }
     public string VolumeName { get; private set; } = string.Empty;
     public DockerEnvironment? Environment { get; private set; }
@@ -51,5 +54,38 @@ public class DetailModel : PageModel
         // Which containers mount this volume (best-effort; empty on failure).
         UsedBy = await _containerService.ListByVolumeAsync(Environment, VolumeName, HttpContext.RequestAborted);
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostRemoveAsync(long envId, string volume)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage("/Volumes/Index", new { EnvId = envId });
+        }
+
+        // Guard: never delete a volume that a container still mounts (docker would refuse anyway).
+        var usedBy = await _containerService.ListByVolumeAsync(env, volume ?? string.Empty, HttpContext.RequestAborted);
+        if (usedBy.Count > 0)
+        {
+            StatusMessage = $"Volume \"{volume}\" is in use by {usedBy.Count} container(s) and was not deleted.";
+            IsError = true;
+            return RedirectToPage(new { envId, volume });
+        }
+
+        var result = await _connectionService.RemoveVolumesAsync(
+            _environmentService.BuildSettings(env), new[] { volume ?? string.Empty }, HttpContext.RequestAborted);
+        StatusMessage = result.Success ? $"Volume \"{volume}\" deleted." : result.Detail;
+        IsError = !result.Success;
+        return result.Success
+            ? RedirectToPage("/Volumes/Index", new { EnvId = envId, Refresh = true })
+            : RedirectToPage(new { envId, volume });
     }
 }

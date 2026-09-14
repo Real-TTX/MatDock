@@ -41,6 +41,13 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    </div>
+}
+
 @if (Model.Error is not null)
 {
     <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
@@ -53,6 +60,8 @@ else
 {
     var d = Model.Detail;
 
+    var volInUse = Model.UsedBy.Count > 0;
+
     <div class="mat-buttons" style="margin-bottom:16px;">
         @if (User.IsAdmin())
         {
@@ -60,6 +69,18 @@ else
         }
         <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
         <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
+        @if (User.IsAdmin())
+        {
+            <span style="flex:1 1 auto;"></span>
+            <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." style="display:inline;">
+                <input type="hidden" name="envId" value="@Model.EnvId" />
+                <input type="hidden" name="volume" value="@d.Name" />
+                <button type="submit" class="mat-btn mat-btn--danger" disabled="@volInUse"
+                        title="@(volInUse ? $"In use by {Model.UsedBy.Count} container(s)" : "Delete volume")">
+                    <icon name="trash" /><span>Delete</span>
+                </button>
+            </form>
+        }
     </div>
 
     @if (d.IsRemote)

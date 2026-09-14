@@ -36,11 +36,15 @@ else
 
     @if (isAdmin && !Model.IsPredefined)
     {
+        var netInUse = d.Containers.Count > 0;
         <div class="mat-buttons" style="margin-bottom:16px;">
             <form method="post" asp-page-handler="Remove" data-confirm="Remove network &quot;@d.Name&quot;?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="network" value="@d.Name" />
-                <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove network</span></button>
+                <button type="submit" class="mat-btn mat-btn--danger" disabled="@netInUse"
+                        title="@(netInUse ? $"In use by {d.Containers.Count} container(s)" : "Remove network")">
+                    <icon name="trash" /><span>Remove network</span>
+                </button>
             </form>
         </div>
     }
