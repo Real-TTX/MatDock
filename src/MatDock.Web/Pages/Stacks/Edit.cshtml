@@ -55,12 +55,43 @@
                     </select>
                 </mat-field>
 
-                <mat-field label="Source" asp-for="Input.Source" hint="Edit compose directly or pull from a Git repo (including config files).">
+                <mat-field label="Source" asp-for="Input.Source">
                     <select asp-for="Input.Source" id="Source" class="mat-select">
                         <option value="inline">Compose editor</option>
+                        <option value="store">From App Store</option>
                         <option value="git">Git repository</option>
                     </select>
                 </mat-field>
+            </div>
+
+            <div data-show-when="Source=store">
+                @if (Model.Apps.Count == 0)
+                {
+                    <p class="mat-hint">No apps yet. Create one in the <a href="/Apps">Store</a>, then install it here.</p>
+                }
+                else
+                {
+                    <div class="search" style="margin-bottom:8px;">
+                        <icon name="search" />
+                        <input type="search" id="app-search" class="mat-input" placeholder="Search apps…" autocomplete="off" />
+                    </div>
+                    <div id="app-list" class="app-picker">
+                        @foreach (var a in Model.Apps)
+                        {
+                            <button type="button" class="app-pick" title="@a.Description"
+                                    data-slug="@MatDock.Core.Stacks.StackCommands.Slugify(a.Name)"
+                                    data-compose="@a.ComposeYaml"
+                                    data-search="@($"{a.Name} {a.Category}".ToLowerInvariant())">
+                                <icon name="template" />
+                                <span class="app-pick__name">@a.Name</span>
+                                @if (!string.IsNullOrEmpty(a.Category))
+                                {
+                                    <span class="mat-badge">@a.Category</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                }
             </div>
 
             <div data-show-when="Source=inline">
@@ -124,17 +155,46 @@
     <script>
         (function () {
             var picker = document.getElementById('stack-repo-picker');
-            if (!picker) { return; }
-            picker.addEventListener('change', function () {
-                var opt = picker.selectedOptions[0];
-                if (!opt || !opt.value) { return; }
-                var url = document.querySelector('[name="Input.GitRepoUrl"]');
-                var ref = document.querySelector('[name="Input.GitReference"]');
-                var cred = document.querySelector('[name="Input.GitCredentialId"]');
-                if (url) { url.value = opt.getAttribute('data-url') || ''; }
-                if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
-                if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
-            });
+            if (picker) {
+                picker.addEventListener('change', function () {
+                    var opt = picker.selectedOptions[0];
+                    if (!opt || !opt.value) { return; }
+                    var url = document.querySelector('[name="Input.GitRepoUrl"]');
+                    var ref = document.querySelector('[name="Input.GitReference"]');
+                    var cred = document.querySelector('[name="Input.GitCredentialId"]');
+                    if (url) { url.value = opt.getAttribute('data-url') || ''; }
+                    if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
+                    if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
+                });
+            }
+
+            // App Store picker: filter apps and, on pick, prefill name + compose, then jump to the editor.
+            var appList = document.getElementById('app-list');
+            if (appList) {
+                var picks = Array.prototype.slice.call(appList.querySelectorAll('.app-pick'));
+                var appSearch = document.getElementById('app-search');
+                if (appSearch) {
+                    appSearch.addEventListener('input', function () {
+                        var q = appSearch.value.trim().toLowerCase();
+                        picks.forEach(function (b) {
+                            b.style.display = (q === '' || (b.getAttribute('data-search') || '').indexOf(q) !== -1) ? '' : 'none';
+                        });
+                    });
+                }
+                picks.forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        var nameEl = document.querySelector('[name="Input.Name"]');
+                        var composeEl = document.querySelector('[name="Input.ComposeYaml"]');
+                        if (nameEl && !nameEl.readOnly && !nameEl.value) { nameEl.value = b.getAttribute('data-slug') || ''; }
+                        if (composeEl) {
+                            composeEl.value = b.getAttribute('data-compose') || '';
+                            composeEl.dispatchEvent(new Event('input', { bubbles: true })); // refresh the highlighter
+                        }
+                        var src = document.getElementById('Source');
+                        if (src) { src.value = 'inline'; src.dispatchEvent(new Event('change', { bubbles: true })); }
+                    });
+                });
+            }
         })();
     </script>
 }

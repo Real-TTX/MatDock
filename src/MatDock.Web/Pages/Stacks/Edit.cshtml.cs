@@ -37,6 +37,7 @@ public class EditModel : PageModel
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<GitCredential> GitCredentials { get; private set; } = new();
     public List<GitRepo> SavedRepos { get; private set; } = new();
+    public List<StackTemplate> Apps { get; private set; } = new();
     public string? FromTemplateName { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -215,5 +216,6 @@ public class EditModel : PageModel
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);
         GitCredentials = await _gitCredentialService.GetAllAsync(HttpContext.RequestAborted);
         SavedRepos = await _gitRepoService.GetAllAsync(HttpContext.RequestAborted);
+        Apps = await _templateService.GetAllAsync(HttpContext.RequestAborted);
     }
 }

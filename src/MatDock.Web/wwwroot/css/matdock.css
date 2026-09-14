@@ -273,6 +273,13 @@ h2 { font-size: 1.2rem; }
 .code-hl .t-var { color: var(--warning); }
 .code-hl .t-com { color: var(--text-muted); font-style: italic; }
 
+/* App Store picker in the stack editor (Source = From App Store). */
+.app-picker { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow: auto; }
+.app-pick { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
+.app-pick:hover { border-color: var(--accent); background: var(--surface-2); }
+.app-pick__name { font-weight: 650; }
+.app-pick .mat-badge { margin-left: auto; }
+
 .mat-check { display: flex; align-items: center; gap: 9px; font-size: .9rem; cursor: pointer; }
 .mat-check input { width: 17px; height: 17px; accent-color: var(--accent); }
 
