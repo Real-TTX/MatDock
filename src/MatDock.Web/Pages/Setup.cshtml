@@ -1,0 +1,67 @@
+@page
+@model MatDock.Web.Pages.SetupModel
+@{
+    ViewData["Title"] = "Setup";
+}
+
+<div class="login login--wide">
+    <div class="login__brand">
+        <img src="~/img/logo.svg" alt="MatDock" />
+        <span class="name">Welcome to MatDock</span>
+        <span class="tagline">Let's create your administrator account</span>
+    </div>
+
+    <div class="card">
+        <div class="card__body">
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert alert--error"><icon name="x-circle" /><span>@Model.ErrorMessage</span></div>
+            }
+
+            <form method="post" class="mat-form">
+                <div asp-validation-summary="ModelOnly"></div>
+
+                <h2 class="setup-step"><icon name="user" /> <span>Administrator</span></h2>
+                <div class="form-grid">
+                    <mat-field label="Username" asp-for="Input.Username">
+                        <input asp-for="Input.Username" class="mat-input" autocomplete="username" autofocus />
+                    </mat-field>
+                    <mat-field label="Display name" asp-for="Input.DisplayName">
+                        <input asp-for="Input.DisplayName" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="Password" asp-for="Input.Password">
+                        <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                    <mat-field label="Confirm password" asp-for="Input.ConfirmPassword">
+                        <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                </div>
+
+                <h2 class="setup-step" style="margin-top:18px;"><icon name="clock" /> <span>Maintenance schedules</span></h2>
+                <label class="mat-check">
+                    <input asp-for="Input.PruneImages" type="checkbox" />
+                    <span>Prune dangling images regularly</span>
+                </label>
+                <label class="mat-check">
+                    <input asp-for="Input.PruneVolumes" type="checkbox" />
+                    <span>Prune unused volumes</span>
+                </label>
+                <label class="mat-check">
+                    <input asp-for="Input.PruneNetworks" type="checkbox" />
+                    <span>Prune unused networks</span>
+                </label>
+                <mat-field label="Frequency" asp-for="Input.Frequency">
+                    <select asp-for="Input.Frequency" class="mat-select">
+                        <option value="daily">Daily (03:00 UTC)</option>
+                        <option value="weekly" selected>Weekly (Sun 03:00 UTC)</option>
+                        <option value="monthly">Monthly (1st, 03:00 UTC)</option>
+                    </select>
+                </mat-field>
+
+                <button type="submit" class="mat-btn mat-btn--primary" style="margin-top:16px;">
+                    <icon name="check-circle" /><span>Create admin &amp; finish</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

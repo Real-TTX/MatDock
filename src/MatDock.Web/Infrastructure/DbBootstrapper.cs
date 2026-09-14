@@ -23,8 +23,9 @@ public static class DbBootstrapper
         var options = provider.GetRequiredService<IOptions<MatDockOptions>>().Value;
         var environment = provider.GetRequiredService<IHostEnvironment>();
 
-        // Seed the initial administrator only on a fresh database.
-        if (await users.CountAsync() == 0)
+        // Seed the initial administrator only on a fresh database AND only when explicitly enabled
+        // (headless/automated deployments). Otherwise the first-run setup wizard creates the admin.
+        if (options.Admin.Seed && await users.CountAsync() == 0)
         {
             var admin = options.Admin;
             await users.CreateAsync(admin.Username, admin.DisplayName, admin.Password, UserRole.Admin, mustChangePassword: true);

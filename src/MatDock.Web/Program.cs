@@ -46,6 +46,7 @@ builder.Services.AddDbContext<MatDockDbContext>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpCurrentUserAccessor>();
+builder.Services.AddSingleton<MatDock.Web.Infrastructure.SetupState>();
 
 // Honour X-Forwarded-* from a TLS-terminating reverse proxy so Request.IsHttps is correct and the
 // auth cookie is marked Secure when the client connection is HTTPS.
@@ -99,6 +100,7 @@ builder.Services.AddRazorPages(options =>
 {
     // Secure by default; open only the pages needed before/around login.
     options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Setup");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
     options.Conventions.AllowAnonymousToPage("/Account/Logout");
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
@@ -167,6 +169,8 @@ app.UseWebSockets(new WebSocketOptions
 });
 app.UseRouting();
 app.UseAuthentication();
+// First-run: redirect everything to the setup wizard until an administrator exists.
+app.UseMiddleware<SetupGuardMiddleware>();
 app.UseMiddleware<PasswordChangeGuardMiddleware>();
 app.UseAuthorization();
 app.MapRazorPages();

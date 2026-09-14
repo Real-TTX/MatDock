@@ -27,9 +27,13 @@ public sealed class MatDockOptions
     public AdminSeedOptions Admin { get; set; } = new();
 }
 
-/// <summary>Credentials used to seed the first administrator on an empty database.</summary>
+/// <summary>Credentials used to seed the first administrator on an empty database (headless setups).</summary>
 public sealed class AdminSeedOptions
 {
+    /// <summary>When true, seed the admin from these settings on an empty DB (headless/automated
+    /// deployments). When false (default), an empty DB shows the first-run setup wizard instead.</summary>
+    public bool Seed { get; set; }
+
     public string Username { get; set; } = "admin";
 
     public string DisplayName { get; set; } = "Administrator";

@@ -483,6 +483,9 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .login__brand .name { font-size: 1.5rem; font-weight: 750; }
 .login__brand .tagline { font-size: .84rem; color: var(--text-muted); }
 .login .card__body { text-align: left; }
+/* First-run setup wizard: wider than the login card to fit the two-column form. */
+.plain-main:has(.login--wide) { max-width: 620px; }
+.setup-step { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin: 4px 0 10px; }
 
 /* ============================================================================
    Volume cards
