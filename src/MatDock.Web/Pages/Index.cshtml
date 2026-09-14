@@ -48,31 +48,28 @@
 </div>
 
 @* ---- Key figures (clickable) ---- *@
+@{
+    var envSubParts = new List<string> { $"{Model.OnlineCount} online" };
+    if (Model.AttentionCount > 0) { envSubParts.Add($"{Model.AttentionCount} offline"); }
+    if (Model.DisabledCount > 0) { envSubParts.Add($"{Model.DisabledCount} disabled"); }
+    var envSub = string.Join(" · ", envSubParts);
+}
 <div class="stat-grid" style="margin-bottom:22px;">
-    <a class="stat" href="/Environments">
+    <a class="stat @(Model.AttentionCount > 0 ? "stat--warn" : "stat--ok")" href="/Environments">
         <div class="stat__icon"><icon name="server" /></div>
         <div>
             <div class="stat__value">@Model.TotalEnvironments</div>
             <div class="stat__label">Environments</div>
+            <div class="stat__sub">@envSub</div>
         </div>
     </a>
-    <a class="stat stat--ok" href="/Environments">
-        <div class="stat__icon"><icon name="check-circle" /></div>
+    <a class="stat" href="/Stacks">
+        <div class="stat__icon"><icon name="layers" /></div>
         <div>
-            <div class="stat__value">@Model.OnlineCount</div>
-            <div class="stat__label">Online</div>
+            <div class="stat__value">@Model.StacksCount</div>
+            <div class="stat__label">Stacks</div>
         </div>
     </a>
-    @if (Model.AttentionCount > 0)
-    {
-        <a class="stat stat--warn" href="/Environments">
-            <div class="stat__icon"><icon name="alert" /></div>
-            <div>
-                <div class="stat__value">@Model.AttentionCount</div>
-                <div class="stat__label">Attention</div>
-            </div>
-        </a>
-    }
     <a class="stat" href="/Containers">
         <div class="stat__icon"><icon name="box" /></div>
         <div>
@@ -80,16 +77,6 @@
             <div class="stat__label">Running containers</div>
         </div>
     </a>
-    @if (Model.DisabledCount > 0)
-    {
-        <a class="stat stat--muted" href="/Environments">
-            <div class="stat__icon"><icon name="lock" /></div>
-            <div>
-                <div class="stat__value">@Model.DisabledCount</div>
-                <div class="stat__label">Disabled</div>
-            </div>
-        </a>
-    }
 </div>
 
 @* ---- Apps (full width: tiles need room) ---- *@

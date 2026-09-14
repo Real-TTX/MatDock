@@ -53,6 +53,7 @@ public class IndexModel : PageModel
     public int AttentionCount { get; private set; }
     public int DisabledCount { get; private set; }
     public int RunningContainersTotal { get; private set; }
+    public int StacksCount { get; private set; }
 
     // Per-environment usage tiles
     public List<DockerEnvironment> Environments { get; private set; } = new();
@@ -163,6 +164,7 @@ public class IndexModel : PageModel
 
         var topAll = new List<TopContainer>();
         var eventsAll = new List<EventRow>();
+        var stackKeys = new HashSet<(long, string)>();
 
         foreach (var r in results)
         {
@@ -170,6 +172,12 @@ public class IndexModel : PageModel
             var running = r.containers.Count(c => c.IsRunning);
             RunningCounts[r.env.Id] = running;
             RunningContainersTotal += running;
+
+            // Count distinct compose projects (managed + discovered) as "stacks".
+            foreach (var c in r.containers.Where(c => !string.IsNullOrEmpty(c.Project)))
+            {
+                stackKeys.Add((r.env.Id, c.Project!));
+            }
 
             foreach (var c in r.containers.Where(c => c.IsRunning))
             {
@@ -181,6 +189,8 @@ public class IndexModel : PageModel
                 eventsAll.Add(new EventRow(r.env.Name, e));
             }
         }
+
+        StacksCount = stackKeys.Count;
 
         TopContainers = topAll
             .OrderByDescending(t => t.Container.CpuPercent ?? -1)

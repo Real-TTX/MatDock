@@ -280,6 +280,16 @@ h2 { font-size: 1.2rem; }
 .app-pick__name { font-weight: 650; }
 .app-pick .mat-badge { margin-left: auto; }
 
+/* Indeterminate top progress bar + button spinner for long POST actions (prune/migrate/backup/deploy). */
+.mat-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999; overflow: hidden; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.mat-progress.is-active { opacity: 1; }
+.mat-progress__bar { position: absolute; height: 100%; width: 40%; background: var(--accent); animation: mat-progress-slide 1.1s ease-in-out infinite; }
+@keyframes mat-progress-slide { 0% { left: -40%; } 100% { left: 100%; } }
+.mat-btn.is-busy { position: relative; color: transparent !important; pointer-events: none; }
+.mat-btn.is-busy .mat-icon, .mat-btn.is-busy span { visibility: hidden; }
+.mat-btn.is-busy::after { content: ""; position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid var(--text); border-right-color: transparent; border-radius: 50%; animation: mat-spin .6s linear infinite; }
+@keyframes mat-spin { to { transform: rotate(360deg); } }
+
 .mat-check { display: flex; align-items: center; gap: 9px; font-size: .9rem; cursor: pointer; }
 .mat-check input { width: 17px; height: 17px; accent-color: var(--accent); }
 
@@ -459,6 +469,7 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
 .stat__icon .mat-icon { font-size: 1.3rem; }
 .stat__value { font-size: 1.75rem; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .stat__label { font-size: .82rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+.stat__sub { font-size: .74rem; color: var(--text-muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
 .stat--ok { --stat-accent: var(--success); }
 .stat--warn { --stat-accent: var(--warning); }
 .stat--muted { --stat-accent: var(--text-muted); }

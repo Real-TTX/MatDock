@@ -254,6 +254,33 @@
             }
         }
     });
+
+    /* ---------------- Progress indicator for long POST actions ----------------
+       A top bar + a button spinner while a (non-toolbar) form POST is in flight — e.g.
+       prune, migrate, backup, deploy. Registered AFTER the confirm handler so a declined
+       confirm (defaultPrevented) never shows it. */
+    var progress = document.createElement("div");
+    progress.className = "mat-progress";
+    progress.innerHTML = '<div class="mat-progress__bar"></div>';
+    (document.body || document.documentElement).appendChild(progress);
+
+    document.addEventListener("submit", function (e) {
+        if (e.defaultPrevented) { return; }
+        var form = e.target;
+        if (!(form instanceof HTMLFormElement)) { return; }
+        if ((form.method || "get").toLowerCase() !== "post") { return; }
+        if (form.classList.contains("js-autosubmit")) { return; } // toolbar filters reload immediately
+        progress.classList.add("is-active");
+        var btn = e.submitter || form.querySelector('button[type="submit"], button:not([type])');
+        // Visual only (no `disabled`, which could drop the submitter's name/value from the POST).
+        if (btn) { btn.classList.add("is-busy"); }
+    });
+
+    // A back/forward cache restore can re-show the page mid-request — reset the indicators.
+    window.addEventListener("pageshow", function () {
+        progress.classList.remove("is-active");
+        document.querySelectorAll(".is-busy").forEach(function (b) { b.classList.remove("is-busy"); });
+    });
 })();
 
 /* File explorer: prompt for a name, write it into the button's form (input marked
