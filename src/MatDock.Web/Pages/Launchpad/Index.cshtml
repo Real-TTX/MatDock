@@ -21,14 +21,7 @@
     </div>
 }
 
-@if (Model.TotalApps == 0)
-{
-    <div class="empty-state">
-        <div><icon name="apps" /></div>
-        <p>No apps yet.@(isAdmin ? " Install one from the Store above." : "")</p>
-    </div>
-}
-else
+@if (Model.TotalApps > 0)
 {
     <div class="fs-toolbar">
         <div class="search">
