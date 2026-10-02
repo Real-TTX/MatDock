@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.Text;
+using System.Text.Json;
 using MatDock.Core.Apps;
 using MatDock.Core.Configuration;
 using MatDock.Core.Data;
@@ -220,6 +221,106 @@ public sealed class StackService
 
     public Task<(bool Ok, string Output)> ProjectRestartAsync(DockerEnvironment env, string project, CancellationToken ct = default)
         => ProjectActionAsync(env, project, StackCommands.ProjectRestart, ct);
+
+    /// <summary>
+    /// Adopts a discovered (external) compose project into MatDock management: reads the project's compose
+    /// file from the host (via its compose labels) and creates a managed <see cref="Stack"/> with that YAML.
+    /// Does NOT touch the running containers — it only creates the definition so the stack becomes editable.
+    /// </summary>
+    public async Task<(bool Ok, string Message)> AdoptAsync(DockerEnvironment env, string project, CancellationToken ct = default)
+    {
+        if (!StackCommands.IsValidName(project))
+        {
+            return (false, "Invalid project name.");
+        }
+        if (!env.IsEnabled)
+        {
+            return (false, "Environment not available (disabled).");
+        }
+        if (await _db.Stacks.AnyAsync(s => s.Name == project && s.EnvironmentId == env.Id, ct))
+        {
+            return (false, "A managed stack with this name already exists in this environment.");
+        }
+
+        var settings = _environmentService.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.SshTimeoutSeconds));
+
+        string labelsJson;
+        try
+        {
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.AdoptInspect(head, project), null, timeout, ct);
+            if (!ok || string.IsNullOrWhiteSpace(output))
+            {
+                return (false, "Could not find a container for this project to read its compose file.");
+            }
+            labelsJson = output.Trim();
+        }
+        catch (Exception ex)
+        {
+            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
+        }
+
+        string? configFiles = null, workingDir = null;
+        try
+        {
+            using var doc = JsonDocument.Parse(labelsJson);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                if (doc.RootElement.TryGetProperty("com.docker.compose.project.config_files", out var cf))
+                {
+                    configFiles = cf.GetString();
+                }
+                if (doc.RootElement.TryGetProperty("com.docker.compose.project.working_dir", out var wd))
+                {
+                    workingDir = wd.GetString();
+                }
+            }
+        }
+        catch
+        {
+            // fall through to the empty check below
+        }
+
+        if (string.IsNullOrWhiteSpace(configFiles))
+        {
+            return (false, "This project has no compose-file label, so it can't be imported automatically. Create it as a new stack instead.");
+        }
+
+        // Resolve the first compose file to an absolute host path. Handle both POSIX (/a/b) and Windows
+        // (C:\a\b, Docker Desktop) paths — absolute ones are used as-is, relative ones join the working dir.
+        var first = configFiles.Split(',')[0].Trim();
+        var path = IsAbsoluteHostPath(first) ? first : $"{(workingDir ?? ".").TrimEnd('/', '\\')}/{first}";
+        var sep = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
+        var dir = sep >= 0 ? path[..sep] : ".";
+        var fileName = sep >= 0 ? path[(sep + 1)..] : path;
+
+        string yaml;
+        try
+        {
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.ReadProjectFile(head, dir, fileName, _options.HelperImage), null, timeout, ct);
+            if (!ok || string.IsNullOrWhiteSpace(output))
+            {
+                return (false, $"Could not read the compose file ({path}) from the host.");
+            }
+            yaml = output;
+        }
+        catch (Exception ex)
+        {
+            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
+        }
+
+        var (created, message, _) = await CreateAsync(new StackInput
+        {
+            Name = project,
+            EnvironmentId = env.Id,
+            ComposeYaml = yaml,
+        }, ct);
+        return (created, created ? $"Imported '{project}' as a managed stack. Review it before deploying." : message);
+    }
+
+    private static bool IsAbsoluteHostPath(string p)
+        => p.StartsWith('/') || (p.Length >= 2 && char.IsLetter(p[0]) && p[1] == ':');
 
     private async Task<(bool Ok, string Output)> ProjectActionAsync(DockerEnvironment env, string project, Func<string, string, string> build, CancellationToken ct)
     {

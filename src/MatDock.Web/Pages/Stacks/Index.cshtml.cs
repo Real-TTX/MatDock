@@ -288,6 +288,23 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostAdoptAsync(long envId, string project)
+    {
+        var redirect = new { view = View, Q, Status, Type };
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(redirect);
+        }
+
+        var (ok, message) = await _stackService.AdoptAsync(env, project, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(redirect);
+    }
+
     public Task<IActionResult> OnPostProjectStartAsync(long envId, string project) => ProjectActionAsync(envId, project, "start");
     public Task<IActionResult> OnPostProjectStopAsync(long envId, string project) => ProjectActionAsync(envId, project, "stop");
     public Task<IActionResult> OnPostProjectRestartAsync(long envId, string project) => ProjectActionAsync(envId, project, "restart");

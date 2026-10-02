@@ -134,6 +134,34 @@ public static partial class StackCommands
     /// <summary>Restarts the containers of a discovered compose project (by label).</summary>
     public static string ProjectRestart(string dockerHead, string project) => ProjectDocker(dockerHead, project, allContainers: true, "restart");
 
+    /// <summary>
+    /// Emits the compose labels (JSON) of the first container of a discovered project, so MatDock can read
+    /// the project's compose-file path(s) and working dir and adopt it. Exit 3 when the project has no
+    /// container. $1 = project (validated, shell-quoted arg).
+    /// </summary>
+    public static string AdoptInspect(string dockerHead, string project)
+    {
+        Require(project);
+        var script = "id=$(" + dockerHead + " ps -aq --filter label=com.docker.compose.project=\"$1\" | head -n1); "
+                   + "if [ -z \"$id\" ]; then exit 3; fi; "
+                   + dockerHead + " inspect \"$id\" --format \"{{json .Config.Labels}}\"";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(project);
+    }
+
+    /// <summary>
+    /// Reads a file from the host by bind-mounting its directory read-only into a tiny helper container and
+    /// cat-ing it — works for both local and remote daemons. $1 = directory, $2 = file name, $3 = helper image
+    /// (all shell-quoted args, never interpolated). Pull/mount noise is dropped so stdout is the file only.
+    /// </summary>
+    public static string ReadProjectFile(string dockerHead, string dir, string fileName, string helperImage)
+    {
+        var script = dockerHead + " run --rm -v \"$1\":/src:ro \"$3\" cat \"/src/$2\" 2>/dev/null";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(dir) + " " + VolumeFileCommands.ShellQuote(fileName)
+             + " " + VolumeFileCommands.ShellQuote(helperImage);
+    }
+
     private static string ProjectDocker(string dockerHead, string project, bool allContainers, string verb)
     {
         Require(project); // a compose project name follows the same rules as a stack name
