@@ -2,8 +2,9 @@ namespace MatDock.Core.Entities;
 
 /// <summary>
 /// A MatDock-managed compose stack: a name (= compose project), the target environment and the stored
-/// compose YAML. Deploying writes the YAML to <c>~/.matdock/stacks/&lt;name&gt;/docker-compose.yml</c> on the
-/// host and runs <c>docker compose -p &lt;name&gt; up -d</c>. Mapped to the <c>Stack</c> table.
+/// compose YAML. Deploying writes the YAML to <c>&lt;stacks dir&gt;/&lt;name&gt;/docker-compose.yml</c> on the host
+/// (<c>~/.matdock/stacks</c> over SSH, <c>&lt;data&gt;/stacks</c> for the local environment) and runs
+/// <c>docker compose -p &lt;name&gt; up -d</c>. Mapped to the <c>Stack</c> table.
 /// </summary>
 public class Stack : AuditableEntity
 {
@@ -15,7 +16,7 @@ public class Stack : AuditableEntity
     public string ComposeYaml { get; set; } = string.Empty;
 
     /// <summary>Optional <c>.env</c> file contents for the inline stack (variable substitution + defaults).
-    /// Written to <c>~/.matdock/stacks/&lt;name&gt;/.env</c> on deploy; null/empty removes it. Git-backed
+    /// Written to <c>&lt;stacks dir&gt;/&lt;name&gt;/.env</c> on deploy; null/empty removes it. Git-backed
     /// stacks manage their own <c>.env</c> from the repo, so this stays null for them.</summary>
     public string? EnvContent { get; set; }
 

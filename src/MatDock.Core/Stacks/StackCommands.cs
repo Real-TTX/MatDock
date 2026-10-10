@@ -6,10 +6,18 @@ namespace MatDock.Core.Stacks;
 /// <summary>
 /// Builders for the remote <c>docker compose</c> commands of a managed stack. The stack name is a
 /// strictly validated compose project name, so it is safe to embed; the compose YAML is delivered via
-/// stdin (never interpolated into the command). Files live in <c>$HOME/.matdock/stacks/&lt;name&gt;</c>.
+/// stdin (never interpolated into the command). Files live in <c>$MATDOCK_STACKS_DIR/&lt;name&gt;</c>, which only the
+/// local session sets (to <c>&lt;data&gt;/stacks</c>, so the files survive a re-creation of the MatDock container);
+/// on an SSH host it falls back to <c>$HOME/.matdock/stacks/&lt;name&gt;</c>.
 /// </summary>
 public static partial class StackCommands
 {
+    /// <summary>Name of the environment variable that overrides the stacks base directory on the host.</summary>
+    public const string StacksDirVariable = "MATDOCK_STACKS_DIR";
+
+    /// <summary>Shell expression for the stacks base directory (no single quotes, safe inside a single-quoted body).</summary>
+    public const string StacksDir = "${" + StacksDirVariable + ":-$HOME/.matdock/stacks}";
+
     // Compose project name: lowercase alphanumeric start, then [a-z0-9_-]. \z rejects a trailing newline.
     [GeneratedRegex(@"^[a-z0-9][a-z0-9_-]{0,62}\z")]
     private static partial Regex NameRegex();
@@ -80,7 +88,7 @@ public static partial class StackCommands
         Require(name);
         // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
         // single quotes, so it reaches the remote sh verbatim. YAML arrives on stdin via `cat`.
-        var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; mkdir -p \"$dir\"; "
+        var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
                    + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
@@ -89,7 +97,7 @@ public static partial class StackCommands
     public static string Update(string dockerHead, string name, string? envContent = null)
     {
         Require(name);
-        var script = "set -e; name=" + name + "; dir=\"$HOME/.matdock/stacks/$name\"; mkdir -p \"$dir\"; "
+        var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
                    + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; "
                    + dockerHead + " compose -p \"$name\" pull; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
@@ -111,9 +119,18 @@ public static partial class StackCommands
         return "echo " + b64 + " | base64 -d > \"$dir/.env\"; ";
     }
 
-    /// <summary><c>compose down</c> for the stack (stops and removes containers). Output merged.</summary>
-    public static string Down(string dockerHead, string name, string composePath)
-        => Lifecycle(dockerHead, name, composePath, "down");
+    /// <summary><c>compose down</c> for the stack (stops and removes containers, with <c>--volumes</c> also its
+    /// named volumes). Output merged.</summary>
+    public static string Down(string dockerHead, string name, string composePath, bool removeVolumes = false)
+        => Lifecycle(dockerHead, name, composePath, removeVolumes ? "down --volumes" : "down");
+
+    /// <summary><c>compose restart</c> for the stack (restarts its containers without re-creating them). Output merged.</summary>
+    public static string Restart(string dockerHead, string name, string composePath)
+        => Lifecycle(dockerHead, name, composePath, "restart");
+
+    /// <summary><c>compose pull</c> for the stack (fetches newer images, containers keep running). Output merged.</summary>
+    public static string Pull(string dockerHead, string name, string composePath)
+        => Lifecycle(dockerHead, name, composePath, "pull");
 
     /// <summary><c>compose stop</c> for the stack (stops containers, keeps them). Output merged.</summary>
     public static string Stop(string dockerHead, string name, string composePath)
@@ -178,8 +195,11 @@ public static partial class StackCommands
         Require(name);
         // $1 = stack name (validated), $2 = compose file path (relative). Both passed as separate,
         // individually shell-quoted args so no user value is embedded in the single-quoted script body.
-        var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; cd \"$dir\"; "
-                   + dockerHead + " compose -p \"$1\" -f \"$2\" " + verb;
+        // Without the files on the host (never deployed from here, or a lost directory) compose still finds
+        // the project's containers by its label, so stop/start/down keep working.
+        var script = "set -e; dir=\"" + StacksDir + "/$1\"; "
+                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + dockerHead + " compose -p \"$1\" -f \"$2\" " + verb + "; "
+                   + "else " + dockerHead + " compose -p \"$1\" " + verb + "; fi";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
     }
@@ -194,7 +214,7 @@ public static partial class StackCommands
         Require(name);
         // Optionally pull first so :latest images are refreshed before the (idempotent) up -d.
         var pullStep = pull ? dockerHead + " compose -p \"$1\" -f \"$2\" pull; " : string.Empty;
-        var script = "set -e; dir=\"$HOME/.matdock/stacks/$1\"; mkdir -p \"$dir\"; "
+        var script = "set -e; dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
                    + "tar -C \"$dir\" -xf -; cd \"$dir\"; " + pullStep
                    + dockerHead + " compose -p \"$1\" -f \"$2\" up -d";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)

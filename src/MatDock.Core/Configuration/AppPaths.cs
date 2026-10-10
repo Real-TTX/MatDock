@@ -20,6 +20,7 @@ public sealed class AppPaths
         KeysPath = Path.Combine(dataPath, "dataprotection-keys");
         LogsPath = Path.Combine(dataPath, "logs");
         BackupsPath = Path.Combine(dataPath, "backups");
+        StacksPath = Path.Combine(dataPath, "stacks");
         DatabasePath = Path.Combine(dataPath, "matdock.db");
     }
 
@@ -28,6 +29,10 @@ public sealed class AppPaths
     public string KeysPath { get; }
     public string LogsPath { get; }
     public string BackupsPath { get; }
+
+    /// <summary>Compose and <c>.env</c> files of the stacks deployed to a <em>local</em> environment
+    /// (<c>&lt;data&gt;/stacks/&lt;name&gt;</c>), so they survive a re-creation of the MatDock container.</summary>
+    public string StacksPath { get; }
     public string DatabasePath { get; }
 
     public string SqliteConnectionString => $"Data Source={DatabasePath}";
