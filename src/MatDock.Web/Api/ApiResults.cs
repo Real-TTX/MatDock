@@ -56,6 +56,8 @@ public static class ApiResults
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            // Served as application/json only, never embedded in HTML: keep "->", "&" and quotes readable in output.
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         return options;
