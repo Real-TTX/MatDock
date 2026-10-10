@@ -129,6 +129,7 @@ public sealed class UpdateService
 
         if (preBackup)
         {
+            log?.Invoke("==> Bundle backup before the update");
             var (backupOk, backupMsg, _) = await _bundle.CreateBundleAsync(env, stack.Name, target: null, stopContainers: false,
                 StackBackupKind.PreUpdate, "Before update", ct: ct);
             if (!backupOk)
@@ -140,6 +141,7 @@ public sealed class UpdateService
             log?.Invoke(backupMsg);
         }
 
+        log?.Invoke("==> docker compose pull && docker compose up -d");
         var before = await ContainerIdsAsync(env, stack.Name, ct);
         var (ok, output) = await _stacks.UpdateAsync(stackId, ct);
         if (!ok)

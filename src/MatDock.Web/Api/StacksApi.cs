@@ -317,12 +317,6 @@ public static class StacksApi
                 ctx.Log($"    {image.Service}: {image.Image} ({state})");
             }
 
-            if (backupFirst)
-            {
-                ctx.Log("==> Bundle backup before the update");
-            }
-
-            ctx.Log("==> docker compose pull && docker compose up -d");
             var outcome = await updates.RunUpdateAsync(stackId, backupFirst, ct, ctx.Log);
             if (!outcome.Ok)
             {
