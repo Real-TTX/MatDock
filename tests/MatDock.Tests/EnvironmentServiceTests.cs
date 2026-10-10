@@ -167,4 +167,42 @@ public class EnvironmentServiceTests
         Assert.Equal("27.0", reloaded.DockerVersion);
         Assert.NotNull(reloaded.LastCheckedAt);
     }
+
+    [Fact]
+    public async Task EnsureLocal_creates_the_local_environment_once()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+
+        var (ok, _, env, created) = await service.EnsureLocalAsync();
+        Assert.True(ok);
+        Assert.True(created);
+        Assert.Equal("local", env!.Name);
+        Assert.Equal(ConnectionType.Local, env.ConnectionType);
+        Assert.Equal(EnvironmentStatus.Online, env.Status);
+
+        var again = await service.EnsureLocalAsync();
+        Assert.True(again.Ok);
+        Assert.False(again.Created);
+        Assert.Equal(env.Id, again.Environment!.Id);
+        Assert.Single(await service.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task FindLocal_prefers_an_enabled_local_environment()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+        await service.CreateAsync(new EnvironmentInput { Name = "remote", Host = "h", Username = "u" });
+        var disabled = await service.CreateAsync(new EnvironmentInput { Name = "local", ConnectionType = ConnectionType.Local });
+        await service.SetEnabledAsync(disabled.Id, false);
+        var enabled = await service.CreateAsync(new EnvironmentInput { Name = "docker-here", ConnectionType = ConnectionType.Local });
+
+        Assert.Equal(enabled.Id, (await service.FindLocalAsync())!.Id);
+
+        // An existing local environment is reused, nothing new is created.
+        var (_, _, env, created) = await service.EnsureLocalAsync();
+        Assert.False(created);
+        Assert.Equal(enabled.Id, env!.Id);
+    }
 }

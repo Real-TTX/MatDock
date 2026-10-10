@@ -223,4 +223,33 @@ public class StackCommandsTests
         var body = cmd.Substring(start, end - start);
         Assert.DoesNotContain("'", body);
     }
+
+    [Fact]
+    public void Stack_files_live_in_the_overridable_stacks_dir()
+    {
+        Assert.Equal("${MATDOCK_STACKS_DIR:-$HOME/.matdock/stacks}", StackCommands.StacksDir);
+        Assert.Contains("dir=\"${MATDOCK_STACKS_DIR:-$HOME/.matdock/stacks}/$name\"", StackCommands.Deploy("docker", "media"));
+        Assert.Contains("dir=\"${MATDOCK_STACKS_DIR:-$HOME/.matdock/stacks}/$name\"", StackCommands.Update("docker", "media"));
+        Assert.Contains("dir=\"${MATDOCK_STACKS_DIR:-$HOME/.matdock/stacks}/$1\"", StackCommands.GitSync("docker", "media", "docker-compose.yml"));
+        Assert.Contains("dir=\"${MATDOCK_STACKS_DIR:-$HOME/.matdock/stacks}/$1\"", StackCommands.Stop("docker", "media", "docker-compose.yml"));
+    }
+
+    [Fact]
+    public void Lifecycle_falls_back_to_the_project_label_without_files()
+    {
+        var down = StackCommands.Down("docker", "media", "docker-compose.yml");
+        Assert.Contains("if [ -f \"$dir/$2\" ]; then cd \"$dir\"; docker compose -p \"$1\" -f \"$2\" down;", down);
+        Assert.Contains("else docker compose -p \"$1\" down; fi", down);
+    }
+
+    [Fact]
+    public void Restart_pull_and_down_with_volumes_build_expected_commands()
+    {
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" restart", StackCommands.Restart("docker", "media", "docker-compose.yml"));
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" pull", StackCommands.Pull("docker", "media", "docker-compose.yml"));
+        var down = StackCommands.Down("docker", "media", "docker-compose.yml", removeVolumes: true);
+        Assert.Contains("-f \"$2\" down --volumes;", down);
+        Assert.Contains("else docker compose -p \"$1\" down --volumes; fi", down);
+        Assert.Throws<System.ArgumentException>(() => StackCommands.Restart("docker", "a;b", "docker-compose.yml"));
+    }
 }
