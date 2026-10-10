@@ -249,7 +249,7 @@ public sealed class StackService
         string labelsJson;
         try
         {
-            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.AdoptInspect(head, project), null, timeout, ct);
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.AdoptInspect(head, project), null, timeout, ct, stream: false);
             if (!ok || string.IsNullOrWhiteSpace(output))
             {
                 return (false, "Could not find a container for this project to read its compose file.");
@@ -298,7 +298,7 @@ public sealed class StackService
         string yaml;
         try
         {
-            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.ReadProjectFile(head, dir, fileName, _options.HelperImage), null, timeout, ct);
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.ReadProjectFile(head, dir, fileName, _options.HelperImage), null, timeout, ct, stream: false);
             if (!ok || string.IsNullOrWhiteSpace(output))
             {
                 return (false, $"Could not read the compose file ({path}) from the host.");
@@ -622,7 +622,7 @@ public sealed class StackService
                 var command = StackCommands.Login(prep.Head!, reg.Host, reg.Username);
                 var token = Encoding.UTF8.GetBytes(reg.Token);
                 var (ok, output) = await ExecOnHostAsync(prep.Settings!, command,
-                    (s, c) => s.WriteAsync(token, c).AsTask(), TimeSpan.FromSeconds(30), ct);
+                    (s, c) => s.WriteAsync(token, c).AsTask(), TimeSpan.FromSeconds(30), ct, stream: false);
                 if (!ok)
                 {
                     _logger.LogWarning("docker login {Host} failed: {Output}", reg.Host, output.Trim());
@@ -637,7 +637,7 @@ public sealed class StackService
 
     private async Task<(bool Ok, string Output)> ExecOnHostAsync(
         SshConnectionSettings settings, string command,
-        Func<Stream, CancellationToken, Task>? writeStdin, TimeSpan timeout, CancellationToken ct)
+        Func<Stream, CancellationToken, Task>? writeStdin, TimeSpan timeout, CancellationToken ct, bool stream = true)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
@@ -647,6 +647,13 @@ public sealed class StackService
 
         using var cmd = client.CreateCommand(command);
         cmd.CommandTimeout = timeout;
+
+        // With an ambient sink (an API operation) the output is read live and forwarded as it arrives.
+        var sink = stream ? CommandOutput.Current : null;
+        if (sink is not null)
+        {
+            cmd.BufferOutput = false;
+        }
 
         var async = cmd.BeginExecute();
         if (writeStdin is not null)
@@ -665,8 +672,41 @@ public sealed class StackService
             }
         }
 
+        if (sink is null)
+        {
+            cmd.EndExecute(async);
+            return (cmd.ExitStatus == 0, cmd.Result ?? string.Empty);
+        }
+
+        var output = await PumpOutputAsync(cmd, sink, cts.Token);
         cmd.EndExecute(async);
-        return (cmd.ExitStatus == 0, cmd.Result ?? string.Empty);
+        return (cmd.ExitStatus == 0, output);
+    }
+
+    /// <summary>Reads a command's (merged) output until it ends, forwarding every chunk to <paramref name="sink"/>.
+    /// A command that hangs past the timeout is disposed (process killed / channel closed) so the read ends.</summary>
+    private static async Task<string> PumpOutputAsync(IHostCommand cmd, Action<string> sink, CancellationToken ct)
+    {
+        var all = new StringBuilder();
+        using var abort = ct.Register(cmd.Dispose);
+        try
+        {
+            using var reader = new StreamReader(cmd.OutputStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
+            var buffer = new char[4096];
+            int read;
+            while ((read = await reader.ReadAsync(buffer.AsMemory(), CancellationToken.None)) > 0)
+            {
+                var chunk = new string(buffer, 0, read);
+                all.Append(chunk);
+                try { sink(chunk); } catch { /* a failing sink never breaks the command */ }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException && ct.IsCancellationRequested)
+        {
+            // aborted by the timeout above; EndExecute reports the failure
+        }
+
+        return all.ToString();
     }
 
     /// <summary>Repo-relative compose file path for the stack (validated at save time). Defaults to
