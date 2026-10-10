@@ -28,6 +28,7 @@ public static class MatDockApi
         api.MapGet("/operations/{id}", GetOperation);
 
         StacksApi.Map(api);
+        BackupsApi.Map(api);
 
     }
 
