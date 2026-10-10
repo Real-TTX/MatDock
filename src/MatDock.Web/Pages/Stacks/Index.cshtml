@@ -191,6 +191,7 @@
                                     {
                                         <span class="pill" title="Git-backed"><icon name="git" /> Git</span>
                                     }
+                                    <managed-badge value="@r.ManagedBy" />
                                     @if (r.Discovered)
                                     {
                                         <span class="mat-badge" title="Running on the host, not managed by MatDock">External</span>
@@ -318,6 +319,7 @@
                                 {
                                     <strong>@r.Name</strong>
                                 }
+                                <managed-badge value="@r.ManagedBy" />
                             </td>
                             <td>
                                 @if (r.Discovered)

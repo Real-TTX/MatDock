@@ -42,6 +42,10 @@ public class Stack : AuditableEntity
     /// compose <c>x-matdock:</c> block and any sidecar/icon file. Null when the stack has no app metadata.</summary>
     public string? AppMetaJson { get; set; }
 
+    /// <summary>Who created and maintains this stack from outside MatDock (e.g. <c>mattiverse</c> through the API), or
+    /// null for a stack created in MatDock itself. Shown as a "Managed by …" badge; editing in the UI keeps it.</summary>
+    public string? ManagedBy { get; set; }
+
     /// <summary>True when the stack is deployed from a Git repository rather than the inline editor.</summary>
     public bool IsGitBacked => !string.IsNullOrWhiteSpace(GitRepoUrl);
 }

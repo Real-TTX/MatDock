@@ -16,6 +16,12 @@
         <icon name="template" /><span>From app "@Model.FromTemplateName" – name &amp; compose are prefilled. Select an environment and adjust.</span>
     </div>
 }
+@if (ManagedBadgeTagHelper.DisplayName(Model.ManagedBy) is { } owner)
+{
+    <div class="alert alert--info">
+        <icon name="plug" /><span><managed-badge value="@Model.ManagedBy" /> This stack was created by @owner. Manual changes may be overwritten the next time @owner updates it.</span>
+    </div>
+}
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">

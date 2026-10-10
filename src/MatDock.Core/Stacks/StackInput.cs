@@ -15,4 +15,8 @@ public sealed class StackInput
     public string? GitReference { get; set; }
     public string? GitComposePath { get; set; }
     public long? GitCredentialId { get; set; }
+
+    /// <summary>Owner of an externally managed stack (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so a
+    /// save from MatDock's own editor never drops it; an empty string clears it.</summary>
+    public string? ManagedBy { get; set; }
 }

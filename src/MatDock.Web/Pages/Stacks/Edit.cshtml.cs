@@ -40,6 +40,9 @@ public class EditModel : PageModel
     public List<StackTemplate> Apps { get; private set; } = new();
     public string? FromTemplateName { get; private set; }
 
+    /// <summary>Owner of an externally managed stack (shown as a hint; a save here keeps it).</summary>
+    public string? ManagedBy { get; private set; }
+
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
     public string? DeployOutput { get; private set; }
@@ -84,6 +87,7 @@ public class EditModel : PageModel
                 return RedirectToPage("Index");
             }
 
+            ManagedBy = stack.ManagedBy;
             Input = new InputModel
             {
                 Id = stack.Id,
@@ -217,5 +221,9 @@ public class EditModel : PageModel
         GitCredentials = await _gitCredentialService.GetAllAsync(HttpContext.RequestAborted);
         SavedRepos = await _gitRepoService.GetAllAsync(HttpContext.RequestAborted);
         Apps = await _templateService.GetAllAsync(HttpContext.RequestAborted);
+        if (Input.Id is > 0)
+        {
+            ManagedBy = (await _stackService.GetAsync(Input.Id.Value, HttpContext.RequestAborted))?.ManagedBy;
+        }
     }
 }

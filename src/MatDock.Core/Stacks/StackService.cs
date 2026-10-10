@@ -686,6 +686,10 @@ public sealed class StackService
     {
         stack.Name = input.Name.Trim();
         stack.EnvironmentId = input.EnvironmentId;
+        if (input.ManagedBy is not null)
+        {
+            stack.ManagedBy = string.IsNullOrWhiteSpace(input.ManagedBy) ? null : input.ManagedBy.Trim();
+        }
 
         var repo = string.IsNullOrWhiteSpace(input.GitRepoUrl) ? null : input.GitRepoUrl.Trim();
         stack.GitRepoUrl = repo;

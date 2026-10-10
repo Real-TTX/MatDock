@@ -439,6 +439,7 @@ button.mat-tabs__tab { background: none; border: none; border-bottom: 2px solid 
    Badges, pills, alerts
    ========================================================================== */
 .mat-badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 650; background: var(--surface-3); color: var(--text-muted); }
+.mat-badge--managed { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); cursor: help; vertical-align: middle; }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
 .pill .mat-icon { font-size: .9rem; }
