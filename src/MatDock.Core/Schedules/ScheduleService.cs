@@ -216,8 +216,23 @@ public sealed class ScheduleService
         return summary;
     }
 
+    /// <summary>The bundle schedules (BundleBackup tasks), by name.</summary>
+    public Task<List<ScheduledTask>> GetBundleSchedulesAsync(CancellationToken ct = default)
+        => _db.ScheduledTasks.AsNoTracking()
+            .Where(s => s.Action == ScheduleAction.BundleBackup)
+            .OrderBy(s => s.Name)
+            .ToListAsync(ct);
+
+    /// <summary>The bundle schedule with exactly this name (the identity used by the API), or null.</summary>
+    public Task<ScheduledTask?> FindBundleScheduleAsync(string name, CancellationToken ct = default)
+        => _db.ScheduledTasks
+            .Where(s => s.Action == ScheduleAction.BundleBackup && s.Name == name)
+            .OrderBy(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+
     private void Apply(ScheduledTask task, ScheduleInput input)
     {
+        var isBackup = input.Action is ScheduleAction.Backup or ScheduleAction.BundleBackup;
         task.Name = input.Name.Replace('\r', ' ').Replace('\n', ' ').Trim();
         task.Enabled = input.Enabled;
         task.Trigger = input.Trigger;
@@ -226,15 +241,22 @@ public sealed class ScheduleService
         task.Action = input.Action;
         task.EnvironmentId = input.EnvironmentId is > 0 ? input.EnvironmentId : null;
         task.NotifyOnResult = input.NotifyOnResult;
+        if (input.ManagedBy is not null)
+        {
+            task.ManagedBy = string.IsNullOrWhiteSpace(input.ManagedBy) ? null : input.ManagedBy.Trim();
+        }
         task.OptionsJson = new ScheduleOptions
         {
             All = input.OptionAll,
             IncludeShares = input.OptionIncludeShares,
             VolumesCsv = input.Action == ScheduleAction.Backup ? input.VolumesCsv : null,
-            BackupTargetId = input.Action == ScheduleAction.Backup ? input.BackupTargetId : null,
-            RetentionCount = input.Action == ScheduleAction.Backup ? input.RetentionCount : 0,
-            RetentionDays = input.Action == ScheduleAction.Backup ? input.RetentionDays : 0,
-            StopContainers = input.Action == ScheduleAction.Backup && input.StopContainers,
+            BackupTargetId = isBackup ? input.BackupTargetId : null,
+            RetentionCount = isBackup ? input.RetentionCount : 0,
+            RetentionDays = isBackup ? input.RetentionDays : 0,
+            StopContainers = isBackup && input.StopContainers,
+            BundleStack = input.Action == ScheduleAction.BundleBackup && !string.IsNullOrWhiteSpace(input.BundleStack)
+                ? input.BundleStack.Trim()
+                : null,
         }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)
@@ -261,6 +283,15 @@ public sealed class ScheduleService
             {
                 return "Please enter at least one volume to back up.";
             }
+        }
+        if (input.Action == ScheduleAction.BundleBackup
+            && !string.IsNullOrWhiteSpace(input.BundleStack) && !Stacks.StackCommands.IsValidName(input.BundleStack.Trim()))
+        {
+            return "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).";
+        }
+        if (input.RetentionCount < 0 || input.RetentionDays < 0)
+        {
+            return "Retention cannot be negative.";
         }
         return null;
     }

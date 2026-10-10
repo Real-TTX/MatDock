@@ -58,6 +58,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.HealthAlertAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.BackupAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.SyncAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.BundleBackupAction>();
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
         services.AddScoped<Updates.UpdateService>();
