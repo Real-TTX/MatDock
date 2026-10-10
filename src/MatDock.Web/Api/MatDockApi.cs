@@ -27,6 +27,8 @@ public static class MatDockApi
         api.MapPut("/environments/local", EnsureLocalAsync);
         api.MapGet("/operations/{id}", GetOperation);
 
+        StacksApi.Map(api);
+
     }
 
     private static async Task<IResult> StatusAsync(HttpContext http, EnvironmentService environments)

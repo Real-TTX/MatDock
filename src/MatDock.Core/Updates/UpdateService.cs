@@ -100,16 +100,31 @@ public sealed class UpdateService
     /// <summary>Runs a manual update of a managed stack: optional pre-update backup, then pull + redeploy.</summary>
     public async Task<(bool Ok, string Message)> UpdateStackAsync(long stackId, bool preBackup, CancellationToken ct = default)
     {
+        var outcome = await RunUpdateAsync(stackId, preBackup, ct);
+        return (outcome.Ok, outcome.Message);
+    }
+
+    /// <summary>
+    /// The update itself: optional pre-update bundle backup (abort when it fails), then <c>compose pull</c> +
+    /// <c>up -d</c>, which re-creates only the containers whose image changed. <see cref="StackUpdateOutcome.Changed"/>
+    /// tells whether any container was re-created (its id differs afterwards).
+    /// </summary>
+    /// <param name="stackId">The managed stack.</param>
+    /// <param name="preBackup">Take a bundle backup first and abort when it fails.</param>
+    /// <param name="ct">Cancellation.</param>
+    /// <param name="log">Optional progress lines (the backup summary).</param>
+    public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, CancellationToken ct = default, Action<string>? log = null)
+    {
         var stack = await _stacks.GetAsync(stackId, ct);
         if (stack is null)
         {
-            return (false, "Stack not found.");
+            return StackUpdateOutcome.Failed("Stack not found.");
         }
 
         var env = await _environments.GetAsync(stack.EnvironmentId, ct);
         if (env is null || !env.IsEnabled)
         {
-            return (false, "Environment not available (disabled or deleted).");
+            return StackUpdateOutcome.Failed("Environment not available (disabled or deleted).");
         }
 
         if (preBackup)
@@ -118,11 +133,38 @@ public sealed class UpdateService
             if (!backupOk)
             {
                 // Never update without the safety net the user asked for.
-                return (false, $"Pre-update backup failed, update aborted: {backupMsg}");
+                return StackUpdateOutcome.Failed($"Pre-update backup failed, update aborted: {backupMsg}");
             }
+
+            log?.Invoke(backupMsg);
         }
 
+        var before = await ContainerIdsAsync(env, stack.Name, ct);
         var (ok, output) = await _stacks.UpdateAsync(stackId, ct);
-        return (ok, output);
+        if (!ok)
+        {
+            return StackUpdateOutcome.Failed(output);
+        }
+
+        var after = await ContainerIdsAsync(env, stack.Name, ct);
+        // When the containers cannot be listed, report a change rather than hide one.
+        var changed = before is null || after is null || !before.SetEquals(after);
+        return new StackUpdateOutcome(true, output, changed);
+    }
+
+    private async Task<HashSet<string>?> ContainerIdsAsync(DockerEnvironment env, string project, CancellationToken ct)
+    {
+        try
+        {
+            var all = await _containers.ListAsync(env, ct, includeStats: false);
+            return all.Where(c => string.Equals(c.Project, project, StringComparison.Ordinal))
+                .Select(c => c.Id)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Listing the containers of {Project} failed.", project);
+            return null;
+        }
     }
 }

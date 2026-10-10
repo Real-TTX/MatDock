@@ -61,6 +61,43 @@ public sealed class StackService
     public Task<Stack?> GetAsync(long id, CancellationToken ct = default)
         => _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
 
+    /// <summary>The managed stack with this (compose project) name in an environment, or null.</summary>
+    public Task<Stack?> GetByNameAsync(long environmentId, string name, CancellationToken ct = default)
+        => _db.Stacks.FirstOrDefaultAsync(s => s.EnvironmentId == environmentId && s.Name == name, ct);
+
+    /// <summary>
+    /// Creates or updates an inline stack by (environment, name) — the same validation and storage as the editor.
+    /// Repeating it with the same values changes nothing. <paramref name="managedBy"/> null keeps the stored owner.
+    /// Fails for a git-backed stack of that name (its compose comes from the repository).
+    /// </summary>
+    public async Task<(bool Ok, string Message, Stack? Stack, bool Created)> UpsertInlineAsync(
+        long environmentId, string name, string composeYaml, string? envContent, string? managedBy, CancellationToken ct = default)
+    {
+        var input = new StackInput
+        {
+            Name = name,
+            EnvironmentId = environmentId,
+            ComposeYaml = composeYaml,
+            EnvContent = envContent,
+            ManagedBy = managedBy,
+        };
+
+        var existing = await GetByNameAsync(environmentId, name.Trim(), ct);
+        if (existing is null)
+        {
+            var (created, message, id) = await CreateAsync(input, ct);
+            return (created, message, created ? await GetAsync(id, ct) : null, true);
+        }
+
+        if (existing.IsGitBacked)
+        {
+            return (false, "This stack is deployed from a Git repository; its compose file cannot be replaced.", existing, false);
+        }
+
+        var (ok, msg) = await UpdateAsync(existing.Id, input, ct);
+        return (ok, msg, existing, false);
+    }
+
     public async Task<(bool Ok, string Message, long Id)> CreateAsync(StackInput input, CancellationToken ct = default)
     {
         if (!StackCommands.IsValidName(input.Name))
@@ -153,7 +190,24 @@ public sealed class StackService
         return stack.IsGitBacked ? await GitDeployAsync(stack, pull: true, ct) : await InlineDeployAsync(stack, pull: true, ct);
     }
 
-    public async Task<(bool Ok, string Output)> DownAsync(long id, CancellationToken ct = default)
+    public Task<(bool Ok, string Output)> DownAsync(long id, CancellationToken ct = default)
+        => DownAsync(id, removeVolumes: false, ct);
+
+    /// <summary><c>compose down</c>: stops and removes the stack's containers (and with <paramref name="removeVolumes"/>
+    /// its named volumes). The stack definition stays in MatDock.</summary>
+    public Task<(bool Ok, string Output)> DownAsync(long id, bool removeVolumes, CancellationToken ct = default)
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Down(head, name, path, removeVolumes), null, null, ct);
+
+    /// <summary><c>compose restart</c>: restarts the stack's containers without re-creating them.</summary>
+    public Task<(bool Ok, string Output)> RestartAsync(long id, CancellationToken ct = default)
+        => LifecycleAsync(id, StackCommands.Restart, "Restarted", "Restart failed", ct);
+
+    /// <summary><c>compose pull</c>: fetches newer images; the running containers are not touched.</summary>
+    public Task<(bool Ok, string Output)> PullAsync(long id, CancellationToken ct = default)
+        => LifecycleAsync(id, StackCommands.Pull, "Pulled", "Pull failed", ct);
+
+    private async Task<(bool Ok, string Output)> LifecycleAsync(
+        long id, Func<string, string, string, string> build, string? successStatus, string? failureStatus, CancellationToken ct)
     {
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
@@ -167,8 +221,9 @@ public sealed class StackService
             return (false, prep.Message);
         }
 
-        var command = StackCommands.Down(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct);
+        var command = build(prep.Head!, stack.Name, EffectiveComposePath(stack));
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+            successStatus: successStatus, failureStatus: failureStatus);
     }
 
     /// <summary><c>compose stop</c>: stops the stack's containers but keeps them (fast restart).</summary>

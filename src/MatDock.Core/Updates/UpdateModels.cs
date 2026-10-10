@@ -9,6 +9,12 @@ public sealed record ImageUpdateStatus(
     bool UpdateAvailable,
     string? Note);
 
+/// <summary>Result of an update run: success, the compose output and whether any container was re-created.</summary>
+public sealed record StackUpdateOutcome(bool Ok, string Message, bool Changed)
+{
+    public static StackUpdateOutcome Failed(string message) => new(false, message, false);
+}
+
 /// <summary>Per-stack update check result.</summary>
 public sealed record StackUpdateReport(IReadOnlyList<ImageUpdateStatus> Images, string? Error)
 {
