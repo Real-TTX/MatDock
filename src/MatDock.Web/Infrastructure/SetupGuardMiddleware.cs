@@ -36,7 +36,9 @@ public sealed class SetupGuardMiddleware
             else
             {
                 var path = context.Request.Path;
+                // The API (X-Api-Key) works before any administrator exists: a headless install drives it first.
                 if (!path.StartsWithSegments(SetupPath) &&
+                    !path.StartsWithSegments(Api.MatDockApi.BasePath) &&
                     !path.StartsWithSegments("/css") &&
                     !path.StartsWithSegments("/js") &&
                     !path.StartsWithSegments("/img") &&

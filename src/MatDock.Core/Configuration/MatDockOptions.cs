@@ -25,6 +25,10 @@ public sealed class MatDockOptions
     public string HelperImage { get; set; } = "busybox";
 
     public AdminSeedOptions Admin { get; set; } = new();
+
+    public ApiOptions Api { get; set; } = new();
+
+    public EnvironmentsOptions Environments { get; set; } = new();
 }
 
 /// <summary>Credentials used to seed the first administrator on an empty database (headless setups).</summary>
@@ -40,4 +44,20 @@ public sealed class AdminSeedOptions
 
     /// <summary>Initial password. The seeded admin is forced to change it on first login.</summary>
     public string Password { get; set; } = "admin";
+}
+
+/// <summary>The machine-to-machine REST API under <c>/api/v1</c> (used by Mattiverse).</summary>
+public sealed class ApiOptions
+{
+    /// <summary>Shared secret expected in the <c>X-Api-Key</c> header (env <c>MatDock__Api__Key</c>). Empty = the API
+    /// is disabled and answers 503, so it can never be reached without a key.</summary>
+    public string? Key { get; set; }
+}
+
+/// <summary>Start-up behaviour for environments.</summary>
+public sealed class EnvironmentsOptions
+{
+    /// <summary>When true (env <c>MatDock__Environments__EnsureLocal=true</c>), a <em>Local</em> environment named
+    /// <c>local</c> is created at start if none exists and the Docker socket is reachable.</summary>
+    public bool EnsureLocal { get; set; }
 }

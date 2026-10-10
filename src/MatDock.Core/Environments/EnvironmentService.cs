@@ -212,6 +212,68 @@ public sealed class EnvironmentService
     public async Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(DockerEnvironment env, CancellationToken ct = default)
         => await _connection.ListVolumesAsync(BuildSettings(env), ct);
 
+    /// <summary>Name given to the Local environment that <see cref="EnsureLocalAsync"/> creates.</summary>
+    public const string LocalEnvironmentName = "local";
+
+    /// <summary>
+    /// The environment that talks to this host's Docker socket: the first enabled Local environment (one named
+    /// <c>local</c> first), else a disabled one; null when there is none.
+    /// </summary>
+    public async Task<DockerEnvironment?> FindLocalAsync(CancellationToken ct = default)
+    {
+        var locals = await _db.Environments
+            .Where(e => e.ConnectionType == ConnectionType.Local)
+            .OrderBy(e => e.Id)
+            .ToListAsync(ct);
+
+        return locals
+            .OrderByDescending(e => e.IsEnabled)
+            .ThenByDescending(e => string.Equals(e.Name, LocalEnvironmentName, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Ensures an environment of type Local exists (idempotent): returns the existing one, or creates
+    /// <c>local</c> after verifying that the Docker socket answers. Fails (nothing is created) when it does not.
+    /// </summary>
+    public async Task<(bool Ok, string Message, DockerEnvironment? Environment, bool Created)> EnsureLocalAsync(CancellationToken ct = default)
+    {
+        var existing = await FindLocalAsync(ct);
+        if (existing is not null)
+        {
+            return (true, "A local environment already exists.", existing, false);
+        }
+
+        DockerConnectionResult probe;
+        try
+        {
+            var settings = await BuildTestSettingsAsync(new EnvironmentInput { ConnectionType = ConnectionType.Local }, null, ct);
+            probe = await _connection.TestConnectionAsync(settings, ct);
+        }
+        catch (Exception ex)
+        {
+            probe = DockerConnectionResult.Fail(ex.Message);
+        }
+
+        if (!probe.Success)
+        {
+            return (false, $"No Docker socket available: {probe.Message}", null, false);
+        }
+
+        var env = await CreateAsync(new EnvironmentInput
+        {
+            Name = LocalEnvironmentName,
+            Description = "This host's Docker engine (mounted socket)",
+            ConnectionType = ConnectionType.Local,
+        }, ct);
+        env.Status = probe.Status;
+        env.LastCheckedAt = DateTime.UtcNow;
+        env.LastCheckMessage = probe.Message;
+        env.DockerVersion = probe.DockerVersion;
+        await _db.SaveChangesAsync(ct);
+        return (true, "Local environment created.", env, true);
+    }
+
     private void ApplyInput(DockerEnvironment entity, EnvironmentInput input, bool isCreate)
     {
         entity.Name = input.Name.Trim();
