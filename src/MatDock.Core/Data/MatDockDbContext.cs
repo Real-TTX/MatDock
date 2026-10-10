@@ -23,6 +23,7 @@ public class MatDockDbContext : DbContext
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DockerEnvironment> Environments => Set<DockerEnvironment>();
     public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
+    public DbSet<StackBackup> StackBackups => Set<StackBackup>();
     public DbSet<BackupTarget> BackupTargets => Set<BackupTarget>();
     public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
@@ -89,6 +90,24 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.VolumeName).HasMaxLength(255).IsRequired();
             e.Property(x => x.FileName).HasMaxLength(300).IsRequired();
             e.HasIndex(x => x.VolumeName);
+            e.HasIndex(x => x.StackBackupId);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<StackBackup>(e =>
+        {
+            e.ToTable("StackBackup");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EnvironmentName).HasMaxLength(200);
+            e.Property(x => x.StackName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Kind).HasConversion<int>();
+            e.Property(x => x.Status).HasConversion<int>();
+            e.Property(x => x.ManifestFileName).HasMaxLength(300);
+            e.Property(x => x.BackupTargetName).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.Message).HasMaxLength(1000);
+            e.HasIndex(x => new { x.EnvironmentId, x.StackName });
+            e.HasIndex(x => x.ScheduledTaskId);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 
@@ -230,6 +249,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.OptionsJson).HasMaxLength(2000);
             e.Property(x => x.LastStatus).HasMaxLength(1000);
             e.Property(x => x.SourceKind).HasMaxLength(20);
+            e.Property(x => x.ManagedBy).HasMaxLength(100);
             e.HasIndex(x => x.Name);
             e.HasIndex(x => new { x.SourceKind, x.SourceId });
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);

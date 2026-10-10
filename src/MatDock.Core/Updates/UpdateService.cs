@@ -129,7 +129,8 @@ public sealed class UpdateService
 
         if (preBackup)
         {
-            var (backupOk, backupMsg) = await _bundle.BackupStackAsync(env, stack.Name, target: null, stopContainers: false, ct);
+            var (backupOk, backupMsg, _) = await _bundle.CreateBundleAsync(env, stack.Name, target: null, stopContainers: false,
+                StackBackupKind.PreUpdate, "Before update", ct: ct);
             if (!backupOk)
             {
                 // Never update without the safety net the user asked for.
