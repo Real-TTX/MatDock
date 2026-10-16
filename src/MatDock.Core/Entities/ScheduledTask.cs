@@ -42,4 +42,8 @@ public class ScheduledTask : AuditableEntity
 
     /// <summary>Id of the source BackupSchedule/SyncJob this task was migrated from, or null.</summary>
     public long? SourceId { get; set; }
+
+    /// <summary>Who created and maintains this task through the API (e.g. <c>mattiverse</c>), or null. Shown as a
+    /// "Managed by …" badge; for a bundle schedule without a stack it also selects the stacks (same owner).</summary>
+    public string? ManagedBy { get; set; }
 }

@@ -99,7 +99,7 @@ public sealed class VolumeBackupService
         return volumeName.Length > 0;
     }
 
-    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false, long? scheduledTaskId = null)
+    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false, long? scheduledTaskId = null, long? stackBackupId = null)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
@@ -172,7 +172,8 @@ public sealed class VolumeBackupService
                 BackupTargetId = target?.Id,
                 BackupTargetName = target?.Name ?? "Local",
                 BackupScheduleId = scheduleId,
-                ScheduledTaskId = scheduledTaskId
+                ScheduledTaskId = scheduledTaskId,
+                StackBackupId = stackBackupId
             };
             _db.VolumeBackups.Add(backup);
             await _db.SaveChangesAsync(ct);

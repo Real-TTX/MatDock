@@ -13,6 +13,13 @@
     </div>
 </div>
 
+@if (ManagedBadgeTagHelper.DisplayName(Model.ManagedBy) is { } owner)
+{
+    <div class="alert alert--info" style="max-width:820px;">
+        <icon name="plug" /><span><managed-badge value="@Model.ManagedBy" /> This schedule was created by @owner. Manual changes may be overwritten the next time @owner updates it.</span>
+    </div>
+}
+
 <div class="card" style="max-width:820px;">
     <div class="card__body">
         <form method="post" class="mat-form">
@@ -32,6 +39,7 @@
                         <option value="PruneImages">Prune images</option>
                         <option value="PruneNetworks">Prune networks</option>
                         <option value="Backup">Backup volumes</option>
+                        <option value="BundleBackup">Backup stacks (bundle: volumes + compose + .env)</option>
                     </select>
                 </mat-field>
                 <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Applies to all enabled environments when left on 'All'">
@@ -61,6 +69,13 @@
                 <mat-field label="Volumes" asp-for="Input.VolumesCsv" hint="One volume name per line. Requires a target environment above.">
                     <textarea asp-for="Input.VolumesCsv" class="mat-input" rows="3" placeholder="pgdata&#10;redis-data"></textarea>
                 </mat-field>
+            </div>
+            <div data-show-when="Input_Action=BundleBackup">
+                <mat-field label="Stack" asp-for="Input.BundleStack" hint="Compose project name. Empty = every managed stack (of the schedule's owner, if it has one). Retention keeps the newest scheduled bundles per stack.">
+                    <input asp-for="Input.BundleStack" class="mat-input" placeholder="e.g. media-stack" />
+                </mat-field>
+            </div>
+            <div data-show-when="Input_Action=Backup,BundleBackup">
                 <div class="form-grid">
                     <mat-field label="Backup target" asp-for="Input.BackupTargetId" hint="Where archives are stored">
                         <select asp-for="Input.BackupTargetId" class="mat-select">
@@ -80,7 +95,7 @@
                 </div>
                 <label class="mat-check">
                     <input asp-for="Input.StopContainers" type="checkbox" />
-                    <span>Stop the volume's containers during backup (consistent snapshot)</span>
+                    <span>Stop the containers during backup (consistent snapshot)</span>
                 </label>
             </div>
 

@@ -518,6 +518,10 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ManagedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -608,6 +612,10 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ManagedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -636,6 +644,86 @@ namespace MatDock.Core.Data.Migrations
                         .HasFilter("\"UpdateState\" <> 0");
 
                     b.ToTable("Stack", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.StackBackup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("BackupTargetId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BackupTargetName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Consistent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EnvironmentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ManifestFileName")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ScheduledTaskId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StackName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("VolumeCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduledTaskId");
+
+                    b.HasIndex("EnvironmentId", "StackName");
+
+                    b.ToTable("StackBackup", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.StackTemplate", b =>
@@ -983,6 +1071,9 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("StackBackupId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdateDate")
                         .HasColumnType("TEXT");
 
@@ -998,6 +1089,8 @@ namespace MatDock.Core.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("StackBackupId");
 
                     b.HasIndex("VolumeName");
 

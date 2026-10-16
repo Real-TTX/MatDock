@@ -315,6 +315,128 @@ public sealed class BackupAction : IScheduleAction
     }
 }
 
+/// <summary>
+/// Backs up whole stacks as bundles (volumes + compose + .env + image references): the stack named in the options,
+/// or every managed stack of the task's owner (<see cref="ScheduledTask.ManagedBy"/>; all managed stacks when it has
+/// none), in the target environment(s). Afterwards retention keeps the newest scheduled bundles of this task per stack.
+/// Stacks without containers on the host are skipped.
+/// </summary>
+public sealed class BundleBackupAction : IScheduleAction
+{
+    private readonly MatDockDbContext _db;
+    private readonly EnvironmentService _environments;
+    private readonly Stacks.StackService _stacks;
+    private readonly Containers.ContainerService _containers;
+    private readonly Backups.BundleBackupService _bundles;
+
+    public BundleBackupAction(MatDockDbContext db, EnvironmentService environments, Stacks.StackService stacks,
+        Containers.ContainerService containers, Backups.BundleBackupService bundles)
+    {
+        _db = db;
+        _environments = environments;
+        _stacks = stacks;
+        _containers = containers;
+        _bundles = bundles;
+    }
+
+    public ScheduleAction Type => ScheduleAction.BundleBackup;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+
+        IReadOnlyList<DockerEnvironment> envs;
+        if (task.EnvironmentId is > 0)
+        {
+            var env = await _environments.GetAsync(task.EnvironmentId.Value, ct);
+            envs = env is { IsEnabled: true } ? new[] { env } : Array.Empty<DockerEnvironment>();
+        }
+        else
+        {
+            envs = await _environments.GetEnabledAsync(ct);
+        }
+
+        if (envs.Count == 0)
+        {
+            return (false, "No target environment.");
+        }
+
+        BackupTarget? target = null;
+        if (opt.BackupTargetId is { } tid)
+        {
+            target = await _db.BackupTargets.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == tid, ct);
+            if (target is null)
+            {
+                return (false, "Backup target has been deleted.");
+            }
+        }
+
+        var managed = await _stacks.GetAllAsync(ct);
+        int created = 0, skipped = 0, pruned = 0;
+        var failures = new List<string>();
+        foreach (var env in envs)
+        {
+            ct.ThrowIfCancellationRequested();
+            HashSet<string> projects;
+            try
+            {
+                var live = await _containers.ListAsync(env, ct, includeStats: false);
+                projects = live.Where(c => !string.IsNullOrEmpty(c.Project)).Select(c => c.Project!).ToHashSet(StringComparer.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"{env.Name}: {ex.Message}");
+                continue;
+            }
+
+            var names = string.IsNullOrWhiteSpace(opt.BundleStack)
+                ? SelectStacks(managed, env.Id, task.ManagedBy)
+                : new[] { opt.BundleStack.Trim() };
+            foreach (var name in names)
+            {
+                if (!projects.Contains(name))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var result = await _bundles.CreateBundleAsync(env, name, target, opt.StopContainers,
+                    StackBackupKind.Scheduled, $"Schedule '{task.Name}'", task.Id, ct);
+                if (result.Ok)
+                {
+                    created++;
+                    pruned += await _bundles.ApplyRetentionAsync(task.Id, env.Id, name, opt.RetentionCount, opt.RetentionDays, ct);
+                }
+                else
+                {
+                    failures.Add($"{name}: {result.Message}");
+                }
+            }
+        }
+
+        if (created == 0 && failures.Count == 0 && !string.IsNullOrWhiteSpace(opt.BundleStack))
+        {
+            return (false, $"Stack '{opt.BundleStack}' has no containers in the target environment(s); nothing was backed up.");
+        }
+
+        var summary = $"{created} stack bundle(s) created";
+        if (skipped > 0) { summary += $", {skipped} skipped (no containers)"; }
+        if (pruned > 0) { summary += $", {pruned} old bundle(s) removed by retention"; }
+        if (failures.Count > 0) { summary += " – " + string.Join("; ", failures.Take(3)); }
+        return (failures.Count == 0, summary + ".");
+    }
+
+    /// <summary>The managed stacks of an environment that a schedule without a stack covers: those of its owner, or all
+    /// managed stacks when the schedule has no owner.</summary>
+    public static IReadOnlyList<string> SelectStacks(IEnumerable<Stack> managed, long environmentId, string? owner)
+        => managed
+            .Where(s => s.EnvironmentId == environmentId
+                        && (string.IsNullOrWhiteSpace(owner) || string.Equals(s.ManagedBy, owner.Trim(), StringComparison.OrdinalIgnoreCase)))
+            .Select(s => s.Name)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+}
+
 /// <summary>Runs a referenced SyncJob (GitOps) via the sync runner.</summary>
 public sealed class SyncAction : IScheduleAction
 {

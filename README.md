@@ -126,21 +126,27 @@ Ready-made images are published to the GitHub Container Registry:
 
 | Tag | Built from | Use it for |
 |---|---|---|
-| `ghcr.io/real-ttx/matdock:latest` | `main` | releases |
+| `ghcr.io/real-ttx/matdock:release` (same image: `:latest`) | `main` | releases |
+| `ghcr.io/real-ttx/matdock:<version>`, e.g. `:0.1.42-20261010` | `main` | pinning one release |
 | `ghcr.io/real-ttx/matdock:nightly` | `dev` | the newest features |
+
+`latest` is pushed together with `release` by every release build (older releases only carry `release` and
+their version tag).
 
 ### 1. Just run it
 
 ```yaml
 services:
   matdock:
-    image: ghcr.io/real-ttx/matdock:latest
+    image: ghcr.io/real-ttx/matdock:release
     container_name: matdock
     restart: unless-stopped
     ports:
       - "4455:4455"
     environment:
-      # Initial administrator – change the password before the first start
+      # Create the initial administrator on the first start (without Seed the setup wizard asks for one).
+      # Username/Password only apply together with Seed=true – change the password before the first start.
+      MatDock__Admin__Seed: "true"
       MatDock__Admin__Username: admin
       MatDock__Admin__Password: admin
     volumes:
@@ -156,7 +162,8 @@ volumes:
 docker compose up -d
 ```
 
-Open **http://localhost:4455** and sign in with **`admin` / `admin`**. The `matdock-data`
+Open **http://localhost:4455** and sign in with **`admin` / `admin`** (you are asked to set a new password).
+Without `MatDock__Admin__Seed` the first visit opens a setup wizard that creates the administrator. The `matdock-data`
 volume keeps the database, the configuration, the backups and the session keys, so an update is
 just `docker compose pull && docker compose up -d`.
 
@@ -165,7 +172,7 @@ Without Compose:
 ```bash
 docker run -d --name matdock -p 4455:4455 \
   -v matdock-data:/data -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/real-ttx/matdock:latest
+  ghcr.io/real-ttx/matdock:release
 ```
 
 ### 2. Add your hosts
@@ -194,8 +201,11 @@ docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite w
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MatDock__Admin__Username` / `__Password` | `admin` / `admin` | Initial administrator (first start only) |
-| `MatDock__DataPath` | `/data` | Data directory (SQLite, config, keys, backups) |
+| `MatDock__Admin__Seed` | `false` | `true` = create the initial administrator from the two settings below on an empty database (headless installs); `false` = the setup wizard asks on the first visit |
+| `MatDock__Admin__Username` / `__Password` | `admin` / `admin` | Initial administrator – **only with `MatDock__Admin__Seed=true`**, first start only; the password must be changed on the first login |
+| `MatDock__Api__Key` | – | Enables the REST API (see [API](#api-for-mattiverse)); without a key the API answers `503` |
+| `MatDock__Environments__EnsureLocal` | `false` | `true` = create a *Local* environment `local` at start (if none exists and the Docker socket answers) |
+| `MatDock__DataPath` | `/data` | Data directory (SQLite, config, keys, backups, local stack files) |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Standard ASP.NET Core environment |
 
 ### The `/data` volume
@@ -205,8 +215,48 @@ docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite w
 ├─ matdock.db            SQLite database
 ├─ config/               JSON configuration
 ├─ dataprotection-keys/  session & secret keys (survive restarts)
-└─ backups/              local backup archives
+├─ backups/              local backup archives
+└─ stacks/<name>/        compose + .env of the stacks deployed to the local environment
 ```
+
+Stacks on SSH hosts keep their files on the host in `~/.matdock/stacks/<name>`.
+
+## API (for Mattiverse)
+
+MatDock is one of the engines of [Mattiverse](https://github.com/Real-TTX/Mattiverse): Mattiverse installs apps as
+MatDock stacks and uses MatDock's backups and schedules, so everything stays visible and editable here. The contract is
+`docs/ENGINES.md` in the Mattiverse repository.
+
+- **Key:** set `MatDock__Api__Key`; every call sends it as `X-Api-Key` (compared in constant time). No key configured =
+  `503`, wrong or missing key = `401`. The session cookie plays no role. Errors are `{"error": "…"}`.
+- **Environment:** calls work on the *Local* environment (the mounted Docker socket) unless `?environment=<id or name>`
+  says otherwise. `PUT /api/v1/environments/local` or `MatDock__Environments__EnsureLocal=true` creates it.
+- **Long actions** answer `202 {"operationId": "…"}`; poll `GET /api/v1/operations/{id}?offset=<chars read>` for the
+  output (streamed while it runs), `status` (`running|succeeded|failed`), `error` and `result`. Operations live in
+  memory for an hour after they finish.
+- **Managed by:** stacks and schedules created through the API carry `managedBy` (e.g. `mattiverse`). The Stacks and
+  Schedules pages show a **"Managed by Mattiverse"** badge (tooltip: *Created by Mattiverse. Manual changes may be
+  overwritten.*); editing such an object in MatDock keeps the value.
+
+| Method and path | |
+|---|---|
+| `GET /api/v1/status` | `ok`, `app`, `version`, `apiVersion` (1), `environments` |
+| `PUT /api/v1/environments/local` | ensure the Local environment `local` → `{id, name, created}`; `409` without a Docker socket |
+| `GET /api/v1/stacks?managedBy=` | managed and discovered stacks with `state` (`running/stopped/partial/unhealthy/missing`) and containers |
+| `GET /api/v1/stacks/{name}` | the same plus `composeYaml` and `envContent` |
+| `PUT /api/v1/stacks/{name}` | upsert `{composeYaml, envContent, managedBy, deploy, pull}`; `200 {stack}` or with `deploy` `202 {stack, operationId}` |
+| `POST /api/v1/stacks/{name}/actions/{action}` | `start`, `stop`, `restart`, `pull`, `redeploy`, `update` (`{backupFirst}`; result `{changed}`) → `202` |
+| `DELETE /api/v1/stacks/{name}?volumes=false` | `compose down` (`--volumes`), then the stack is removed from MatDock → `202` |
+| `GET /api/v1/stacks/{name}/logs?service=&tail=300` | `{text}` |
+| `POST /api/v1/stacks/{name}/backups` | bundle backup `{stopContainers, note, targetId}` → `202`, result `{backupId}` |
+| `GET /api/v1/backups?stack=` | the stack bundles, newest first |
+| `POST /api/v1/backups/{id}/restore` | `{backupCurrentFirst}`; re-creates the stack when it is gone → `202` |
+| `DELETE /api/v1/backups/{id}` | `204` |
+| `GET /api/v1/backups/{id}/download` | the bundle (manifest + volume archives) as one `.tar` |
+| `GET /api/v1/backup-schedules`, `PUT`/`DELETE /api/v1/backup-schedules/{name}` | bundle schedules `{stack, managedBy, frequency, time, weekday, retention, stopContainers, enabled}`; `time` is UTC |
+
+A stack bundle holds all volumes of the stack, its compose file, its `.env` and the image references; bundle schedules
+appear on the Schedules page (action *Backup stacks*) and keep the newest scheduled bundles per stack.
 
 ## How it is built
 

@@ -9,9 +9,15 @@ namespace MatDock.Core.Execution;
 /// </summary>
 internal sealed class LocalHostSession : IHostSession
 {
+    private readonly string? _stacksPath;
+
+    /// <param name="stacksPath">Base directory for the stack files (exported as <c>MATDOCK_STACKS_DIR</c> to the
+    /// commands), or null for the default below the home directory.</param>
+    public LocalHostSession(string? stacksPath = null) => _stacksPath = stacksPath;
+
     public Task ConnectAsync(CancellationToken ct) => Task.CompletedTask; // nothing to connect; the socket is local
 
-    public IHostCommand CreateCommand(string command) => new LocalHostCommand(command);
+    public IHostCommand CreateCommand(string command) => new LocalHostCommand(command, _stacksPath);
 
     public void Dispose() { }
 }
@@ -19,12 +25,17 @@ internal sealed class LocalHostSession : IHostSession
 internal sealed class LocalHostCommand : IHostCommand
 {
     private readonly string _command;
+    private readonly string? _stacksPath;
     private Process? _process;
     private Task<string>? _stdoutTask;
     private Task<string>? _stderrTask;
     private bool _stdinCreated;
 
-    public LocalHostCommand(string command) => _command = command;
+    public LocalHostCommand(string command, string? stacksPath = null)
+    {
+        _command = command;
+        _stacksPath = stacksPath;
+    }
 
     public TimeSpan CommandTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
@@ -66,6 +77,10 @@ internal sealed class LocalHostCommand : IHostCommand
         };
         psi.ArgumentList.Add("-c");
         psi.ArgumentList.Add(_command);
+        if (!string.IsNullOrEmpty(_stacksPath))
+        {
+            psi.Environment[Stacks.StackCommands.StacksDirVariable] = _stacksPath;
+        }
 
         _process = new Process { StartInfo = psi };
         _process.Start();

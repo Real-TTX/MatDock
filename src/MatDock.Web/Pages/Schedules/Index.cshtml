@@ -13,6 +13,7 @@
         ScheduleAction.HealthAlert => "Health alert",
         ScheduleAction.Backup => "Backup",
         ScheduleAction.Sync => "Sync",
+        ScheduleAction.BundleBackup => "Stack backup (bundle)",
         _ => a.ToString()
     };
 
@@ -68,6 +69,7 @@
                 <tr>
                     <td>
                         <a href="/Schedules/Edit?id=@t.Id"><strong>@t.Name</strong></a>
+                        <managed-badge value="@t.ManagedBy" />
                         @if (!t.Enabled)
                         {
                             <span class="tag-unused" title="Disabled">disabled</span>

@@ -175,3 +175,54 @@ internal sealed class TestDatabase : IDisposable
         _connection.Dispose();
     }
 }
+
+/// <summary>Host sessions for services whose tested paths never reach a host: any use fails the test.</summary>
+internal sealed class NoHostSessionFactory : MatDock.Core.Execution.IHostSessionFactory
+{
+    public MatDock.Core.Execution.IHostSession Create(SshConnectionSettings settings)
+        => throw new InvalidOperationException("This test must not run host commands.");
+}
+
+/// <summary>Swallows schedule events.</summary>
+internal sealed class NoopScheduleEventBus : MatDock.Core.Schedules.IScheduleEventBus
+{
+    public Task PublishAsync(ScheduleEvent evt, long? environmentId = null, string? detail = null, CancellationToken ct = default)
+        => Task.CompletedTask;
+}
+
+/// <summary>A clock the test moves by hand.</summary>
+internal sealed class ManualTimeProvider : TimeProvider
+{
+    public ManualTimeProvider(DateTimeOffset now) => Now = now;
+
+    public DateTimeOffset Now { get; set; }
+
+    public override DateTimeOffset GetUtcNow() => Now;
+}
+
+/// <summary>Builds the real services over a <see cref="TestDatabase"/> (no host access).</summary>
+internal static class TestServices
+{
+    public static MatDock.Core.Stacks.StackService Stacks(TestDatabase db)
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new MatDock.Core.Configuration.MatDockOptions());
+        var secrets = new FakeSecretProtector();
+        return new MatDock.Core.Stacks.StackService(
+            db.Context,
+            new NoHostSessionFactory(),
+            new EnvironmentService(db.Context, secrets, new FakeConnectionService(), options),
+            new MatDock.Core.Git.GitCredentialService(db.Context, secrets),
+            new MatDock.Core.Git.GitRepositoryService(Microsoft.Extensions.Logging.Abstractions.NullLogger<MatDock.Core.Git.GitRepositoryService>.Instance),
+            new MatDock.Core.Registries.RegistryService(db.Context, secrets,
+                new MatDock.Core.Registries.RegistryApiClient(new NoHttpClientFactory(),
+                    Microsoft.Extensions.Logging.Abstractions.NullLogger<MatDock.Core.Registries.RegistryApiClient>.Instance)),
+            new NoopScheduleEventBus(),
+            options,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MatDock.Core.Stacks.StackService>.Instance);
+    }
+
+    private sealed class NoHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => throw new InvalidOperationException("No HTTP in this test.");
+    }
+}

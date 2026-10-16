@@ -87,7 +87,26 @@ public enum ScheduleAction
     Summary = 3,
     Backup = 4,
     HealthAlert = 5,
-    Sync = 6
+    Sync = 6,
+
+    /// <summary>Full stack backups (bundles) of one stack or of every stack of an owner, with retention.</summary>
+    BundleBackup = 7
+}
+
+/// <summary>Why a stack bundle was taken.</summary>
+public enum StackBackupKind
+{
+    Manual = 0,
+    Scheduled = 1,
+    PreUpdate = 2
+}
+
+/// <summary>State of a stack bundle backup.</summary>
+public enum StackBackupStatus
+{
+    Running = 0,
+    Succeeded = 1,
+    Failed = 2
 }
 
 /// <summary>Internal events that can trigger a scheduled task (Phase 2).</summary>

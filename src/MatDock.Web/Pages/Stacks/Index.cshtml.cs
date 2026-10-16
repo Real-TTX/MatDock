@@ -61,7 +61,8 @@ public class IndexModel : PageModel
     public sealed record StackRow(
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
-        IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson, int VolumeCount = 0)
+        IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson, int VolumeCount = 0,
+        string? ManagedBy = null)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
@@ -201,7 +202,7 @@ public class IndexModel : PageModel
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
                 live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
                 live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(),
-                HostFor(envById, s.EnvironmentId), s.AppMetaJson, VolCount(s.EnvironmentId, s.Name)));
+                HostFor(envById, s.EnvironmentId), s.AppMetaJson, VolCount(s.EnvironmentId, s.Name), s.ManagedBy));
         }
 
         foreach (var ((envId, project), d) in discovered)

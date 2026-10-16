@@ -21,4 +21,11 @@ public sealed class ScheduleInput
     public int RetentionDays { get; set; }
     public bool StopContainers { get; set; }
     public bool NotifyOnResult { get; set; }
+
+    /// <summary>BundleBackup: the stack to back up (empty = every managed stack of the owner).</summary>
+    public string? BundleStack { get; set; }
+
+    /// <summary>Owner of a task created through the API (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so
+    /// a save from the Schedules page never drops it; an empty string clears it.</summary>
+    public string? ManagedBy { get; set; }
 }

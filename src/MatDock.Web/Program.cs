@@ -2,6 +2,7 @@ using MatDock.Core;
 using MatDock.Core.Configuration;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
+using MatDock.Web.Api;
 using MatDock.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -185,6 +186,10 @@ app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthori
 // secret (AllowAnonymous is required to escape the fallback "authenticated user" policy).
 app.MapPost("/webhooks/sync/{token}", MatDock.Web.Sync.WebhookSyncEndpoint.HandleAsync).AllowAnonymous();
 
+// Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
+// (MatDock__Api__Key) is the guard; without a configured key every call answers 503.
+app.MapMatDockApi();
+
 // ---------------------------------------------------------------------------
 // Database migration + first-run seed
 // ---------------------------------------------------------------------------
@@ -201,6 +206,29 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "Schedule unification migration failed.");
+    }
+}
+
+// Headless installs (Mattiverse): make sure the host's Docker socket is available as the "local" environment.
+if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<MatDockOptions>>().Value.Environments.EnsureLocal)
+{
+    using var scope = app.Services.CreateScope();
+    try
+    {
+        var (ok, message, env, created) = await scope.ServiceProvider
+            .GetRequiredService<MatDock.Core.Environments.EnvironmentService>().EnsureLocalAsync();
+        if (ok)
+        {
+            app.Logger.LogInformation("EnsureLocal: {Message} ({Name}, id {Id}, created {Created}).", message, env?.Name, env?.Id, created);
+        }
+        else
+        {
+            app.Logger.LogWarning("EnsureLocal: {Message}", message);
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "EnsureLocal failed.");
     }
 }
 

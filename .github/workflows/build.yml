@@ -101,6 +101,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # release: <version>, latest, release   |   nightly: <version>, nightly   |   pull requests: build only.
+      - name: Image tags
+        id: tags
+        shell: bash
+        run: |
+          image="${{ steps.img.outputs.name }}"
+          version="${{ steps.appver.outputs.version }}"
+          case "${{ steps.ver.outputs.channel }}" in
+            release) tags="$image:$version"$'\n'"$image:latest"$'\n'"$image:release" ;;
+            nightly) tags="$image:$version"$'\n'"$image:nightly" ;;
+            *)       tags="$image:$version" ;;
+          esac
+          {
+            echo "tags<<EOF"
+            echo "$tags"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
@@ -110,8 +128,6 @@ jobs:
             Channel=${{ steps.ver.outputs.channel }}
             BuildNumber=${{ steps.ver.outputs.build }}
             BuildDate=${{ steps.ver.outputs.date }}
-          tags: |
-            ${{ steps.img.outputs.name }}:${{ steps.appver.outputs.version }}
-            ${{ steps.img.outputs.name }}:${{ steps.ver.outputs.channel }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

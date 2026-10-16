@@ -29,6 +29,9 @@ public class VolumeBackup : AuditableEntity
     /// Schedules-driven backup only prunes that task's own archives.</summary>
     public long? ScheduledTaskId { get; set; }
 
+    /// <summary>The stack bundle (<see cref="StackBackup"/>) this archive belongs to; <c>null</c> for a single-volume backup.</summary>
+    public long? StackBackupId { get; set; }
+
     public long SizeBytes { get; set; }
 
     public string? Note { get; set; }

@@ -27,6 +27,9 @@ public class EditModel : PageModel
     public List<BackupTarget> BackupTargets { get; private set; } = new();
     public bool IsEdit => Input.Id is > 0;
 
+    /// <summary>Owner of a schedule created through the API (shown as a hint; a save here keeps it).</summary>
+    public string? ManagedBy { get; private set; }
+
     [TempData] public string? StatusMessage { get; set; }
 
     public sealed class InputModel
@@ -51,6 +54,7 @@ public class EditModel : PageModel
         public int RetentionDays { get; set; }
         public bool StopContainers { get; set; }
         public bool NotifyOnResult { get; set; }
+        public string? BundleStack { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -69,6 +73,7 @@ public class EditModel : PageModel
             }
 
             var opt = ScheduleOptions.Parse(t.OptionsJson);
+            ManagedBy = t.ManagedBy;
             Input = new InputModel
             {
                 Id = t.Id,
@@ -87,6 +92,7 @@ public class EditModel : PageModel
                 RetentionDays = opt.RetentionDays,
                 StopContainers = opt.StopContainers,
                 NotifyOnResult = t.NotifyOnResult,
+                BundleStack = opt.BundleStack,
             };
         }
 
@@ -128,6 +134,10 @@ public class EditModel : PageModel
         var ct = HttpContext.RequestAborted;
         Environments = await _environments.GetAllAsync(ct);
         BackupTargets = await _backupTargets.GetAllAsync(ct);
+        if (Input.Id is > 0)
+        {
+            ManagedBy = (await _service.GetAsync(Input.Id.Value, ct))?.ManagedBy;
+        }
     }
 
     private ScheduleInput ToInput() => new()
@@ -148,5 +158,6 @@ public class EditModel : PageModel
         RetentionDays = Input.RetentionDays,
         StopContainers = Input.StopContainers,
         NotifyOnResult = Input.NotifyOnResult,
+        BundleStack = Input.BundleStack,
     };
 }

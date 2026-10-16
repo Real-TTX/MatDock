@@ -27,6 +27,11 @@ public sealed class ScheduleOptions
     /// <summary>Stop the volume's containers during the backup for a consistent snapshot.</summary>
     public bool StopContainers { get; set; }
 
+    // --- BundleBackup action (uses BackupTargetId, RetentionCount, RetentionDays and StopContainers too) ---
+    /// <summary>The stack to back up; null = every managed stack of the task's owner (<c>ManagedBy</c>), or every
+    /// managed stack when the task has no owner.</summary>
+    public string? BundleStack { get; set; }
+
     // --- Sync action (reference) ---
     /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
     public long? SyncJobId { get; set; }

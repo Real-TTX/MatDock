@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MatDock.Core\MatDock.Core.csproj" />
+    <!-- The REST API (MatDock.Web/Api) is tested directly, without a test server. -->
+    <ProjectReference Include="..\..\src\MatDock.Web\MatDock.Web.csproj" />
   </ItemGroup>
 
 </Project>
