@@ -21,4 +21,7 @@ public class UserSession : AuditableEntity
     public string? UserAgent { get; set; }
 
     public string? IpAddress { get; set; }
+
+    /// <summary>The ID token of MatIdentity when the session was opened through it (the <c>id_token_hint</c> of the sign-out there), else null.</summary>
+    public string? IdToken { get; set; }
 }

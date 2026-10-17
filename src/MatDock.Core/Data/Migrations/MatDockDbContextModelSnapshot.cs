@@ -514,6 +514,9 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<DateTime?>("LastRunAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool?>("LastRunOk")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("LastStatus")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
@@ -937,6 +940,10 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ExternalSubject")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
@@ -970,6 +977,10 @@ namespace MatDock.Core.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExternalSubject")
+                        .IsUnique()
+                        .HasFilter("\"ExternalSubject\" IS NOT NULL");
+
                     b.HasIndex("Username")
                         .IsUnique()
                         .HasFilter("\"UpdateState\" <> 0");
@@ -990,6 +1001,10 @@ namespace MatDock.Core.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdToken")
+                        .HasMaxLength(8000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("IpAddress")

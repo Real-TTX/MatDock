@@ -51,6 +51,8 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Role).HasConversion<int>();
             // Unique only among non-deleted rows, so a username can be reused after a soft delete.
             e.HasIndex(x => x.Username).IsUnique().HasFilter("\"UpdateState\" <> 0");
+            e.Property(x => x.ExternalSubject).HasMaxLength(200);
+            e.HasIndex(x => x.ExternalSubject).IsUnique().HasFilter("\"ExternalSubject\" IS NOT NULL");
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 
@@ -60,6 +62,7 @@ public class MatDockDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Token).HasMaxLength(64).IsRequired();
             e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.IdToken).HasMaxLength(8000);
             e.HasIndex(x => x.UserId);
             e.HasOne(x => x.User)
                 .WithMany(u => u.Sessions)

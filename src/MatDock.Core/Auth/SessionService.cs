@@ -23,7 +23,8 @@ public sealed class SessionService
         _options = options.Value;
     }
 
-    public async Task<UserSession> CreateAsync(long userId, string? userAgent, string? ipAddress, CancellationToken ct = default)
+    /// <summary>Opens a session; <paramref name="idToken"/> is the ID token of MatIdentity when the sign-in came through it (for the sign-out there).</summary>
+    public async Task<UserSession> CreateAsync(long userId, string? userAgent, string? ipAddress, CancellationToken ct = default, string? idToken = null)
     {
         var session = new UserSession
         {
@@ -32,7 +33,8 @@ public sealed class SessionService
             ExpiresAt = DateTime.UtcNow.AddDays(Math.Max(1, _options.SessionLifetimeDays)),
             LastSeenAt = DateTime.UtcNow,
             UserAgent = Truncate(userAgent, 512),
-            IpAddress = Truncate(ipAddress, 64)
+            IpAddress = Truncate(ipAddress, 64),
+            IdToken = string.IsNullOrEmpty(idToken) || idToken.Length > 8000 ? null : idToken,
         };
 
         _db.UserSessions.Add(session);
@@ -67,6 +69,12 @@ public sealed class SessionService
 
         return session;
     }
+
+    /// <summary>The ID token of MatIdentity kept with the session of <paramref name="token"/>, or null (a local sign-in, or no such session).</summary>
+    public async Task<string?> GetIdTokenAsync(string? token, CancellationToken ct = default)
+        => string.IsNullOrEmpty(token)
+            ? null
+            : await _db.UserSessions.Where(s => s.Token == token).Select(s => s.IdToken).FirstOrDefaultAsync(ct);
 
     public async Task InvalidateAsync(string token, CancellationToken ct = default)
     {

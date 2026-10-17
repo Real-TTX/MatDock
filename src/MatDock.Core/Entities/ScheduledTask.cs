@@ -36,6 +36,9 @@ public class ScheduledTask : AuditableEntity
 
     public string? LastStatus { get; set; }
 
+    /// <summary>Whether the last run succeeded (null = not run since this was recorded).</summary>
+    public bool? LastRunOk { get; set; }
+
     /// <summary>Origin of an auto-migrated task ("backup" or "sync"), or null for a hand-created one.
     /// Together with <see cref="SourceId"/> it makes the one-time unification migration idempotent.</summary>
     public string? SourceKind { get; set; }

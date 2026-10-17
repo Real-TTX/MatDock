@@ -19,5 +19,9 @@ public class User : AuditableEntity
 
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>The stable id (<c>sub</c>) of the person at MatIdentity this account is linked with, or null (a local-only account).
+    /// Set at the first sign-in through MatIdentity, or by linking after the account's own password (MatPlatform pending link).</summary>
+    public string? ExternalSubject { get; set; }
+
     public ICollection<UserSession> Sessions { get; set; } = new List<UserSession>();
 }

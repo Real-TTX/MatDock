@@ -213,6 +213,8 @@ public sealed class ScheduleService
             }
         }
 
+        // Recorded with the run (the callers save it together with LastRunAt / LastStatus).
+        task.LastRunOk = ok;
         return summary;
     }
 
