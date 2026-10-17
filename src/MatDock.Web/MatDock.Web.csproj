@@ -5,6 +5,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- MatPlatform (the copy in MatPlatform/): tokens of MatIdentity on /api and the sign-in through MatIdentity. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
