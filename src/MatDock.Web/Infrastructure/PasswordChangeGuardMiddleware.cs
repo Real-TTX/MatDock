@@ -22,7 +22,7 @@ public sealed class PasswordChangeGuardMiddleware
             var path = context.Request.Path;
             // The API ignores the session cookie, so a pending password change of its user does not apply there.
             if (!path.StartsWithSegments("/Account") &&
-                !path.StartsWithSegments(Api.MatDockApi.BasePath) &&
+                !path.StartsWithSegments("/api") /* /api/v1 and the platform contract */ &&
                 !path.StartsWithSegments("/css") &&
                 !path.StartsWithSegments("/js") &&
                 !path.StartsWithSegments("/img") &&

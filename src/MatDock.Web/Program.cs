@@ -4,6 +4,8 @@ using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Web.Api;
 using MatDock.Web.Infrastructure;
+using MatDock.Web.Platform;
+using MatPlatform;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -67,6 +69,20 @@ builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 
 // ---------------------------------------------------------------------------
+// The Mat platform contract (MatDesign docs/PLATFORM.md): /api, /api/health, /api/state, /api/configure, /api/actions
+// (the package MatPlatform, a copy in MatPlatform/; DockPlatform describes MatDock and supplies the values), and the optional
+// sign-in through MatIdentity (MATIDENTITY_*). The key of the platform endpoints is MAT_API_KEY; without it the engine key
+// of /api/v1 (MatDock__Api__Key) is the key there too, so one key serves a caller that only knows the engine key.
+// ---------------------------------------------------------------------------
+var engineKey = builder.Configuration[$"{MatDockOptions.SectionName}:Api:Key"];
+if (string.IsNullOrWhiteSpace(builder.Configuration[MatPlatformSettings.ApiKeyVariable]) && !string.IsNullOrWhiteSpace(engineKey))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { [MatPlatformSettings.ApiKeyVariable] = engineKey.Trim() });
+}
+
+var platform = builder.AddMatPlatform<DockPlatform>(DockPlatform.Describe);
+
+// ---------------------------------------------------------------------------
 // Authentication / authorization
 // ---------------------------------------------------------------------------
 builder.Services.AddAuthentication(AuthConstants.CookieScheme)
@@ -82,6 +98,13 @@ builder.Services.AddAuthentication(AuthConstants.CookieScheme)
         options.ExpireTimeSpan = TimeSpan.FromDays(Math.Max(1, sessionLifetimeDays));
         options.SlidingExpiration = true;
         options.Events.OnValidatePrincipal = SessionValidation.ValidateAsync;
+    })
+    // Sign-in through MatIdentity, only when MATIDENTITY_AUTHORITY is set (nothing changes without it).
+    .AddMatIdentitySignIn<DockIdentityUsers>(platform, options =>
+    {
+        options.CookieScheme = AuthConstants.CookieScheme;
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
     });
 
 builder.Services.AddAuthorization(options =>
@@ -169,6 +192,8 @@ app.UseWebSockets(new WebSocketOptions
     KeepAliveTimeout = TimeSpan.FromSeconds(30),
 });
 app.UseRouting();
+// The rate limit of the anonymous platform endpoints /api and /api/health.
+app.UseRateLimiter();
 app.UseAuthentication();
 // First-run: redirect everything to the setup wizard until an administrator exists.
 app.UseMiddleware<SetupGuardMiddleware>();
@@ -189,6 +214,10 @@ app.MapPost("/webhooks/sync/{token}", MatDock.Web.Sync.WebhookSyncEndpoint.Handl
 // Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
 // (MatDock__Api__Key) is the guard; without a configured key every call answers 503.
 app.MapMatDockApi();
+
+// The platform contract next to it: /api (definition) and /api/health anonymous and rate limited, /api/state, /api/configure and
+// /api/actions with X-Api-Key (MAT_API_KEY, else MatDock__Api__Key) or a bearer token of MatIdentity. Never under /api/v1.
+app.MapMatPlatform();
 
 // ---------------------------------------------------------------------------
 // Database migration + first-run seed
