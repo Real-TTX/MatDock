@@ -44,6 +44,10 @@ public sealed class NotificationSettingsService
         {
             settings.EncryptedSmtpPassword = _secrets.Protect(input.SmtpPassword);
         }
+        else if (input.ClearSmtpPassword)
+        {
+            settings.EncryptedSmtpPassword = null;
+        }
         // A blank password keeps the stored one (like environment secrets).
 
         settings.WebhookEnabled = input.WebhookEnabled;
@@ -55,6 +59,32 @@ public sealed class NotificationSettingsService
         }
 
         await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// The rules of the notification settings, by the name of the property of <see cref="NotificationSettingsInput"/>: e-mail needs a host, a sender
+    /// and recipients, the port is 1 to 65535, the webhook needs an http(s) address. Empty = valid.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> Validate(NotificationSettingsInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var errors = new Dictionary<string, string>();
+        if (input.SmtpEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(input.SmtpHost)) { errors[nameof(input.SmtpHost)] = "Email requires a host."; }
+            if (string.IsNullOrWhiteSpace(input.SmtpFrom)) { errors[nameof(input.SmtpFrom)] = "Email requires a sender."; }
+            else if (!System.Net.Mail.MailAddress.TryCreate(input.SmtpFrom.Trim(), out _)) { errors[nameof(input.SmtpFrom)] = "Not a valid e-mail address."; }
+            if (string.IsNullOrWhiteSpace(input.SmtpTo)) { errors[nameof(input.SmtpTo)] = "Email requires recipients."; }
+            if (input.SmtpPort is < 1 or > 65535) { errors[nameof(input.SmtpPort)] = "The port is 1 to 65535."; }
+        }
+
+        if (input.WebhookEnabled
+            && !(Uri.TryCreate(input.WebhookUrl?.Trim(), UriKind.Absolute, out var url) && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps)))
+        {
+            errors[nameof(input.WebhookUrl)] = "Please enter a valid http(s) URL.";
+        }
+
+        return errors;
     }
 
     private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

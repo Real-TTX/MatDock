@@ -64,6 +64,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Updates.UpdateService>();
         services.AddSingleton<Schedules.IScheduleEventBus, Schedules.ScheduleEventBus>();
         services.AddSingleton<Operations.OperationRegistry>();
+        services.AddMemoryCache();
+        services.AddScoped<Status.InstanceStatusService>();
         services.AddHttpClient();
 
         return services;
