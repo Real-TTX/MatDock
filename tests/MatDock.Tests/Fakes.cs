@@ -26,9 +26,23 @@ internal sealed class FakeSecretProtector : ISecretProtector
     public string? UnprotectNullable(string? protectedValue) => string.IsNullOrEmpty(protectedValue) ? null : Unprotect(protectedValue);
 }
 
-internal sealed class FakeConnectionService : IEnvironmentConnectionService
+public sealed class FakeConnectionService : IEnvironmentConnectionService
 {
     public SshConnectionSettings? LastSettings { get; private set; }
+
+    /// <summary>What <see cref="GetHostStatsAsync"/> answers.</summary>
+    public HostStats Stats { get; set; } = new();
+
+    /// <summary>What <see cref="ListImagesAsync"/> answers.</summary>
+    public IReadOnlyList<DockerImage> Images { get; set; } = new List<DockerImage>();
+
+    /// <summary>What <see cref="PruneImagesAsync"/> answers.</summary>
+    public PruneResult ImagePrune { get; set; } = new(true, 0, string.Empty);
+
+    /// <summary>How often <see cref="PruneImagesAsync"/> was called, and with <c>all</c> last.</summary>
+    public int ImagePrunes { get; private set; }
+
+    public bool? LastPruneAll { get; private set; }
 
     public Task<DockerConnectionResult> TestConnectionAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
@@ -51,7 +65,7 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<HostStats> GetHostStatsAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult(new HostStats());
+        return Task.FromResult(Stats);
     }
 
     public Task<DockerVolumeDetail?> InspectVolumeAsync(SshConnectionSettings settings, string volume, CancellationToken cancellationToken = default)
@@ -111,7 +125,7 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<IReadOnlyList<DockerImage>> ListImagesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult<IReadOnlyList<DockerImage>>(new List<DockerImage>());
+        return Task.FromResult(Images);
     }
 
     public Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default)
@@ -123,7 +137,9 @@ internal sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult(new PruneResult(true, 0, string.Empty));
+        ImagePrunes++;
+        LastPruneAll = all;
+        return Task.FromResult(ImagePrune);
     }
 }
 
