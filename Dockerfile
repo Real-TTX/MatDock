@@ -30,7 +30,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 # Docker CLI + compose plugin so "local" environments can drive the mounted /var/run/docker.sock.
-# Installed from Docker's apt repo (multi-arch via dpkg --print-architecture).
+# Installed from Docker's apt repo (multi-arch via dpkg --print-architecture). curl stays: the HEALTHCHECK uses it.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
  && install -m 0755 -d /etc/apt/keyrings \
@@ -39,7 +39,7 @@ RUN apt-get update \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin \
- && apt-get purge -y curl gnupg \
+ && apt-get purge -y gnupg \
  && apt-get autoremove -y \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -50,6 +50,11 @@ ENV ASPNETCORE_URLS=http://+:4455 \
 RUN mkdir -p /data
 VOLUME ["/data"]
 EXPOSE 4455
+
+# The platform health (MatDesign docs/PLATFORM.md): 200 for ok and degraded (an unreachable SSH environment must not restart
+# MatDock), 503 only when MatDock cannot do its job (the database cannot be read).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:4455/api/health > /dev/null || exit 1
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "MatDock.Web.dll"]

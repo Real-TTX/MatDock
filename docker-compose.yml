@@ -18,6 +18,12 @@ services:
       # Override these, especially the password, before the first start.
       MatDock__Admin__Username: admin
       MatDock__Admin__Password: admin
+      # The Mat platform (all optional; Mattiverse sets them when it installs MatDock):
+      # MAT_API_KEY: ""                    # the key of /api/* (unset: MatDock__Api__Key is the key there too)
+      # MATIDENTITY_AUTHORITY: ""          # https://id.example.com: sign-in through MatIdentity
+      # MATIDENTITY_CLIENT_ID: "matdock"
+      # MATIDENTITY_CLIENT_SECRET: ""
+      # MATIDENTITY_INTERNAL_URL: ""       # http://matidentity:2300 inside Docker
     volumes:
       - matdock-data:/data
       # Optional: mount the host Docker socket so a "local" environment (ConnectionType = Local)

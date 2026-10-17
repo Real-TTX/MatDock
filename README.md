@@ -207,6 +207,11 @@ docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite w
 | `MatDock__Environments__EnsureLocal` | `false` | `true` = create a *Local* environment `local` at start (if none exists and the Docker socket answers) |
 | `MatDock__DataPath` | `/data` | Data directory (SQLite, config, keys, backups, local stack files) |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Standard ASP.NET Core environment |
+| `MAT_API_KEY` | – | The key of the platform API (`/api/state`, `/api/configure`, `/api/actions`, see [Platform API](#platform-api-and-sign-in-through-matidentity)); Mattiverse sets it. Unset = the engine key `MatDock__Api__Key` is the key there too; neither = only a token of MatIdentity |
+| `MATIDENTITY_AUTHORITY` | – | Address of MatIdentity (`https://id.example.com`). Set = sign-in through MatIdentity; unset = only the local sign-in, as before |
+| `MATIDENTITY_CLIENT_ID` | `matdock` | The client of MatDock in MatIdentity (also the audience of the tokens accepted on `/api`) |
+| `MATIDENTITY_CLIENT_SECRET` | – | Its secret |
+| `MATIDENTITY_INTERNAL_URL` | – | Where MatDock reaches MatIdentity from inside Docker (`http://matidentity:2300`); the browser keeps using `MATIDENTITY_AUTHORITY` |
 
 ### The `/data` volume
 
@@ -257,6 +262,44 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 
 A stack bundle holds all volumes of the stack, its compose file, its `.env` and the image references; bundle schedules
 appear on the Schedules page (action *Backup stacks*) and keep the newest scheduled bundles per stack.
+
+## Platform API and sign-in through MatIdentity
+
+Besides its engine API, MatDock speaks the platform contract of the Mat apps (MatDesign `docs/PLATFORM.md`, shared code
+MatPlatform in `src/MatDock.Web/MatPlatform/`, a copy – never edit it here), so Mattiverse can show, watch and set it up
+without knowing it beforehand. It lives next to `/api/v1` and never under it; `/api/v1` is unchanged.
+
+| Endpoint | Access | |
+|---|---|---|
+| `GET /api` | anonymous, rate limited | the MatApiDefinition: pages, tiles, settings, actions, roles (German or English by `Accept-Language`), `ETag` |
+| `GET /api/health` | anonymous, rate limited | `ok` / `degraded` (`200`) or `down` (`503`); the Docker `HEALTHCHECK` calls it |
+| `GET /api/state`, `/api/state/{key}` | key or token | the values of the tiles |
+| `GET`/`PUT /api/configure` | key or token | the few settings; a secret is only ever `{"isSet": bool}` |
+| `POST /api/actions/{id}` | key or token | run an action → `{"ok", "message"}` (`409` when it cannot run now) |
+
+- **Key:** `X-Api-Key` = `MAT_API_KEY`, or the engine key `MatDock__Api__Key` when `MAT_API_KEY` is not set (one key for a
+  caller that only knows the engine key). `/api/v1` still takes only `MatDock__Api__Key`. Without a key `401`.
+  With MatIdentity on, a bearer token of MatIdentity for the audience `matdock` works too.
+- **Tiles:** environments (and the unreachable ones), stacks, containers running / stopped / unhealthy, images, the
+  disk of the local Docker host (used of total), the last backup (status and time), the next scheduled backup, failed
+  backups in the last 24 hours and the size of the stored backups. Docker is asked only on reachable environments,
+  with a short timeout, and the answers are cached for 30 seconds.
+- **Health:** `down` when the database cannot be read; `degraded` when an enabled environment is unreachable or there is
+  no active administrator.
+- **Settings:** the notification settings (the same as *Settings → Notifications*): notify on failures, e-mail (server,
+  port, user, password, sender, recipients) and the webhook.
+- **Actions:** open MatDock, Stacks, Backups; *Run all backups now* (every enabled backup schedule, started in the
+  background, the result shows in the tiles); *Prune dangling images* on every reachable environment (asks first).
+- **Roles:** `admin`, `user`.
+
+**Sign-in through MatIdentity** (only with `MATIDENTITY_AUTHORITY`; without it nothing changes): the sign-in page goes
+straight to MatIdentity (authorization code with PKCE). Redirect address `/signin-oidc`, signed-out address
+`/signout-callback-oidc`. The local sign-in stays at `/Account/Login?local=1` (a way in when MatIdentity is down).
+The person is matched by `sub`; the first sign-in creates the user (no password). An existing account whose user name
+equals the person's `preferred_username` or e-mail is **not** linked by the name alone: the sign-in page asks to sign in
+once with that account's password (`?local=1&link=1`, or cancel), then it is linked. Several matches, or a match linked to
+another person, are refused. The claim `role` (`admin` / `user`) sets the role at every sign-in, never demoting the last
+administrator; without it MatDock keeps managing roles itself. Signing out ends the session at MatIdentity too.
 
 ## How it is built
 
