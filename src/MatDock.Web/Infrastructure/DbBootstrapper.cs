@@ -17,6 +17,11 @@ public static class DbBootstrapper
         var provider = scope.ServiceProvider;
 
         var db = provider.GetRequiredService<MatDockDbContext>();
+        if (await MigrationLock.ReleaseStaleAsync(db.Database))
+        {
+            logger.LogWarning("Removed a migration lock left behind by a process that was stopped while it migrated the database.");
+        }
+
         await db.Database.MigrateAsync();
 
         var users = provider.GetRequiredService<UserService>();
