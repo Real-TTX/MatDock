@@ -130,8 +130,8 @@ public sealed class DockPlatform(
         var s = await status.GetSnapshotAsync(ct);
         var (level, text) = s.LastBackupOk switch
         {
-            true => ("ok", s.LastBackupText ?? call.T("Erfolgreich", "Succeeded")),
-            false => ("error", s.LastBackupText ?? call.T("Fehlgeschlagen", "Failed")),
+            true => ("ok", call.T("Erfolgreich", "Succeeded")),
+            false => ("error", call.T("Fehlgeschlagen", "Failed")),
             null => ("info", call.T("Noch keine Sicherung", "No backup yet")),
         };
 

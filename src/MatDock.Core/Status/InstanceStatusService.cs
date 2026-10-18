@@ -44,9 +44,6 @@ public sealed record InstanceSnapshot
     /// <summary>Whether <see cref="LastBackupUtc"/> succeeded; null without any backup run.</summary>
     public bool? LastBackupOk { get; init; }
 
-    /// <summary>What the newest backup run was (name and summary).</summary>
-    public string? LastBackupText { get; init; }
-
     /// <summary>The next run of an enabled timed backup schedule.</summary>
     public DateTime? NextBackupUtc { get; init; }
 
@@ -261,7 +258,6 @@ public sealed class InstanceStatusService
         {
             LastBackupUtc = runs.Count > 0 ? last.Time : null,
             LastBackupOk = runs.Count > 0 ? last.Ok : null,
-            LastBackupText = runs.Count > 0 ? Clip(last.Text.TrimEnd(' ', ':'), 200) : null,
             NextBackupUtc = tasks.Where(t => t.Enabled && t.Trigger == ScheduleTrigger.Cron && t.NextRunAt is not null).Select(t => t.NextRunAt).Min(),
             BackupFailures24h = failedBundles.Count + failedTasks,
             BackupBytes = archives.Sum(a => a.SizeBytes),
@@ -303,7 +299,6 @@ public sealed class InstanceStatusService
         }
     }
 
-    private static string Clip(string value, int max) => value.Length > max ? value[..max] + "…" : value;
 
     private sealed record HostData(long EnvironmentId, bool IsLocal, IReadOnlyList<DockerContainer> Containers, int Images, HostStats Stats);
 }

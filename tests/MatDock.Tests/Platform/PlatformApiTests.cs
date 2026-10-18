@@ -168,10 +168,10 @@ public sealed class PlatformApiTests(MatDockFactory site) : IClassFixture<MatDoc
         Assert.True(DateTimeOffset.TryParse(values.GetProperty("nextBackup").GetProperty("value").GetString(), out _));
         Assert.True(DateTimeOffset.TryParse(values.GetProperty("lastBackupAt").GetProperty("value").GetString(), out _));
 
-        // The newest run is the stack backup that just succeeded.
+        // The newest run is the stack backup that just succeeded; the tile says so in a word (the summary would not fit a tile).
         var last = values.GetProperty("lastBackup");
         Assert.Equal("ok", last.GetProperty("value").GetString());
-        Assert.Contains("web", last.GetProperty("text").GetString());
+        Assert.Equal("Erfolgreich", last.GetProperty("text").GetString());
     }
 
     [Fact]
