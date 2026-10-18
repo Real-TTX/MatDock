@@ -77,6 +77,7 @@ internal sealed class LocalHostCommand : IHostCommand
         };
         psi.ArgumentList.Add("-c");
         psi.ArgumentList.Add(_command);
+        KeepOnlySafeVariables(psi.Environment);
         if (!string.IsNullOrEmpty(_stacksPath))
         {
             psi.Environment[Stacks.StackCommands.StacksDirVariable] = _stacksPath;
@@ -96,6 +97,27 @@ internal sealed class LocalHostCommand : IHostCommand
 
         return CompletedAsyncResult.Instance;
     }
+
+    /// <summary>
+    /// The commands get only what a shell and the Docker CLI need, never MatDock's own settings: `docker compose` prefers a variable of its process
+    /// over the `.env` of a stack, so MatDock's MAT_API_KEY, MATIDENTITY_* or connection strings would otherwise end up in every stack it deploys.
+    /// </summary>
+    internal static void KeepOnlySafeVariables(IDictionary<string, string?> environment)
+    {
+        foreach (var name in environment.Keys.ToList())
+        {
+            if (!IsSafeVariable(name))
+            {
+                environment.Remove(name);
+            }
+        }
+    }
+
+    internal static bool IsSafeVariable(string name)
+        => name is "PATH" or "HOME" or "USER" or "LOGNAME" or "SHELL" or "LANG" or "TZ" or "TMPDIR" or "TERM"
+           || name.StartsWith("LC_", StringComparison.Ordinal)
+           || name.StartsWith("DOCKER_", StringComparison.Ordinal)
+           || name.StartsWith("SSL_CERT_", StringComparison.Ordinal);
 
     public Stream CreateInputStream()
     {
