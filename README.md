@@ -48,7 +48,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - Container list with **short status** (hover for detail), **ports as clickable tags**, combined
   **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**
 - A **file browser inside a running container** (the same as for volumes: browse, edit, upload, download, create,
-  rename, duplicate, delete; it runs `docker exec`, so the container needs a shell)
+  rename, duplicate, delete; it runs `docker exec`; a container without a shell (distroless, scratch) is browsed, read and
+  written through `docker cp`)
 
 **Images**
 - List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,

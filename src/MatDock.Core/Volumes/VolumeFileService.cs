@@ -20,7 +20,7 @@ public sealed record FileReadResult(string Content, bool Truncated, bool IsBinar
 
 /// <summary>Browses and edits files inside a Docker volume (via a throwaway busybox container) or inside a container
 /// (docker exec), on the local socket or over SSH.</summary>
-public sealed class VolumeFileService
+public sealed partial class VolumeFileService
 {
     private readonly IHostSessionFactory _hostSessionFactory;
     private readonly EnvironmentService _environmentService;
@@ -46,6 +46,11 @@ public sealed class VolumeFileService
         if (rel is null)
         {
             return (Array.Empty<VolumeFileEntry>(), "Invalid path.");
+        }
+
+        if (await NoShellAsync(env, target, ct))
+        {
+            return await ListViaCopyAsync(env, target, rel, ct);
         }
 
         try
@@ -81,6 +86,11 @@ public sealed class VolumeFileService
             return (null, "No file specified.");
         }
 
+        if (await NoShellAsync(env, target, ct))
+        {
+            return await ReadViaCopyAsync(env, target, rel, ct);
+        }
+
         try
         {
             var (head, client) = await ConnectAsync(env, ct);
@@ -109,18 +119,24 @@ public sealed class VolumeFileService
                     return (null, "File could not be read (does it exist and is it a regular file?).");
                 }
 
-                var truncated = bytes.Length > VolumeFileCommands.MaxReadBytes;
-                var slice = truncated ? bytes[..VolumeFileCommands.MaxReadBytes] : bytes;
-                var isBinary = Array.IndexOf(slice, (byte)0) >= 0;
-                var nonUtf8 = !isBinary && !truncated && !IsStrictUtf8(slice);
-                var content = isBinary ? string.Empty : Encoding.UTF8.GetString(slice);
-                return (new FileReadResult(content, truncated, isBinary, nonUtf8), null);
+                return (ToReadResult(bytes), null);
             }
         }
         catch (Exception ex)
         {
             return (null, Describe(ex));
         }
+    }
+
+    /// <summary>The editor's view of up to <see cref="VolumeFileCommands.MaxReadBytes"/>+1 raw bytes.</summary>
+    private static FileReadResult ToReadResult(byte[] bytes)
+    {
+        var truncated = bytes.Length > VolumeFileCommands.MaxReadBytes;
+        var slice = truncated ? bytes[..VolumeFileCommands.MaxReadBytes] : bytes;
+        var isBinary = Array.IndexOf(slice, (byte)0) >= 0;
+        var nonUtf8 = !isBinary && !truncated && !IsStrictUtf8(slice);
+        var content = isBinary ? string.Empty : Encoding.UTF8.GetString(slice);
+        return new FileReadResult(content, truncated, isBinary, nonUtf8);
     }
 
     private static bool IsStrictUtf8(byte[] bytes)
@@ -136,14 +152,20 @@ public sealed class VolumeFileService
         }
     }
 
-    public Task<(bool Ok, string Message)> WriteAsync(DockerEnvironment env, FileTarget target, string relPath, string content, CancellationToken ct = default)
-        => MutateWithStdinAsync(env, target, relPath, content, ct);
+    public async Task<(bool Ok, string Message)> WriteAsync(DockerEnvironment env, FileTarget target, string relPath, string content, CancellationToken ct = default)
+        => await NoShellAsync(env, target, ct)
+            ? await CopyInAsync(env, target, relPath, (s, c) => ContainerCopyFiles.WriteTarAsync(s, Name(relPath), content, c), "Saved.", ct)
+            : await MutateWithStdinAsync(env, target, relPath, content, ct);
 
-    public Task<(bool Ok, string Message)> MakeDirAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, target, relPath, VolumeFileCommands.MakeDir, "Folder created.", ct);
+    public async Task<(bool Ok, string Message)> MakeDirAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
+        => await NoShellAsync(env, target, ct)
+            ? await CopyInAsync(env, target, relPath, (s, c) => ContainerCopyFiles.WriteTarAsync(s, Name(relPath), (Stream?)null, c), "Folder created.", ct)
+            : await MutateAsync(env, target, relPath, VolumeFileCommands.MakeDir, "Folder created.", ct);
 
-    public Task<(bool Ok, string Message)> CreateFileAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, target, relPath, VolumeFileCommands.CreateFile, "File created.", ct);
+    public async Task<(bool Ok, string Message)> CreateFileAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
+        => await NoShellAsync(env, target, ct)
+            ? await CopyInAsync(env, target, relPath, (s, c) => ContainerCopyFiles.WriteTarAsync(s, Name(relPath), string.Empty, c), "File created.", ct)
+            : await MutateAsync(env, target, relPath, VolumeFileCommands.CreateFile, "File created.", ct);
 
     public async Task<(bool Ok, string Message)> DeleteAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
     {
@@ -153,14 +175,20 @@ public sealed class VolumeFileService
             return (false, "The root folder cannot be deleted.");
         }
 
-        return await MutateAsync(env, target, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
+        return await NoShellAsync(env, target, ct)
+            ? (false, ContainerCopyFiles.NoShellMessage)
+            : await MutateAsync(env, target, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
     }
 
-    public Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
+    public async Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
+        => await NoShellAsync(env, target, ct)
+            ? (false, ContainerCopyFiles.NoShellMessage)
+            : await Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
 
-    public Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
+    public async Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
+        => await NoShellAsync(env, target, ct)
+            ? (false, ContainerCopyFiles.NoShellMessage)
+            : await Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
 
     /// <summary>Streams a file's raw bytes from the volume or container into <paramref name="output"/> (no size cap; for downloads).</summary>
     public async Task<(bool Ok, string Error)> DownloadAsync(DockerEnvironment env, FileTarget target, string relPath, Stream output, CancellationToken ct = default)
@@ -174,6 +202,11 @@ public sealed class VolumeFileService
         if (string.IsNullOrEmpty(rel))
         {
             return (false, "No file specified.");
+        }
+
+        if (await NoShellAsync(env, target, ct))
+        {
+            return await CopyOutAsync(env, target, rel, folder: false, s => ContainerCopyFiles.ExtractFileAsync(s, output, null, ct), ct);
         }
 
         try
@@ -213,6 +246,11 @@ public sealed class VolumeFileService
         if (string.IsNullOrEmpty(rel))
         {
             return (false, "Invalid path.");
+        }
+
+        if (await NoShellAsync(env, target, ct))
+        {
+            return await CopyInAsync(env, target, rel, (s, c) => ContainerCopyFiles.WriteTarAsync(s, Name(rel), source, c), "Uploaded.", ct);
         }
 
         try
