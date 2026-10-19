@@ -46,7 +46,7 @@ both WebSockets, the constant-time API key, secrets never rendered back, `return
 - `docs/UPDATE-MANAGEMENT.md` has a status table.
 
 Left as it is, on purpose: the Proxy page adds a route with a small form above the list (a quick action, not CRUD);
-dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi (see plan item 9).
+dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi (see plan item 8).
 
 ## 2. Against Dockhand
 
@@ -58,8 +58,8 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | Terminal in the browser (exec) | ✅ | bash when the container has it; now also on the local Docker socket (it said "not supported yet") (new) |
 | Log streaming with search and filter | ✅ | Plus a whole stack at once and timestamps (new) |
 | File browser in containers (browse, upload, download, edit) | ✅ | New: the volume browser on a container (`docker exec`, needs a shell; plan 5) |
-| Compose stacks, YAML editor, environment variables | ◐ | Highlighted YAML + `.env` editor, check on save (new); side by side and a visual editor missing (plan 7) |
-| Deploy from Git, webhooks, auto-sync | ✅ | HTTPS token credentials only (plan 8) |
+| Compose stacks, YAML editor, environment variables | ◐ | Highlighted YAML + `.env` editor, check on save (new); side by side and a visual editor missing (plan 6) |
+| Deploy from Git, webhooks, auto-sync | ✅ | HTTPS token credentials only (plan 7) |
 | Images: tags, sizes, cleanup | ✅ | Prune dangling or all unused (new) |
 | Image update tracking, automatic updates | ✅ | Badge in the Stacks list, schedule *Update stacks* (notify or apply, backup first) (new); no health gate/rollback (plan 2) |
 | Layer inspection | ✅ | Image detail page (new) |
@@ -69,9 +69,9 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | Hosts over socket and SSH | ✅ | Agentless SSH is MatDock's point; host keys verified (new) |
 | Hosts over TCP/TLS | ◐ | Only as an auto-detected `DOCKER_HOST` behind SSH (plan 4) |
 | Hosts with an agent | — | Not wanted: MatDock exists to need nothing on the hosts |
-| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself (new); CPU is load-based, no history (plan 10) |
+| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself (new); CPU is load-based, no history (plan 9) |
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
-| restic backups (backup, restore, check, prune) | ✖ | Tar archives to local/SMB with retention and restore exist; plan 11 |
+| restic backups (backup, restore, check, prune) | ✖ | Tar archives to local/SMB with retention and restore exist; plan 10 |
 | Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available (new), plus offline/deploy/backup/sync |
 | Local users, roles | ◐ | Two fixed roles (Admin, User), now enforced; per-environment rights not planned (homelab/small team) |
 | OIDC | ✅ | Through MatIdentity; any other OIDC provider is not wanted — MatIdentity is the family's identity |
@@ -87,14 +87,14 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | 3 | **CVE scan of an image**: run Trivy on the host (`docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format json <ref>`), store the summary (critical/high/medium) per image digest, show it on the image page and as a column; optional schedule action *Scan images* that notifies on new criticals | new `Core/Images/ImageScanService`, `ScheduleAction.ScanImages`, Images/Detail | M | Trivy downloads its DB (~100 MB, needs internet, slow first run); run in the background as an operation; cache by digest |
 | 4 | **TCP/TLS hosts**: a connection type *Docker API (TCP/TLS)* with host, port and client certificate/key/CA; commands run locally with `DOCKER_HOST=tcp://…` and `DOCKER_TLS_VERIFY`, certificates written to a temp dir per call | `ConnectionType`, `EnvironmentService`, `LocalHostSession` (environment of the process), Environments/Edit | M | Certificates are secrets (encrypt like SSH keys); the terminal and file browser need the same path |
 | 5 | **Files of a container without a shell** (distroless): fall back to `docker cp` (tar over stdout/stdin) for list/read/write when `sh` is missing | `VolumeFileService` (detect exit 126/127), `VolumeFileCommands` | M | Listing via tar of a directory can be big; limit depth |
-| 7 | **Compose editor side by side with `.env`** on wide screens, and `docker compose config` on the host as a second check before deploy | Stacks/Edit (CSS grid), `StackCommands` | S | `compose config` needs the files on the host first (write to a temp dir) |
-| 8 | **SSH key credentials for Git** (listed as "future") | `GitCredential`, `GitRepositoryService` (LibGit2Sharp SSH needs libssh2 – check the build) | M | LibGit2Sharp's SSH support differs per platform |
-| 9 | **Move the UI onto MatUi** (shell, toolbar, dialogs, `data-label` tables) – MatDock has its own stylesheet, so the MatDesign rules are followed by hand | all pages, `_Layout`, `matdock.css` | L | Large visual change; do it page by page behind the same markup helpers (`mat-table`, `mat-field`) |
-| 10 | Host history: keep the CPU/memory/disk samples of the health monitor for 24 h and draw a sparkline per environment | `EnvironmentHealthMonitor`, dashboard | S | Database growth (ring buffer in memory is enough) |
-| 11 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup` of the volume tar stream (`--stdin`), restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage`, `ScheduleAction.ResticMaintenance` | L | Restic binary in the image; repository password handling; long-running operations |
-| 12 | Trusted proxies configurable (today `X-Forwarded-*` is accepted from anyone, which weakens the API rate limit) | `Program.cs` `ForwardedHeadersOptions` + `MatDock__KnownProxies` | S | Wrong setting breaks HTTPS detection behind the proxy |
-| 13 | Adopt of a discovered stack reads its compose through a directory from container labels: restrict to the compose working dir | `StackCommands.ReadProjectFile` | S | – |
-| 14 | README screenshots show the UI before this review | `docs/images` (skill *screenshots*) | S | – |
+| 6 | **Compose editor side by side with `.env`** on wide screens, and `docker compose config` on the host as a second check before deploy | Stacks/Edit (CSS grid), `StackCommands` | S | `compose config` needs the files on the host first (write to a temp dir) |
+| 7 | **SSH key credentials for Git** (listed as "future") | `GitCredential`, `GitRepositoryService` (LibGit2Sharp SSH needs libssh2 – check the build) | M | LibGit2Sharp's SSH support differs per platform |
+| 8 | **Move the UI onto MatUi** (shell, toolbar, dialogs, `data-label` tables) – MatDock has its own stylesheet, so the MatDesign rules are followed by hand | all pages, `_Layout`, `matdock.css` | L | Large visual change; do it page by page behind the same markup helpers (`mat-table`, `mat-field`) |
+| 9 | Host history: keep the CPU/memory/disk samples of the health monitor for 24 h and draw a sparkline per environment | `EnvironmentHealthMonitor`, dashboard | S | Database growth (ring buffer in memory is enough) |
+| 10 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup` of the volume tar stream (`--stdin`), restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage`, `ScheduleAction.ResticMaintenance` | L | Restic binary in the image; repository password handling; long-running operations |
+| 11 | Trusted proxies configurable (today `X-Forwarded-*` is accepted from anyone, which weakens the API rate limit) | `Program.cs` `ForwardedHeadersOptions` + `MatDock__KnownProxies` | S | Wrong setting breaks HTTPS detection behind the proxy |
+| 12 | Adopt of a discovered stack reads its compose through a directory from container labels: restrict to the compose working dir | `StackCommands.ReadProjectFile` | S | – |
+| 13 | README screenshots show the UI before this review | `docs/images` (skill *screenshots*) | S | – |
 
 ## 4. Implemented in this round (besides the fixes above)
 
