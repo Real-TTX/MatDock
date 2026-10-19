@@ -309,6 +309,23 @@
         document.addEventListener("visibilitychange", function () { if (!document.hidden) { refresh(); } });
     })();
 
+    /* ---------------- Network map: hovering a network or a container lights its lines ---------------- */
+    document.querySelectorAll(".netmap__svg").forEach(function (svg) {
+        function light(node, on) {
+            var net = node.getAttribute("data-net"), con = node.getAttribute("data-con");
+            svg.querySelectorAll(".netmap__edge").forEach(function (edge) {
+                var hit = (net && edge.getAttribute("data-net") === net) || (con && edge.getAttribute("data-con") === con);
+                edge.classList.toggle("is-lit", on && !!hit);
+            });
+        }
+        svg.querySelectorAll(".netmap__node").forEach(function (node) {
+            node.addEventListener("mouseenter", function () { light(node, true); });
+            node.addEventListener("mouseleave", function () { light(node, false); });
+            node.addEventListener("focusin", function () { light(node, true); });
+            node.addEventListener("focusout", function () { light(node, false); });
+        });
+    });
+
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
         // The question sits on the form, or on the button that sent it (a form with several actions).

@@ -16,6 +16,9 @@ public sealed class DockerContainer
     /// <summary>docker-compose service name (label com.docker.compose.service).</summary>
     public string? Service { get; init; }
 
+    /// <summary>The networks the container is attached to (by name).</summary>
+    public IReadOnlyList<string> Networks { get; init; } = Array.Empty<string>();
+
     /// <summary>Per-container "open in browser" URL override (label <c>matdock.openurl</c>); may be unvalidated.</summary>
     public string? OpenUrlOverride { get; init; }
 

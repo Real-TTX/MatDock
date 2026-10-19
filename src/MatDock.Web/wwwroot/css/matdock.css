@@ -808,3 +808,18 @@ a.stat:hover { text-decoration: none; }
 .status-icon { font-size: 2.4rem; color: var(--danger); }
 .alert--stack { flex-direction: column; align-items: stretch; gap: 8px; }
 .output-pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; overflow: auto; max-height: 320px; font-family: var(--mono); font-size: .8rem; white-space: pre-wrap; word-break: break-word; margin-bottom: 16px; }
+
+/* ---- Network map (Networks → Map): networks left, containers right, a line per attachment ---- */
+.netmap { padding: 12px; overflow-x: auto; }
+.netmap__svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.netmap__edge { fill: none; stroke: var(--border-strong, var(--border)); stroke-width: 1.5; }
+.netmap__node rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+.netmap__node--net rect { fill: color-mix(in srgb, var(--accent) 10%, var(--surface)); stroke: color-mix(in srgb, var(--accent) 45%, transparent); }
+.netmap__node--con.is-bridge rect { stroke: var(--accent); stroke-width: 3; }
+.netmap__node--con.is-stopped { opacity: .55; }
+.netmap__label { font: 600 13px var(--font); fill: var(--text); }
+.netmap__sub { font: 11px var(--font); fill: var(--text-muted); }
+.netmap a:hover rect, .netmap a:focus rect { stroke: var(--accent); }
+.netmap__svg:has(.netmap__node:hover) .netmap__edge { opacity: .25; }
+.netmap__edge.is-lit { stroke: var(--accent); stroke-width: 2.5; opacity: 1 !important; }
+.netmap__legend { font-size: .85rem; margin-top: 8px; }

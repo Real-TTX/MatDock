@@ -53,6 +53,10 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,
   platform, entrypoint, ports, labels and the **layers** (`docker image history`); prune dangling or **all unused** images
 
+**Networks**
+- List, details with the attached containers, prune; a **network map** per environment: the networks and the
+  containers on them, so you see which services can reach each other
+
 **Volumes**
 - List across environments, **migrate a volume from one host to another** (tar over SSH)
 - **File explorer** in the volume: browse, **edit text files**, image **preview**, **upload**,

@@ -106,6 +106,7 @@
         {
             <a href="/Networks/Prune?env=@Model.EnvId" class="mat-btn"><icon name="broom" /><span>Prune</span></a>
         }
+        <a href="/Networks/Map?envId=@Model.EnvId" class="mat-btn"><icon name="network" /><span>Map</span></a>
         <a href="/Networks?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

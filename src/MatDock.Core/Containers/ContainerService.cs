@@ -388,6 +388,8 @@ public sealed class ContainerService
                     Project = ExtractLabel(labels, "com.docker.compose.project"),
                     Service = ExtractLabel(labels, "com.docker.compose.service"),
                     OpenUrlOverride = ExtractLabel(labels, "matdock.openurl"),
+                    Networks = (Get("Networks") ?? string.Empty)
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 });
             }
             catch (JsonException)
