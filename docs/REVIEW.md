@@ -54,64 +54,63 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 
 | Dockhand | MatDock | |
 |---|---|---|
-| Containers start/stop/restart, status, resources, ports | ✅ | The lists refresh themselves every 20–30 s (new) |
-| Terminal in the browser (exec) | ✅ | bash when the container has it; now also on the local Docker socket (it said "not supported yet") (new) |
-| Log streaming with search and filter | ✅ | Plus a whole stack at once and timestamps (new) |
-| File browser in containers (browse, upload, download, edit) | ✅ | New: the volume browser on a container (`docker exec`, needs a shell; plan 5) |
-| Compose stacks, YAML editor, environment variables | ◐ | Highlighted YAML + `.env` editor, check on save (new); side by side and a visual editor missing (plan 6) |
-| Deploy from Git, webhooks, auto-sync | ✅ | HTTPS token credentials only (plan 7) |
-| Images: tags, sizes, cleanup | ✅ | Prune dangling or all unused (new) |
-| Image update tracking, automatic updates | ✅ | Badge in the Stacks list, schedule *Update stacks* (notify or apply, backup first) (new); no health gate/rollback (plan 2) |
-| Layer inspection | ✅ | Image detail page (new) |
-| CVE scanning (Grype/Trivy) | ✖ | Plan 3 |
+| Containers start/stop/restart, status, resources, ports | ✅ | The lists refresh themselves every 20–30 s |
+| Terminal in the browser (exec) | ✅ | bash when the container has it; also on the local socket and behind a Docker API |
+| Log streaming with search and filter | ✅ | Plus a whole stack at once and timestamps |
+| File browser in containers (browse, upload, download, edit) | ✅ | `docker exec`; containers without a shell through `docker cp` (no delete/rename there) |
+| Compose stacks, YAML editor, environment variables | ✅ | Highlighted YAML and `.env` side by side, a check on save and *Check* by compose on the host; a visual editor is not wanted (the compose file is the source Mattiverse writes too) |
+| Deploy from Git, webhooks, auto-sync | ✅ | HTTPS with a token or SSH with a key (host key saved at the first clone) |
+| Images: tags, sizes, cleanup | ✅ | Prune dangling or all unused |
+| Image update tracking, automatic updates | ✅ | Badge in the Stacks list, schedule *Update stacks*, health gate with rollback to the old images |
+| Layer inspection | ✅ | Image detail page |
+| CVE scanning (Grype/Trivy) | ✅ | Trivy on the image's host, results per image and in the list, schedule *Scan images* |
 | Volume browser | ✅ | |
-| Network graph | ✅ | Network map per environment (new) |
-| Hosts over socket and SSH | ✅ | Agentless SSH is MatDock's point; host keys verified (new) |
-| Hosts over TCP/TLS | ◐ | Only as an auto-detected `DOCKER_HOST` behind SSH (plan 4) |
+| Network graph | ✅ | Network map per environment |
+| Hosts over socket and SSH | ✅ | Agentless SSH is MatDock's point; host keys verified |
+| Hosts over TCP/TLS | ✅ | Docker API with TLS client certificates (or plain TCP, with a warning) |
 | Hosts with an agent | — | Not wanted: MatDock exists to need nothing on the hosts |
-| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself (new); CPU is load-based, no history (plan 9) |
+| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself, a line of the last 24 h; CPU is load per core |
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
-| restic backups (backup, restore, check, prune) | ✖ | Tar archives to local/SMB with retention and restore exist; plan 10 |
-| Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available (new), plus offline/deploy/backup/sync |
-| Local users, roles | ◐ | Two fixed roles (Admin, User), now enforced; per-environment rights not planned (homelab/small team) |
+| restic backups (backup, restore, check, prune) | ✖ | Tar archives to local/SMB with retention and restore exist; planned (below) |
+| Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |
+| Local users, roles | ◐ | Two fixed roles (Admin, User), enforced; per-environment rights not planned (homelab/small team) |
 | OIDC | ✅ | Through MatIdentity; any other OIDC provider is not wanted — MatIdentity is the family's identity |
-| 2FA | — | Not in MatDock: MatIdentity does it for every Mat app; the local sign-in is the fallback (now throttled) |
-| Activity/audit log across environments | ✅ | System → Activity (new) |
+| 2FA | — | Not in MatDock: MatIdentity does it for every Mat app; the local sign-in is the fallback (throttled) |
+| Activity/audit log across environments | ✅ | System → Activity |
 
-## 3. Plan for what is missing (priority order)
+## 3. Plan for what is still missing
 
 | # | What | Where | Effort | Risks |
 |---|---|---|---|---|
-| 1 | **Secrets off the command line**: send the stack `.env` (and the CIFS password of a new volume) over stdin instead of `echo <base64>` in the command, which `ps` on the host shows | `StackCommands` (deploy/git sync script), `VolumeCommands` create; stdin is already used for uploads (`IHostCommand.CreateInputStream`) | S | Changes the deploy command for every stack: test SSH and local; keep `/api/v1` operation output the same |
-| 2 | **Updates with a health gate and rollback**: remember the image digests before an update, wait N seconds for running/healthy, redeploy the old digests (`repo@sha256:…` override file) when it fails; keep a short update history | `UpdateService.RunUpdateAsync`, new `matdock-override.yml` in `StackCommands`, `ScheduleOptions` (grace seconds), Stacks/Update page | M | Override files must not leak into git-backed stacks; Mattiverse expects `{changed}` unchanged |
-| 3 | **CVE scan of an image**: run Trivy on the host (`docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format json <ref>`), store the summary (critical/high/medium) per image digest, show it on the image page and as a column; optional schedule action *Scan images* that notifies on new criticals | new `Core/Images/ImageScanService`, `ScheduleAction.ScanImages`, Images/Detail | M | Trivy downloads its DB (~100 MB, needs internet, slow first run); run in the background as an operation; cache by digest |
-| 4 | **TCP/TLS hosts**: a connection type *Docker API (TCP/TLS)* with host, port and client certificate/key/CA; commands run locally with `DOCKER_HOST=tcp://…` and `DOCKER_TLS_VERIFY`, certificates written to a temp dir per call | `ConnectionType`, `EnvironmentService`, `LocalHostSession` (environment of the process), Environments/Edit | M | Certificates are secrets (encrypt like SSH keys); the terminal and file browser need the same path |
-| 5 | **Files of a container without a shell** (distroless): fall back to `docker cp` (tar over stdout/stdin) for list/read/write when `sh` is missing | `VolumeFileService` (detect exit 126/127), `VolumeFileCommands` | M | Listing via tar of a directory can be big; limit depth |
-| 6 | **Compose editor side by side with `.env`** on wide screens, and `docker compose config` on the host as a second check before deploy | Stacks/Edit (CSS grid), `StackCommands` | S | `compose config` needs the files on the host first (write to a temp dir) |
-| 7 | **SSH key credentials for Git** (listed as "future") | `GitCredential`, `GitRepositoryService` (LibGit2Sharp SSH needs libssh2 – check the build) | M | LibGit2Sharp's SSH support differs per platform |
-| 8 | **Move the UI onto MatUi** (shell, toolbar, dialogs, `data-label` tables) – MatDock has its own stylesheet, so the MatDesign rules are followed by hand | all pages, `_Layout`, `matdock.css` | L | Large visual change; do it page by page behind the same markup helpers (`mat-table`, `mat-field`) |
-| 9 | Host history: keep the CPU/memory/disk samples of the health monitor for 24 h and draw a sparkline per environment | `EnvironmentHealthMonitor`, dashboard | S | Database growth (ring buffer in memory is enough) |
-| 10 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup` of the volume tar stream (`--stdin`), restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage`, `ScheduleAction.ResticMaintenance` | L | Restic binary in the image; repository password handling; long-running operations |
-| 11 | Trusted proxies configurable (today `X-Forwarded-*` is accepted from anyone, which weakens the API rate limit) | `Program.cs` `ForwardedHeadersOptions` + `MatDock__KnownProxies` | S | Wrong setting breaks HTTPS detection behind the proxy |
-| 12 | Adopt of a discovered stack reads its compose through a directory from container labels: restrict to the compose working dir | `StackCommands.ReadProjectFile` | S | – |
-| 13 | README screenshots show the UI before this review | `docs/images` (skill *screenshots*) | S | – |
+| 1 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup --stdin` of the volume tar stream, restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage` beside `SmbBackupStorage`, `ScheduleAction.ResticMaintenance` | L | The restic binary in the image (or a restic container on the host); repository password handling; long operations |
+| 2 | **Move the UI onto MatUi** – see section 5 | all pages | L | see there |
+| 3 | Update history and pinning: keep the update runs (old/new digest, result, rollback) and let a service be pinned to a digest so automatic updates leave it alone; newer version tags (semver) next to moving tags | `UpdateService`, a table `StackUpdateRun`, Stacks/Update | M | Semver of tags is guesswork for many images (`latest`, `16-alpine`) |
+| 4 | Per-environment rights (a user sees and controls only some environments) | `User` ↔ `DockerEnvironment`, `EnvSelection`, every list | M | Every page and the API filter by it; only worth it beyond a small team |
+| 5 | The CIFS password of a new volume is still on the `docker volume create` command line (Docker takes it only as an `--opt`; it is in the volume's options anyway) | – | – | Not fixable in MatDock; documented |
 
-## 4. Implemented in this round (besides the fixes above)
+## 4. Implemented
 
-1. Alerts: *Container died* (error exit or out of memory, not a stop) and *Container unhealthy* from `docker events`,
-   once a minute and only while a schedule waits for them; schedule action *Send a notification* (the event is the
-   message).
-2. Image updates: schedule action *Update stacks* (check and notify, or pull and redeploy with an optional backup
-   first); the Stacks list marks stacks with newer images.
-3. Logs of a whole stack and timestamps.
-4. Self-refreshing dashboard, environments, containers and stack pages.
-5. Image detail with layers; prune all unused images.
-6. File browser inside containers.
-7. Compose check in the stack editor.
-8. Activity log (System → Activity), UI actions and API calls, 90 days.
-9. Network map per environment.
-10. SSH host key verification; manual *Back up now* for a volume.
-11. The terminal into a container on the local Docker socket (the Mattiverse setup had none), with bash when present.
+**First round:** alerts (*Container died*, *Container unhealthy*, *Send a notification*), the schedule *Update stacks*, logs of a whole
+stack with timestamps, self-refreshing pages, the image detail with layers and *prune all unused*, the file browser inside containers,
+the compose check, the activity log, the network map, SSH host key verification, *Back up now* for a volume, the terminal on the local
+socket.
 
-Tests: 410 before, 488 after (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`); build without warnings.
-Two migrations: `AddActivityLog`, `AddEnvironmentHostKey`.
+**Second round:**
+
+1. Mail through MatSMTP (MatPlatform 1.3.0): with `MATSMTP_*` every mail goes through it, the server settings are fixed on the page and
+   in `/api/configure`; mail now goes out with MailKit (System.Net.Mail has no implicit TLS).
+2. The stack `.env` goes to the host over stdin, never on the command line.
+3. *Check* in the stack editor (`docker compose config` on the host in a temporary folder); compose and `.env` side by side.
+4. `MatDock__TrustedProxies` for the `X-Forwarded-*` headers.
+5. Adopt reads only a `.yml/.yaml` in a project folder.
+6. CPU and RAM of the last 24 h per environment on the dashboard.
+7. Updates with a health gate and rollback (the old image keeps a tag of its own during the update, since the containerd image store
+   drops an image without a name); fixed on the way: *Update now* never worked (the form lost the stack id).
+8. The container file browser without a shell, through `docker cp`.
+9. Git over SSH with a key (LibGit2Sharp's ssh transport replaced by one on SSH.NET).
+10. Environments over a Docker API (TCP with TLS client certificates).
+11. Vulnerability scans with Trivy (detail page, list column, schedule *Scan images*).
+
+Everything was tried against real Docker on this PC (local registry for the rollback, a scratch container, an OpenSSH + git server,
+docker:dind with TLS, Trivy) besides the tests. Tests: 410 at the start, 542 now (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`);
+build without warnings. Migrations: `AddActivityLog`, `AddEnvironmentHostKey`, `AddGitSshKey`, `AddEnvironmentDockerApi`, `AddImageScan`.

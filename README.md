@@ -361,7 +361,8 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Backup v2 | Browse/restore archives at a target, full stack bundles | ✅ |
 | Apps | Compose templates with icons, one-click install | ✅ |
 | Review | Security fixes, alerts, scheduled updates, activity log, network map, container files – see [docs/REVIEW.md](docs/REVIEW.md) | ✅ |
-| Next | Update health gate and rollback, CVE scan, TCP/TLS hosts, restic – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
+| Review 2 | MatSMTP, update rollback, CVE scans, Docker API hosts, Git over SSH, files without a shell | ✅ |
+| Next | restic, MatUi – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
 
 ## Branches & versioning
 
