@@ -13,6 +13,17 @@ public sealed class SshConnectionSettings
 
     public bool IsLocal => ConnectionType == ConnectionType.Local;
 
+    /// <summary>A remote Docker API (tcp://Host:Port): the Docker CLI runs on the MatDock host with DOCKER_HOST.</summary>
+    public bool IsTcp => ConnectionType == ConnectionType.Tcp;
+
+    /// <summary>The commands run on the MatDock host (Local and Tcp), not over SSH.</summary>
+    public bool RunsLocally => IsLocal || IsTcp;
+
+    /// <summary>Docker API over TCP with TLS: CA, client certificate and key (PEM); null = plain TCP.</summary>
+    public string? TlsCaPem { get; init; }
+    public string? TlsCertPem { get; init; }
+    public string? TlsKeyPem { get; init; }
+
     public required string Host { get; init; }
 
     public int Port { get; init; } = 22;

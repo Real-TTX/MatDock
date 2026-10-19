@@ -309,7 +309,8 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var result = RunCommand(client, HostStats.BuildCommand(head), settings);
+        // Behind a Docker API the readings come from a throwaway container on that host (its /proc and disk are the host's).
+        var result = RunCommand(client, settings.IsTcp ? HostStats.BuildCommandInContainer(head, _options.HelperImage) : HostStats.BuildCommand(head), settings);
         return HostStats.Parse(result.StdOut);
     }
 
@@ -589,8 +590,15 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var candidates = new List<(bool, string?)>
         {
             (false, null),
-            (true, null),
         };
+
+        // A remote Docker API is reached as it is: no sudo, no other socket.
+        if (settings.IsTcp)
+        {
+            return candidates;
+        }
+
+        candidates.Add((true, null));
 
         var listed = RunCommand(client, "ls -d /run/user/*/docker.sock 2>/dev/null", settings);
         if (listed.ExitStatus == 0)

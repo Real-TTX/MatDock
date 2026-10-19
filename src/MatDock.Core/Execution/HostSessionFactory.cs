@@ -19,7 +19,9 @@ public sealed class HostSessionFactory : IHostSessionFactory
     }
 
     public IHostSession Create(SshConnectionSettings settings)
-        => settings.IsLocal
-            ? new LocalHostSession(_localStacksPath)
-            : new SshHostSession(_sshClientFactory.Create(settings));
+        => settings.IsTcp
+            ? LocalHostSession.ForDockerApi(_localStacksPath, settings)
+            : settings.IsLocal
+                ? new LocalHostSession(_localStacksPath)
+                : new SshHostSession(_sshClientFactory.Create(settings));
 }

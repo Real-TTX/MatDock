@@ -28,6 +28,24 @@ public sealed class HostStats
         "echo DISKUSED=$(df -kP / 2>/dev/null | awk 'NR==2{print $3}'); " +
         $"echo CONTAINERS=$({dockerHead} ps -q 2>/dev/null | wc -l | tr -d ' ')";
 
+    /// <summary>
+    /// The same readings from a throwaway <paramref name="helperImage"/> container on the Docker host (for a remote Docker API, where the commands run
+    /// on the MatDock host): /proc/loadavg and /proc/meminfo inside a container are the host's, <c>df /</c> is the disk of Docker's data.
+    /// </summary>
+    public static string BuildCommandInContainer(string dockerHead, string helperImage)
+    {
+        const string inner =
+            "echo CORES=$(nproc 2>/dev/null); " +
+            "echo LOAD1=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); " +
+            "echo MEMTOTAL=$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null); " +
+            "echo MEMAVAIL=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null); " +
+            "echo DISKTOTAL=$(df -kP / 2>/dev/null | awk 'NR==2{print $2}'); " +
+            "echo DISKUSED=$(df -kP / 2>/dev/null | awk 'NR==2{print $3}')";
+        return MatDock.Core.Volumes.VolumeCommands.PathPrefix + dockerHead + " run --rm " + MatDock.Core.Volumes.VolumeFileCommands.ShellQuote(helperImage)
+               + " sh -c " + MatDock.Core.Volumes.VolumeFileCommands.ShellQuote(inner) + " 2>/dev/null; "
+               + $"echo CONTAINERS=$({dockerHead} ps -q 2>/dev/null | wc -l | tr -d ' ')";
+    }
+
     public static HostStats Parse(string output)
     {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);

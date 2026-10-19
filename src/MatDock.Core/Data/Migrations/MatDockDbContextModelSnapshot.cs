@@ -291,6 +291,9 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<string>("EncryptedPrivateKeyPassphrase")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EncryptedTlsKey")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Host")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -318,6 +321,12 @@ namespace MatDock.Core.Data.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TlsCa")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TlsCert")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdateDate")
                         .HasColumnType("TEXT");

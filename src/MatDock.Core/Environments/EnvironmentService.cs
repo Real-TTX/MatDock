@@ -108,6 +108,9 @@ public sealed class EnvironmentService
             UseSudo = env.UseSudo,
             DockerHost = env.DockerHost,
             HostKeyFingerprint = env.ConnectionType == ConnectionType.Ssh ? env.HostKeyFingerprint : null,
+            TlsCaPem = env.TlsCa,
+            TlsCertPem = env.TlsCert,
+            TlsKeyPem = _secrets.UnprotectNullable(env.EncryptedTlsKey),
         };
     }
 
@@ -143,6 +146,25 @@ public sealed class EnvironmentService
                 ConnectionType = ConnectionType.Local,
                 Host = "local",
                 Username = "local",
+                TimeoutSeconds = _options.SshTimeoutSeconds,
+            };
+        }
+
+        if (input.ConnectionType == ConnectionType.Tcp)
+        {
+            // A blank key keeps the stored one (it is never sent to the server; TLS only proves it).
+            var storedKey = string.IsNullOrWhiteSpace(input.TlsKey) && id is > 0 && await GetAsync(id.Value, ct) is { } savedEnv
+                ? _secrets.UnprotectNullable(savedEnv.EncryptedTlsKey)
+                : null;
+            return new SshConnectionSettings
+            {
+                ConnectionType = ConnectionType.Tcp,
+                Host = (input.Host ?? string.Empty).Trim(),
+                Port = input.Port,
+                Username = string.Empty,
+                TlsCaPem = Pem(input.TlsCa),
+                TlsCertPem = Pem(input.TlsCert),
+                TlsKeyPem = Pem(input.TlsKey) ?? storedKey,
                 TimeoutSeconds = _options.SshTimeoutSeconds,
             };
         }
@@ -316,6 +338,8 @@ public sealed class EnvironmentService
         return true;
     }
 
+    private static string? Pem(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Replace("\r\n", "\n").Trim() + "\n";
+
     /// <summary>Whether the input points at the same SSH endpoint (host, port, user) as the stored environment.</summary>
     public static bool SameEndpoint(DockerEnvironment entity, EnvironmentInput input)
         => entity.ConnectionType == ConnectionType.Ssh
@@ -329,6 +353,40 @@ public sealed class EnvironmentService
         entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         entity.BaseUrl = string.IsNullOrWhiteSpace(input.BaseUrl) ? null : input.BaseUrl.Trim();
         entity.ConnectionType = input.ConnectionType;
+
+        if (input.ConnectionType != ConnectionType.Tcp)
+        {
+            entity.TlsCa = null;
+            entity.TlsCert = null;
+            entity.EncryptedTlsKey = null;
+        }
+
+        if (input.ConnectionType == ConnectionType.Tcp)
+        {
+            // The Docker API of another host: address and port, the TLS certificates; no SSH secrets.
+            entity.Host = input.Host.Trim();
+            entity.Port = input.Port;
+            entity.Username = string.Empty;
+            entity.AuthType = AuthType.Password;
+            entity.EncryptedPassword = null;
+            entity.EncryptedPrivateKey = null;
+            entity.EncryptedPrivateKeyPassphrase = null;
+            entity.HostKeyFingerprint = null;
+            entity.UseSudo = false;
+            entity.DockerHost = null;
+            entity.TlsCa = Pem(input.TlsCa);
+            entity.TlsCert = Pem(input.TlsCert);
+            if (Pem(input.TlsKey) is { } key)
+            {
+                entity.EncryptedTlsKey = _secrets.Protect(key);
+            }
+            else if (isCreate || entity.TlsCert is null)
+            {
+                entity.EncryptedTlsKey = null;
+            }
+
+            return;
+        }
 
         if (input.ConnectionType == ConnectionType.Local)
         {

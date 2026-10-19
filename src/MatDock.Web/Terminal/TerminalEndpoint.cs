@@ -72,12 +72,12 @@ public static class TerminalEndpoint
 
         // A Local environment is the Docker socket of MatDock's own host: a shell in a container works (through script),
         // a shell on the host would be one in MatDock's own container, so there is none.
-        if (settings.IsLocal)
+        if (settings.RunsLocally)
         {
             using var localWs = await context.WebSockets.AcceptWebSocketAsync();
             if (string.IsNullOrEmpty(container))
             {
-                await TrySendTextAsync(localWs, "\r\n\x1b[33m[A local environment has no host shell; open the shell of a container.]\x1b[0m\r\n");
+                await TrySendTextAsync(localWs, "\r\n\x1b[33m[This environment is reached through a Docker socket or API, so there is no host shell; open the shell of a container.]\x1b[0m\r\n");
                 try { await localWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
                 return;
             }

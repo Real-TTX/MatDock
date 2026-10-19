@@ -85,6 +85,10 @@ public class EditModel : PageModel
         [DataType(DataType.Password)]
         [Display(Name = "Key passphrase")]
         public string? PrivateKeyPassphrase { get; set; }
+
+        public string? TlsCa { get; set; }
+        public string? TlsCert { get; set; }
+        public string? TlsKey { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -189,6 +193,15 @@ public class EditModel : PageModel
             return Page();
         }
 
+        if (Input.ConnectionType == ConnectionType.Tcp)
+        {
+            ValidateConnection();
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+        }
+
         try
         {
             var settings = await _environmentService.BuildTestSettingsAsync(ToServiceInput(), Input.Id, HttpContext.RequestAborted);
@@ -226,7 +239,10 @@ public class EditModel : PageModel
         AuthType = Input.AuthType,
         Password = Input.Password,
         PrivateKeyPem = Input.PrivateKeyPem,
-        PrivateKeyPassphrase = Input.PrivateKeyPassphrase
+        PrivateKeyPassphrase = Input.PrivateKeyPassphrase,
+        TlsCa = Input.TlsCa,
+        TlsCert = Input.TlsCert,
+        TlsKey = Input.TlsKey,
     };
 
     private void MapToInput(DockerEnvironment entity)
@@ -241,14 +257,31 @@ public class EditModel : PageModel
             Host = entity.Host,
             Port = entity.Port,
             Username = entity.Username,
-            AuthType = entity.AuthType
-            // Secrets are intentionally never sent back to the browser.
+            AuthType = entity.AuthType,
+            // Certificates are public; the keys and passwords are never sent back to the browser.
+            TlsCa = entity.TlsCa,
+            TlsCert = entity.TlsCert,
         };
     }
 
-    /// <summary>SSH environments need a host and user; local environments talk to the mounted socket.</summary>
+    /// <summary>SSH environments need a host and user, Docker API ones a host and a complete set of certificates (or none); local ones talk to the mounted socket.</summary>
     private void ValidateConnection()
     {
+        if (Input.ConnectionType == ConnectionType.Tcp)
+        {
+            if (string.IsNullOrWhiteSpace(Input.Host) || !System.Text.RegularExpressions.Regex.IsMatch(Input.Host.Trim(), @"^[A-Za-z0-9.:\[\]-]+$"))
+            {
+                ModelState.AddModelError("Input.Host", "Please enter the host (a name or an address).");
+            }
+
+            if (string.IsNullOrWhiteSpace(Input.TlsCa) != string.IsNullOrWhiteSpace(Input.TlsCert))
+            {
+                ModelState.AddModelError("Input.TlsCert", "TLS needs the CA and the client certificate (and the key).");
+            }
+
+            return;
+        }
+
         if (Input.ConnectionType != ConnectionType.Ssh)
         {
             return;
@@ -266,9 +299,9 @@ public class EditModel : PageModel
 
     private async Task ValidateSecretsForSaveAsync()
     {
-        if (Input.ConnectionType == ConnectionType.Local)
+        if (Input.ConnectionType != ConnectionType.Ssh)
         {
-            return; // local needs no secrets
+            return; // local needs no secrets, the TLS key is checked with the certificates
         }
 
         if (IsEdit)

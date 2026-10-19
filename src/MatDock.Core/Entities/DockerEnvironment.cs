@@ -52,6 +52,15 @@ public class DockerEnvironment : AuditableEntity
     /// show the same key. Null until then, and again after the host, port or user changed or the key was forgotten.</summary>
     public string? HostKeyFingerprint { get; set; }
 
+    /// <summary>Docker API over TCP: the CA that signed the daemon's certificate (PEM); null = plain TCP without TLS.</summary>
+    public string? TlsCa { get; set; }
+
+    /// <summary>Docker API over TCP: the client certificate (PEM).</summary>
+    public string? TlsCert { get; set; }
+
+    /// <summary>Docker API over TCP: the client key (PEM), Data-Protection-encrypted.</summary>
+    public string? EncryptedTlsKey { get; set; }
+
     public DateTime? LastCheckedAt { get; set; }
 
     public string? LastCheckMessage { get; set; }

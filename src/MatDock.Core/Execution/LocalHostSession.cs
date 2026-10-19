@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MatDock.Core.Ssh;
 
 namespace MatDock.Core.Execution;
 
@@ -10,31 +11,75 @@ namespace MatDock.Core.Execution;
 internal sealed class LocalHostSession : IHostSession
 {
     private readonly string? _stacksPath;
+    private readonly IReadOnlyDictionary<string, string>? _docker;
+    private readonly string? _certDir;
 
     /// <param name="stacksPath">Base directory for the stack files (exported as <c>MATDOCK_STACKS_DIR</c> to the
     /// commands), or null for the default below the home directory.</param>
-    public LocalHostSession(string? stacksPath = null) => _stacksPath = stacksPath;
+    /// <param name="docker">DOCKER_* variables of the commands (a remote Docker API), or null for the mounted socket.</param>
+    /// <param name="certDir">A folder of TLS certificates that the session owns and removes at the end.</param>
+    public LocalHostSession(string? stacksPath = null, IReadOnlyDictionary<string, string>? docker = null, string? certDir = null)
+    {
+        _stacksPath = stacksPath;
+        _docker = docker;
+        _certDir = certDir;
+    }
 
-    public Task ConnectAsync(CancellationToken ct) => Task.CompletedTask; // nothing to connect; the socket is local
+    /// <summary>
+    /// A session whose commands talk to the Docker API of <paramref name="settings"/> (tcp://Host:Port). With TLS the CA, the client
+    /// certificate and its key are written to a private temporary folder for <c>DOCKER_CERT_PATH</c>, removed with the session.
+    /// </summary>
+    public static LocalHostSession ForDockerApi(string? stacksPath, SshConnectionSettings settings)
+    {
+        var host = settings.Host.Contains(':') && !settings.Host.StartsWith('[') ? $"[{settings.Host}]" : settings.Host;
+        var docker = new Dictionary<string, string>(StringComparer.Ordinal) { ["DOCKER_HOST"] = $"tcp://{host}:{settings.Port}" };
+        string? certDir = null;
+        if (!string.IsNullOrWhiteSpace(settings.TlsCaPem) || !string.IsNullOrWhiteSpace(settings.TlsCertPem))
+        {
+            certDir = Directory.CreateTempSubdirectory("matdock-tls-").FullName;
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(certDir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
 
-    public IHostCommand CreateCommand(string command) => new LocalHostCommand(command, _stacksPath);
+            File.WriteAllText(Path.Combine(certDir, "ca.pem"), settings.TlsCaPem ?? string.Empty);
+            File.WriteAllText(Path.Combine(certDir, "cert.pem"), settings.TlsCertPem ?? string.Empty);
+            File.WriteAllText(Path.Combine(certDir, "key.pem"), settings.TlsKeyPem ?? string.Empty);
+            docker["DOCKER_TLS_VERIFY"] = "1";
+            docker["DOCKER_CERT_PATH"] = certDir;
+        }
 
-    public void Dispose() { }
+        return new LocalHostSession(stacksPath, docker, certDir);
+    }
+
+    public Task ConnectAsync(CancellationToken ct) => Task.CompletedTask; // nothing to connect; the CLI connects per command
+
+    public IHostCommand CreateCommand(string command) => new LocalHostCommand(command, _stacksPath, _docker);
+
+    public void Dispose()
+    {
+        if (_certDir is not null)
+        {
+            try { Directory.Delete(_certDir, recursive: true); } catch { /* best effort */ }
+        }
+    }
 }
 
 internal sealed class LocalHostCommand : IHostCommand
 {
     private readonly string _command;
     private readonly string? _stacksPath;
+    private readonly IReadOnlyDictionary<string, string>? _docker;
     private Process? _process;
     private Task<string>? _stdoutTask;
     private Task<string>? _stderrTask;
     private bool _stdinCreated;
 
-    public LocalHostCommand(string command, string? stacksPath = null)
+    public LocalHostCommand(string command, string? stacksPath = null, IReadOnlyDictionary<string, string>? docker = null)
     {
         _command = command;
         _stacksPath = stacksPath;
+        _docker = docker;
     }
 
     public TimeSpan CommandTimeout { get; set; } = TimeSpan.FromSeconds(60);
@@ -78,6 +123,20 @@ internal sealed class LocalHostCommand : IHostCommand
         psi.ArgumentList.Add("-c");
         psi.ArgumentList.Add(_command);
         KeepOnlySafeVariables(psi.Environment);
+        if (_docker is not null)
+        {
+            // A remote Docker API: these win over the DOCKER_* of MatDock's own process.
+            foreach (var name in psi.Environment.Keys.Where(k => k.StartsWith("DOCKER_", StringComparison.Ordinal)).ToList())
+            {
+                psi.Environment.Remove(name);
+            }
+
+            foreach (var (name, value) in _docker)
+            {
+                psi.Environment[name] = value;
+            }
+        }
+
         if (!string.IsNullOrEmpty(_stacksPath))
         {
             psi.Environment[Stacks.StackCommands.StacksDirVariable] = _stacksPath;

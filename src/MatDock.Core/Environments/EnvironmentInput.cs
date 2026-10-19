@@ -30,4 +30,9 @@ public sealed class EnvironmentInput
     public string? PrivateKeyPem { get; set; }
 
     public string? PrivateKeyPassphrase { get; set; }
+
+    /// <summary>Docker API over TCP: CA, client certificate and client key (PEM); all empty = no TLS. A blank key on edit keeps the stored one.</summary>
+    public string? TlsCa { get; set; }
+    public string? TlsCert { get; set; }
+    public string? TlsKey { get; set; }
 }

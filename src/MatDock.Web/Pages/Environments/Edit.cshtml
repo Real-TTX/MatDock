@@ -41,6 +41,7 @@
                     <select asp-for="Input.ConnectionType" id="ConnectionType" class="mat-select">
                         <option value="Ssh">SSH (remote host)</option>
                         <option value="Local">Local (Docker socket)</option>
+                        <option value="Tcp">Docker API (TCP/TLS)</option>
                     </select>
                 </mat-field>
             </div>
@@ -51,16 +52,33 @@
                 </div>
             </div>
 
-            <div data-show-when="ConnectionType=Ssh">
+            <div data-show-when="ConnectionType=Ssh,Tcp">
                 <div class="form-grid">
                     <mat-field label="Host" asp-for="Input.Host">
                         <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com or 10.0.0.5" />
                     </mat-field>
 
-                    <mat-field label="Port" asp-for="Input.Port">
+                    <mat-field label="Port" asp-for="Input.Port" hint="SSH: 22. Docker API: 2376 with TLS, 2375 without.">
                         <input asp-for="Input.Port" type="number" min="1" max="65535" class="mat-input" />
                     </mat-field>
+                </div>
+            </div>
 
+            <div data-show-when="ConnectionType=Tcp">
+                <div class="alert alert--warning"><icon name="alert" /><span>Without TLS anyone who reaches the port controls Docker on that host. Use the certificates of the daemon (<code>--tlsverify</code>).</span></div>
+                <mat-field label="CA certificate (ca.pem)" asp-for="Input.TlsCa">
+                    <textarea asp-for="Input.TlsCa" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                </mat-field>
+                <mat-field label="Client certificate (cert.pem)" asp-for="Input.TlsCert">
+                    <textarea asp-for="Input.TlsCert" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                </mat-field>
+                <mat-field label="Client key (key.pem)" asp-for="Input.TlsKey" hint="@(Model.IsEdit ? "Leave empty to keep the stored key." : null)">
+                    <textarea asp-for="Input.TlsKey" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                </mat-field>
+            </div>
+
+            <div data-show-when="ConnectionType=Ssh">
+                <div class="form-grid">
                     <mat-field label="SSH user" asp-for="Input.Username">
                         <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="e.g. root" />
                     </mat-field>

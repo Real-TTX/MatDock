@@ -22,7 +22,10 @@ public enum ConnectionType
     Ssh = 0,
 
     /// <summary>Run the Docker CLI locally on the MatDock host, talking to the mounted Docker socket.</summary>
-    Local = 1
+    Local = 1,
+
+    /// <summary>Run the Docker CLI on the MatDock host against a remote Docker API (tcp://host:port, with TLS client certificates).</summary>
+    Tcp = 2
 }
 
 /// <summary>Soft-delete / audit state for every persisted record.</summary>

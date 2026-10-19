@@ -28,7 +28,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 ## At a glance
 
 **Environments**
-- Connect over **SSH** (password or key) or the **local Docker socket** – no agent on the host
+- Connect over **SSH** (password or key), the **local Docker socket**, or a **Docker API over TCP** with TLS client
+  certificates – no agent on the host
 - **Host stats** per environment: CPU load, RAM and disk, running containers, Docker version
 - A **global environment selector** in the sidebar – one host or **"All environments"**, every
   page follows it
