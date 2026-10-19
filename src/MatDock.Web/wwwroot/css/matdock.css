@@ -317,9 +317,9 @@ h2 { font-size: 1.2rem; }
    ========================================================================== */
 .mat-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-1); overflow: hidden; }
 .mat-table__toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.mat-table__toolbar .search { position: relative; flex: 1 1 220px; min-width: 180px; }
-.mat-table__toolbar .search .mat-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-.mat-table__toolbar .search input { padding-left: 34px; }
+.mat-table__toolbar .search, .fs-toolbar .search { position: relative; flex: 1 1 220px; min-width: 180px; }
+.mat-table__toolbar .search .mat-icon, .fs-toolbar .search .mat-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.mat-table__toolbar .search input, .fs-toolbar .search input { padding-left: 34px; }
 .mat-table__toolbar .toolbar-field { display: flex; align-items: center; gap: 6px; }
 .mat-table__toolbar .toolbar-field label { font-size: .8rem; color: var(--text-muted); }
 .mat-table__toolbar .toolbar-field .mat-select { width: auto; padding: 7px 10px; }
@@ -430,7 +430,7 @@ table.ctable td.num { text-align: left; }
 /* ============================================================================
    Tabs control
    ========================================================================== */
-.mat-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+.mat-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
 .mat-tabs__tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; color: var(--text-muted); font-weight: 600; font-size: .9rem; border-bottom: 2px solid transparent; white-space: nowrap; }
 .mat-tabs__tab:hover { color: var(--text); text-decoration: none; }
 .mat-tabs__tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
