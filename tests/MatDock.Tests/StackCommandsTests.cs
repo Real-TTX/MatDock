@@ -337,3 +337,27 @@ public class ComposeConfigCheckTests
         Directory.Delete(tmp);
     }
 }
+
+public class AdoptPathTests
+{
+    [Theory]
+    [InlineData("/opt/shop/docker-compose.yml", null, "/opt/shop", "docker-compose.yml")]
+    [InlineData("compose.yaml", "/srv/app", "/srv/app", "compose.yaml")]
+    [InlineData(@"C:\stacks\web\compose.yml,C:\stacks\web\override.yml", null, @"C:\stacks\web", "compose.yml")]
+    public void The_compose_file_of_a_project_folder_is_read(string files, string? workingDir, string dir, string file)
+    {
+        var target = StackService.AdoptPath(files, workingDir);
+        Assert.NotNull(target);
+        Assert.Equal(dir, target.Value.Dir);
+        Assert.Equal(file, target.Value.FileName);
+    }
+
+    [Theory]
+    [InlineData("/root/.ssh/id_rsa", null)]          // not a compose file
+    [InlineData("/compose.yml", null)]                // the root of the file system
+    [InlineData(@"C:\compose.yml", null)]
+    [InlineData("../../etc/x.yml", "/srv/app")]       // out of the folder
+    [InlineData("compose.yml", null)]                 // relative without a working dir
+    public void Anything_else_is_not_read(string files, string? workingDir)
+        => Assert.Null(StackService.AdoptPath(files, workingDir));
+}

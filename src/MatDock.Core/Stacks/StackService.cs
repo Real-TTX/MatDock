@@ -342,13 +342,12 @@ public sealed class StackService
             return (false, "This project has no compose-file label, so it can't be imported automatically. Create it as a new stack instead.");
         }
 
-        // Resolve the first compose file to an absolute host path. Handle both POSIX (/a/b) and Windows
-        // (C:\a\b, Docker Desktop) paths — absolute ones are used as-is, relative ones join the working dir.
-        var first = configFiles.Split(',')[0].Trim();
-        var path = IsAbsoluteHostPath(first) ? first : $"{(workingDir ?? ".").TrimEnd('/', '\\')}/{first}";
-        var sep = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
-        var dir = sep >= 0 ? path[..sep] : ".";
-        var fileName = sep >= 0 ? path[(sep + 1)..] : path;
+        if (AdoptPath(configFiles, workingDir) is not { } target)
+        {
+            return (false, "The compose file named by the project's labels is not a .yml/.yaml file in a project folder, so it is not read.");
+        }
+
+        var (path, dir, fileName) = target;
 
         string yaml;
         try
@@ -639,6 +638,34 @@ public sealed class StackService
         {
             return (false, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// The compose file an adopt reads, from the labels of the project's containers: the first of <c>config_files</c>, relative ones joined to
+    /// <c>working_dir</c> (POSIX and Windows paths). The labels come from whoever started the containers, so only a <c>.yml</c>/<c>.yaml</c> file
+    /// in a folder that is not a root of the file system, with no <c>..</c>, is read (its folder is mounted read-only to read it). Null otherwise.
+    /// </summary>
+    internal static (string Path, string Dir, string FileName)? AdoptPath(string configFiles, string? workingDir)
+    {
+        var first = configFiles.Split(',')[0].Trim();
+        var path = IsAbsoluteHostPath(first) ? first : $"{(workingDir ?? ".").TrimEnd('/', '\\')}/{first}";
+        var sep = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
+        if (sep <= 0)
+        {
+            return null;
+        }
+
+        var dir = path[..sep];
+        var fileName = path[(sep + 1)..];
+        var segments = path.Split('/', '\\');
+        var isRoot = dir.Length == 0 || dir == "/" || (dir.Length <= 3 && dir.Length >= 2 && dir[1] == ':');
+        if (!IsAbsoluteHostPath(dir + "/") || isRoot || segments.Any(x => x == "..")
+            || !(fileName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return (path, dir, fileName);
     }
 
     private sealed record HostPrep(bool Ok, string Message, SshConnectionSettings? Settings, string? Head, TimeSpan Timeout);
