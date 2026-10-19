@@ -133,7 +133,7 @@
                 <option value="stopped">Stopped</option>
             </select>
         </div>
-        <span class="text-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of @Model.Rows.Count</span>
+        <span class="text-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
         <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
             <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
             <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
@@ -141,6 +141,7 @@
     </mat-table-toolbar>
 
     <mat-table-body>
+        <div id="live-containers" data-live="20">
         @if (Model.Environments.Count == 0)
         {
             <div class="empty-state"><div><icon name="box" /></div><p>No active environment.</p></div>
@@ -214,35 +215,10 @@
                 </tbody>
             </table>
         }
+        </div>
     </mat-table-body>
 
     <mat-table-actions>
         <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>
-
-@section Scripts {
-    <script>
-        (function () {
-            var input = document.getElementById('container-filter');
-            var status = document.getElementById('container-status');
-            var count = document.getElementById('container-count');
-            if (!input) { return; }
-            function apply() {
-                var q = input.value.trim().toLowerCase();
-                var st = status ? status.value : '';
-                var shown = 0;
-                document.querySelectorAll('[data-item]').forEach(function (el) {
-                    var okQ = !q || el.dataset.search.indexOf(q) !== -1;
-                    var okS = !st || el.dataset.state === st;
-                    var show = okQ && okS;
-                    el.hidden = !show;
-                    if (show) { shown++; }
-                });
-                if (count) { count.textContent = shown; }
-            }
-            input.addEventListener('input', apply);
-            if (status) { status.addEventListener('change', apply); }
-        })();
-    </script>
-}

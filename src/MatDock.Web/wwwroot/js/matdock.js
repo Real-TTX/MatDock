@@ -245,6 +245,65 @@
         });
     })();
 
+    /* ---------------- Container list filter ----------------
+       #container-filter (text) and #container-status narrow the [data-item] rows/tiles; #container-count shows how many
+       are left. Applied again after a live refresh replaced the rows. */
+    (function () {
+        var input = document.getElementById("container-filter");
+        var status = document.getElementById("container-status");
+        var count = document.getElementById("container-count");
+        var total = document.getElementById("container-total");
+        if (!input) { return; }
+        function apply() {
+            var q = input.value.trim().toLowerCase();
+            var st = status ? status.value : "";
+            var shown = 0, all = 0;
+            document.querySelectorAll("[data-item]").forEach(function (el) {
+                var show = (!q || (el.dataset.search || "").indexOf(q) !== -1) && (!st || el.dataset.state === st);
+                el.hidden = !show;
+                all++;
+                if (show) { shown++; }
+            });
+            if (count) { count.textContent = shown; }
+            if (total) { total.textContent = all; }
+        }
+        input.addEventListener("input", apply);
+        if (status) { status.addEventListener("change", apply); }
+        document.addEventListener("matdock:live", apply);
+    })();
+
+    /* ---------------- Live regions ----------------
+       <div id="…" data-live="20"> is read again every 20 s (at least 10) while the tab is visible: the page is fetched
+       once more and the region's content replaced by the new one. Skipped while something inside has the focus or a
+       POST is running, so nothing changes under the user's hand. Fires "matdock:live" on document afterwards. */
+    (function () {
+        var regions = Array.prototype.slice.call(document.querySelectorAll("[data-live][id]"));
+        if (regions.length === 0 || !window.fetch || !window.DOMParser) { return; }
+        var seconds = Math.max(10, parseInt(regions[0].getAttribute("data-live"), 10) || 20);
+        var busy = false;
+        function refresh() {
+            if (busy || document.hidden || document.querySelector(".is-busy")) { return; }
+            var focused = document.activeElement;
+            if (focused && focused !== document.body && regions.some(function (r) { return r.contains(focused); })) { return; }
+            busy = true;
+            fetch(location.href, { credentials: "same-origin", headers: { "X-Requested-With": "matdock-live" } })
+                .then(function (r) { return r.ok && !r.redirected ? r.text() : null; })
+                .then(function (html) {
+                    if (!html) { return; }
+                    var doc = new DOMParser().parseFromString(html, "text/html");
+                    regions.forEach(function (region) {
+                        var fresh = doc.getElementById(region.id);
+                        if (fresh) { region.innerHTML = fresh.innerHTML; }
+                    });
+                    document.dispatchEvent(new CustomEvent("matdock:live"));
+                })
+                .catch(function () { /* next round */ })
+                .then(function () { busy = false; });
+        }
+        setInterval(refresh, seconds * 1000);
+        document.addEventListener("visibilitychange", function () { if (!document.hidden) { refresh(); } });
+    })();
+
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
         // The question sits on the form, or on the button that sent it (a form with several actions).

@@ -47,6 +47,8 @@
     </div>
 </div>
 
+@* Everything below the head is read again every 30 s while the page is visible (data-live, matdock.js). *@
+<div id="live-dashboard" data-live="30">
 @* ---- Key figures (clickable) ---- *@
 @{
     var envSubParts = new List<string> { $"{Model.OnlineCount} online" };
@@ -298,4 +300,5 @@ else
             </div>
         </div>
     </div>
+</div>
 </div>

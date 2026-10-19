@@ -82,3 +82,26 @@ public sealed class RoleAccessTests(MatDockFactory site) : IClassFixture<MatDock
         Assert.Contains("Too many failed sign-ins", await response.Content.ReadAsStringAsync());
     }
 }
+
+/// <summary>The overview pages mark the part that refreshes itself (matdock.js reads it again while the page is open).</summary>
+public sealed class LiveRegionTests(MatDockFactory site) : IClassFixture<MatDockFactory>
+{
+    [Theory]
+    [InlineData("/", "live-dashboard")]
+    [InlineData("/Containers", "live-containers")]
+    [InlineData("/Environments", "live-environments")]
+    [InlineData("/Containers/Stack?envId={env}&project=shop", "live-stack")]
+    public async Task The_page_has_its_live_region(string path, string id)
+    {
+        var browser = site.Browser();
+        var html = await (await browser.GetAsync("/Account/Login")).Content.ReadAsStringAsync();
+        await SignIn.PostLocalFormAsync(browser, "/Account/Login", html);
+        if (path.Contains("{env}", StringComparison.Ordinal))
+        {
+            path = path.Replace("{env}", site.AddLocalEnvironment("live" + Guid.NewGuid().ToString("N")[..6]).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        }
+
+        var page = await (await browser.GetAsync(path)).Content.ReadAsStringAsync();
+        Assert.Contains($"id=\"{id}\" data-live=", page);
+    }
+}

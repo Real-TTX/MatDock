@@ -63,6 +63,7 @@
     </mat-table-toolbar>
 
     <mat-table-body>
+        <div id="live-environments" data-live="30">
         @if (Model.Items.Count == 0)
         {
             <div class="empty-state">
@@ -224,6 +225,7 @@
                 </tbody>
             </table>
         }
+        </div>
     </mat-table-body>
 
     <mat-table-pagination>

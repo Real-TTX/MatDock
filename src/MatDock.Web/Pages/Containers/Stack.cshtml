@@ -22,6 +22,7 @@
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span></div>
 }
 
+<div id="live-stack" data-live="20">
 @if (Model.Error is not null)
 {
     <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
@@ -103,3 +104,4 @@ else
         </table>
     </div>
 }
+</div>

@@ -35,7 +35,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - Connection test with a clear result; secrets stored **encrypted**
 
 **Dashboard**
-- Environment tiles with **CPU / RAM / disk** usage, **top containers** by load, a feed of
+- Environment tiles with **live CPU / RAM / disk** usage (the dashboard, environments, containers and stack pages
+  refresh themselves every 20–30 s while open), **top containers** by load, a feed of
   recent **container events** (created / started / stopped) and the **backup status**
 
 **Stacks & containers**
