@@ -10,7 +10,7 @@ namespace MatDock.Web.Controls;
 /// A consistent form field: label + the input (supplied as child content) + optional hint + the
 /// server-side validation message. Keeps every form row identical without repeating markup.
 /// <code>
-/// &lt;mat-field label="Name" asp-for="Input.Name" hint="Anzeigename"&gt;
+/// &lt;mat-field label="Name" asp-for="Input.Name" hint="Display name"&gt;
 ///     &lt;input asp-for="Input.Name" class="mat-input" /&gt;
 /// &lt;/mat-field&gt;
 /// </code>

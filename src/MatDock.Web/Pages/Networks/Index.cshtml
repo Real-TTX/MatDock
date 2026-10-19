@@ -86,10 +86,10 @@
                                     @if (isAdmin && !row.Network.IsPredefined)
                                     {
                                         <form method="post" asp-page-handler="Remove" style="display:inline;"
-                                              data-confirm="Remove network &quot;@row.Network.Name&quot;?">
+                                              data-confirm="Delete network &quot;@row.Network.Name&quot;?">
                                             <input type="hidden" name="envId" value="@row.Environment.Id" />
                                             <input type="hidden" name="name" value="@row.Network.Name" />
-                                            <button type="submit" class="mat-btn mat-btn--sm" title="Remove"><icon name="trash" /></button>
+                                            <button type="submit" class="mat-btn mat-btn--sm" title="Delete"><icon name="trash" /></button>
                                         </form>
                                     }
                                 </div>

@@ -11,9 +11,6 @@
     <div class="page-head__title">
         <h1>Backups</h1>
     </div>
-    <div class="mat-buttons">
-        <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="volume" /><span>Go to volumes</span></a>
-    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -25,7 +22,7 @@
 
 @if (Model.Bundles.Count > 0)
 {
-    <h2 style="font-size:1rem;margin:4px 0 8px;">Stack bundles <span class="text-muted" style="font-weight:400;">· volumes + compose + .env + image references</span></h2>
+    <h2 style="font-size:1rem;margin:4px 0 8px;">Stack bundles</h2>
     <mat-table>
         <mat-table-body>
             <table class="data">
@@ -60,7 +57,7 @@
                                 <div class="row-actions">
                                     @if (b.Status == StackBackupStatus.Succeeded)
                                     {
-                                        <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first, then the stack is stopped, its volumes are overwritten and it is deployed again." style="display:inline;">
+                                        <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first." style="display:inline;">
                                             <input type="hidden" name="id" value="@b.Id" />
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Restore"><icon name="refresh" /><span>Restore</span></button>
                                         </form>

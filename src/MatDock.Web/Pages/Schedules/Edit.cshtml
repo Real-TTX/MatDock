@@ -44,7 +44,7 @@
                         <option value="Notify">Send a notification (event)</option>
                     </select>
                 </mat-field>
-                <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Applies to all enabled environments when left on 'All'">
+                <mat-field label="Environment" asp-for="Input.EnvironmentId" hint="Empty = all environments.">
                     <select asp-for="Input.EnvironmentId" class="mat-select">
                         <option value="">All environments</option>
                         @foreach (var env in Model.Environments)
@@ -85,7 +85,7 @@
                 </div>
             </div>
             <div data-show-when="Input_Action=BundleBackup,UpdateStacks">
-                <mat-field label="Stack" asp-for="Input.BundleStack" hint="Compose project name. Empty = every managed stack (of the schedule's owner, if it has one). Retention keeps the newest scheduled bundles per stack.">
+                <mat-field label="Stack" asp-for="Input.BundleStack" hint="Empty = all managed stacks.">
                     <input asp-for="Input.BundleStack" class="mat-input" placeholder="e.g. media-stack" />
                 </mat-field>
             </div>
@@ -126,7 +126,7 @@
                     </mat-field>
                 </div>
                 <div data-show-when="Input_Trigger=Event">
-                    <mat-field label="On event" asp-for="Input.Event" hint="Runs the action when this internal event occurs">
+                    <mat-field label="On event" asp-for="Input.Event" hint="Runs when this event occurs.">
                         <select asp-for="Input.Event" class="mat-select">
                             <option value="DeployFailed">Deploy failed</option>
                             <option value="BackupFailed">Backup failed</option>

@@ -4,8 +4,6 @@
 @{
     ViewData["Title"] = "Containers";
     var ci = System.Globalization.CultureInfo.InvariantCulture;
-    // Environment is always shown as the first column, consistent with the Stacks/Volumes/Networks lists.
-    var showEnv = true;
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsInRole("Admin");
 
@@ -34,12 +32,12 @@
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
             </form>
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
             </form>
@@ -47,7 +45,7 @@
         else
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" />
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
             </form>
@@ -81,10 +79,7 @@
         var env = r.Env;
         var c = r.Container;
         <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
-            @if (showEnv)
-            {
-                <td class="nowrap">@env.Name</td>
-            }
+            <td class="nowrap">@env.Name</td>
             <td class="wrap">
                 <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
                 @if (!string.IsNullOrEmpty(c.Project))
@@ -180,10 +175,7 @@
                         </div>
 
                         <div class="env-card__foot">
-                            @if (showEnv)
-                            {
-                                <span class="mat-badge"><icon name="server" /> @env.Name</span>
-                            }
+                            <span class="mat-badge"><icon name="server" /> @env.Name</span>
                             @if (!string.IsNullOrEmpty(c.Project))
                             {
                                 <span class="mat-badge"><icon name="layers" /> @c.Project</span>
@@ -200,10 +192,7 @@
             <table class="data ctable" id="container-table">
                 <thead>
                     <tr>
-                        @if (showEnv)
-                        {
-                            <th>Environment</th>
-                        }
+                        <th>Environment</th>
                         <th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="actions">Actions</th>
                     </tr>
                 </thead>

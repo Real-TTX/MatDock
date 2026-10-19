@@ -68,15 +68,10 @@ else
                     </label>
                     <label class="mat-check">
                         <input asp-for="Input.StopContainers" type="checkbox" />
-                        <span>Stop containers using the target volume during the restore, then restart them</span>
+                        <span>Stop containers during restore</span>
                     </label>
                 </div>
             </div>
-        </div>
-
-        <div class="alert alert--info">
-            <icon name="alert" />
-            <span>The backup is restored into the target volume via <code>tar</code> over SSH. Requirement: Docker + <code>busybox</code> on the target host.</span>
         </div>
 
         <mat-form-buttons>

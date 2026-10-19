@@ -80,14 +80,6 @@ else
         }
     </div>
 
-    @if (d.IsRemote)
-    {
-        <div class="alert alert--info">
-            <icon name="volume" />
-            <span>Remote share (@(d.Options.TryGetValue("type", out var t) ? t : "remote")): <strong class="mono">@d.Device</strong></span>
-        </div>
-    }
-
     <div class="card" style="margin-bottom:16px;">
         <div class="card__header"><icon name="volume" /><span>Details</span></div>
         <div class="mat-table__scroll">

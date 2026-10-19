@@ -55,7 +55,7 @@ public class StackModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostActionAsync(long envId, string project, string id, ContainerAction action)
+    public async Task<IActionResult> OnPostActionAsync(long envId, string project, string id, ContainerAction action, string? name = null)
     {
         if (!ModelState.IsValid)
         {
@@ -73,7 +73,7 @@ public class StackModel : PageModel
         }
 
         var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
-        StatusMessage = $"{action} {id}: {message}";
+        StatusMessage = $"{action} {(string.IsNullOrWhiteSpace(name) ? id : name)}: {message}";
         IsError = !ok;
         return RedirectToPage(new { envId, project });
     }

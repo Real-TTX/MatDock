@@ -39,7 +39,7 @@
                         <option value="Matcad">Matcad (REST API)</option>
                     </select>
                 </mat-field>
-                <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin, e.g. http://host:2019 — or the Matcad base URL, e.g. http://matcad:4433 (/api/v1 is added automatically)">
+                <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin URL or Matcad base URL.">
                     <input asp-for="Input.Url" class="mat-input" placeholder="http://host:2019" />
                 </mat-field>
                 <div data-show-when="Input_Provider=Caddy">

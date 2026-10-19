@@ -63,10 +63,10 @@
         }
     };
     ws.onclose = function () {
-        term.write("\r\n\x1b[33m[Verbindung getrennt]\x1b[0m\r\n");
+        term.write("\r\n\x1b[33m[Disconnected]\x1b[0m\r\n");
     };
     ws.onerror = function () {
-        term.write("\r\n\x1b[31m[Verbindungsfehler]\x1b[0m\r\n");
+        term.write("\r\n\x1b[31m[Connection error]\x1b[0m\r\n");
     };
 
     var enc = new TextEncoder();

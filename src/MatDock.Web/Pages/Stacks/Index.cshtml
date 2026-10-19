@@ -83,18 +83,18 @@
                                     <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@r.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
                                 }
                                 <form method="post" asp-page-handler="ContainerAction" style="display:inline;">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--info" title="Restart"><icon name="refresh" /></button>
                                 </form>
                                 <form method="post" asp-page-handler="ContainerAction" data-confirm="Stop container '@c.Name'?" style="display:inline;">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
                                 </form>
                             }
                             else
                             {
                                 <form method="post" asp-page-handler="ContainerAction" style="display:inline;">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
+                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
                                 </form>
                             }
@@ -111,7 +111,7 @@
         <h1>Stacks</h1>
     </div>
     <div class="mat-buttons">
-        <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New Stack</span></a>
+        <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New stack</span></a>
     </div>
 </div>
 
@@ -251,7 +251,7 @@
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--warning" title="Stop (compose stop)"><icon name="stop" /></button>
                                         </form>
                                     }
-                                    <form method="post" asp-page-handler="Down" data-confirm="Down stack '@r.Name'? (compose down: stop &amp; remove containers)" style="display:inline;">
+                                    <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)" style="display:inline;">
                                         <input type="hidden" name="id" value="@mid" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Down (stop &amp; remove)"><icon name="x-circle" /></button>
                                     </form>
@@ -278,14 +278,14 @@
                                 }
                                 @if (r.Discovered)
                                 {
-                                    <form method="post" asp-page-handler="Adopt" data-confirm="Import '@r.Name' into MatDock? Reads its compose; running containers stay untouched." style="display:inline;">
+                                    <form method="post" asp-page-handler="Adopt" data-confirm="Adopt '@r.Name' into MatDock?" style="display:inline;">
                                         <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Adopt into MatDock (import compose, makes it editable)"><icon name="download" /><span>Adopt</span></button>
                                     </form>
                                 }
                                 <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                 <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /><span>Volumes</span></a>
-                                <form method="post" asp-page-handler="BundleBackup" data-confirm="Full backup of '@r.Name' (all volumes + compose + image refs) to the default target?" style="display:inline;">
+                                <form method="post" asp-page-handler="BundleBackup" data-confirm="Back up stack '@r.Name'?" style="display:inline;">
                                     <input type="hidden" name="envId" value="@r.EnvId" />
                                     <input type="hidden" name="project" value="@r.Name" />
                                     <button type="submit" class="mat-btn mat-btn--sm" title="Full backup (volumes + compose)"><icon name="save" /><span>Backup</span></button>
@@ -293,9 +293,9 @@
                                 <span style="flex:1 1 auto;"></span>
                                 @if (r.Managed && r.ManagedId is { } did)
                                 {
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete stack '@r.Name' from MatDock? (Containers will not be stopped)" style="display:inline;">
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running." style="display:inline;">
                                         <input type="hidden" name="id" value="@did" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Remove from MatDock"><icon name="trash" /></button>
                                     </form>
                                 }
                             </div>
@@ -386,7 +386,7 @@
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--warning" title="Stop (compose stop)"><icon name="stop" /></button>
                                             </form>
                                         }
-                                        <form method="post" asp-page-handler="Down" data-confirm="Down stack '@r.Name'? (compose down: stop &amp; remove containers)" style="display:inline;">
+                                        <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)" style="display:inline;">
                                             <input type="hidden" name="id" value="@id" />
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Down (stop &amp; remove)"><icon name="x-circle" /></button>
                                         </form>
@@ -395,9 +395,9 @@
                                         <a class="mat-btn mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers"><icon name="box" /></a>
                                         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /></a>
                                         <span style="width:8px;display:inline-block;"></span>
-                                        <form method="post" asp-page-handler="Delete" data-confirm="Delete stack '@r.Name' from MatDock? (Containers will not be stopped)" style="display:inline;">
+                                        <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running." style="display:inline;">
                                             <input type="hidden" name="id" value="@id" />
-                                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
+                                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Remove from MatDock"><icon name="trash" /></button>
                                         </form>
                                     }
                                     else
@@ -420,7 +420,7 @@
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--info" title="Restart"><icon name="refresh" /></button>
                                             </form>
                                         }
-                                        <form method="post" asp-page-handler="Adopt" data-confirm="Import '@r.Name' into MatDock? Reads its compose; running containers stay untouched." style="display:inline;">
+                                        <form method="post" asp-page-handler="Adopt" data-confirm="Adopt '@r.Name' into MatDock?" style="display:inline;">
                                             <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Adopt into MatDock (import compose, makes it editable)"><icon name="download" /></button>
                                         </form>
@@ -440,7 +440,7 @@
     </mat-table-body>
 
     <mat-table-actions>
-        <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New Stack</span></a>
+        <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New stack</span></a>
         <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

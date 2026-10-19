@@ -17,24 +17,24 @@
             <div asp-validation-summary="ModelOnly"></div>
 
             <div class="form-grid">
-                <mat-field label="Name" asp-for="Input.Name" hint="Display name of the app, e.g. 'Nginx Web Server'.">
+                <mat-field label="Name" asp-for="Input.Name">
                     <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nginx Web Server" />
                 </mat-field>
 
-                <mat-field label="Category" asp-for="Input.Category" hint="Optional, e.g. 'Web', 'Database'.">
-                    <input asp-for="Input.Category" class="mat-input" placeholder="Optional" />
+                <mat-field label="Category" asp-for="Input.Category" hint="Optional.">
+                    <input asp-for="Input.Category" class="mat-input" placeholder="e.g. Web, Database" />
                 </mat-field>
 
                 <mat-field label="Description" asp-for="Input.Description" class="span-2">
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
-                <mat-field label="Icon URL" asp-for="Input.IconUrl" class="span-2" hint="Optional logo URL for the app card; empty shows a letter avatar.">
+                <mat-field label="Icon URL" asp-for="Input.IconUrl" class="span-2" hint="Optional.">
                     <input asp-for="Input.IconUrl" class="mat-input" placeholder="https://…/logo.png" />
                 </mat-field>
             </div>
 
-            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Blueprint; on install it prefills a stack (you then choose name &amp; environment).">
+            <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Template for new stacks.">
                 <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="18" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
             </mat-field>
 

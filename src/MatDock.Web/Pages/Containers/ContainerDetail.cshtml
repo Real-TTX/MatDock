@@ -40,18 +40,18 @@ else if (c is not null)
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn"><icon name="refresh" /><span>Restart</span></button>
             </form>
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
         else
         {
             <form method="post" asp-page-handler="Action" style="display:inline;">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
             </form>
         }

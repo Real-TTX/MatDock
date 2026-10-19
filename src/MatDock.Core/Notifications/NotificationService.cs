@@ -11,7 +11,7 @@ namespace MatDock.Core.Notifications;
 public interface INotificationService
 {
     /// <summary>Sends a backup result notification via the configured channels (respecting the on-success/on-failure prefs).
-    /// <paramref name="title"/> labels the source — a schedule name, "Manuelles Backup: …" or "Sammel-Backup".</summary>
+    /// <paramref name="title"/> labels the source — a schedule name, "Manual backup: …" or "Bulk backup".</summary>
     Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default);
 
     /// <summary>Sends a test notification via all enabled channels; returns an aggregated result.</summary>

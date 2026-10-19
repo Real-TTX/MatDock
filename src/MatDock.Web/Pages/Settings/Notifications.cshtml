@@ -1,14 +1,14 @@
 @page
 @model MatDock.Web.Pages.Settings.NotificationsModel
 @{
-    ViewData["Title"] = "Benachrichtigungen";
+    ViewData["Title"] = "Notifications";
 }
 
 <partial name="_SystemTabs" />
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Benachrichtigungen</h1>
+        <h1>Notifications</h1>
     </div>
     <div class="mat-buttons">
         <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
@@ -36,7 +36,6 @@
                 <input asp-for="Input.NotifyOnSuccess" type="checkbox" />
                 <span>Also notify on success</span>
             </label>
-            <p class="text-muted" style="font-size:.82rem;margin-top:6px;">Applies to scheduled backups (result per run) as well as manual and bulk backups.</p>
         </div>
     </div>
 
@@ -45,7 +44,7 @@
         <div class="card__body">
             <label class="mat-check">
                 <input asp-for="Input.SmtpEnabled" type="checkbox" />
-                <span>Email notification enabled</span>
+                <span>Enabled</span>
             </label>
             <div class="mat-form">
                 <mat-field label="SMTP host" asp-for="Input.SmtpHost">
@@ -79,7 +78,7 @@
         <div class="card__body">
             <label class="mat-check">
                 <input asp-for="Input.WebhookEnabled" type="checkbox" />
-                <span>Webhook notification enabled</span>
+                <span>Enabled</span>
             </label>
             <mat-field label="Webhook URL" asp-for="Input.WebhookUrl" hint="A JSON POST is sent.">
                 <input asp-for="Input.WebhookUrl" class="mat-input" placeholder="https://hooks.example.com/…" autocomplete="off" />
@@ -92,5 +91,5 @@
         <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Send test</span></button>
         <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
     </mat-form-buttons>
-    <p class="text-muted" style="font-size:.82rem;margin-top:8px;">"Send test" uses the most recently saved settings.</p>
+    <p class="text-muted" style="font-size:.82rem;margin-top:8px;">Save before sending a test.</p>
 </form>

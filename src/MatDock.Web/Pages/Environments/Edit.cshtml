@@ -33,11 +33,11 @@
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
-                <mat-field label="Base URL" asp-for="Input.BaseUrl" class="span-2" hint="Optional, e.g. https://host – Open link on containers; overridable per container via the matdock.openurl label.">
+                <mat-field label="Base URL" asp-for="Input.BaseUrl" class="span-2" hint="Optional. Used for 'Open' links; a container can override it with the label matdock.openurl.">
                     <input asp-for="Input.BaseUrl" class="mat-input" placeholder="https://host.example.com" />
                 </mat-field>
 
-                <mat-field label="Connection type" asp-for="Input.ConnectionType" class="span-2" hint="SSH = remote host. Local = the Docker socket of this MatDock host (socket must be mounted).">
+                <mat-field label="Connection type" asp-for="Input.ConnectionType" class="span-2">
                     <select asp-for="Input.ConnectionType" id="ConnectionType" class="mat-select">
                         <option value="Ssh">SSH (remote host)</option>
                         <option value="Local">Local (Docker socket)</option>
@@ -47,7 +47,7 @@
 
             <div data-show-when="ConnectionType=Local">
                 <div class="alert alert--info">
-                    <icon name="server" /><span>Local environment: MatDock talks directly to the mounted Docker socket – no host/SSH required. Prerequisite: container started with <code>-v /var/run/docker.sock:/var/run/docker.sock</code>.</span>
+                    <icon name="server" /><span>Requires <code>-v /var/run/docker.sock:/var/run/docker.sock</code>.</span>
                 </div>
             </div>
 
@@ -74,7 +74,7 @@
                 </div>
 
             @{
-                var secretHint = Model.IsEdit ? "Leave blank to keep the stored secret." : null;
+                var secretHint = Model.IsEdit ? "Leave empty to keep the stored one (only while host, port and user stay the same)." : null;
             }
 
             <div data-show-when="AuthType=Password">
@@ -100,7 +100,7 @@
                 <mat-form-buttons>
                     <button type="submit" asp-page-handler="GenerateKey" class="mat-btn" formnovalidate><icon name="key" /><span>Generate key pair</span></button>
                 </mat-form-buttons>
-                <p class="mat-hint">For hosts that only allow root login via key (<code>PermitRootLogin prohibit-password</code>). MatDock generates the pair, and you install the public key on the host.</p>
+                <p class="mat-hint">MatDock generates the pair; you install the public key on the host.</p>
             </div>
             </div>
 
@@ -121,7 +121,7 @@
                         <icon name="@(Model.IsEnabled ? "lock" : "check-circle")" /><span>@(Model.IsEnabled ? "Disable" : "Enable")</span>
                     </button>
                 </form>
-                <form method="post" asp-page-handler="Delete" data-confirm="Really delete environment '@Model.Input.Name'? This cannot be undone." style="display:inline;">
+                <form method="post" asp-page-handler="Delete" data-confirm="Delete environment '@Model.Input.Name'?" style="display:inline;">
                     <input type="hidden" name="id" value="@Model.Input.Id" />
                     <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Delete</span></button>
                 </form>

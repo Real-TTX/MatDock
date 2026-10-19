@@ -76,7 +76,7 @@
     <div class="card" style="max-width:620px;">
         <div class="card__header"><icon name="refresh" /><span>Run update</span></div>
         <div class="card__body">
-            <p class="mat-hint" style="margin-bottom:12px;">Pulls newer images and redeploys the stack (<code>compose pull</code> + <code>up -d</code>).</p>
+            <p class="mat-hint" style="margin-bottom:12px;">Pulls the new images and redeploys.</p>
             <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
                 <label class="mat-check" style="margin-bottom:12px;">
                     <input asp-for="PreBackup" type="checkbox" />

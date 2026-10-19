@@ -79,7 +79,7 @@ public class IndexModel : PageModel
         LoadErrors = results.Where(r => r.error is not null).Select(r => $"{r.env.Name}: {r.error}").ToList();
     }
 
-    public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action)
+    public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action, string? name = null)
     {
         if (!ModelState.IsValid)
         {
@@ -97,7 +97,7 @@ public class IndexModel : PageModel
         }
 
         var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
-        StatusMessage = $"{action} {id}: {message}";
+        StatusMessage = $"{action} {(string.IsNullOrWhiteSpace(name) ? id : name)}: {message}";
         IsError = !ok;
         return RedirectToPage();
     }

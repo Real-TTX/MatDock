@@ -337,7 +337,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Stack deleted (containers may still be running – stop them first)." : "Stack not found.";
+        StatusMessage = deleted ? "Stack removed from MatDock." : "Stack not found.";
         IsError = !deleted;
         return RedirectToPage();
     }
@@ -361,7 +361,7 @@ public class IndexModel : PageModel
     }
 
     /// <summary>Start/stop/restart a single container from an expanded stack, staying on the current view.</summary>
-    public async Task<IActionResult> OnPostContainerActionAsync(long envId, string id, ContainerAction action)
+    public async Task<IActionResult> OnPostContainerActionAsync(long envId, string id, ContainerAction action, string? name = null)
     {
         var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
         if (env is null || !env.IsEnabled)
@@ -372,7 +372,7 @@ public class IndexModel : PageModel
         }
 
         var (ok, message) = await _containerService.ActionAsync(env, id, action, HttpContext.RequestAborted);
-        StatusMessage = $"{action} {id}: {message}";
+        StatusMessage = $"{action} {(string.IsNullOrWhiteSpace(name) ? id : name)}: {message}";
         IsError = !ok;
         return RedirectToPage(new { view = View, Q, Status, Type });
     }

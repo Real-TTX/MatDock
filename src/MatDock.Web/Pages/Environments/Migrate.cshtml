@@ -22,7 +22,6 @@
         <icon name="@(okCount == Model.Results.Count ? "check-circle" : "alert")" />
         <div>
             <div class="result-banner__big">@okCount / @Model.Results.Count migrated</div>
-            <div class="result-banner__sub">Result of the migration</div>
         </div>
     </div>
     <ul class="result-steps">
@@ -139,7 +138,7 @@ else if (Model.Results.Count == 0)
         <div data-show-when="MigrationMode=Direct">
             <div class="alert alert--info">
                 <icon name="alert" />
-                <span>The data is streamed directly over SSH via <code>tar</code> (source → target), without intermediate storage. The source is mounted read-only. Prerequisite: Docker + the helper image (<code>busybox</code>) on both hosts.</span>
+                <span>Streams the data over SSH with <code>tar</code>; needs <code>busybox</code> on both hosts.</span>
             </div>
         </div>
 
@@ -161,7 +160,7 @@ else if (Model.Results.Count == 0)
             </div>
             <div class="alert alert--info">
                 <icon name="save" />
-                <span>Each volume is first saved as a backup and then restored into the target. The backup is always kept if an error occurs and can be restored again. Requires free space (~volume size) at the backup target.</span>
+                <span>Backs up each volume, then restores it on the target; needs free space at the backup target.</span>
             </div>
         </div>
 
@@ -180,7 +179,7 @@ else if (Model.Results.Count == 0)
             }
             <label class="mat-check">
                 <input asp-for="Input.StopContainers" type="checkbox" />
-                <span>Stop containers during the operation and restart them afterwards (consistent snapshot)</span>
+                <span>Stop containers during migration</span>
             </label>
         </div>
 

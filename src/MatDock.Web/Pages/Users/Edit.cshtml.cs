@@ -86,7 +86,7 @@ public class EditModel : PageModel
 
         if (Input.Role == UserRole.Anonymous)
         {
-            ModelState.AddModelError("Input.Role", "The \"Anonymous\" role is reserved for link shares.");
+            ModelState.AddModelError("Input.Role", "Invalid role.");
         }
 
         if (!ModelState.IsValid)

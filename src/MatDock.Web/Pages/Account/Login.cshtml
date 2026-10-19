@@ -8,7 +8,7 @@
     <div class="login__brand">
         <img src="~/img/logo.svg" alt="MatDock" />
         <span class="name">MatDock</span>
-        <span class="tagline">Docker Environment &amp; Volume Manager</span>
+        <span class="tagline">Docker manager</span>
     </div>
 
     @if (Model.SsoError)
@@ -19,16 +19,9 @@
     @if (Model.PendingLink is not null)
     {
         <div id="login-link" class="card">
-            <div class="card__header"><icon name="key" /><span>Connect your account with MatIdentity</span></div>
+            <div class="card__header"><icon name="key" /><span>Link your account to MatIdentity</span></div>
             <div class="card__body">
-                <p>
-                    There is already a MatDock account named <strong>@(Model.PendingLink.PreferredUserName ?? Model.PendingLink.Email)</strong>.
-                    Sign in once with its password to connect it with MatIdentity; after that, the sign-in through MatIdentity goes straight into this account.
-                </p>
-                <p class="text-muted">
-                    If this is not your account, cancel: nothing is connected. Signing in with a different account does not connect this one;
-                    only the password of exactly this account can.
-                </p>
+                <p>An account named <strong>@(Model.PendingLink.PreferredUserName ?? Model.PendingLink.Email)</strong> already exists. Sign in with its password to link it to MatIdentity.</p>
                 <form method="post" asp-page-handler="CancelLink" id="link-cancel-form">
                     <input type="hidden" asp-for="ReturnUrl" />
                     <button type="submit" id="lc-cancel" class="mat-btn mat-btn--ghost"><icon name="x-circle" /><span>Cancel</span></button>
@@ -38,7 +31,7 @@
     }
     else if (Model.LinkExpired)
     {
-        <div id="login-link-expired" class="alert alert--info"><icon name="alert" /><span>The request to connect an account with MatIdentity is only valid for ten minutes. Sign in through MatIdentity again to retry.</span></div>
+        <div id="login-link-expired" class="alert alert--info"><icon name="alert" /><span>Link request expired. Sign in with MatIdentity again.</span></div>
     }
 
     @if (Model.IdentityEnabled)

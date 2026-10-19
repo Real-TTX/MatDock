@@ -81,18 +81,18 @@ else
                                 @if (c.IsRunning)
                                 {
                                     <form method="post" asp-page-handler="Action" style="display:inline;">
-                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Restart" />
+                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
                                     </form>
                                     <form method="post" asp-page-handler="Action" data-confirm="Stop '@c.Name'?" style="display:inline;">
-                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Stop" />
+                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
                                     </form>
                                 }
                                 else
                                 {
                                     <form method="post" asp-page-handler="Action" style="display:inline;">
-                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="action" value="Start" />
+                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
                                     </form>
                                 }
