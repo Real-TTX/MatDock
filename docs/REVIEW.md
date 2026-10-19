@@ -114,3 +114,26 @@ socket.
 Everything was tried against real Docker on this PC (local registry for the rollback, a scratch container, an OpenSSH + git server,
 docker:dind with TLS, Trivy) besides the tests. Tests: 410 at the start, 542 now (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`);
 build without warnings. Migrations: `AddActivityLog`, `AddEnvironmentHostKey`, `AddGitSshKey`, `AddEnvironmentDockerApi`, `AddImageScan`.
+
+## 5. Moving the UI onto MatUi
+
+**Assessment.** MatDock does not use MatUi: it has its own stylesheet (`matdock.css`, about 850 lines) and script (`matdock.js`). Its class
+names grew from the same roots – 16 of its 28 `mat-*` classes exist in MatUi (`mat-btn`, `mat-field`, `mat-input`, `mat-select`, `mat-tabs`,
+`mat-badge`, `mat-switch` …) – but they are defined differently, and both stylesheets are global. Loading `matui.css` therefore changes every page
+at once, and the shell (menu, top bar, theme button, environment switch) is one layout for all pages. A page-by-page move behind a switch
+would mean two design systems side by side on the same class names; that is not safe, so the move was **not started**. It is a step of its
+own, done on a branch and released as a whole:
+
+| Step | What | Where |
+|---|---|---|
+| 1 | Copy MatUi (`matui.css`, `matui.js`, `matui.boot.js`, `matui-icons.svg`; CODE-03), `data-app="matdock"` on `<html>`. The registry has MatDock's accent as `#1d78be`; MatDock still uses Docker blue `#2496ed` – decide which one stays (or record it as `FoundAccent`) | `wwwroot/`, `_Layout.cshtml`, MatDesign `AppRegistry.cs` |
+| 2 | The shell: `mat-nav` with groups (Overview: Dashboard, Environments, Apps · Docker: Stacks, Containers, Images, Volumes, Networks · Operations: Sync, Schedules, Backups · System), the user menu at the foot with *Sign out* last, the three-state theme button (`data-theme-save-url` when it is kept per user), a breadcrumb and the page head; the environment switch becomes a context choice in the switcher (SHELL-15) | `_Layout.cshtml`, `Support/EnvSelection.cs` |
+| 3 | The list and form helpers render MatUi markup: `<mat-table>` → `mat-toolbar` (search field, Filter and Sort as dialogs, chips for what is in effect) + `mat-table` + `mat-pager`; `<mat-field>` → MatUi field with hint and error; `<mat-form-buttons>` → `mat-btn-row` | `Controls/*TagHelper.cs` – most pages follow without edits |
+| 4 | Own components to MatUi: `card` → `mat-card`, `alert` → `mat-alert`, `pill` → `mat-pill`/`mat-tag`, `stat` → `mat-stat`, `empty-state` → `mat-empty`, the CPU/RAM gauges → `mat-meter` with `data-value` (removes the last inline `style` widths), `data-label` on every table cell (TABLE-02) | all pages |
+| 5 | Dialogs: `data-confirm` and the prompts of the file browser use the toolkit's dialogs (`MatUi.confirm`/`prompt`); the confirm/prompt code of `matdock.js` goes | `matdock.js`, Volumes/Files |
+| 6 | What only MatDock has keeps its own classes with an app prefix: log viewer, terminal, network map, file browser, code editor, host lines | `matdock.css` (shrinks to these) |
+| 7 | Delete the rest of `matdock.css`: its colour variables (`--mat-*` tokens instead), the gradient buttons, lifting cards, upper-case labels (COLOR-06) | `matdock.css` |
+| 8 | Check: MatDesign *Identity → Audit*, `node tools/matui-check.js`, screenshots light/dark/390 px of every page, `PageMarkupTests` extended (no `style=` attributes, `data-label` in tables) | tests, `docs/images` |
+
+**Effort** L (several days); **risk** visual regressions on every page – nothing changes for `/api/v1`, `/api` or the data. Steps 1–3 carry
+most of the gain (the shell and the list/edit patterns of the whole family); 4–7 are mechanical after that.
