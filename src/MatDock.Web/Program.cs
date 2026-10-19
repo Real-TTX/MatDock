@@ -162,7 +162,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Schedules", "AdminOnly");
     // The web terminal is an interactive shell to the host/containers → admins only.
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
-});
+})
+    // Every action of a user on a page goes into the activity log (System → Activity).
+    .AddMvcOptions(o => o.Filters.Add<ActivityPageFilter>());
 
 var app = builder.Build();
 
@@ -210,6 +212,8 @@ app.UseAuthentication();
 app.UseMiddleware<SetupGuardMiddleware>();
 app.UseMiddleware<PasswordChangeGuardMiddleware>();
 app.UseAuthorization();
+// The changing calls of /api/v1, /api/configure and /api/actions go into the activity log too.
+app.UseApiActivity();
 app.MapRazorPages();
 
 // Interactive terminal (WebSocket ⇄ SSH PTY). Admin-only; the handler validates env + container id.

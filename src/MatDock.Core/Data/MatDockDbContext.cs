@@ -36,6 +36,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
+    public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -255,6 +256,20 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.ManagedBy).HasMaxLength(100);
             e.HasIndex(x => x.Name);
             e.HasIndex(x => new { x.SourceKind, x.SourceId });
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<ActivityEntry>(e =>
+        {
+            e.ToTable("ActivityEntry");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Actor).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Source).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Action).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Target).HasMaxLength(300);
+            e.Property(x => x.Environment).HasMaxLength(128);
+            e.Property(x => x.Message).HasMaxLength(500);
+            e.HasIndex(x => x.CreateDate);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

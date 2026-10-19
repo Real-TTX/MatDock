@@ -5,9 +5,10 @@
     var onNotifications = Is("/Settings/Notifications");
     var onProxies = Is("/Settings/Proxies");
     var onRegistries = Is("/Settings/Registries");
+    var onActivity = Is("/Settings/Activity");
     var onBackupTargets = Is("/Settings/BackupTargetEdit")
-        || (Is("/Settings") && !onNotifications && !onProxies && !onRegistries && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
-    var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onBackupTargets;
+        || (Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
+    var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && !onBackupTargets;
 }
 <nav class="mat-tabs">
     <a class="mat-tabs__tab @(onGeneral ? "is-active" : "")" href="/Settings"><icon name="settings" /><span>General</span></a>
@@ -18,4 +19,5 @@
     <a class="mat-tabs__tab @(onProxies ? "is-active" : "")" href="/Settings/Proxies"><icon name="route" /><span>Proxies</span></a>
     <a class="mat-tabs__tab @(onRegistries ? "is-active" : "")" href="/Settings/Registries"><icon name="registry" /><span>Registries</span></a>
     <a class="mat-tabs__tab @(onBackupTargets ? "is-active" : "")" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
+    <a class="mat-tabs__tab @(onActivity ? "is-active" : "")" href="/Settings/Activity"><icon name="clock" /><span>Activity</span></a>
 </nav>

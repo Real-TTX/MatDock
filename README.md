@@ -72,6 +72,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Web terminal** (xterm.js) – a shell on the host or straight into a container
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
+- An **activity log** (System → Activity): every action of a user and every changing call of the API, with user,
+  target, environment and result, searchable, kept for 90 days
 
 **Schedules and alerts**
 - Cron schedules for prune (volumes, images, networks), status reports, health alerts, volume and stack backups and Git sync
