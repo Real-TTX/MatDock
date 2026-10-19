@@ -31,12 +31,12 @@
         <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack"><icon name="volume" /></a>
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" style="display:inline;">
+            <form method="post" asp-page-handler="Action" class="u-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="u-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
@@ -44,7 +44,7 @@
         }
         else
         {
-            <form method="post" asp-page-handler="Action" style="display:inline;">
+            <form method="post" asp-page-handler="Action" class="u-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
@@ -129,7 +129,7 @@
             </select>
         </div>
         <span class="text-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
-        <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
+        <div class="u-ml-auto view-toggle" role="group" aria-label="View">
             <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
             <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
         </div>
@@ -154,7 +154,7 @@
                     var c = r.Container;
                     <div class="env-card" data-item data-state="@State(c)" data-search="@SearchKey(r)">
                         <div class="env-card__head">
-                            <div style="min-width:0;">
+                            <div class="u-minw-0">
                                 <div class="env-card__name"><a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></div>
                                 <div class="env-card__host" title="@c.Image">@c.Image</div>
                             </div>
@@ -180,7 +180,7 @@
                             {
                                 <span class="mat-badge"><icon name="layers" /> @c.Project</span>
                             }
-                            <span style="flex:1 1 auto;"></span>
+                            <span class="mat-buttons__spacer"></span>
                             @{ await Actions(r); }
                         </div>
                     </div>

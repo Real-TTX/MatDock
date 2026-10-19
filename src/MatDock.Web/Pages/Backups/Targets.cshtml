@@ -46,8 +46,8 @@
     <div class="alert alert--error"><icon name="x-circle" /><span>@Model.SelectedName: @Model.Error</span></div>
 }
 
-<div class="card" style="padding:0;">
-    <div class="card__header"><icon name="save" /><span>@Model.SelectedName</span><span style="flex:1 1 auto;"></span><span class="text-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
+<div class="u-flush card">
+    <div class="card__header"><icon name="save" /><span>@Model.SelectedName</span><span class="mat-buttons__spacer"></span><span class="text-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
     <div class="mat-table__scroll">
         <table class="data">
             <thead>
@@ -131,7 +131,7 @@
                                     </details>
                                 }
                                 <a class="mat-btn mat-btn--sm" href="/Backups/Targets?handler=Download&targetId=@Model.TargetId&fileName=@Uri.EscapeDataString(a.FileName)" title="Download"><icon name="download" /></a>
-                                <form method="post" asp-page-handler="Delete" data-confirm="Delete '@a.FileName' from this target?" style="display:inline;">
+                                <form method="post" asp-page-handler="Delete" data-confirm="Delete '@a.FileName' from this target?" class="u-inline">
                                     <input type="hidden" name="targetId" value="@Model.TargetId" />
                                     <input type="hidden" name="fileName" value="@a.FileName" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

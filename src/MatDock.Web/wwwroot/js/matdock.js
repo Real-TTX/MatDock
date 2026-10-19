@@ -110,6 +110,11 @@
         });
     });
 
+    /* ---------------- Read-only fields that select their whole text on click ---------------- */
+    document.querySelectorAll("[data-select-on-click]").forEach(function (el) {
+        el.addEventListener("click", function () { el.select(); });
+    });
+
     /* ---------------- Migrate page: source-volume multi-select + filter ---------------- */
     (function () {
         var picker = document.querySelector("[data-migrate-volumes]");

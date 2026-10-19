@@ -28,7 +28,7 @@
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="js-autosubmit" style="display:contents;">
+        <form method="get" class="u-contents js-autosubmit">
             <div class="search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (network, driver, environment)…" />
@@ -85,7 +85,7 @@
                                     <a class="mat-btn mat-btn--sm" href="/Networks/Detail?envId=@row.Environment.Id&network=@Uri.EscapeDataString(row.Network.Name)" title="Open"><icon name="external" /></a>
                                     @if (isAdmin && !row.Network.IsPredefined)
                                     {
-                                        <form method="post" asp-page-handler="Remove" style="display:inline;"
+                                        <form method="post" asp-page-handler="Remove" class="u-inline"
                                               data-confirm="Delete network &quot;@row.Network.Name&quot;?">
                                             <input type="hidden" name="envId" value="@row.Environment.Id" />
                                             <input type="hidden" name="name" value="@row.Network.Name" />

@@ -26,7 +26,7 @@
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="js-autosubmit" style="display:contents;">
+        <form method="get" class="u-contents js-autosubmit">
             <input type="hidden" name="view" value="@Model.View" />
             <div class="search">
                 <icon name="search" />
@@ -56,7 +56,7 @@
                 </select>
             </div>
         </form>
-        <div class="view-toggle" role="group" aria-label="View" style="margin-left:auto;">
+        <div class="u-ml-auto view-toggle" role="group" aria-label="View">
             <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
             <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Gallery" aria-label="Gallery"><icon name="dashboard" /></a>
         </div>
@@ -87,7 +87,7 @@
                                     <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")">@env.Name</a>
                                     @if (!env.IsEnabled)
                                     {
-                                        <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
+                                        <span class="u-ml-xs pill pill--unknown">Disabled</span>
                                     }
                                 </div>
                                 <div class="env-card__host">@MatDock.Web.Support.EnvironmentView.Address(env)</div>
@@ -117,10 +117,10 @@
                             <span class="mat-badge"><icon name="box" /> @(st.RunningContainers?.ToString() ?? "–") Container</span>
                             @if (!string.IsNullOrEmpty(env.DockerVersion))
                             {
-                                <span class="text-muted" style="font-size:.78rem;">Docker @env.DockerVersion</span>
+                                <span class="u-small text-muted">Docker @env.DockerVersion</span>
                             }
                             <span class="text-muted" style="font-size:.72rem;">checked @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "never")</span>
-                            <span style="flex:1 1 auto;"></span>
+                            <span class="mat-buttons__spacer"></span>
                             @if (env.IsEnabled)
                             {
                                 @if (User.IsInRole("Admin"))
@@ -164,11 +164,11 @@
                                 <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")"><strong>@env.Name</strong></a>
                                 @if (!env.IsEnabled)
                                 {
-                                    <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
+                                    <span class="u-ml-xs pill pill--unknown">Disabled</span>
                                 }
                                 @if (!string.IsNullOrWhiteSpace(env.Description))
                                 {
-                                    <div class="text-muted" style="font-size:.8rem;">@env.Description</div>
+                                    <div class="u-small text-muted">@env.Description</div>
                                 }
                             </td>
                             <td class="mono">@MatDock.Web.Support.EnvironmentView.Address(env)</td>

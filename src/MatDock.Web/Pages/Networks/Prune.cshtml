@@ -13,7 +13,7 @@
     </div>
 </div>
 
-<div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+<div class="u-maxw-xs u-mb mat-form">
     <label class="mat-label" for="prune-env">Environment</label>
     <select id="prune-env" class="mat-select" data-nav-select="/Networks/Prune?env={v}">
         <option value="0" selected="@(Model.EnvId == 0)">All environments</option>
@@ -71,7 +71,7 @@
 
         @foreach (var g in Model.Groups)
         {
-            <div class="card" style="margin-bottom:16px;">
+            <div class="u-mb card">
                 <div class="card__header">
                     <icon name="server" /><span>@g.Environment.Name</span>
                     <span class="mat-badge">@g.Networks.Count</span>

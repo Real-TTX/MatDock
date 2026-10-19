@@ -92,7 +92,7 @@
                     <td class="cell-sub" title="@t.LastStatus">@Ago(t.LastRunAt)</td>
                     <td class="actions">
                         <div class="row-actions">
-                            <form method="post" asp-page-handler="RunNow" style="display:inline;">
+                            <form method="post" asp-page-handler="RunNow" class="u-inline">
                                 <input type="hidden" name="id" value="@t.Id" />
                                 <button type="submit" class="mat-btn mat-btn--sm" title="Run now"><icon name="refresh" /></button>
                             </form>

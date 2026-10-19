@@ -24,7 +24,7 @@
 
 @if (Model.Registries.Count > 1)
 {
-    <div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+    <div class="u-maxw-xs u-mb mat-form">
         <label class="mat-label" for="conn-picker">Registry</label>
         <select id="conn-picker" class="mat-select" data-nav-select="/Registry?ConnId={v}">
             @foreach (var r in Model.Registries)

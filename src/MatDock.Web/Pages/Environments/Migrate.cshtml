@@ -164,10 +164,10 @@ else if (Model.Results.Count == 0)
             </div>
         </div>
 
-        <div class="mat-form" style="margin-top:16px;">
+        <div class="u-mt mat-form">
             @if (Model.AffectedContainers.Count > 0)
             {
-                <div class="alert alert--info" style="flex-direction:column;align-items:stretch;gap:8px;">
+                <div class="alert--stack alert alert--info">
                     <div><icon name="box" /> <strong>@Model.AffectedContainers.Count container(s)</strong> use the selected volume(s):</div>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
                         @foreach (var c in Model.AffectedContainers)

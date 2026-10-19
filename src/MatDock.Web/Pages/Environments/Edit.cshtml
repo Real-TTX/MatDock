@@ -18,7 +18,7 @@
     </div>
 }
 
-<div class="card" style="max-width:760px;">
+<div class="u-maxw card">
     <div class="card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -86,9 +86,9 @@
             <div data-show-when="AuthType=PrivateKey">
                 @if (!string.IsNullOrEmpty(Model.GeneratedPublicKey))
                 {
-                    <div class="alert alert--success" style="flex-direction:column;align-items:stretch;gap:8px;">
+                    <div class="alert--stack alert alert--success">
                         <div><icon name="key" /> <strong>Install the public key on the host:</strong> run once on <code>@Model.Input.Host</code> as <code>@Model.Input.Username</code> (then <em>Save</em> below):</div>
-                        <textarea class="mat-textarea" rows="2" readonly onclick="this.select()">mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
+                        <textarea class="mat-textarea" rows="2" readonly data-select-on-click>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
                     </div>
                 }
                 <mat-field label="Private SSH key (PEM)" asp-for="Input.PrivateKeyPem" hint="@secretHint">

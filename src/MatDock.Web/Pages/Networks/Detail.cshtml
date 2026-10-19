@@ -37,7 +37,7 @@ else
     @if (isAdmin && !Model.IsPredefined)
     {
         var netInUse = d.Containers.Count > 0;
-        <div class="mat-buttons" style="margin-bottom:16px;">
+        <div class="u-mb mat-buttons">
             <form method="post" asp-page-handler="Remove" data-confirm="Delete network &quot;@d.Name&quot;?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="network" value="@d.Name" />
@@ -49,7 +49,7 @@ else
         </div>
     }
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="network" /><span>Details</span></div>
         <div class="mat-table__scroll">
             <table class="data">
@@ -73,7 +73,7 @@ else
 
     @if (d.Options.Count > 0)
     {
-        <div class="card" style="margin-bottom:16px;">
+        <div class="u-mb card">
             <div class="card__header"><icon name="settings" /><span>Options</span></div>
             <div class="mat-table__scroll">
                 <table class="data">
@@ -91,7 +91,7 @@ else
 
     @if (d.Labels.Count > 0)
     {
-        <div class="card" style="margin-bottom:16px;">
+        <div class="u-mb card">
             <div class="card__header"><icon name="filter" /><span>Labels</span></div>
             <div class="mat-table__scroll">
                 <table class="data">

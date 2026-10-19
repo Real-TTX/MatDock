@@ -31,7 +31,7 @@
 
 @if (Model.Connections.Count > 1)
 {
-    <div class="mat-form" style="max-width:420px;margin-bottom:16px;">
+    <div class="u-maxw-xs u-mb mat-form">
         <label class="mat-label" for="conn-picker">Proxy</label>
         <select id="conn-picker" class="mat-select" data-nav-select="/Proxy?ConnId={v}">
             @foreach (var c in Model.Connections)
@@ -44,7 +44,7 @@
 
 @if (Model.Selected is not null)
 {
-    <div class="card" style="max-width:820px;margin-bottom:16px;">
+    <div class="u-mb u-maxw card">
         <div class="card__header"><icon name="plus" /><span>Add route on @Model.Selected.Name</span></div>
         <div class="card__body">
             <form method="post" asp-page-handler="Add" class="mat-form">
@@ -73,7 +73,7 @@
         <div class="alert alert--warning"><icon name="alert" /><span>Could not load routes: @Model.RouteError</span></div>
     }
 
-    <div class="card" style="padding:0;">
+    <div class="u-flush card">
         <table class="data">
             <thead>
                 <tr><th>Hostname</th><th>Upstream</th><th>TLS</th><th class="actions">Actions</th></tr>
@@ -91,7 +91,7 @@
                         <td>@(r.Tls ? "yes" : "–")</td>
                         <td class="actions">
                             <div class="row-actions">
-                                <form method="post" asp-page-handler="Remove" data-confirm="Delete route @r.Host?" style="display:inline;">
+                                <form method="post" asp-page-handler="Remove" data-confirm="Delete route @r.Host?" class="u-inline">
                                     <input type="hidden" name="connId" value="@Model.Selected.Id" />
                                     <input type="hidden" name="routeId" value="@r.Id" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

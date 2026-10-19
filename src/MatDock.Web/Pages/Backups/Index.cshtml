@@ -57,13 +57,13 @@
                                 <div class="row-actions">
                                     @if (b.Status == StackBackupStatus.Succeeded)
                                     {
-                                        <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first." style="display:inline;">
+                                        <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first." class="u-inline">
                                             <input type="hidden" name="id" value="@b.Id" />
                                             <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Restore"><icon name="refresh" /><span>Restore</span></button>
                                         </form>
                                     }
-                                    <span style="width:8px;display:inline-block;"></span>
-                                    <form method="post" asp-page-handler="DeleteBundle" data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?" style="display:inline;">
+                                    <span class="u-gap"></span>
+                                    <form method="post" asp-page-handler="DeleteBundle" data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?" class="u-inline">
                                         <input type="hidden" name="id" value="@b.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                                     </form>
@@ -80,7 +80,7 @@
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="js-autosubmit" style="display:contents;">
+        <form method="get" class="u-contents js-autosubmit">
             @if (!string.IsNullOrEmpty(Model.Volume))
             {
                 <input type="hidden" name="Volume" value="@Model.Volume" />
@@ -133,8 +133,8 @@
                             <td class="actions">
                                 <div class="row-actions">
                                     <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Backups/Restore?id=@b.Id" title="Restore"><icon name="refresh" /><span>Restore</span></a>
-                                    <span style="width:8px;display:inline-block;"></span>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?" style="display:inline;">
+                                    <span class="u-gap"></span>
+                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?" class="u-inline">
                                         <input type="hidden" name="id" value="@b.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
                                     </form>

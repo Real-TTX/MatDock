@@ -21,7 +21,7 @@
 
 @if (!Model.IsBackupTab)
 {
-    <div class="card" style="margin-bottom:16px;max-width:820px;">
+    <div class="u-mb u-maxw card">
         <div class="card__header"><icon name="whale" /><span>MatDock</span></div>
         <div class="mat-table__scroll">
             <table class="data">
@@ -58,7 +58,7 @@ else
                             }
                             else
                             {
-                                <form method="post" asp-page-handler="LocalDefault" style="display:inline;">
+                                <form method="post" asp-page-handler="LocalDefault" class="u-inline">
                                     <button type="submit" class="mat-btn mat-btn--sm">Set as default</button>
                                 </form>
                             }
@@ -78,7 +78,7 @@ else
                                 }
                                 else
                                 {
-                                    <form method="post" asp-page-handler="Default" style="display:inline;">
+                                    <form method="post" asp-page-handler="Default" class="u-inline">
                                         <input type="hidden" name="id" value="@t.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm">Set as default</button>
                                     </form>
@@ -86,7 +86,7 @@ else
                             </td>
                             <td class="actions">
                                 <div class="row-actions">
-                                    <form method="post" asp-page-handler="Test" style="display:inline;">
+                                    <form method="post" asp-page-handler="Test" class="u-inline">
                                         <input type="hidden" name="id" value="@t.Id" />
                                         <button type="submit" class="mat-btn mat-btn--sm" title="Test"><icon name="plug" /></button>
                                     </form>

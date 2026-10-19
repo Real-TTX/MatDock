@@ -62,14 +62,14 @@ else
 
     var volInUse = Model.UsedBy.Count > 0;
 
-    <div class="mat-buttons" style="margin-bottom:16px;">
+    <div class="u-mb mat-buttons">
         @if (User.IsAdmin())
         {
             <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
             <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
             <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
-            <span style="flex:1 1 auto;"></span>
-            <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." style="display:inline;">
+            <span class="mat-buttons__spacer"></span>
+            <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="volume" value="@d.Name" />
                 <button type="submit" class="mat-btn mat-btn--danger" disabled="@volInUse"
@@ -80,7 +80,7 @@ else
         }
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="volume" /><span>Details</span></div>
         <div class="mat-table__scroll">
             <table class="data">
@@ -101,7 +101,7 @@ else
 
     @if (d.Options.Count > 0)
     {
-        <div class="card" style="margin-bottom:16px;">
+        <div class="u-mb card">
             <div class="card__header"><icon name="settings" /><span>Driver options</span></div>
             <div class="mat-table__scroll">
                 <table class="data">
@@ -119,7 +119,7 @@ else
 
     @if (d.Labels.Count > 0)
     {
-        <div class="card" style="margin-bottom:16px;">
+        <div class="u-mb card">
             <div class="card__header"><icon name="filter" /><span>Labels</span></div>
             <div class="mat-table__scroll">
                 <table class="data">

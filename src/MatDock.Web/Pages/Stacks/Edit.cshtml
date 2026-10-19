@@ -30,10 +30,10 @@
 }
 @if (!string.IsNullOrEmpty(Model.DeployOutput))
 {
-    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:.8rem;white-space:pre-wrap;word-break:break-word;margin-bottom:16px;">@Model.DeployOutput</pre>
+    <pre class="output-pre">@Model.DeployOutput</pre>
 }
 
-<div class="card" style="max-width:900px;">
+<div class="u-maxw-lg card">
     <div class="card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />

@@ -12,14 +12,14 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert alert--success" style="max-width:900px;"><icon name="check-circle" /><span>@Model.StatusMessage</span></div>
+    <div class="u-maxw-lg alert alert--success"><icon name="check-circle" /><span>@Model.StatusMessage</span></div>
 }
 
-<form method="post" class="mat-form" style="max-width:900px;">
+<form method="post" class="u-maxw-lg mat-form">
     <input type="hidden" asp-for="Input.Id" />
     <div asp-validation-summary="ModelOnly"></div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="git" /><span>Repository</span></div>
         <div class="card__body">
             @if (Model.SavedRepos.Count > 0)
@@ -73,7 +73,7 @@
         </div>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="clock" /><span>Triggers</span></div>
         <div class="card__body">
             <div class="mat-switches">
@@ -104,7 +104,7 @@
         </div>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="settings" /><span>Deploy behavior</span></div>
         <div class="card__body">
             <div class="mat-switches">
@@ -127,7 +127,7 @@
         </div>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="layers" /><span>Compose files → environments</span></div>
         <div class="card__body">
             @if (Model.Input.Rows.Count == 0)
@@ -202,12 +202,12 @@
 
 @if (Model.IsEdit && Model.WebhookUrl is not null)
 {
-    <div class="card" style="max-width:900px;margin-top:16px;">
+    <div class="u-mt u-maxw-lg card">
         <div class="card__header"><icon name="plug" /><span>Webhook</span></div>
         <div class="card__body">
             <p class="mat-hint">Add as a <strong>push webhook</strong> in your Git host. Keep it secret.</p>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input class="mat-input mono" style="min-width:420px;flex:1;" value="@Model.WebhookUrl" readonly onclick="this.select()" />
+                <input class="mat-input mono" style="min-width:420px;flex:1;" value="@Model.WebhookUrl" readonly data-select-on-click />
                 <form method="post" asp-page-handler="Regenerate" data-confirm="Regenerate the webhook URL? The old URL stops working.">
                     <input type="hidden" name="id" value="@Model.Input.Id" />
                     <button type="submit" class="mat-btn mat-btn--sm"><icon name="refresh" /><span>Regenerate</span></button>

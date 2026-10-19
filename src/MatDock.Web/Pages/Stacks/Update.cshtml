@@ -33,7 +33,7 @@
     var updates = Model.Report.UpdatesAvailable;
     if (Model.Report.Images.Count == 0)
     {
-        <div class="card" style="margin-bottom:16px;">
+        <div class="u-mb card">
             <div class="empty-state"><div><icon name="image" /></div><p>No running images found for this stack.</p></div>
         </div>
     }
@@ -44,7 +44,7 @@
         <span>@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</span>
     </div>
 
-    <div class="card" style="padding:0;margin-bottom:16px;">
+    <div class="u-flush u-mb card">
         <table class="data">
             <thead>
                 <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
@@ -78,12 +78,12 @@
     </div>
     }
 
-    <div class="card" style="max-width:620px;">
+    <div class="u-maxw-sm card">
         <div class="card__header"><icon name="refresh" /><span>Run update</span></div>
         <div class="card__body">
-            <p class="mat-hint" style="margin-bottom:12px;">Pulls the new images and redeploys.</p>
+            <p class="u-mb-sm mat-hint">Pulls the new images and redeploys.</p>
             <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
-                <label class="mat-check" style="margin-bottom:12px;">
+                <label class="u-mb-sm mat-check">
                     <input asp-for="PreBackup" type="checkbox" />
                     <span>Back up the stack's volumes before updating</span>
                 </label>

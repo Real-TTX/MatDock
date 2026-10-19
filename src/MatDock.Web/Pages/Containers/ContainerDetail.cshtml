@@ -27,7 +27,7 @@
 else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
-    <div class="mat-buttons" style="margin-bottom:16px;">
+    <div class="u-mb mat-buttons">
         @if (openUrl is not null)
         {
             <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
@@ -39,25 +39,25 @@ else if (c is not null)
         }
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" style="display:inline;">
+            <form method="post" asp-page-handler="Action" class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn"><icon name="refresh" /><span>Restart</span></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" style="display:inline;">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
         else
         {
-            <form method="post" asp-page-handler="Action" style="display:inline;">
+            <form method="post" asp-page-handler="Action" class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
             </form>
         }
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="u-mb card">
         <div class="card__header"><icon name="box" /><span>Details</span></div>
         <div class="mat-table__scroll">
             <table class="data">

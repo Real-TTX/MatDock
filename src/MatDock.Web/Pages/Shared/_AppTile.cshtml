@@ -18,7 +18,7 @@
         }
         <div class="launch-tile__env">
             <icon name="server" /> @Model.EnvName
-            <span class="pill @(Model.StatusKind == "running" ? "pill--online" : Model.StatusKind == "partial" ? "pill--offline" : "pill--unknown")" style="margin-left:6px;">@(Model.Total > 0 ? $"{Model.Running}/{Model.Total}" : "idle")</span>
+            <span class="u-ml-xs pill @(Model.StatusKind == "running" ? "pill--online" : Model.StatusKind == "partial" ? "pill--offline" : "pill--unknown")">@(Model.Total > 0 ? $"{Model.Running}/{Model.Total}" : "idle")</span>
         </div>
     </div>
     <div class="launch-tile__actions">

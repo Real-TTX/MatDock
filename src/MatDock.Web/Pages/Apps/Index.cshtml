@@ -56,7 +56,7 @@ else
                     {
                         <span class="app-card__icon app-card__icon--letter" style="background:@Accent(t.Name);">@(string.IsNullOrEmpty(t.Name) ? "?" : char.ToUpperInvariant(t.Name[0]).ToString())</span>
                     }
-                    <div style="min-width:0;">
+                    <div class="u-minw-0">
                         <div class="app-card__name"><a href="/Apps/Edit?id=@t.Id">@t.Name</a></div>
                         @if (!string.IsNullOrEmpty(t.Category))
                         {
