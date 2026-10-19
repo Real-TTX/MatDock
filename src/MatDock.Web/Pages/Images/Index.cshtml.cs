@@ -65,7 +65,8 @@ public class IndexModel : PageModel
         return RedirectToPage(new { EnvId, Q, Refresh = true });
     }
 
-    public async Task<IActionResult> OnPostPruneAsync(long envId)
+    /// <summary>Prunes the dangling images, or with <paramref name="all"/> every image no container uses.</summary>
+    public async Task<IActionResult> OnPostPruneAsync(long envId, bool all = false)
     {
         if (!User.IsInRole(nameof(UserRole.Admin)))
         {
@@ -91,7 +92,7 @@ public class IndexModel : PageModel
             try
             {
                 var result = await _connectionService.PruneImagesAsync(
-                    _environmentService.BuildSettings(env), all: false, HttpContext.RequestAborted);
+                    _environmentService.BuildSettings(env), all, HttpContext.RequestAborted);
                 if (result.Success)
                 {
                     removed += result.Removed;
@@ -108,8 +109,8 @@ public class IndexModel : PageModel
 
         var freed = reclaimed.Count > 0 ? $", freed {string.Join(" + ", reclaimed)}" : "";
         StatusMessage = errors.Count == 0
-            ? $"Pruned {removed} dangling image(s){freed}."
-            : $"Pruned {removed} dangling image(s){freed}; errors: {string.Join(" · ", errors)}";
+            ? $"Pruned {removed} {(all ? "unused" : "dangling")} image(s){freed}."
+            : $"Pruned {removed} {(all ? "unused" : "dangling")} image(s){freed}; errors: {string.Join(" · ", errors)}";
         IsError = !anyOk && errors.Count > 0;
         return RedirectToPage(new { EnvId, Q, Refresh = true });
     }

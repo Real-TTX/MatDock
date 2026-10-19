@@ -777,3 +777,7 @@ a.stat:hover { text-decoration: none; }
 .reg-repo { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
 .reg-repo:hover { background: var(--surface-2); text-decoration: none; }
 .reg-repo.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+/* ---- Detail pages: cards one below the other, key/value tables ---- */
+.card--spaced { margin-bottom: 16px; }
+.data--keyvalue th { width: 180px; white-space: nowrap; vertical-align: top; }

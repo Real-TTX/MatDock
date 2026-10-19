@@ -47,6 +47,10 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - Container list with **short status** (hover for detail), **ports as clickable tags**, combined
   **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**
 
+**Images**
+- List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,
+  platform, entrypoint, ports, labels and the **layers** (`docker image history`); prune dangling or **all unused** images
+
 **Volumes**
 - List across environments, **migrate a volume from one host to another** (tar over SSH)
 - **File explorer** in the volume: browse, **edit text files**, image **preview**, **upload**,

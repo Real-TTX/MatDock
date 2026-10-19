@@ -66,7 +66,7 @@
                         <tr>
                             <td class="nowrap">@row.Environment.Name</td>
                             <td class="wrap">
-                                <strong>@img.Reference</strong>
+                                <a href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(img.Dangling ? img.Id : img.Reference)"><strong>@img.Reference</strong></a>
                                 @if (img.Dangling)
                                 {
                                     <span class="tag-unused" title="Dangling image (untagged)">dangling</span>
@@ -111,6 +111,11 @@
             <form method="post" asp-page-handler="Prune" data-confirm="Remove all dangling (untagged) images in @(Model.EnvId > 0 ? "this environment" : "all environments")?" style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <button type="submit" class="mat-btn"><icon name="broom" /><span>Prune dangling</span></button>
+            </form>
+            <form method="post" asp-page-handler="Prune" data-confirm="Remove every image no container uses in @(Model.EnvId > 0 ? "this environment" : "all environments")? They are pulled again when needed." style="display:inline;">
+                <input type="hidden" name="envId" value="@Model.EnvId" />
+                <input type="hidden" name="all" value="true" />
+                <button type="submit" class="mat-btn"><icon name="broom" /><span>Prune unused</span></button>
             </form>
         }
         <a href="/Images?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>

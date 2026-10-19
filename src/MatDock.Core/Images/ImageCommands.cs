@@ -38,4 +38,17 @@ public static partial class ImageCommands
     /// <summary>Removes dangling images (<c>image prune -f</c>), or all unused images when <paramref name="all"/> is set.</summary>
     public static string Prune(bool all, string dockerHead = "docker")
         => VolumeCommands.PathPrefix + dockerHead + " image prune -f" + (all ? " -a" : string.Empty);
+
+    /// <summary>The image as one JSON line (<c>docker image inspect</c>).</summary>
+    public static string Inspect(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " image inspect --format '{{json .}}' " + QuotedRef(reference);
+
+    /// <summary>The layers of the image, newest first, one JSON line each (<c>docker image history</c>).</summary>
+    public static string History(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " image history --no-trunc --format '{{json .}}' " + QuotedRef(reference);
+
+    private static string QuotedRef(string reference)
+        => IsValidImageRef(reference)
+            ? VolumeFileCommands.ShellQuote(reference)
+            : throw new ArgumentException($"Invalid image reference: '{reference}'.", nameof(reference));
 }

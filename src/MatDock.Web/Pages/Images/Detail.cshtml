@@ -1,0 +1,87 @@
+@page
+@model MatDock.Web.Pages.Images.DetailModel
+@{
+    ViewData["Title"] = Model.Reference;
+    string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
+}
+
+<div class="page-head">
+    <div class="page-head__title">
+        <h1>@Model.Reference</h1>
+    </div>
+    <div class="mat-buttons">
+        <a href="/Images?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+    </div>
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+}
+else if (Model.Detail is { } d)
+{
+    <div class="card card--spaced">
+        <div class="card__header"><icon name="image" /><span>Details</span></div>
+        <div class="mat-table__scroll">
+            <table class="data data--keyvalue">
+                <tbody>
+                    <tr><th>Environment</th><td>@Model.Environment!.Name</td></tr>
+                    <tr><th>ID</th><td class="mono">@d.Id</td></tr>
+                    @if (d.Tags.Count > 0) { <tr><th>Tags</th><td class="mono">@string.Join(", ", d.Tags)</td></tr> }
+                    @if (d.Digests.Count > 0) { <tr><th>Digest</th><td class="mono wrap">@string.Join(", ", d.Digests)</td></tr> }
+                    <tr><th>Created</th><td>@(d.CreatedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td></tr>
+                    <tr><th>Size</th><td>@Fb(d.SizeBytes)</td></tr>
+                    <tr><th>Platform</th><td>@d.Platform</td></tr>
+                    @if (d.Entrypoint is not null) { <tr><th>Entrypoint</th><td class="mono wrap">@d.Entrypoint</td></tr> }
+                    @if (d.Command is not null) { <tr><th>Command</th><td class="mono wrap">@d.Command</td></tr> }
+                    @if (d.WorkingDir is not null) { <tr><th>Working dir</th><td class="mono">@d.WorkingDir</td></tr> }
+                    @if (d.User is not null) { <tr><th>User</th><td class="mono">@d.User</td></tr> }
+                    @if (d.ExposedPorts.Count > 0) { <tr><th>Ports</th><td class="mono">@string.Join(", ", d.ExposedPorts)</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (d.Labels.Count > 0)
+    {
+        <div class="card card--spaced">
+            <div class="card__header"><icon name="template" /><span>Labels</span></div>
+            <div class="mat-table__scroll">
+                <table class="data data--keyvalue">
+                    <tbody>
+                        @foreach (var (key, value) in d.Labels)
+                        {
+                            <tr><th class="mono">@key</th><td class="mono wrap">@value</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card__header"><icon name="layers" /><span>Layers (@d.Layers.Count)</span></div>
+        @if (d.Layers.Count == 0)
+        {
+            <div class="empty-state"><div><icon name="layers" /></div><p>No layer history.</p></div>
+        }
+        else
+        {
+            <div class="mat-table__scroll">
+                <table class="data">
+                    <thead><tr><th>Instruction</th><th>Size</th><th>Created</th></tr></thead>
+                    <tbody>
+                        @foreach (var layer in d.Layers)
+                        {
+                            <tr>
+                                <td class="mono wrap" data-label="Instruction">@layer.CreatedBy</td>
+                                <td class="nowrap" data-label="Size">@layer.Size</td>
+                                <td class="cell-sub nowrap" data-label="Created">@layer.CreatedSince</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
