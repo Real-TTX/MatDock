@@ -824,3 +824,7 @@ a.stat:hover { text-decoration: none; }
 .netmap__svg:has(.netmap__node:hover) .netmap__edge { opacity: .25; }
 .netmap__edge.is-lit { stroke: var(--accent); stroke-width: 2.5; opacity: 1 !important; }
 .netmap__legend { font-size: .85rem; margin-top: 8px; }
+
+/* A fieldset that only groups (and disables) fields, without a frame of its own. */
+.fieldset-plain { border: 0; margin: 0; padding: 0; min-width: 0; display: contents; }
+.fieldset-plain:disabled .mat-input, .fieldset-plain:disabled .mat-check { opacity: .65; }

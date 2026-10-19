@@ -79,7 +79,12 @@ if (string.IsNullOrWhiteSpace(builder.Configuration[MatPlatformSettings.ApiKeyVa
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { [MatPlatformSettings.ApiKeyVariable] = engineKey.Trim() });
 }
 
-var platform = builder.AddMatPlatform<DockPlatform>(DockPlatform.Describe);
+// Mail through MatSMTP (MATSMTP_*, MatDesign docs/PLATFORM.md): set = every mail of MatDock goes through it and the server settings are fixed.
+var matSmtp = MatSmtpSettings.From(builder.Configuration);
+builder.Services.AddSingleton(matSmtp);
+builder.Services.AddSingleton<MatDock.Core.Notifications.IMailRelaySource, MatSmtpRelaySource>();
+
+var platform = builder.AddMatPlatform<DockPlatform>(o => DockPlatform.Describe(o, matSmtp));
 
 // ---------------------------------------------------------------------------
 // Authentication / authorization

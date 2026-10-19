@@ -1,6 +1,4 @@
-using System.Net;
 using System.Net.Http;
-using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
 using MatDock.Core.Entities;
@@ -99,31 +97,39 @@ public sealed class NotificationService : INotificationService
 
     private async Task SendEmailAsync(NotificationSettings s, string subject, string body, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(s.SmtpHost) || string.IsNullOrWhiteSpace(s.SmtpFrom) || string.IsNullOrWhiteSpace(s.SmtpTo))
+        var mail = MailServer.Compose(s, _settingsService.DecryptPassword(s), _settingsService.Relay);
+        if (string.IsNullOrWhiteSpace(mail.Host) || string.IsNullOrWhiteSpace(mail.From) || string.IsNullOrWhiteSpace(s.SmtpTo))
         {
             throw new InvalidOperationException("SMTP is incompletely configured (host, sender and recipients are required).");
         }
 
-#pragma warning disable SYSLIB0014 // SmtpClient is obsolete but is the only built-in SMTP client (no extra dependency).
-        using var client = new SmtpClient(s.SmtpHost, s.SmtpPort) { EnableSsl = s.SmtpUseTls };
-        if (!string.IsNullOrEmpty(s.SmtpUsername))
+        var message = new MimeKit.MimeMessage();
+        message.From.Add(MimeKit.MailboxAddress.Parse(mail.From.Trim()));
+        foreach (var to in s.SmtpTo.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            client.Credentials = new NetworkCredential(s.SmtpUsername, _settingsService.DecryptPassword(s) ?? string.Empty);
+            if (MimeKit.MailboxAddress.TryParse(to, out var address))
+            {
+                message.To.Add(address);
+            }
         }
 
-        using var msg = new MailMessage { From = new MailAddress(s.SmtpFrom!), Subject = subject, Body = body };
-        foreach (var to in s.SmtpTo!.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            msg.To.Add(to);
-        }
-
-        if (msg.To.Count == 0)
+        if (message.To.Count == 0)
         {
             throw new InvalidOperationException("No valid recipient.");
         }
 
-        await client.SendMailAsync(msg, ct);
-#pragma warning restore SYSLIB0014
+        message.Subject = subject;
+        message.Body = new MimeKit.TextPart("plain") { Text = body };
+
+        using var client = new MailKit.Net.Smtp.SmtpClient { Timeout = 30_000 };
+        await client.ConnectAsync(mail.Host.Trim(), mail.Port, mail.SocketOptions, ct);
+        if (mail.Username is not null)
+        {
+            await client.AuthenticateAsync(mail.Username, mail.Password ?? string.Empty, ct);
+        }
+
+        await client.SendAsync(message, ct);
+        await client.DisconnectAsync(true, ct);
     }
 
     private async Task SendWebhookAsync(NotificationSettings s, string subject, string body, string scheduleName, bool success, CancellationToken ct)

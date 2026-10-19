@@ -238,6 +238,7 @@ docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite w
 | `MATIDENTITY_CLIENT_ID` | `matdock` | The client of MatDock in MatIdentity (also the audience of the tokens accepted on `/api`) |
 | `MATIDENTITY_CLIENT_SECRET` | – | Its secret |
 | `MATIDENTITY_INTERNAL_URL` | – | Where MatDock reaches MatIdentity from inside Docker (`http://matidentity:2300`); the browser keeps using `MATIDENTITY_AUTHORITY` |
+| `MATSMTP_HOST`, `_PORT`, `_USERNAME`, `_PASSWORD`, `_FROM`, `_TLS` | – | Mail through MatSMTP (Mattiverse sets them): set = every mail of MatDock (notifications, alerts, the test mail) goes through MatSMTP with this sender; *Settings → Notifications* shows the server as fixed (the own server settings stay stored for when the variables are gone) and `/api/configure` marks those fields `fixed`. `_TLS` is `none`, `starttls` or `tls` |
 
 ### The `/data` volume
 
@@ -313,7 +314,8 @@ without knowing it beforehand. It lives next to `/api/v1` and never under it; `/
 - **Health:** `down` when the database cannot be read; `degraded` when an enabled environment is unreachable or there is
   no active administrator.
 - **Settings:** the notification settings (the same as *Settings → Notifications*): notify on failures, e-mail (server,
-  port, user, password, sender, recipients) and the webhook.
+  port, user, password, sender, recipients) and the webhook. With MatSMTP the server, port, user, password and sender are
+  `fixed` (a change answers `400`); on/off and the recipients stay editable.
 - **Actions:** open MatDock, Stacks, Backups; *Run all backups now* (every enabled backup schedule, started in the
   background, the result shows in the tiles); *Prune dangling images* on every reachable environment (asks first).
 - **Roles:** `admin`, `user`.

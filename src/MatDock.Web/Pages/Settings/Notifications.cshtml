@@ -43,7 +43,12 @@
                 <input asp-for="Input.SmtpEnabled" type="checkbox" />
                 <span>Enabled</span>
             </label>
+            @if (Model.Relay is { } relay)
+            {
+                <div class="alert alert--info"><icon name="server" /><span>@relay.Description</span></div>
+            }
             <div class="mat-form">
+            <fieldset class="fieldset-plain" disabled="@(Model.Relay is not null)">
                 <mat-field label="SMTP host" asp-for="Input.SmtpHost">
                     <input asp-for="Input.SmtpHost" class="mat-input" placeholder="smtp.example.com" autocomplete="off" />
                 </mat-field>
@@ -57,12 +62,13 @@
                 <mat-field label="User" asp-for="Input.SmtpUsername">
                     <input asp-for="Input.SmtpUsername" class="mat-input" autocomplete="off" />
                 </mat-field>
-                <mat-field label="Password" asp-for="Input.SmtpPassword" hint="@(Model.HasStoredPassword ? "Leave blank to keep the stored password." : null)">
+                <mat-field label="Password" asp-for="Input.SmtpPassword" hint="@(Model.Relay is null && Model.HasStoredPassword ? "Leave blank to keep the stored password." : null)">
                     <input asp-for="Input.SmtpPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
                 <mat-field label="Sender (From)" asp-for="Input.SmtpFrom">
                     <input asp-for="Input.SmtpFrom" class="mat-input" placeholder="matdock@example.com" autocomplete="off" />
                 </mat-field>
+            </fieldset>
                 <mat-field label="Recipients (To)" asp-for="Input.SmtpTo" hint="Separate multiple with commas.">
                     <input asp-for="Input.SmtpTo" class="mat-input" placeholder="admin@example.com" autocomplete="off" />
                 </mat-field>

@@ -20,6 +20,9 @@ public class NotificationsModel : PageModel
 
     public bool HasStoredPassword { get; private set; }
 
+    /// <summary>MatSMTP, when Mattiverse set it: the server fields are then fixed (shown, not saved).</summary>
+    public MailRelay? Relay => _settingsService.Relay;
+
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
 
@@ -59,11 +62,39 @@ public class NotificationsModel : PageModel
             WebhookEnabled = s.WebhookEnabled,
             WebhookUrl = s.WebhookUrl
         };
+        ShowRelay();
+    }
+
+    /// <summary>With MatSMTP the server fields show its values (the password never); the stored own ones stay in the database.</summary>
+    private void ShowRelay()
+    {
+        if (Relay is { } relay)
+        {
+            Input.SmtpHost = relay.Host;
+            Input.SmtpPort = relay.Port;
+            Input.SmtpUseTls = relay.Security != MailSecurity.None;
+            Input.SmtpUsername = relay.Username;
+            Input.SmtpPassword = null;
+            Input.SmtpFrom = relay.From;
+        }
     }
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
-        if (Input.SmtpEnabled && (string.IsNullOrWhiteSpace(Input.SmtpHost) || string.IsNullOrWhiteSpace(Input.SmtpFrom) || string.IsNullOrWhiteSpace(Input.SmtpTo)))
+        if (Relay is not null)
+        {
+            // The server fields are disabled (not posted) and never saved; only the recipients are checked.
+            foreach (var key in new[] { "Input.SmtpHost", "Input.SmtpPort", "Input.SmtpUseTls", "Input.SmtpUsername", "Input.SmtpPassword", "Input.SmtpFrom" })
+            {
+                ModelState.Remove(key);
+            }
+
+            if (Input.SmtpEnabled && string.IsNullOrWhiteSpace(Input.SmtpTo))
+            {
+                ModelState.AddModelError("Input.SmtpTo", "Email requires recipients.");
+            }
+        }
+        else if (Input.SmtpEnabled && (string.IsNullOrWhiteSpace(Input.SmtpHost) || string.IsNullOrWhiteSpace(Input.SmtpFrom) || string.IsNullOrWhiteSpace(Input.SmtpTo)))
         {
             ModelState.AddModelError(string.Empty, "Email requires a host, sender and recipients.");
         }
@@ -77,6 +108,7 @@ public class NotificationsModel : PageModel
         {
             var current = await _settingsService.GetAsync(HttpContext.RequestAborted);
             HasStoredPassword = !string.IsNullOrEmpty(current.EncryptedSmtpPassword);
+            ShowRelay();
             return Page();
         }
 

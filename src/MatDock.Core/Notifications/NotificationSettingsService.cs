@@ -10,12 +10,17 @@ public sealed class NotificationSettingsService
 {
     private readonly MatDockDbContext _db;
     private readonly ISecretProtector _secrets;
+    private readonly IMailRelaySource _relay;
 
-    public NotificationSettingsService(MatDockDbContext db, ISecretProtector secrets)
+    public NotificationSettingsService(MatDockDbContext db, ISecretProtector secrets, IMailRelaySource? relay = null)
     {
         _db = db;
         _secrets = secrets;
+        _relay = relay ?? new NoMailRelay();
     }
+
+    /// <summary>The mail relay set from outside (MatSMTP), or null: then the server settings here are fixed.</summary>
+    public MailRelay? Relay => _relay.Current;
 
     /// <summary>Returns the settings row, or a fresh unsaved default if none exists yet.</summary>
     public async Task<NotificationSettings> GetAsync(CancellationToken ct = default)
@@ -29,6 +34,7 @@ public sealed class NotificationSettingsService
         var settings = await _db.NotificationSettings.FirstOrDefaultAsync(ct);
         var isNew = settings is null;
         settings ??= new NotificationSettings();
+        input = MailServer.KeepFixed(input, settings, Relay);
 
         settings.NotifyOnSuccess = input.NotifyOnSuccess;
         settings.NotifyOnFailure = input.NotifyOnFailure;
@@ -65,11 +71,16 @@ public sealed class NotificationSettingsService
     /// The rules of the notification settings, by the name of the property of <see cref="NotificationSettingsInput"/>: e-mail needs a host, a sender
     /// and recipients, the port is 1 to 65535, the webhook needs an http(s) address. Empty = valid.
     /// </summary>
-    public static IReadOnlyDictionary<string, string> Validate(NotificationSettingsInput input)
+    public static IReadOnlyDictionary<string, string> Validate(NotificationSettingsInput input, bool relay = false)
     {
         ArgumentNullException.ThrowIfNull(input);
         var errors = new Dictionary<string, string>();
-        if (input.SmtpEnabled)
+        if (input.SmtpEnabled && relay)
+        {
+            // Server, port and sender come from the relay; only the recipients are MatDock's own.
+            if (string.IsNullOrWhiteSpace(input.SmtpTo)) { errors[nameof(input.SmtpTo)] = "Email requires recipients."; }
+        }
+        else if (input.SmtpEnabled)
         {
             if (string.IsNullOrWhiteSpace(input.SmtpHost)) { errors[nameof(input.SmtpHost)] = "Email requires a host."; }
             if (string.IsNullOrWhiteSpace(input.SmtpFrom)) { errors[nameof(input.SmtpFrom)] = "Email requires a sender."; }

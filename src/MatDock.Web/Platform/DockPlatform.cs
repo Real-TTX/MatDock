@@ -40,13 +40,23 @@ public sealed class DockPlatform(
         ["webhookUrl"] = nameof(NotificationSettingsInput.WebhookUrl),
     };
 
+    /// <summary>The fields of the mail server, fixed while MatSMTP is set.</summary>
+    public static readonly IReadOnlySet<string> MailServerKeys = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "smtpHost", "smtpPort", "smtpUsername", "smtpPassword", "smtpFrom",
+    };
+
     /// <summary>1 while "run all backups now" runs (one at a time).</summary>
     private static int _backupsRunning;
 
     /// <summary>The MatApiDefinition of MatDock (<c>GET /api</c>); <c>auth</c> and <c>endpoints</c> are filled in by MatPlatform.</summary>
-    public static void Describe(MatPlatformBuilder o)
+    public static void Describe(MatPlatformBuilder o) => Describe(o, new MatSmtpSettings());
+
+    /// <summary>The definition; with MatSMTP (<paramref name="smtp"/> configured) the mail server fields are fixed.</summary>
+    public static void Describe(MatPlatformBuilder o, MatSmtpSettings smtp)
     {
         var T = o.T;
+        void Mail(MatField field) => o.Field(MailServerKeys.Contains(field.Key) ? smtp.Fix(field, o.Language) : field);
 
         o.App(
             AppId,
@@ -89,11 +99,11 @@ public sealed class DockPlatform(
             Hint = T("Ergebnisse von Sicherungen und Zeitplänen per E-Mail und/oder Webhook.", "Results of backups and schedules by e-mail and/or webhook."),
         });
         o.Field(new MatField("smtpEnabled", T("E-Mail senden", "Send e-mail"), "bool"));
-        o.Field(new MatField("smtpHost", T("Mailserver", "Mail server"), "text") { Required = true, Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
-        o.Field(new MatField("smtpPort", "Port", "number") { Required = true, Min = 1, Max = 65535, Placeholder = "587", ShowIf = MatField.When(("smtpEnabled", true)) });
-        o.Field(new MatField("smtpUsername", T("Benutzername", "User name"), "text") { Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
-        o.Field(new MatField("smtpPassword", T("Passwort", "Password"), "secret") { ShowIf = MatField.When(("smtpEnabled", true)) });
-        o.Field(new MatField("smtpFrom", T("Absender", "Sender"), "email") { Required = true, Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
+        Mail(new MatField("smtpHost", T("Mailserver", "Mail server"), "text") { Required = true, Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
+        Mail(new MatField("smtpPort", "Port", "number") { Required = true, Min = 1, Max = 65535, Placeholder = "587", ShowIf = MatField.When(("smtpEnabled", true)) });
+        Mail(new MatField("smtpUsername", T("Benutzername", "User name"), "text") { Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
+        Mail(new MatField("smtpPassword", T("Passwort", "Password"), "secret") { ShowIf = MatField.When(("smtpEnabled", true)) });
+        Mail(new MatField("smtpFrom", T("Absender", "Sender"), "email") { Required = true, Max = 255, ShowIf = MatField.When(("smtpEnabled", true)) });
         o.Field(new MatField("smtpTo", T("Empfänger", "Recipients"), "text")
         {
             Required = true,
@@ -157,7 +167,8 @@ public sealed class DockPlatform(
     public async Task<IReadOnlyDictionary<string, object?>> GetConfigurationAsync(MatPlatformCall call, CancellationToken ct)
     {
         var settings = await notifications.GetAsync(ct);
-        return new Dictionary<string, object?>
+        var relay = notifications.Relay;
+        var values = new Dictionary<string, object?>
         {
             ["notifyOnFailure"] = settings.NotifyOnFailure,
             ["smtpEnabled"] = settings.SmtpEnabled,
@@ -171,6 +182,18 @@ public sealed class DockPlatform(
             ["webhookEnabled"] = settings.WebhookEnabled,
             ["webhookUrl"] = settings.WebhookUrl,
         };
+
+        if (relay is not null)
+        {
+            // MatSMTP's values for the fixed fields; MatDock's own stay stored for when it is gone.
+            values["smtpHost"] = relay.Host;
+            values["smtpPort"] = relay.Port;
+            values["smtpUsername"] = relay.Username;
+            values["smtpPassword"] = new MatSecret(!string.IsNullOrEmpty(relay.Password));
+            values["smtpFrom"] = relay.From;
+        }
+
+        return values;
     }
 
     public async Task<IReadOnlyDictionary<string, string>> ConfigureAsync(IReadOnlyDictionary<string, JsonElement> values, MatPlatformCall call, CancellationToken ct)
@@ -226,7 +249,7 @@ public sealed class DockPlatform(
         }
 
         // The rules of the settings page, reported under the keys of the platform form.
-        foreach (var (property, error) in NotificationSettingsService.Validate(input))
+        foreach (var (property, error) in NotificationSettingsService.Validate(input, notifications.Relay is not null))
         {
             errors.TryAdd(Fields.FirstOrDefault(f => f.Value == property).Key ?? property, error);
         }

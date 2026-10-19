@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MatDock.Core.Auth;
 using MatDock.Core.Environments;
 using MatDock.Core.Security;
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
     {
         // Stateless helpers.
         services.AddSingleton(_ => new Auth.LoginThrottle());
+        services.TryAddSingleton<Notifications.IMailRelaySource, Notifications.NoMailRelay>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();

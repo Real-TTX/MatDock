@@ -41,7 +41,12 @@ public class MatDockFactory : WebApplicationFactory<Program>
         "MatDock__DataPath", "MatDock__Api__Key", "MatDock__Admin__Seed", "MatDock__Environments__EnsureLocal",
         MatPlatformSettings.ApiKeyVariable, MatPlatformSettings.AuthorityVariable, MatPlatformSettings.ClientIdVariable,
         MatPlatformSettings.ClientSecretVariable, MatPlatformSettings.InternalUrlVariable,
+        MatSmtpSettings.HostVariable, MatSmtpSettings.PortVariable, MatSmtpSettings.UsernameVariable, MatSmtpSettings.PasswordVariable,
+        MatSmtpSettings.FromVariable, MatSmtpSettings.TlsVariable,
     ];
+
+    /// <summary>The MATSMTP_* variables of this factory (empty = none).</summary>
+    protected virtual IReadOnlyDictionary<string, string> MatSmtp => new Dictionary<string, string>();
 
     private readonly string _data = Path.Combine(Path.GetTempPath(), "matdock-tests-" + Guid.NewGuid().ToString("N"));
     private readonly string? _authority;
@@ -185,6 +190,11 @@ public class MatDockFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable(MatPlatformSettings.ClientIdVariable, null);
         Environment.SetEnvironmentVariable(MatPlatformSettings.ClientSecretVariable, _authority is null ? null : "test-secret");
         Environment.SetEnvironmentVariable(MatPlatformSettings.InternalUrlVariable, null);
+        foreach (var variable in new[] { MatSmtpSettings.HostVariable, MatSmtpSettings.PortVariable, MatSmtpSettings.UsernameVariable,
+                     MatSmtpSettings.PasswordVariable, MatSmtpSettings.FromVariable, MatSmtpSettings.TlsVariable })
+        {
+            Environment.SetEnvironmentVariable(variable, MatSmtp.TryGetValue(variable, out var value) ? value : null);
+        }
     }
 }
 
