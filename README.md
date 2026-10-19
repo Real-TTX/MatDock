@@ -348,7 +348,8 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Containers & stacks | Managed + discovered stacks, containers, live logs, terminal | ✅ |
 | Backup v2 | Browse/restore archives at a target, full stack bundles | ✅ |
 | Apps | Compose templates with icons, one-click install | ✅ |
-| Next | Complex volumes (NFS/CIFS), Entra ID, anonymous share links | open |
+| Review | Security fixes, alerts, scheduled updates, activity log, network map, container files – see [docs/REVIEW.md](docs/REVIEW.md) | ✅ |
+| Next | Update health gate and rollback, CVE scan, TCP/TLS hosts, restic – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
 
 ## Branches & versioning
 
