@@ -64,6 +64,13 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Web terminal** (xterm.js) – a shell on the host or straight into a container
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
+
+**Schedules and alerts**
+- Cron schedules for prune (volumes, images, networks), status reports, health alerts, volume and stack backups and Git sync
+- **Image updates**: the schedule *Update stacks* checks the registries for newer images of the tags in use and notifies,
+  or pulls and redeploys (optionally after a stack backup); the Stacks list marks stacks with updates
+- **Alerts**: event schedules for *container died* (an error exit or out of memory, not a stop), *container unhealthy*,
+  environment offline and failed deploys, backups and syncs – with *Send a notification* the event itself is the message
 - Two roles: **User** sees everything and starts/stops/restarts containers and reads their logs; **Admin** does the rest
   (environments, stacks, volumes, files, backups, schedules, terminal, settings). The sign-in is locked for 15 minutes after
   5 wrong passwords for one account (or 20 from one address)

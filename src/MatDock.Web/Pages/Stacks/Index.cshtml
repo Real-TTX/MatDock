@@ -1,5 +1,6 @@
 @page
 @model MatDock.Web.Pages.Stacks.IndexModel
+@inject MatDock.Core.Updates.UpdateCheckCache UpdateChecks
 @{
     ViewData["Title"] = "Stacks";
     var isGallery = !string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
@@ -191,6 +192,11 @@
                                     {
                                         <span class="pill" title="Git-backed"><icon name="git" /> Git</span>
                                     }
+                                    @{ var updates = UpdateChecks.Updates(r.EnvId, r.Name); }
+                                    @if (updates.Count > 0 && r.ManagedId is { } uid)
+                                    {
+                                        <a class="pill pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))"><icon name="image" /> Update</a>
+                                    }
                                     <managed-badge value="@r.ManagedBy" />
                                     @if (r.Discovered)
                                     {
@@ -319,7 +325,12 @@
                                 {
                                     <strong>@r.Name</strong>
                                 }
-                                <managed-badge value="@r.ManagedBy" />
+                                @{ var updates = UpdateChecks.Updates(r.EnvId, r.Name); }
+                                    @if (updates.Count > 0 && r.ManagedId is { } uid)
+                                    {
+                                        <a class="pill pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))"><icon name="image" /> Update</a>
+                                    }
+                                    <managed-badge value="@r.ManagedBy" />
                             </td>
                             <td>
                                 @if (r.Discovered)

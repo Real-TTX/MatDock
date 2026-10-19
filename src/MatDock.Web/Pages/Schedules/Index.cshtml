@@ -14,6 +14,8 @@
         ScheduleAction.Backup => "Backup",
         ScheduleAction.Sync => "Sync",
         ScheduleAction.BundleBackup => "Stack backup (bundle)",
+        ScheduleAction.UpdateStacks => "Update stacks",
+        ScheduleAction.Notify => "Notification",
         _ => a.ToString()
     };
 
@@ -82,7 +84,7 @@
                         }
                         else
                         {
-                            <span class="mat-badge"><icon name="alert" /> @t.Event</span>
+                            <span class="mat-badge"><icon name="alert" /> @MatDock.Core.Schedules.ScheduleService.EventLabel(t.Event)</span>
                         }
                     </td>
                     <td>@ActionLabel(t.Action)</td>

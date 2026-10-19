@@ -171,6 +171,26 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>The alerts (died with an error, unhealthy) between two Unix times; null when the host cannot be asked.</summary>
+    public async Task<IReadOnlyList<ContainerAlert>?> ListAlertsAsync(DockerEnvironment environment, long sinceUnix, long untilUnix, CancellationToken ct = default)
+    {
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _hostSessionFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var result = await RunCommandAsync(client, ContainerAlerts.EventsCommand(head, sinceUnix, untilUnix), ct);
+            return result.ExitStatus == 0 ? ContainerAlerts.Detect(result.StdOut, environment.Name) : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "docker events for alerts unavailable for env {Env}.", environment.Id);
+            return null;
+        }
+    }
+
     /// <summary>One container by id plus its mounts and live stats. Container is null if not found / unreachable.</summary>
     public async Task<(DockerContainer? Container, IReadOnlyList<ContainerMount> Mounts)> GetDetailAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
     {

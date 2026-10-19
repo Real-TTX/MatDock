@@ -65,6 +65,7 @@ builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 // Every timed task (backups, bundles, sync jobs, prune, reports) runs through the Schedules; webhooks start syncs directly.
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
+builder.Services.AddHostedService<ContainerAlertMonitor>();
 
 // ---------------------------------------------------------------------------
 // The Mat platform contract (MatDesign docs/PLATFORM.md): /api, /api/health, /api/state, /api/configure, /api/actions

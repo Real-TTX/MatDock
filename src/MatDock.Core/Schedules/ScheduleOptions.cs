@@ -32,6 +32,13 @@ public sealed class ScheduleOptions
     /// managed stack when the task has no owner.</summary>
     public string? BundleStack { get; set; }
 
+    // --- UpdateStacks action (uses BundleStack as the one stack to check; empty = every managed stack) ---
+    /// <summary>UpdateStacks: pull and redeploy the stacks with newer images (false = only check and notify).</summary>
+    public bool UpdateApply { get; set; }
+
+    /// <summary>UpdateStacks: take a bundle backup of a stack before updating it (the update is skipped when it fails).</summary>
+    public bool UpdateBackupFirst { get; set; }
+
     // --- Sync action (reference) ---
     /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
     public long? SyncJobId { get; set; }

@@ -168,20 +168,46 @@ public sealed class ScheduleService
 
         foreach (var task in tasks)
         {
-            var summary = await RunAndNotifyAsync(task, ct);
+            var summary = await RunAndNotifyAsync(task, ct, evt, detail);
             task.LastRunAt = DateTime.UtcNow;
-            task.LastStatus = string.IsNullOrEmpty(detail) ? summary : $"[{detail}] {summary}";
+            task.LastStatus = string.IsNullOrEmpty(detail) || task.Action == ScheduleAction.Notify ? summary : $"[{detail}] {summary}";
             await _db.SaveChangesAsync(ct);
         }
 
         return tasks.Count;
     }
 
-    private async Task<string> RunAndNotifyAsync(ScheduledTask task, CancellationToken ct)
+    /// <summary>Whether an enabled schedule waits for one of these events (so nobody watches for events no one wants).</summary>
+    public Task<bool> HasEventSchedulesAsync(IReadOnlyCollection<ScheduleEvent> events, CancellationToken ct = default)
+        => _db.ScheduledTasks.AnyAsync(s => s.Enabled && s.Trigger == ScheduleTrigger.Event && events.Contains(s.Event), ct);
+
+    /// <summary>The words of an event in a notification.</summary>
+    public static string EventLabel(ScheduleEvent evt) => evt switch
+    {
+        ScheduleEvent.DeployFailed => "Deploy failed",
+        ScheduleEvent.BackupFailed => "Backup failed",
+        ScheduleEvent.SyncFailed => "Sync failed",
+        ScheduleEvent.EnvironmentOffline => "Environment offline",
+        ScheduleEvent.ContainerDied => "Container died",
+        ScheduleEvent.ContainerUnhealthy => "Container unhealthy",
+        _ => evt.ToString(),
+    };
+
+    private async Task<string> RunAndNotifyAsync(ScheduledTask task, CancellationToken ct, ScheduleEvent? evt = null, string? detail = null)
     {
         bool ok;
         string summary;
         var action = _actions.FirstOrDefault(a => a.Type == task.Action);
+        if (task.Action == ScheduleAction.Notify)
+        {
+            // The event is the message; without one (Run now) it is a test of the channels.
+            var subject = evt is { } e ? $"MatDock: {EventLabel(e)}" : $"MatDock schedule: {task.Name} (test)";
+            var body = detail ?? (evt is null ? "A test of the schedule's notification." : EventLabel(evt.Value));
+            (ok, var sent) = await _notifications.NotifyAsync(subject, body, ct);
+            task.LastRunOk = ok;
+            return ok ? body : $"Error: {sent}";
+        }
+
         if (action is null)
         {
             ok = false;
@@ -205,7 +231,8 @@ public sealed class ScheduleService
         {
             try
             {
-                await _notifications.NotifyAsync($"MatDock schedule: {task.Name} — {(ok ? "OK" : "Error")}", summary, ct);
+                await _notifications.NotifyAsync($"MatDock schedule: {task.Name} — {(ok ? "OK" : "Error")}",
+                    string.IsNullOrEmpty(detail) ? summary : $"{detail}\n\n{summary}", ct);
             }
             catch (Exception ex)
             {
@@ -256,9 +283,11 @@ public sealed class ScheduleService
             RetentionCount = isBackup ? input.RetentionCount : 0,
             RetentionDays = isBackup ? input.RetentionDays : 0,
             StopContainers = isBackup && input.StopContainers,
-            BundleStack = input.Action == ScheduleAction.BundleBackup && !string.IsNullOrWhiteSpace(input.BundleStack)
+            BundleStack = input.Action is ScheduleAction.BundleBackup or ScheduleAction.UpdateStacks && !string.IsNullOrWhiteSpace(input.BundleStack)
                 ? input.BundleStack.Trim()
                 : null,
+            UpdateApply = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply,
+            UpdateBackupFirst = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply && input.UpdateBackupFirst,
         }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)
@@ -287,6 +316,15 @@ public sealed class ScheduleService
             }
         }
         if (input.Action == ScheduleAction.BundleBackup
+            && !string.IsNullOrWhiteSpace(input.BundleStack) && !Stacks.StackCommands.IsValidName(input.BundleStack.Trim()))
+        {
+            return "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).";
+        }
+        if (input.Action == ScheduleAction.Notify && input.Trigger != ScheduleTrigger.Event)
+        {
+            return "A notification is sent for an event: choose the trigger Event.";
+        }
+        if (input.Action == ScheduleAction.UpdateStacks
             && !string.IsNullOrWhiteSpace(input.BundleStack) && !Stacks.StackCommands.IsValidName(input.BundleStack.Trim()))
         {
             return "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).";

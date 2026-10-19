@@ -476,3 +476,100 @@ public sealed class SyncAction : IScheduleAction
         return (ok, summary);
     }
 }
+
+/// <summary>
+/// Checks the managed stacks (one, or all of the target environments) for newer images of their tags. Only checking: a
+/// notification lists the stacks with updates. Applying: each such stack is pulled and redeployed (after a bundle backup
+/// when asked; a failed backup skips that stack), and the notification lists what was updated.
+/// </summary>
+public sealed class UpdateStacksAction : IScheduleAction
+{
+    private readonly EnvironmentService _environments;
+    private readonly Stacks.StackService _stacks;
+    private readonly Updates.UpdateService _updates;
+    private readonly INotificationService _notifications;
+
+    public UpdateStacksAction(EnvironmentService environments, Stacks.StackService stacks, Updates.UpdateService updates,
+        INotificationService notifications)
+    {
+        _environments = environments;
+        _stacks = stacks;
+        _updates = updates;
+        _notifications = notifications;
+    }
+
+    public ScheduleAction Type => ScheduleAction.UpdateStacks;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+        var envs = (await _environments.GetEnabledAsync(ct))
+            .Where(e => task.EnvironmentId is not > 0 || e.Id == task.EnvironmentId)
+            .ToDictionary(e => e.Id);
+        var stacks = (await _stacks.GetAllAsync(ct))
+            .Where(s => envs.ContainsKey(s.EnvironmentId))
+            .Where(s => string.IsNullOrWhiteSpace(opt.BundleStack) || string.Equals(s.Name, opt.BundleStack, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (stacks.Count == 0)
+        {
+            return (false, string.IsNullOrWhiteSpace(opt.BundleStack) ? "No managed stack to check." : $"Stack '{opt.BundleStack}' not found.");
+        }
+
+        var found = new List<string>();
+        var updated = new List<string>();
+        var errors = new List<string>();
+        foreach (var stack in stacks)
+        {
+            var env = envs[stack.EnvironmentId];
+            var report = await _updates.CheckStackAsync(env, stack.Name, ct);
+            if (report.Error is not null)
+            {
+                errors.Add($"{stack.Name}: {report.Error}");
+                continue;
+            }
+
+            var images = report.Images.Where(i => i.UpdateAvailable).Select(i => i.Image).ToList();
+            if (images.Count == 0)
+            {
+                continue;
+            }
+
+            found.Add($"{stack.Name} on {env.Name} ({string.Join(", ", images)})");
+            if (!opt.UpdateApply)
+            {
+                continue;
+            }
+
+            var outcome = await _updates.RunUpdateAsync(stack.Id, opt.UpdateBackupFirst, ct);
+            if (outcome.Ok)
+            {
+                updated.Add(stack.Name);
+            }
+            else
+            {
+                errors.Add($"{stack.Name}: {LastLine(outcome.Message)}");
+            }
+        }
+
+        var summary = found.Count == 0
+            ? $"Checked {stacks.Count} stack(s): no updates."
+            : opt.UpdateApply
+                ? $"Updated {updated.Count} of {found.Count} stack(s) with newer images: {string.Join("; ", found)}."
+                : $"{found.Count} of {stacks.Count} stack(s) have newer images: {string.Join("; ", found)}.";
+
+        // Updates are news on their own, so they are sent even without "notify on result" (which reports every run).
+        if (found.Count > 0 && !task.NotifyOnResult)
+        {
+            await _notifications.NotifyAsync(opt.UpdateApply ? "MatDock: stacks updated" : "MatDock: updates available", summary, ct);
+        }
+
+        return PruneVolumesAction.Result(summary, errors);
+    }
+
+    private static string LastLine(string text)
+    {
+        var line = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? text;
+        return line.Length > 200 ? line[..200] + "…" : line;
+    }
+}

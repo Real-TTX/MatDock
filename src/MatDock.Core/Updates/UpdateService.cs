@@ -10,8 +10,8 @@ namespace MatDock.Core.Updates;
 
 /// <summary>
 /// Detects image updates for a stack (local digest vs. registry digest) and runs a manual update
-/// (optional pre-update backup, then <c>compose pull</c> + <c>up -d</c>). Health-gate/rollback and
-/// auto-update come in later phases.
+/// (optional pre-update backup, then <c>compose pull</c> + <c>up -d</c>); the schedule action
+/// <see cref="Schedules.UpdateStacksAction"/> runs both on a timer.
 /// </summary>
 public sealed class UpdateService
 {
@@ -21,6 +21,7 @@ public sealed class UpdateService
     private readonly RegistryService _registries;
     private readonly StackService _stacks;
     private readonly BundleBackupService _bundle;
+    private readonly UpdateCheckCache _cache;
     private readonly ILogger<UpdateService> _logger;
 
     public UpdateService(
@@ -30,6 +31,7 @@ public sealed class UpdateService
         RegistryService registries,
         StackService stacks,
         BundleBackupService bundle,
+        UpdateCheckCache cache,
         ILogger<UpdateService> logger)
     {
         _containers = containers;
@@ -38,6 +40,7 @@ public sealed class UpdateService
         _registries = registries;
         _stacks = stacks;
         _bundle = bundle;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -94,7 +97,9 @@ public sealed class UpdateService
             statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note));
         }
 
-        return new StackUpdateReport(statuses, null);
+        var report = new StackUpdateReport(statuses, null);
+        _cache.Set(env.Id, projectName, report);
+        return report;
     }
 
     /// <summary>Runs a manual update of a managed stack: optional pre-update backup, then pull + redeploy.</summary>
@@ -149,6 +154,7 @@ public sealed class UpdateService
             return StackUpdateOutcome.Failed(output);
         }
 
+        _cache.Clear(env.Id, stack.Name);
         var after = await ContainerIdsAsync(env, stack.Name, ct);
         // When the containers cannot be listed, report a change rather than hide one.
         var changed = before is null || after is null || !before.SetEquals(after);

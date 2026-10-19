@@ -131,6 +131,107 @@ public class ScheduleServiceTests
         Assert.Equal(1, await svc.DispatchEventAsync(ScheduleEvent.EnvironmentOffline, 5, null));
     }
 
+    private static ScheduleInput EventInput(ScheduleEvent evt, ScheduleAction action) => new()
+    {
+        Name = "alert",
+        Enabled = true,
+        Trigger = ScheduleTrigger.Event,
+        Event = evt,
+        Action = action,
+    };
+
+    [Fact]
+    public async Task A_notify_schedule_sends_the_event_itself()
+    {
+        using var db = new TestDatabase();
+        var notifier = new StubNotifier();
+        var svc = Service(db, notifier: notifier);
+        await svc.CreateAsync(EventInput(ScheduleEvent.ContainerDied, ScheduleAction.Notify));
+
+        Assert.Equal(1, await svc.DispatchEventAsync(ScheduleEvent.ContainerDied, 1, "Container db exited with code 1 on local."));
+
+        Assert.Equal(1, notifier.NotifyCalls);
+        Assert.Equal("MatDock: Container died", notifier.LastSubject);
+        Assert.Equal("Container db exited with code 1 on local.", notifier.LastBody);
+        var task = (await svc.GetAllAsync()).Single();
+        Assert.True(task.LastRunOk);
+        Assert.Equal("Container db exited with code 1 on local.", task.LastStatus);
+    }
+
+    [Fact]
+    public async Task An_event_detail_goes_into_the_result_notification_of_other_actions()
+    {
+        using var db = new TestDatabase();
+        var notifier = new StubNotifier();
+        var svc = Service(db, new StubAction(ScheduleAction.HealthAlert, (true, "all fine")), notifier);
+        var input = EventInput(ScheduleEvent.ContainerUnhealthy, ScheduleAction.HealthAlert);
+        input.NotifyOnResult = true;
+        await svc.CreateAsync(input);
+
+        await svc.DispatchEventAsync(ScheduleEvent.ContainerUnhealthy, 1, "Container web is unhealthy on local.");
+
+        Assert.Equal("Container web is unhealthy on local.\n\nall fine", notifier.LastBody);
+    }
+
+    [Fact]
+    public async Task A_notification_needs_an_event_trigger()
+    {
+        using var db = new TestDatabase();
+        var (ok, message, _) = await Service(db).CreateAsync(CronInput(action: ScheduleAction.Notify));
+        Assert.False(ok);
+        Assert.Contains("Event", message);
+    }
+
+    [Fact]
+    public async Task Event_schedules_are_found_only_when_enabled_and_waiting_for_the_event()
+    {
+        using var db = new TestDatabase();
+        var svc = Service(db);
+        ScheduleEvent[] container = [ScheduleEvent.ContainerDied, ScheduleEvent.ContainerUnhealthy];
+        Assert.False(await svc.HasEventSchedulesAsync(container));
+
+        var off = EventInput(ScheduleEvent.ContainerDied, ScheduleAction.Notify);
+        off.Enabled = false;
+        await svc.CreateAsync(off);
+        await svc.CreateAsync(EventInput(ScheduleEvent.DeployFailed, ScheduleAction.Notify));
+        Assert.False(await svc.HasEventSchedulesAsync(container));
+
+        await svc.CreateAsync(EventInput(ScheduleEvent.ContainerUnhealthy, ScheduleAction.Notify));
+        Assert.True(await svc.HasEventSchedulesAsync(container));
+    }
+
+    [Fact]
+    public async Task Update_options_are_kept_only_for_the_update_action()
+    {
+        using var db = new TestDatabase();
+        var svc = Service(db);
+        var input = CronInput(action: ScheduleAction.UpdateStacks);
+        input.UpdateApply = true;
+        input.UpdateBackupFirst = true;
+        input.BundleStack = "media";
+        var (ok, _, id) = await svc.CreateAsync(input);
+        Assert.True(ok);
+        var opt = ScheduleOptions.Parse((await svc.GetAsync(id))!.OptionsJson);
+        Assert.True(opt.UpdateApply);
+        Assert.True(opt.UpdateBackupFirst);
+        Assert.Equal("media", opt.BundleStack);
+
+        // Only checking: no backup option; another action: none of them.
+        input.UpdateApply = false;
+        await svc.UpdateAsync(id, input);
+        Assert.False(ScheduleOptions.Parse((await svc.GetAsync(id))!.OptionsJson).UpdateBackupFirst);
+        input.Action = ScheduleAction.PruneImages;
+        input.UpdateApply = true;
+        await svc.UpdateAsync(id, input);
+        opt = ScheduleOptions.Parse((await svc.GetAsync(id))!.OptionsJson);
+        Assert.False(opt.UpdateApply);
+        Assert.Null(opt.BundleStack);
+
+        input.Action = ScheduleAction.UpdateStacks;
+        input.BundleStack = "Bad Name!";
+        Assert.False((await svc.UpdateAsync(id, input)).Ok);
+    }
+
     private sealed class StubAction : IScheduleAction
     {
         private readonly (bool, string) _result;
@@ -147,11 +248,15 @@ public class ScheduleServiceTests
     private sealed class StubNotifier : INotificationService
     {
         public int NotifyCalls { get; private set; }
+        public string? LastSubject { get; private set; }
+        public string? LastBody { get; private set; }
         public Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default) => Task.CompletedTask;
         public Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default) => Task.FromResult((true, "ok"));
         public Task<(bool Ok, string Message)> NotifyAsync(string subject, string body, CancellationToken ct = default)
         {
             NotifyCalls++;
+            LastSubject = subject;
+            LastBody = body;
             return Task.FromResult((true, "sent"));
         }
     }

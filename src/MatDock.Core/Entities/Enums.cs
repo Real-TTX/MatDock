@@ -90,7 +90,13 @@ public enum ScheduleAction
     Sync = 6,
 
     /// <summary>Full stack backups (bundles) of one stack or of every stack of an owner, with retention.</summary>
-    BundleBackup = 7
+    BundleBackup = 7,
+
+    /// <summary>Sends the event that fired the task as a notification (event trigger only).</summary>
+    Notify = 8,
+
+    /// <summary>Checks the managed stacks for newer images; notifies, or pulls and redeploys them.</summary>
+    UpdateStacks = 9
 }
 
 /// <summary>Why a stack bundle was taken.</summary>
@@ -109,14 +115,19 @@ public enum StackBackupStatus
     Failed = 2
 }
 
-/// <summary>Internal events that can trigger a scheduled task (Phase 2).</summary>
+/// <summary>Internal events that can trigger a scheduled task.</summary>
 public enum ScheduleEvent
 {
     DeployFailed = 0,
     BackupFailed = 1,
     SyncFailed = 2,
     EnvironmentOffline = 3,
-    ContainerDied = 4
+
+    /// <summary>A container stopped on its own with an error (exit code not 0, or killed for lack of memory), not by a stop.</summary>
+    ContainerDied = 4,
+
+    /// <summary>The health check of a container turned unhealthy.</summary>
+    ContainerUnhealthy = 5
 }
 
 /// <summary>Where backup archives are stored.</summary>

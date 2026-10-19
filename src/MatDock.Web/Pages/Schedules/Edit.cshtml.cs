@@ -55,6 +55,8 @@ public class EditModel : PageModel
         public bool StopContainers { get; set; }
         public bool NotifyOnResult { get; set; }
         public string? BundleStack { get; set; }
+        public bool UpdateApply { get; set; }
+        public bool UpdateBackupFirst { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -93,6 +95,8 @@ public class EditModel : PageModel
                 StopContainers = opt.StopContainers,
                 NotifyOnResult = t.NotifyOnResult,
                 BundleStack = opt.BundleStack,
+                UpdateApply = opt.UpdateApply,
+                UpdateBackupFirst = opt.UpdateBackupFirst,
             };
         }
 
@@ -159,5 +163,7 @@ public class EditModel : PageModel
         StopContainers = Input.StopContainers,
         NotifyOnResult = Input.NotifyOnResult,
         BundleStack = Input.BundleStack,
+        UpdateApply = Input.UpdateApply,
+        UpdateBackupFirst = Input.UpdateBackupFirst,
     };
 }
