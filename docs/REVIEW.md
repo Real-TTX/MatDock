@@ -110,9 +110,13 @@ socket.
 9. Git over SSH with a key (LibGit2Sharp's ssh transport replaced by one on SSH.NET).
 10. Environments over a Docker API (TCP with TLS client certificates).
 11. Vulnerability scans with Trivy (detail page, list column, schedule *Scan images*).
+12. Found on the way: the result of the connection test was never saved since the list lost its test button (environments stayed
+    *Unknown*, the detected sudo/rootless access was lost) – saving and the health check save it again; stack bundles at a target were
+    all shown as *Foreign*.
+13. README screenshots of a demo installation (invented hosts and stacks).
 
 Everything was tried against real Docker on this PC (local registry for the rollback, a scratch container, an OpenSSH + git server,
-docker:dind with TLS, Trivy) besides the tests. Tests: 410 at the start, 542 now (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`);
+docker:dind with TLS, Trivy) besides the tests. Tests: 410 at the start, 543 now (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`);
 build without warnings. Migrations: `AddActivityLog`, `AddEnvironmentHostKey`, `AddGitSshKey`, `AddEnvironmentDockerApi`, `AddImageScan`.
 
 ## 5. Moving the UI onto MatUi
