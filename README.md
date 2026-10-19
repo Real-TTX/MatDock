@@ -102,6 +102,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 
 ## Screenshots
 
+All screenshots show a demo installation with invented hosts and stacks.
+
 ### Stacks – expandable to the containers, with aggregated resources
 
 ![Stacks list with expanded container cards](docs/images/stacks.png)
@@ -116,7 +118,20 @@ the stack's CPU and RAM.
 
 Short status with the full text on hover, published ports as tags that open the app in a new
 tab, and CPU + RAM as one compact column. Open, shell, logs, volumes and lifecycle actions per
-row.
+row; the list refreshes itself while it is open.
+
+### Images: layers and vulnerabilities
+
+![Image detail with the findings of a Trivy scan](docs/images/image-scan.png)
+
+Tags, digest, platform and layers of every image, and a Trivy scan on the image's own host – the list shows the
+critical and high findings of the last scan, a schedule scans the running images and reports new ones.
+
+### Networks: who can reach whom
+
+![Network map: networks on the left, containers on the right](docs/images/network-map.png)
+
+Every network with its containers; a container on several networks is how services of different networks meet.
 
 ### Volumes: migration, backups and a file explorer
 
@@ -139,20 +154,29 @@ compose + image references) and come back as a running stack.
 
 ![Live log viewer with search](docs/images/logs.png)
 
-`docker logs -f` in the browser: follow, pause, filter to matching lines, and search with
-highlighting and next/previous.
+`docker logs -f` in the browser – of one container or a whole stack: follow, pause, timestamps, filter to matching
+lines, and search with highlighting and next/previous.
 
-### Apps, environments and system
+### Schedules and the activity log
 
-| Apps | Environments | System |
-|---|---|---|
-| ![App templates](docs/images/apps.png) | ![Environments](docs/images/environments.png) | ![System settings](docs/images/system.png) |
+| Schedules | Activity |
+|---|---|
+| ![Schedules: updates, scans, prune, alerts](docs/images/schedules.png) | ![Activity log](docs/images/activity.png) |
+
+Updates with a health gate, vulnerability scans, prune, backups and alerts on crashed or unhealthy containers; every
+action of a user and every API call is in the activity log.
+
+### Apps and environments
+
+| Apps | Environments |
+|---|---|
+| ![App templates](docs/images/apps.png) | ![Environments](docs/images/environments.png) |
 
 ### Dark theme and narrow screens
 
 | Dark | Phone | Menu |
 |---|---|---|
-| ![Dark dashboard](docs/images/dashboard-dark.png) | ![Containers on a phone](docs/images/mobile-containers.png) | ![Sidebar as an overlay](docs/images/mobile-nav.png) |
+| ![Dark dashboard](docs/images/dashboard-dark.png) ![Dark stacks](docs/images/stacks-dark.png) | ![Containers on a phone](docs/images/mobile-containers.png) | ![Sidebar as an overlay](docs/images/mobile-nav.png) |
 
 ## Quick start
 
