@@ -19,6 +19,11 @@ public class FileEditModel : PageModel
 
     [BindProperty(SupportsGet = true)] public long EnvId { get; set; }
     [BindProperty(SupportsGet = true)] public string Volume { get; set; } = string.Empty;
+    [BindProperty(SupportsGet = true)] public string Container { get; set; } = string.Empty;
+
+    public FileTarget Target => string.IsNullOrEmpty(Container) ? FileTarget.ForVolume(Volume) : FileTarget.ForContainer(Container);
+    public string BasePath => Target.IsContainer ? "/Containers/Files" : "/Volumes/Files";
+    public string TargetQuery => Target.IsContainer ? $"container={Uri.EscapeDataString(Container)}" : $"volume={Uri.EscapeDataString(Volume)}";
     [BindProperty(SupportsGet = true)] public string Path { get; set; } = string.Empty;
 
     [BindProperty] public string FileContent { get; set; } = string.Empty;
@@ -47,7 +52,7 @@ public class FileEditModel : PageModel
             return NotFound();
         }
 
-        var (file, error) = await _fileService.ReadAsync(Environment, Volume, Path, HttpContext.RequestAborted);
+        var (file, error) = await _fileService.ReadAsync(Environment, Target, Path, HttpContext.RequestAborted);
         if (error is not null)
         {
             Error = error;
@@ -73,7 +78,7 @@ public class FileEditModel : PageModel
 
         // Server-side guard: re-read the current file and refuse to save anything that the editor may
         // only have shown partially/lossily (large, binary, or non-UTF-8) — never clobber it.
-        var (current, error) = await _fileService.ReadAsync(Environment, Volume, Path, HttpContext.RequestAborted);
+        var (current, error) = await _fileService.ReadAsync(Environment, Target, Path, HttpContext.RequestAborted);
         if (error is not null)
         {
             Error = error;
@@ -90,12 +95,12 @@ public class FileEditModel : PageModel
             return Page();
         }
 
-        var (ok, message) = await _fileService.WriteAsync(Environment, Volume, Path, FileContent, HttpContext.RequestAborted);
+        var (ok, message) = await _fileService.WriteAsync(Environment, Target, Path, FileContent, HttpContext.RequestAborted);
         StatusMessage = message;
         IsError = !ok;
         if (ok)
         {
-            return RedirectToPage("/Volumes/Files", new { envId = EnvId, volume = Volume, path = ParentPath });
+            return Redirect($"{BasePath}?envId={EnvId}&{TargetQuery}&path={Uri.EscapeDataString(ParentPath)}");
         }
 
         return Page();

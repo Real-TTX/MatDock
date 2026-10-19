@@ -36,6 +36,7 @@ else if (c is not null)
         @if (c.IsRunning && User.IsInRole("Admin"))
         {
             <a class="mat-btn" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+            <a class="mat-btn" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
         }
         @if (c.IsRunning)
         {

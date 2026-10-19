@@ -141,6 +141,9 @@ builder.Services.AddRazorPages(options =>
     // The volume file explorer can read/write arbitrary files inside volumes → admins only.
     options.Conventions.AuthorizePage("/Volumes/Files", "AdminOnly");
     options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");
+    // The same file browser for the file system of a container (docker exec), under its own address.
+    options.Conventions.AddPageRoute("/Volumes/Files", "Containers/Files");
+    options.Conventions.AddPageRoute("/Volumes/FileEdit", "Containers/FileEdit");
     // Prune permanently deletes unused volumes/networks → admins only.
     options.Conventions.AuthorizePage("/Volumes/Prune", "AdminOnly");
     options.Conventions.AuthorizePage("/Networks/Prune", "AdminOnly");

@@ -62,56 +62,97 @@ public static class VolumeFileCommands
         return string.Join("/", segments);
     }
 
-    /// <summary>The absolute in-container path for a normalized relative path.</summary>
+    /// <summary>The absolute in-container path for a normalized relative path (the volume is mounted at /data).</summary>
     public static string ContainerPath(string relPath)
         => relPath.Length == 0 ? "/data" : "/data/" + relPath;
 
-    private static string Head(string dockerHead, string image, string volume, bool readOnly, bool stdin)
+    /// <summary>The absolute path of a normalized relative path in the target: below /data for a volume, below / in a container.</summary>
+    public static string TargetPath(FileTarget target, string relPath)
+        => target.IsContainer ? "/" + relPath : ContainerPath(relPath);
+
+    /// <summary>
+    /// How a command reaches the files: a volume is mounted into a throwaway helper container (read-only where nothing is
+    /// written), a container runs it itself (<c>docker exec</c>, so it needs its own shell and core tools).
+    /// </summary>
+    private static string Head(string dockerHead, string image, FileTarget target, bool readOnly, bool stdin)
     {
-        var mount = ShellQuote(volume) + (readOnly ? ":/data:ro" : ":/data");
         var i = stdin ? "-i " : string.Empty;
+        if (target.IsContainer)
+        {
+            return VolumeCommands.PathPrefix + dockerHead + " exec " + i + ShellQuote(target.Name) + " ";
+        }
+
+        var mount = ShellQuote(target.Name) + (readOnly ? ":/data:ro" : ":/data");
         return VolumeCommands.PathPrefix + dockerHead + " run --rm " + i + "-v " + mount + " " + ShellQuote(image) + " ";
     }
 
-    public static string List(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: true, stdin: false)
-           + "sh -c " + ShellQuote(ListScript) + " sh " + ShellQuote(ContainerPath(relPath));
+    public static string List(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: true, stdin: false)
+           + "sh -c " + ShellQuote(ListScript) + " sh " + ShellQuote(TargetPath(target, relPath));
 
     /// <summary>Reads up to <see cref="MaxReadBytes"/>+1 bytes (the extra byte flags truncation).</summary>
-    public static string Read(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: true, stdin: false)
+    public static string Read(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: true, stdin: false)
            + "sh -c " + ShellQuote("[ -f \"$1\" ] || { echo NOTAFILE >&2; exit 9; }; head -c " + (MaxReadBytes + 1) + " -- \"$1\"")
-           + " sh " + ShellQuote(ContainerPath(relPath));
+           + " sh " + ShellQuote(TargetPath(target, relPath));
+
+    /// <summary>The whole file (downloads): no size cap.</summary>
+    public static string ReadAll(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: true, stdin: false)
+           + "sh -c " + ShellQuote("[ -f \"$1\" ] || { echo NOTAFILE >&2; exit 9; }; cat -- \"$1\"")
+           + " sh " + ShellQuote(TargetPath(target, relPath));
 
     /// <summary>
     /// Writes stdin to the file atomically: stream into a temp file in the same dir, then <c>mv</c> it
     /// into place, so an interrupted transfer leaves the original intact instead of truncating it.
     /// </summary>
-    public static string Write(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: true)
+    public static string Write(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: false, stdin: true)
            + "sh -c " + ShellQuote("tmp=\"$1.$$.matdock.tmp\"; cat > \"$tmp\" && mv -- \"$tmp\" \"$1\"")
-           + " sh " + ShellQuote(ContainerPath(relPath));
+           + " sh " + ShellQuote(TargetPath(target, relPath));
 
-    public static string MakeDir(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: false)
+    public static string MakeDir(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: false, stdin: false)
            + "sh -c " + ShellQuote("[ -e \"$1\" ] && { echo EXISTS >&2; exit 17; }; mkdir -p -- \"$1\"")
-           + " sh " + ShellQuote(ContainerPath(relPath));
+           + " sh " + ShellQuote(TargetPath(target, relPath));
 
     /// <summary>Creates an empty file; fails (exit 17) if it already exists.</summary>
-    public static string CreateFile(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: false)
+    public static string CreateFile(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: false, stdin: false)
            + "sh -c " + ShellQuote("[ -e \"$1\" ] && { echo EXISTS >&2; exit 17; }; : > \"$1\"")
-           + " sh " + ShellQuote(ContainerPath(relPath));
+           + " sh " + ShellQuote(TargetPath(target, relPath));
 
-    public static string Delete(string dockerHead, string image, string volume, string relPath)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: false)
-           + "rm -rf -- " + ShellQuote(ContainerPath(relPath));
+    public static string Delete(string dockerHead, string image, FileTarget target, string relPath)
+        => Head(dockerHead, image, target, readOnly: false, stdin: false)
+           + "rm -rf -- " + ShellQuote(TargetPath(target, relPath));
 
-    public static string Move(string dockerHead, string image, string volume, string srcRel, string dstRel)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: false)
-           + "mv -- " + ShellQuote(ContainerPath(srcRel)) + " " + ShellQuote(ContainerPath(dstRel));
+    public static string Move(string dockerHead, string image, FileTarget target, string srcRel, string dstRel)
+        => Head(dockerHead, image, target, readOnly: false, stdin: false)
+           + "mv -- " + ShellQuote(TargetPath(target, srcRel)) + " " + ShellQuote(TargetPath(target, dstRel));
 
-    public static string Copy(string dockerHead, string image, string volume, string srcRel, string dstRel)
-        => Head(dockerHead, image, volume, readOnly: false, stdin: false)
-           + "cp -a -- " + ShellQuote(ContainerPath(srcRel)) + " " + ShellQuote(ContainerPath(dstRel));
+    public static string Copy(string dockerHead, string image, FileTarget target, string srcRel, string dstRel)
+        => Head(dockerHead, image, target, readOnly: false, stdin: false)
+           + "cp -a -- " + ShellQuote(TargetPath(target, srcRel)) + " " + ShellQuote(TargetPath(target, dstRel));
+
+    // The same for a volume by name.
+    public static string List(string dockerHead, string image, string volume, string relPath) => List(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string Read(string dockerHead, string image, string volume, string relPath) => Read(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string Write(string dockerHead, string image, string volume, string relPath) => Write(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string MakeDir(string dockerHead, string image, string volume, string relPath) => MakeDir(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string CreateFile(string dockerHead, string image, string volume, string relPath) => CreateFile(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string Delete(string dockerHead, string image, string volume, string relPath) => Delete(dockerHead, image, FileTarget.ForVolume(volume), relPath);
+    public static string Move(string dockerHead, string image, string volume, string srcRel, string dstRel) => Move(dockerHead, image, FileTarget.ForVolume(volume), srcRel, dstRel);
+    public static string Copy(string dockerHead, string image, string volume, string srcRel, string dstRel) => Copy(dockerHead, image, FileTarget.ForVolume(volume), srcRel, dstRel);
+}
+
+/// <summary>Where the file browser works: the files of a volume, or the file system of a container.</summary>
+public sealed record FileTarget(bool IsContainer, string Name)
+{
+    public static FileTarget ForVolume(string? volume) => new(false, volume ?? string.Empty);
+
+    public static FileTarget ForContainer(string? id) => new(true, id ?? string.Empty);
+
+    public bool IsValid => IsContainer ? Containers.ContainerCommands.IsValidId(Name) : VolumeCommands.IsValidVolumeName(Name);
+
+    public string InvalidMessage => IsContainer ? "Invalid container." : "Invalid volume name.";
 }

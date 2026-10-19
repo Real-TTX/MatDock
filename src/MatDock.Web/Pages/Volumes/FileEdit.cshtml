@@ -2,8 +2,8 @@
 @model MatDock.Web.Pages.Volumes.FileEditModel
 @{
     ViewData["Title"] = "File";
-    var backUrl = $"/Volumes/Files?envId={Model.EnvId}&volume={Uri.EscapeDataString(Model.Volume)}&path={Uri.EscapeDataString(Model.ParentPath)}";
-    var downloadUrl = $"/Volumes/Files?handler=Download&envId={Model.EnvId}&volume={Uri.EscapeDataString(Model.Volume)}&target={Uri.EscapeDataString(Model.Path)}";
+    var backUrl = $"{Model.BasePath}?envId={Model.EnvId}&{Model.TargetQuery}&path={Uri.EscapeDataString(Model.ParentPath)}";
+    var downloadUrl = $"{Model.BasePath}?handler=Download&envId={Model.EnvId}&{Model.TargetQuery}&target={Uri.EscapeDataString(Model.Path)}";
 }
 
 <div class="page-head">
@@ -58,7 +58,7 @@ else
         <div class="alert alert--warning"><icon name="alert" /><span>The file is not UTF-8 encoded – read-only to avoid corruption.</span></div>
     }
     <form method="post" asp-page-handler="Save">
-        <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Path" />
+        <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Container" /><input type="hidden" asp-for="Path" />
         <textarea name="FileContent" class="mat-textarea mono" rows="24" spellcheck="false" style="width:100%;font-size:.85rem;" readonly="@(editable ? null : "readonly")">@Model.FileContent</textarea>
         <mat-form-buttons>
             @if (editable)

@@ -28,6 +28,8 @@ public sealed class RoleAccessTests(MatDockFactory site) : IClassFixture<MatDock
     [InlineData("/Stacks")]
     [InlineData("/Schedules")]
     [InlineData("/Terminal")]
+    [InlineData("/Containers/Files?envId=1&container=web")]
+    [InlineData("/Volumes/Files?envId=1&volume=data")]
     public async Task A_user_is_refused_on_admin_pages(string path)
     {
         var browser = await SignInAsUserAsync();

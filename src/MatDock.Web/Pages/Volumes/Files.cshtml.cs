@@ -21,6 +21,15 @@ public class FilesModel : PageModel
 
     public long EnvId { get; private set; }
     public string Volume { get; private set; } = string.Empty;
+
+    /// <summary>The container whose file system is shown (/Containers/Files); empty for a volume.</summary>
+    public string Container { get; private set; } = string.Empty;
+
+    public FileTarget Target => string.IsNullOrEmpty(Container) ? FileTarget.ForVolume(Volume) : FileTarget.ForContainer(Container);
+
+    /// <summary>The page and the query part that name the target, for links.</summary>
+    public string BasePath => Target.IsContainer ? "/Containers/Files" : "/Volumes/Files";
+    public string TargetQuery => Target.IsContainer ? $"container={Uri.EscapeDataString(Container)}" : $"volume={Uri.EscapeDataString(Volume)}";
     public string Path { get; private set; } = string.Empty;
     public DockerEnvironment? Environment { get; private set; }
 
@@ -35,7 +44,7 @@ public class FilesModel : PageModel
     /// <summary>Path segments for the breadcrumb: (name, cumulative rel path).</summary>
     public IReadOnlyList<(string Name, string Rel)> Crumbs { get; private set; } = new List<(string, string)>();
 
-    public async Task<IActionResult> OnGetAsync(long envId, string volume, string? path)
+    public async Task<IActionResult> OnGetAsync(long envId, string? volume, string? container, string? path)
     {
         if (!await LoadEnvAsync(envId))
         {
@@ -43,13 +52,19 @@ public class FilesModel : PageModel
         }
 
         EnvId = envId;
-        Volume = volume;
+        Volume = volume ?? string.Empty;
+        Container = container ?? string.Empty;
         Path = VolumeFileCommands.NormalizeRelPath(path) ?? string.Empty;
         BuildCrumbs();
 
-        var (entries, error) = await _fileService.ListAsync(Environment!, Volume, Path, HttpContext.RequestAborted);
+        var (entries, error) = await _fileService.ListAsync(Environment!, Target, Path, HttpContext.RequestAborted);
         Entries = entries;
         Error = error;
+
+        if (Target.IsContainer)
+        {
+            return Page();
+        }
 
         // Populate the volume switcher (best-effort; on failure it just shows the current volume).
         try
@@ -67,56 +82,56 @@ public class FilesModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostNewFileAsync(long envId, string volume, string? path, string name)
+    public async Task<IActionResult> OnPostNewFileAsync(long envId, string? volume, string? container, string? path, string name)
     {
-        var (ok, msg) = await Guard(envId, volume, () => _fileService.CreateFileAsync(Environment!, volume, Combine(path, name), HttpContext.RequestAborted));
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await Guard(envId, () => _fileService.CreateFileAsync(Environment!, T(volume, container), Combine(path, name), HttpContext.RequestAborted));
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnPostNewFolderAsync(long envId, string volume, string? path, string name)
+    public async Task<IActionResult> OnPostNewFolderAsync(long envId, string? volume, string? container, string? path, string name)
     {
-        var (ok, msg) = await Guard(envId, volume, () => _fileService.MakeDirAsync(Environment!, volume, Combine(path, name), HttpContext.RequestAborted));
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await Guard(envId, () => _fileService.MakeDirAsync(Environment!, T(volume, container), Combine(path, name), HttpContext.RequestAborted));
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(long envId, string volume, string? path, string target)
+    public async Task<IActionResult> OnPostDeleteAsync(long envId, string? volume, string? container, string? path, string target)
     {
-        var (ok, msg) = await Guard(envId, volume, () => _fileService.DeleteAsync(Environment!, volume, target, HttpContext.RequestAborted));
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await Guard(envId, () => _fileService.DeleteAsync(Environment!, T(volume, container), target, HttpContext.RequestAborted));
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnPostRenameAsync(long envId, string volume, string? path, string target, string newName)
+    public async Task<IActionResult> OnPostRenameAsync(long envId, string? volume, string? container, string? path, string target, string newName)
     {
-        var (ok, msg) = await Guard(envId, volume, () => _fileService.MoveAsync(Environment!, volume, target, Combine(path, newName), HttpContext.RequestAborted));
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await Guard(envId, () => _fileService.MoveAsync(Environment!, T(volume, container), target, Combine(path, newName), HttpContext.RequestAborted));
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnPostCopyAsync(long envId, string volume, string? path, string target, string newName)
+    public async Task<IActionResult> OnPostCopyAsync(long envId, string? volume, string? container, string? path, string target, string newName)
     {
-        var (ok, msg) = await Guard(envId, volume, () => _fileService.CopyAsync(Environment!, volume, target, Combine(path, newName), HttpContext.RequestAborted));
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await Guard(envId, () => _fileService.CopyAsync(Environment!, T(volume, container), target, Combine(path, newName), HttpContext.RequestAborted));
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnPostUploadAsync(long envId, string volume, string? path, IFormFile? file)
+    public async Task<IActionResult> OnPostUploadAsync(long envId, string? volume, string? container, string? path, IFormFile? file)
     {
         if (!await LoadEnvAsync(envId))
         {
-            return Finish(false, "Environment not available.", envId, volume, path);
+            return Finish(false, "Environment not available.", envId, volume, container, path);
         }
 
         if (file is null || file.Length == 0)
         {
-            return Finish(false, "No file selected.", envId, volume, path);
+            return Finish(false, "No file selected.", envId, volume, container, path);
         }
 
         // Strip any client-supplied directory components; place the file in the current folder.
         var dest = Combine(path, System.IO.Path.GetFileName(file.FileName));
         await using var stream = file.OpenReadStream();
-        var (ok, msg) = await _fileService.UploadAsync(Environment!, volume, dest, stream, HttpContext.RequestAborted);
-        return Finish(ok, msg, envId, volume, path);
+        var (ok, msg) = await _fileService.UploadAsync(Environment!, T(volume, container), dest, stream, HttpContext.RequestAborted);
+        return Finish(ok, msg, envId, volume, container, path);
     }
 
-    public async Task<IActionResult> OnGetDownloadAsync(long envId, string volume, string target)
+    public async Task<IActionResult> OnGetDownloadAsync(long envId, string? volume, string? container, string target)
     {
         if (!await LoadEnvAsync(envId))
         {
@@ -133,11 +148,11 @@ public class FilesModel : PageModel
 
         Response.ContentType = "application/octet-stream";
         Response.Headers.ContentDisposition = $"attachment; filename=\"{safe}\"";
-        var (ok, _) = await _fileService.DownloadAsync(Environment!, volume, target, Response.Body, HttpContext.RequestAborted);
+        var (ok, _) = await _fileService.DownloadAsync(Environment!, T(volume, container), target, Response.Body, HttpContext.RequestAborted);
         return new EmptyResult();
     }
 
-    private async Task<(bool Ok, string Message)> Guard(long envId, string volume, Func<Task<(bool, string)>> action)
+    private async Task<(bool Ok, string Message)> Guard(long envId, Func<Task<(bool, string)>> action)
     {
         if (!await LoadEnvAsync(envId))
         {
@@ -147,12 +162,17 @@ public class FilesModel : PageModel
         return await action();
     }
 
-    private IActionResult Finish(bool ok, string message, long envId, string volume, string? path)
+    private IActionResult Finish(bool ok, string message, long envId, string? volume, string? container, string? path)
     {
         StatusMessage = message;
         IsError = !ok;
-        return RedirectToPage(new { envId, volume, path });
+        return string.IsNullOrEmpty(container)
+            ? Redirect($"/Volumes/Files?envId={envId}&volume={Uri.EscapeDataString(volume ?? string.Empty)}&path={Uri.EscapeDataString(path ?? string.Empty)}")
+            : Redirect($"/Containers/Files?envId={envId}&container={Uri.EscapeDataString(container)}&path={Uri.EscapeDataString(path ?? string.Empty)}");
     }
+
+    private static FileTarget T(string? volume, string? container)
+        => string.IsNullOrEmpty(container) ? FileTarget.ForVolume(volume) : FileTarget.ForContainer(container);
 
     private async Task<bool> LoadEnvAsync(long envId)
     {

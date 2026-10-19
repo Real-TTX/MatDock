@@ -18,7 +18,8 @@ public sealed record FileReadResult(string Content, bool Truncated, bool IsBinar
     public bool Editable => !Truncated && !IsBinary && !NonUtf8;
 }
 
-/// <summary>Browses and edits files inside a Docker volume via a throwaway busybox container over SSH.</summary>
+/// <summary>Browses and edits files inside a Docker volume (via a throwaway busybox container) or inside a container
+/// (docker exec), on the local socket or over SSH.</summary>
 public sealed class VolumeFileService
 {
     private readonly IHostSessionFactory _hostSessionFactory;
@@ -34,11 +35,11 @@ public sealed class VolumeFileService
         _logger = logger;
     }
 
-    public async Task<(IReadOnlyList<VolumeFileEntry> Entries, string? Error)> ListAsync(DockerEnvironment env, string volume, string? relPath, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<VolumeFileEntry> Entries, string? Error)> ListAsync(DockerEnvironment env, FileTarget target, string? relPath, CancellationToken ct = default)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (Array.Empty<VolumeFileEntry>(), "Invalid volume name.");
+            return (Array.Empty<VolumeFileEntry>(), target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -52,7 +53,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                var result = await RunAsync(client, VolumeFileCommands.List(head, _options.HelperImage, volume, rel), ct);
+                var result = await RunAsync(client, VolumeFileCommands.List(head, _options.HelperImage, target, rel), ct);
                 if (result.ExitStatus != 0)
                 {
                     return (Array.Empty<VolumeFileEntry>(), "Directory could not be read.");
@@ -67,11 +68,11 @@ public sealed class VolumeFileService
         }
     }
 
-    public async Task<(FileReadResult? File, string? Error)> ReadAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
+    public async Task<(FileReadResult? File, string? Error)> ReadAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (null, "Invalid volume name.");
+            return (null, target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -87,7 +88,7 @@ public sealed class VolumeFileService
             {
                 // Read the RAW bytes (not the UTF-8-decoded string) so truncation is measured in bytes
                 // and non-UTF-8/binary files are detected exactly — a decoded string would hide both.
-                using var cmd = client.CreateCommand(VolumeFileCommands.Read(head, _options.HelperImage, volume, rel));
+                using var cmd = client.CreateCommand(VolumeFileCommands.Read(head, _options.HelperImage, target, rel));
                 var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
                 cmd.CommandTimeout = timeout;
                 cmd.BufferOutput = false; // read the raw file bytes live from stdout
@@ -135,16 +136,16 @@ public sealed class VolumeFileService
         }
     }
 
-    public Task<(bool Ok, string Message)> WriteAsync(DockerEnvironment env, string volume, string relPath, string content, CancellationToken ct = default)
-        => MutateWithStdinAsync(env, volume, relPath, content, ct);
+    public Task<(bool Ok, string Message)> WriteAsync(DockerEnvironment env, FileTarget target, string relPath, string content, CancellationToken ct = default)
+        => MutateWithStdinAsync(env, target, relPath, content, ct);
 
-    public Task<(bool Ok, string Message)> MakeDirAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, volume, relPath, VolumeFileCommands.MakeDir, "Folder created.", ct);
+    public Task<(bool Ok, string Message)> MakeDirAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
+        => MutateAsync(env, target, relPath, VolumeFileCommands.MakeDir, "Folder created.", ct);
 
-    public Task<(bool Ok, string Message)> CreateFileAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
-        => MutateAsync(env, volume, relPath, VolumeFileCommands.CreateFile, "File created.", ct);
+    public Task<(bool Ok, string Message)> CreateFileAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
+        => MutateAsync(env, target, relPath, VolumeFileCommands.CreateFile, "File created.", ct);
 
-    public async Task<(bool Ok, string Message)> DeleteAsync(DockerEnvironment env, string volume, string relPath, CancellationToken ct = default)
+    public async Task<(bool Ok, string Message)> DeleteAsync(DockerEnvironment env, FileTarget target, string relPath, CancellationToken ct = default)
     {
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
         if (string.IsNullOrEmpty(rel))
@@ -152,21 +153,21 @@ public sealed class VolumeFileService
             return (false, "The root folder cannot be deleted.");
         }
 
-        return await MutateAsync(env, volume, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
+        return await MutateAsync(env, target, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
     }
 
-    public Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, string volume, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
+    public Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
+        => Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
 
-    public Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, string volume, string srcRel, string dstRel, CancellationToken ct = default)
-        => Mutate2Async(env, volume, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
+    public Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
+        => Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
 
-    /// <summary>Streams a file's raw bytes from the volume into <paramref name="output"/> (no size cap; for downloads).</summary>
-    public async Task<(bool Ok, string Error)> DownloadAsync(DockerEnvironment env, string volume, string relPath, Stream output, CancellationToken ct = default)
+    /// <summary>Streams a file's raw bytes from the volume or container into <paramref name="output"/> (no size cap; for downloads).</summary>
+    public async Task<(bool Ok, string Error)> DownloadAsync(DockerEnvironment env, FileTarget target, string relPath, Stream output, CancellationToken ct = default)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (false, "Invalid volume name.");
+            return (false, target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -180,7 +181,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                using var cmd = client.CreateCommand(VolumeFileCommands.Read(head, _options.HelperImage, volume, rel));
+                using var cmd = client.CreateCommand(VolumeFileCommands.ReadAll(head, _options.HelperImage, target, rel));
                 // Downloads can be large; allow more time than a normal command and stream straight through.
                 var timeout = TimeSpan.FromSeconds(Math.Max(300, _options.SshTimeoutSeconds));
                 cmd.CommandTimeout = timeout;
@@ -200,12 +201,12 @@ public sealed class VolumeFileService
         }
     }
 
-    /// <summary>Streams uploaded bytes from <paramref name="source"/> into a (new or overwritten) file in the volume.</summary>
-    public async Task<(bool Ok, string Message)> UploadAsync(DockerEnvironment env, string volume, string relPath, Stream source, CancellationToken ct = default)
+    /// <summary>Streams uploaded bytes from <paramref name="source"/> into a (new or overwritten) file in the volume or container.</summary>
+    public async Task<(bool Ok, string Message)> UploadAsync(DockerEnvironment env, FileTarget target, string relPath, Stream source, CancellationToken ct = default)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (false, "Invalid volume name.");
+            return (false, target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -219,7 +220,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                using var cmd = client.CreateCommand(VolumeFileCommands.Write(head, _options.HelperImage, volume, rel));
+                using var cmd = client.CreateCommand(VolumeFileCommands.Write(head, _options.HelperImage, target, rel));
                 cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(300, _options.SshTimeoutSeconds));
                 // SSH.NET 2026: create the input stream only AFTER BeginExecute opened the channel.
                 var async = cmd.BeginExecute();
@@ -238,12 +239,12 @@ public sealed class VolumeFileService
 
     // ---- shared plumbing ----
 
-    private async Task<(bool Ok, string Message)> MutateAsync(DockerEnvironment env, string volume, string relPath,
-        Func<string, string, string, string, string> build, string okMessage, CancellationToken ct)
+    private async Task<(bool Ok, string Message)> MutateAsync(DockerEnvironment env, FileTarget target, string relPath,
+        Func<string, string, FileTarget, string, string> build, string okMessage, CancellationToken ct)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (false, "Invalid volume name.");
+            return (false, target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -257,7 +258,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                var result = await RunAsync(client, build(head, _options.HelperImage, volume, rel), ct);
+                var result = await RunAsync(client, build(head, _options.HelperImage, target, rel), ct);
                 return result.ExitStatus == 0 ? (true, okMessage) : (false, MapError(result));
             }
         }
@@ -267,12 +268,12 @@ public sealed class VolumeFileService
         }
     }
 
-    private async Task<(bool Ok, string Message)> Mutate2Async(DockerEnvironment env, string volume, string srcRel, string dstRel,
-        Func<string, string, string, string, string, string> build, string okMessage, CancellationToken ct)
+    private async Task<(bool Ok, string Message)> Mutate2Async(DockerEnvironment env, FileTarget target, string srcRel, string dstRel,
+        Func<string, string, FileTarget, string, string, string> build, string okMessage, CancellationToken ct)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (false, "Invalid volume name.");
+            return (false, target.InvalidMessage);
         }
 
         var src = VolumeFileCommands.NormalizeRelPath(srcRel);
@@ -287,7 +288,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                var result = await RunAsync(client, build(head, _options.HelperImage, volume, src, dst), ct);
+                var result = await RunAsync(client, build(head, _options.HelperImage, target, src, dst), ct);
                 return result.ExitStatus == 0 ? (true, okMessage) : (false, MapError(result));
             }
         }
@@ -297,11 +298,11 @@ public sealed class VolumeFileService
         }
     }
 
-    private async Task<(bool Ok, string Message)> MutateWithStdinAsync(DockerEnvironment env, string volume, string relPath, string content, CancellationToken ct)
+    private async Task<(bool Ok, string Message)> MutateWithStdinAsync(DockerEnvironment env, FileTarget target, string relPath, string content, CancellationToken ct)
     {
-        if (!VolumeCommands.IsValidVolumeName(volume))
+        if (!target.IsValid)
         {
-            return (false, "Invalid volume name.");
+            return (false, target.InvalidMessage);
         }
 
         var rel = VolumeFileCommands.NormalizeRelPath(relPath);
@@ -315,7 +316,7 @@ public sealed class VolumeFileService
             var (head, client) = await ConnectAsync(env, ct);
             using (client)
             {
-                using var cmd = client.CreateCommand(VolumeFileCommands.Write(head, _options.HelperImage, volume, rel));
+                using var cmd = client.CreateCommand(VolumeFileCommands.Write(head, _options.HelperImage, target, rel));
                 cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
                 // SSH.NET 2026: create the input stream only AFTER BeginExecute opened the channel.
                 var async = cmd.BeginExecute();

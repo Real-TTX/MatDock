@@ -59,3 +59,38 @@ public class VolumeFileCommandsTests
         Assert.Contains("rm -rf -- '/data/a/b'", cmd);
     }
 }
+
+public class ContainerFileCommandsTests
+{
+    private static readonly MatDock.Core.Volumes.FileTarget Web = MatDock.Core.Volumes.FileTarget.ForContainer("web-1");
+
+    [Fact]
+    public void A_container_runs_the_commands_itself_below_its_root()
+    {
+        var list = MatDock.Core.Volumes.VolumeFileCommands.List("docker", "busybox", Web, "etc/nginx");
+        Assert.Contains("docker exec 'web-1' sh -c ", list);
+        Assert.EndsWith(" sh '/etc/nginx'", list);
+        Assert.DoesNotContain("busybox", list);
+
+        Assert.EndsWith(" sh '/'", MatDock.Core.Volumes.VolumeFileCommands.List("docker", "busybox", Web, ""));
+        Assert.Contains("docker exec -i 'web-1' sh -c ", MatDock.Core.Volumes.VolumeFileCommands.Write("docker", "busybox", Web, "app/x.conf"));
+        Assert.EndsWith("docker exec 'web-1' rm -rf -- '/tmp/a b'", MatDock.Core.Volumes.VolumeFileCommands.Delete("docker", "busybox", Web, "tmp/a b"));
+    }
+
+    [Fact]
+    public void A_download_reads_the_whole_file_and_the_editor_only_the_beginning()
+    {
+        var volume = MatDock.Core.Volumes.FileTarget.ForVolume("data");
+        Assert.Contains("cat -- ", MatDock.Core.Volumes.VolumeFileCommands.ReadAll("docker", "busybox", volume, "big.bin"));
+        Assert.DoesNotContain("head -c", MatDock.Core.Volumes.VolumeFileCommands.ReadAll("docker", "busybox", volume, "big.bin"));
+        Assert.Contains("head -c ", MatDock.Core.Volumes.VolumeFileCommands.Read("docker", "busybox", volume, "big.bin"));
+    }
+
+    [Theory]
+    [InlineData(true, "web-1", true)]
+    [InlineData(true, "x; reboot", false)]
+    [InlineData(false, "pgdata", true)]
+    [InlineData(false, "../etc", false)]
+    public void Targets_are_validated(bool container, string name, bool valid)
+        => Assert.Equal(valid, (container ? MatDock.Core.Volumes.FileTarget.ForContainer(name) : MatDock.Core.Volumes.FileTarget.ForVolume(name)).IsValid);
+}
