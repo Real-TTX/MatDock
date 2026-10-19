@@ -258,3 +258,18 @@ public class ContainerTests
         Assert.Null(c.Project); // Labels was a number, treated as absent
     }
 }
+
+public class ContainerShellCommandTests
+{
+    [Fact]
+    public void The_shell_prefers_bash_and_a_local_one_gets_a_terminal_from_script()
+    {
+        Assert.Equal("docker exec -it 'web' sh -c 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi'",
+            ContainerCommands.ExecShell("docker", "web"));
+        var local = ContainerCommands.LocalExecShell("docker", "web", 120, 9999);
+        Assert.Contains("exec script -qfec ", local);
+        Assert.Contains("stty cols 120 rows 200 2>/dev/null; exec docker exec -it ", local);
+        Assert.EndsWith(" /dev/null", local);
+        Assert.Throws<ArgumentException>(() => ContainerCommands.ExecShell("docker", "x'; reboot"));
+    }
+}

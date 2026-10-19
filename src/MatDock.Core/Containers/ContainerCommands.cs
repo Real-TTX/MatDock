@@ -123,6 +123,31 @@ public static partial class ContainerCommands
         return VolumeCommands.PathPrefix + $"{dockerHead} compose -p '{project}' logs -f --no-color{t} --tail {lines} 2>&1";
     }
 
+    /// <summary>Starts bash in the container when it has one, otherwise sh.</summary>
+    public const string ShellPicker = "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi";
+
+    /// <summary>An interactive shell in the container (<c>docker exec -it</c>); needs a terminal around it.</summary>
+    public static string ExecShell(string dockerHead, string id)
+    {
+        if (!IsValidId(id))
+        {
+            throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
+        }
+
+        return dockerHead + " exec -it '" + id + "' sh -c " + VolumeFileCommands.ShellQuote(ShellPicker);
+    }
+
+    /// <summary>
+    /// The same shell for the Docker socket of MatDock's own host: <c>script</c> (util-linux) gives it the terminal that
+    /// <c>docker exec -it</c> needs, sized to the browser's window when it opens.
+    /// </summary>
+    public static string LocalExecShell(string dockerHead, string id, int cols, int rows)
+    {
+        var inner = "stty cols " + Math.Clamp(cols, 1, 500) + " rows " + Math.Clamp(rows, 1, 200) + " 2>/dev/null; exec "
+                    + ExecShell(dockerHead, id);
+        return VolumeCommands.PathPrefix + "exec script -qfec " + VolumeFileCommands.ShellQuote(inner) + " /dev/null";
+    }
+
     /// <summary>
     /// A non-streaming snapshot of container lifecycle events from the last <paramref name="sinceHours"/> hours.
     /// Both <c>--since</c> and <c>--until</c> are set so <c>docker events</c> returns the window and exits

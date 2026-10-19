@@ -55,7 +55,7 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | Dockhand | MatDock | |
 |---|---|---|
 | Containers start/stop/restart, status, resources, ports | ✅ | The lists refresh themselves every 20–30 s (new) |
-| Terminal in the browser (exec) | ✅ | Always `sh` (plan 6) |
+| Terminal in the browser (exec) | ✅ | bash when the container has it; now also on the local Docker socket (it said "not supported yet") (new) |
 | Log streaming with search and filter | ✅ | Plus a whole stack at once and timestamps (new) |
 | File browser in containers (browse, upload, download, edit) | ✅ | New: the volume browser on a container (`docker exec`, needs a shell; plan 5) |
 | Compose stacks, YAML editor, environment variables | ◐ | Highlighted YAML + `.env` editor, check on save (new); side by side and a visual editor missing (plan 7) |
@@ -87,7 +87,6 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | 3 | **CVE scan of an image**: run Trivy on the host (`docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format json <ref>`), store the summary (critical/high/medium) per image digest, show it on the image page and as a column; optional schedule action *Scan images* that notifies on new criticals | new `Core/Images/ImageScanService`, `ScheduleAction.ScanImages`, Images/Detail | M | Trivy downloads its DB (~100 MB, needs internet, slow first run); run in the background as an operation; cache by digest |
 | 4 | **TCP/TLS hosts**: a connection type *Docker API (TCP/TLS)* with host, port and client certificate/key/CA; commands run locally with `DOCKER_HOST=tcp://…` and `DOCKER_TLS_VERIFY`, certificates written to a temp dir per call | `ConnectionType`, `EnvironmentService`, `LocalHostSession` (environment of the process), Environments/Edit | M | Certificates are secrets (encrypt like SSH keys); the terminal and file browser need the same path |
 | 5 | **Files of a container without a shell** (distroless): fall back to `docker cp` (tar over stdout/stdin) for list/read/write when `sh` is missing | `VolumeFileService` (detect exit 126/127), `VolumeFileCommands` | M | Listing via tar of a directory can be big; limit depth |
-| 6 | **Shell choice in the terminal** (`bash` if present, else `sh`; or a select) | `TerminalEndpoint`, Terminal page | S | – |
 | 7 | **Compose editor side by side with `.env`** on wide screens, and `docker compose config` on the host as a second check before deploy | Stacks/Edit (CSS grid), `StackCommands` | S | `compose config` needs the files on the host first (write to a temp dir) |
 | 8 | **SSH key credentials for Git** (listed as "future") | `GitCredential`, `GitRepositoryService` (LibGit2Sharp SSH needs libssh2 – check the build) | M | LibGit2Sharp's SSH support differs per platform |
 | 9 | **Move the UI onto MatUi** (shell, toolbar, dialogs, `data-label` tables) – MatDock has its own stylesheet, so the MatDesign rules are followed by hand | all pages, `_Layout`, `matdock.css` | L | Large visual change; do it page by page behind the same markup helpers (`mat-table`, `mat-field`) |
@@ -112,6 +111,7 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 8. Activity log (System → Activity), UI actions and API calls, 90 days.
 9. Network map per environment.
 10. SSH host key verification; manual *Back up now* for a volume.
+11. The terminal into a container on the local Docker socket (the Mattiverse setup had none), with bash when present.
 
-Tests: 410 before, 487 after (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`); build without warnings.
+Tests: 410 before, 488 after (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`); build without warnings.
 Two migrations: `AddActivityLog`, `AddEnvironmentHostKey`.

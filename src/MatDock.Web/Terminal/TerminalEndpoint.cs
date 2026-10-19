@@ -70,13 +70,19 @@ public static class TerminalEndpoint
         var settings = environmentService.BuildSettings(env);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
-        // The interactive terminal still uses an SSH PTY; a local PTY is a separate follow-up. Give local
-        // environments a clear message instead of a confusing "SSH to local" failure.
+        // A Local environment is the Docker socket of MatDock's own host: a shell in a container works (through script),
+        // a shell on the host would be one in MatDock's own container, so there is none.
         if (settings.IsLocal)
         {
             using var localWs = await context.WebSockets.AcceptWebSocketAsync();
-            await TrySendTextAsync(localWs, "\r\n\x1b[33m[Terminal for local environments is not supported yet.]\x1b[0m\r\n");
-            try { await localWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
+            if (string.IsNullOrEmpty(container))
+            {
+                await TrySendTextAsync(localWs, "\r\n\x1b[33m[A local environment has no host shell; open the shell of a container.]\x1b[0m\r\n");
+                try { await localWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
+                return;
+            }
+
+            await LocalContainerShellAsync(context, localWs, settings, head, container, cols, rows, envId);
             return;
         }
 
@@ -99,7 +105,7 @@ public static class TerminalEndpoint
             {
                 // Replace the login shell with an interactive exec into the container, so exiting the
                 // container shell ends the SSH shell and closes the socket. Container id is validated.
-                shell.Write("exec " + head + " exec -it " + VolumeFileCommands.ShellQuote(container) + " sh\n");
+                shell.Write("exec " + ContainerCommands.ExecShell(head, container) + "\n");
             }
 
             var pumpOut = PumpShellToSocketAsync(shell, ws, logger, ct);
@@ -121,6 +127,80 @@ public static class TerminalEndpoint
                 client.Dispose();
             }
 
+            if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+            {
+                try { await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None); }
+                catch { /* ignore */ }
+            }
+        }
+    }
+
+    /// <summary>A shell in a container of the local Docker socket: a local process (script around docker exec -it) whose
+    /// output goes to the socket and whose input comes from it. The size is the one of the browser when it opens.</summary>
+    private static async Task LocalContainerShellAsync(HttpContext context, WebSocket ws, MatDock.Core.Ssh.SshConnectionSettings settings,
+        string head, string container, int cols, int rows, long envId)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Terminal");
+        var sessions = context.RequestServices.GetRequiredService<MatDock.Core.Execution.IHostSessionFactory>();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+        var ct = cts.Token;
+        using var session = sessions.Create(settings);
+        MatDock.Core.Execution.IHostCommand? cmd = null;
+        IAsyncResult? running = null;
+        try
+        {
+            cmd = session.CreateCommand(ContainerCommands.LocalExecShell(head, container, cols, rows));
+            cmd.CommandTimeout = Timeout.InfiniteTimeSpan;
+            cmd.BufferOutput = false;
+            running = cmd.BeginExecute();
+            var input = cmd.CreateInputStream();
+            var output = cmd.OutputStream;
+
+            var pumpOut = Task.Run(async () =>
+            {
+                var buffer = new byte[BufferSize];
+                int read;
+                while (!ct.IsCancellationRequested && (read = await output.ReadAsync(buffer, ct)) > 0)
+                {
+                    await ws.SendAsync(buffer.AsMemory(0, read), WebSocketMessageType.Binary, endOfMessage: true, ct);
+                }
+            }, ct);
+            var pumpIn = Task.Run(async () =>
+            {
+                var buffer = new byte[BufferSize];
+                while (!ct.IsCancellationRequested)
+                {
+                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        break;
+                    }
+
+                    if (result.MessageType == WebSocketMessageType.Binary && result.Count > 0)
+                    {
+                        await input.WriteAsync(buffer.AsMemory(0, result.Count), ct);
+                        await input.FlushAsync(ct);
+                    }
+                }
+            }, ct);
+            await Task.WhenAny(pumpOut, pumpIn);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogInformation(ex, "Local terminal session for env {EnvId} ended with an error.", envId);
+            await TrySendTextAsync(ws, "\r\n\x1b[31m[Connection failed: " + Sanitize(ex.Message) + "]\x1b[0m\r\n");
+        }
+        finally
+        {
+            cts.Cancel();
+            if (cmd is not null && running is not null)
+            {
+                // Ends the shell: a process still running after the grace is killed.
+                cmd.CommandTimeout = TimeSpan.FromSeconds(2);
+                try { cmd.EndExecute(running); } catch { /* ended */ }
+            }
+
+            cmd?.Dispose();
             if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
             {
                 try { await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None); }

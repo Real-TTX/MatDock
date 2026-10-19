@@ -74,7 +74,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 **Operations**
 - **Live log viewer** (streaming `docker logs -f`): pause, follow, **live filter**, **search**, timestamps – for one
   container or a **whole stack** at once
-- **Web terminal** (xterm.js) – a shell on the host or straight into a container
+- **Web terminal** (xterm.js) – a shell on an SSH host or straight into a container (bash when it has one, else sh;
+  on the local Docker socket too)
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
 - An **activity log** (System → Activity): every action of a user and every changing call of the API, with user,
