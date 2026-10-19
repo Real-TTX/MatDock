@@ -174,6 +174,11 @@ public sealed class BackupTargetService
             byName[r.FileName] = r;
         }
 
+        // Stack bundles are recorded as stack backups (their manifest), not as volume backups.
+        var bundles = (await _db.StackBackups.AsNoTracking().Where(b => b.BackupTargetId == targetId && b.ManifestFileName != null).ToListAsync(ct))
+            .GroupBy(b => b.ManifestFileName!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
         var archives = files.Select(f =>
         {
             var isBundle = f.FileName.EndsWith(BundleExtension, StringComparison.OrdinalIgnoreCase);
@@ -182,6 +187,11 @@ public sealed class BackupTargetService
             if (volume is null && !isBundle && Volumes.VolumeBackupService.TryParseArchiveName(f.FileName, out _, out var parsedVol, out _))
             {
                 volume = parsedVol;
+            }
+
+            if (isBundle && bundles.TryGetValue(f.FileName, out var bundle))
+            {
+                return new TargetArchive(f.FileName, f.SizeBytes, f.ModifiedUtc, true, bundle.StackName, bundle.EnvironmentName, true);
             }
 
             return new TargetArchive(f.FileName, f.SizeBytes, f.ModifiedUtc, rec is not null, volume, rec?.SourceEnvironmentName, isBundle);

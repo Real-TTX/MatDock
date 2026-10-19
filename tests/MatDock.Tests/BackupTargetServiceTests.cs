@@ -68,3 +68,34 @@ public class BackupTargetServiceTests
         Assert.Equal("enc:secret", reloaded.EncryptedSmbPassword);
     }
 }
+
+public class TargetArchiveOwnerTests
+{
+    private sealed class Listing(params string[] names) : MatDock.Core.Backups.IBackupStorageFactory, MatDock.Core.Backups.IBackupStorage
+    {
+        public MatDock.Core.Backups.IBackupStorage Create(MatDock.Core.Entities.BackupTarget? target) => this;
+        public Task<Stream> OpenWriteAsync(string fileName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Stream> OpenReadAsync(string fileName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task DeleteAsync(string fileName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<MatDock.Core.Backups.BackupFileInfo>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<MatDock.Core.Backups.BackupFileInfo>>(names.Select(n => new MatDock.Core.Backups.BackupFileInfo(n, 10, DateTime.UtcNow)).ToList());
+        public Task TestAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task A_bundle_written_here_counts_as_this_instance()
+    {
+        using var db = new TestDatabase();
+        db.Context.StackBackups.Add(new MatDock.Core.Entities.StackBackup { StackName = "gitea", EnvironmentName = "homelab", ManifestFileName = "gitea_20261019231939.mdbundle.json" });
+        await db.Context.SaveChangesAsync();
+        var service = new MatDock.Core.Backups.BackupTargetService(db.Context, new FakeSecretProtector(),
+            new Listing("gitea_20261019231939.mdbundle.json", "other_20260101000000.mdbundle.json"));
+
+        var (archives, error) = await service.ListArchivesAsync(null);
+        Assert.Null(error);
+        var own = archives.Single(a => a.FileName.StartsWith("gitea", StringComparison.Ordinal));
+        Assert.True(own.Known);
+        Assert.Equal(("gitea", "homelab"), (own.VolumeName, own.SourceEnvName));
+        Assert.False(archives.Single(a => a.FileName.StartsWith("other", StringComparison.Ordinal)).Known);
+    }
+}
