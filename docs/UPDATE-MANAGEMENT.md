@@ -7,6 +7,16 @@ registry-übergreifend (Docker Hub, ghcr.io, private) und mit Versions-Pinning/O
 Baut auf vorhandenen Bausteinen auf: Registry-v2-API (`RegistryApiClient`), Stacks/Compose-Deploy
 (`StackService`/`StackCommands`), Volume-/Bundle-Backup, Schedules und `ContainerRegistry`.
 
+## Stand (Oktober 2026)
+
+| Teil | Stand |
+|---|---|
+| Erkennung bewegter Tags (lokaler Digest gegen Registry-Digest) | umgesetzt (`UpdateService.CheckStackAsync`) |
+| Manuelles Update mit optionalem Bundle-Backup vorher | umgesetzt (Stacks → Update, `/api/v1/stacks/{name}/actions/update`) |
+| Badge „Update“ in der Stacks-Liste | umgesetzt (letzte Prüfung im Speicher, `UpdateCheckCache`) |
+| Zeitgesteuert: nur prüfen und melden, oder anwenden | umgesetzt (Schedule-Aktion *Update stacks*) |
+| Health-Gate, Rollback auf alte Digests, Pinning/Override, neuere Versions-Tags (Semver), Update-Historie | offen (siehe `docs/REVIEW.md`) |
+
 ## 1. Was heißt „Update"?
 - **Bewegtes Tag** (`:latest`, `:stable`): gleicher Tag, **neuer Digest** in der Registry → Image geändert.
 - **Neue Version** (gepinnt `:1.2.3`): höheres Tag (`:1.3.0`) existiert → Versionssprung verfügbar.

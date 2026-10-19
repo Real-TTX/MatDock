@@ -54,6 +54,21 @@ public sealed class RoleAccessTests(MatDockFactory site) : IClassFixture<MatDock
         Assert.False(site.Db(db => db.Environments.Any(e => e.Name == "evil")));
     }
 
+    [Fact]
+    public async Task A_user_cannot_back_up_a_volume()
+    {
+        var browser = await SignInAsUserAsync();
+        var html = await (await browser.GetAsync("/Volumes")).Content.ReadAsStringAsync();
+        var response = await browser.PostAsync("/Volumes/Detail?handler=Backup", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(html),
+            ["envId"] = "1",
+            ["volume"] = "data",
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/Account/AccessDenied", SignIn.Path(response));
+    }
+
     [Theory]
     [InlineData("/")]
     [InlineData("/Environments")]

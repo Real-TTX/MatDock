@@ -67,7 +67,12 @@ else
         {
             <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
             <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
-            <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
+            <form method="post" asp-page-handler="Backup" data-confirm="Back up volume &quot;@d.Name&quot; now (to the local backup store)?" class="u-inline">
+                <input type="hidden" name="envId" value="@Model.EnvId" />
+                <input type="hidden" name="volume" value="@d.Name" />
+                <button type="submit" class="mat-btn"><icon name="save" /><span>Back up now</span></button>
+            </form>
+            <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="clock" /><span>Backups</span></a>
             <span class="mat-buttons__spacer"></span>
             <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" />

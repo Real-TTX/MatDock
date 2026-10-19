@@ -12,9 +12,12 @@ public class DetailModel : PageModel
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
     private readonly ContainerService _containerService;
+    private readonly MatDock.Core.Volumes.VolumeBackupService _backups;
 
-    public DetailModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, ContainerService containerService)
+    public DetailModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, ContainerService containerService,
+        MatDock.Core.Volumes.VolumeBackupService backups)
     {
+        _backups = backups;
         _environmentService = environmentService;
         _connectionService = connectionService;
         _containerService = containerService;
@@ -54,6 +57,26 @@ public class DetailModel : PageModel
         // Which containers mount this volume (best-effort; empty on failure).
         UsedBy = await _containerService.ListByVolumeAsync(Environment, VolumeName, HttpContext.RequestAborted);
         return Page();
+    }
+
+    /// <summary>Backs the volume up now into the local backup store (/data/backups); the containers keep running unless asked.</summary>
+    public async Task<IActionResult> OnPostBackupAsync(long envId, string volume, bool stopContainers)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var result = await _backups.BackupAsync(env, volume ?? string.Empty, target: null, ct: HttpContext.RequestAborted, stopContainers: stopContainers);
+        StatusMessage = result.Message;
+        IsError = !result.Success;
+        return RedirectToPage(new { envId, volume });
     }
 
     public async Task<IActionResult> OnPostRemoveAsync(long envId, string volume)
