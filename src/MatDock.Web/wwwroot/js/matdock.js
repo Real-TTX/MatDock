@@ -352,6 +352,20 @@
 /* File explorer: prompt for a name, write it into the button's form (input marked
    data-prompt-target) and submit. Used for New folder / New file / Rename so the
    toolbar and rows stay uncluttered. */
+/* A button with data-prompt asks for a value (data-prompt-value is the default) and sends its form with it in the
+   field [data-prompt-target]. The texts come from attributes, never from script source, so a file name is only text. */
+document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("button[data-prompt]") : null;
+    if (btn) { matdockPromptSubmit(btn, btn.getAttribute("data-prompt"), btn.getAttribute("data-prompt-value")); return; }
+    var toggle = e.target.closest ? e.target.closest("[data-toggle-row]") : null;
+    if (toggle) { matdockToggleRow(toggle); }
+});
+
+/* The environment switch in the menu (select[data-env-select]). */
+document.addEventListener("change", function (e) {
+    if (e.target.matches && e.target.matches("select[data-env-select]")) { matdockSetEnv(e.target.value); }
+});
+
 function matdockPromptSubmit(btn, message, current) {
     var value = window.prompt(message, current || "");
     if (value === null) { return; }

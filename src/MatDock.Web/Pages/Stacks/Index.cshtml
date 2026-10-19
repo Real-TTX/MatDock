@@ -313,7 +313,7 @@
                         <tr>
                             <td>@r.EnvName</td>
                             <td>
-                                <button type="button" class="stack-toggle" onclick="matdockToggleRow(this)" aria-label="Expand containers"><icon name="chevron-right" /></button>
+                                <button type="button" class="stack-toggle" data-toggle-row aria-label="Expand containers"><icon name="chevron-right" /></button>
                                 @if (r.Managed && r.ManagedId is { } mid)
                                 {
                                     <a href="/Stacks/Edit?id=@mid"><strong>@r.Name</strong></a>
