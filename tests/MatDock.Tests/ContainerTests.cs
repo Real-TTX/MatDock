@@ -35,6 +35,15 @@ public class ContainerTests
         Assert.Throws<ArgumentException>(() => ContainerCommands.LogsFollow("docker", "a; rm -rf /", 100));
     }
 
+    [Fact]
+    public void Logs_with_timestamps_and_of_a_whole_stack()
+    {
+        Assert.Contains("docker logs -f -t --tail 100 'abc' 2>&1", ContainerCommands.LogsFollow("docker", "abc", 100, timestamps: true));
+        Assert.EndsWith("docker compose -p 'shop' logs -f --no-color --tail 300 2>&1", ContainerCommands.StackLogsFollow("docker", "shop", 300));
+        Assert.EndsWith("sudo docker compose -p 'shop' logs -f --no-color -t --tail 0 2>&1", ContainerCommands.StackLogsFollow("sudo docker", "shop", -1, timestamps: true));
+        Assert.Throws<ArgumentException>(() => ContainerCommands.StackLogsFollow("docker", "x' ; reboot ; '", 10));
+    }
+
     [Theory]
     [InlineData(-5, "--tail 0 ")]      // resume value clamps to 0 (only new lines)
     [InlineData(99999, "--tail 5000 ")]

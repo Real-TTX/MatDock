@@ -7,7 +7,8 @@ using MatDock.Core.Volumes;
 namespace MatDock.Web.Logs;
 
 /// <summary>
-/// Streams a container's live logs (<c>docker logs -f</c>) over a one-directional WebSocket. Works for SSH
+/// Streams the live logs of a container (<c>docker logs -f</c>) or of a whole stack (<c>docker compose logs -f</c>) over a
+/// one-directional WebSocket. Works for SSH
 /// and local environments (the log output is read from the command's stdout stream). Authenticated users
 /// only (same access level as the static Logs page); the handler validates env + container id.
 /// </summary>
@@ -43,14 +44,18 @@ public static class LogsEndpoint
             return;
         }
 
+        // One container (?container=) or every container of a stack (?stack=, the compose project).
         var container = context.Request.Query["container"].ToString();
-        if (string.IsNullOrEmpty(container) || !ContainerCommands.IsValidId(container))
+        var stack = context.Request.Query["stack"].ToString();
+        var forStack = string.IsNullOrEmpty(container);
+        if (forStack ? !ContainerCommands.IsValidId(stack) : !ContainerCommands.IsValidId(container))
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
 
         var tail = ParseTail(context.Request.Query["tail"]);
+        var timestamps = context.Request.Query["timestamps"] == "1";
 
         var environmentService = context.RequestServices.GetRequiredService<EnvironmentService>();
         var sessionFactory = context.RequestServices.GetRequiredService<IHostSessionFactory>();
@@ -76,7 +81,9 @@ public static class LogsEndpoint
             session = sessionFactory.Create(settings);
             await session.ConnectAsync(ct);
 
-            cmd = session.CreateCommand(ContainerCommands.LogsFollow(head, container, tail));
+            cmd = session.CreateCommand(forStack
+                ? ContainerCommands.StackLogsFollow(head, stack, tail, timestamps)
+                : ContainerCommands.LogsFollow(head, container, tail, timestamps));
             cmd.CommandTimeout = Timeout.InfiniteTimeSpan; // follow runs until the client disconnects
             cmd.BufferOutput = false;
             var async = cmd.BeginExecute();
@@ -89,7 +96,7 @@ public static class LogsEndpoint
         }
         catch (Exception ex)
         {
-            logger.LogInformation(ex, "Log stream for env {EnvId} container {Container} ended with an error.", envId, container);
+            logger.LogInformation(ex, "Log stream for env {EnvId} {Target} ended with an error.", envId, forStack ? stack : container);
             await TrySendTextAsync(ws, "\r\n[Log stream failed: " + Sanitize(ex.Message) + "]\r\n");
         }
         finally

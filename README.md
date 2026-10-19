@@ -60,7 +60,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   backup, restored as a running stack (images are pulled again on restore)
 
 **Operations**
-- **Live log viewer** (streaming `docker logs -f`): pause, follow, **live filter**, **search**
+- **Live log viewer** (streaming `docker logs -f`): pause, follow, **live filter**, **search**, timestamps – for one
+  container or a **whole stack** at once
 - **Web terminal** (xterm.js) – a shell on the host or straight into a container
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**

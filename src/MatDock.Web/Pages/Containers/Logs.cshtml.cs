@@ -20,6 +20,10 @@ public class LogsModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string Id { get; set; } = string.Empty;
 
+    /// <summary>The compose project whose containers are shown together (instead of the one container <see cref="Id"/>).</summary>
+    [BindProperty(SupportsGet = true)]
+    public string? Stack { get; set; }
+
     [BindProperty(SupportsGet = true)]
     public int Tail { get; set; } = 200;
 

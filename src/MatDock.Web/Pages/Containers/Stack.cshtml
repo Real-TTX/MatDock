@@ -12,6 +12,7 @@
         <h1>@Model.Project</h1>
     </div>
     <div class="mat-buttons">
+        <a href="/Containers/Logs?EnvId=@Model.EnvId&stack=@Uri.EscapeDataString(Model.Project)" class="mat-btn"><icon name="eye" /><span>Logs</span></a>
         <a href="/Stacks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>

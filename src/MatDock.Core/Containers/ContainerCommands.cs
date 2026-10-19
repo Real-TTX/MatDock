@@ -97,7 +97,7 @@ public static partial class ContainerCommands
     }
 
     /// <summary>Follows a container's logs live (<c>-f</c>). Streams until the channel/process is closed.</summary>
-    public static string LogsFollow(string dockerHead, string id, int tail)
+    public static string LogsFollow(string dockerHead, string id, int tail, bool timestamps = false)
     {
         if (!IsValidId(id))
         {
@@ -105,7 +105,22 @@ public static partial class ContainerCommands
         }
 
         var lines = Math.Clamp(tail, 0, 5000); // 0 = only new lines (used on resume)
-        return VolumeCommands.PathPrefix + $"{dockerHead} logs -f --tail {lines} '{id}' 2>&1";
+        var t = timestamps ? " -t" : string.Empty;
+        return VolumeCommands.PathPrefix + $"{dockerHead} logs -f{t} --tail {lines} '{id}' 2>&1";
+    }
+
+    /// <summary>Follows the logs of every container of a compose project (stack), each line prefixed with its service.
+    /// Compose finds the containers by the project label, so no compose file is needed (discovered stacks work too).</summary>
+    public static string StackLogsFollow(string dockerHead, string project, int tail, bool timestamps = false)
+    {
+        if (!IsValidId(project))
+        {
+            throw new ArgumentException($"Invalid project name: '{project}'.", nameof(project));
+        }
+
+        var lines = Math.Clamp(tail, 0, 5000);
+        var t = timestamps ? " -t" : string.Empty;
+        return VolumeCommands.PathPrefix + $"{dockerHead} compose -p '{project}' logs -f --no-color{t} --tail {lines} 2>&1";
     }
 
     /// <summary>

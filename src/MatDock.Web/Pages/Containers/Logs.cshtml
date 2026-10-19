@@ -1,22 +1,24 @@
 @page
 @model MatDock.Web.Pages.Containers.LogsModel
 @{
-    ViewData["Title"] = "Container Logs";
+    var target = string.IsNullOrEmpty(Model.Stack) ? Model.Id : Model.Stack;
+    ViewData["Title"] = $"Logs · {target}";
     var tail = Model.Tail <= 0 ? 200 : Model.Tail;
 }
 
 <div class="page-head">
     <div class="page-head__title">
-        <h1>Logs</h1>
+        <h1>Logs · @target</h1>
     </div>
     <div class="mat-buttons">
-        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+        <a href="@(string.IsNullOrEmpty(Model.Stack) ? $"/Containers?EnvId={Model.EnvId}" : $"/Containers/Stack?envId={Model.EnvId}&project={Uri.EscapeDataString(Model.Stack)}")" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </div>
 </div>
 
 <div class="logview" id="logview"
      data-envid="@Model.EnvId"
-     data-container="@Model.Id"
+     data-container="@(string.IsNullOrEmpty(Model.Stack) ? Model.Id : "")"
+     data-stack="@Model.Stack"
      data-tail="@tail">
     <div class="logview__bar">
         <button type="button" class="mat-btn mat-btn--sm logview__live is-live" data-log-live title="Pause / resume live stream">
@@ -46,6 +48,7 @@
         <button type="button" class="mat-btn mat-btn--sm" data-log-prev title="Previous match"><icon name="chevron-left" /></button>
         <button type="button" class="mat-btn mat-btn--sm" data-log-next title="Next match"><icon name="chevron-right" /></button>
 
+        <button type="button" class="mat-btn mat-btn--sm" data-log-timestamps title="Show the time of each line"><icon name="clock" /><span>Time</span></button>
         <button type="button" class="mat-btn mat-btn--sm" data-log-wrap title="Toggle line wrap"><icon name="menu" /><span>Wrap</span></button>
         <button type="button" class="mat-btn mat-btn--sm" data-log-clear title="Clear"><icon name="trash" /></button>
         <button type="button" class="mat-btn mat-btn--sm" data-log-download title="Download"><icon name="download" /></button>

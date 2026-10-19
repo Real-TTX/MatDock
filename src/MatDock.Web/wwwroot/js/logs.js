@@ -9,7 +9,8 @@
 
     var MAX_LINES = 5000;
     var envId = root.dataset.envid;
-    var container = root.dataset.container;
+    var container = root.dataset.container || "";
+    var stack = root.dataset.stack || "";
 
     var $ = function (sel) { return root.querySelector(sel); };
     var linesEl = $("[data-log-lines]");
@@ -23,7 +24,7 @@
     var matchesEl = $("[data-log-matches]");
 
     var state = {
-        ws: null, live: true, follow: true, wrap: false,
+        ws: null, live: true, follow: true, wrap: false, timestamps: false,
         tail: parseInt(root.dataset.tail, 10) || 200,
         filter: "", search: "",
         lines: [], pending: "", decoder: new TextDecoder("utf-8"),
@@ -109,7 +110,8 @@
         var proto = location.protocol === "https:" ? "wss:" : "ws:";
         var t = resume ? 0 : state.tail;
         var url = proto + "//" + location.host + "/logs/ws?envId=" + encodeURIComponent(envId) +
-            "&container=" + encodeURIComponent(container) + "&tail=" + t;
+            (container ? "&container=" + encodeURIComponent(container) : "&stack=" + encodeURIComponent(stack)) +
+            "&tail=" + t + (state.timestamps ? "&timestamps=1" : "");
         status("Connecting…");
         var ws = new WebSocket(url);
         ws.binaryType = "arraybuffer";
@@ -181,6 +183,17 @@
             connect(false);
         });
     });
+
+    var timesBtn = $("[data-log-timestamps]");
+    if (timesBtn) {
+        timesBtn.addEventListener("click", function () {
+            state.timestamps = !state.timestamps;
+            timesBtn.classList.toggle("is-active", state.timestamps);
+            clearLines();
+            state.live = true; setLiveUI(true);
+            connect(false);
+        });
+    }
 
     var filterTimer;
     filterInput.addEventListener("input", function () {
