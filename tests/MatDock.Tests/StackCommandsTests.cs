@@ -299,3 +299,41 @@ public class StackCommandsTests
         Assert.Throws<System.ArgumentException>(() => StackCommands.Restart("docker", "a;b", "docker-compose.yml"));
     }
 }
+
+public class ComposeConfigCheckTests
+{
+    [Fact]
+    public void The_check_writes_the_files_into_a_temporary_directory_and_asks_compose()
+    {
+        var cmd = StackCommands.CheckConfig("sudo -n docker");
+        Assert.Contains("dir=$(mktemp -d); trap ", cmd);
+        Assert.Contains("IFS= read -r envb64", cmd);
+        Assert.Contains("sudo -n docker compose -p matdock-check config --quiet", cmd);
+        Assert.EndsWith(" 2>&1", cmd);
+    }
+
+    [Fact]
+    public void The_check_runs_and_leaves_nothing_behind_in_a_real_shell()
+    {
+        if (!File.Exists("/bin/sh"))
+        {
+            return;
+        }
+
+        var cmd = StackCommands.CheckConfig("true");
+        var psi = new System.Diagnostics.ProcessStartInfo("/bin/sh") { RedirectStandardInput = true, RedirectStandardOutput = true };
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add(cmd);
+        var tmp = Directory.CreateTempSubdirectory("matdock-check-tmp").FullName;
+        psi.Environment["TMPDIR"] = tmp;
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        p.StandardInput.BaseStream.Write(StackCommands.FilesOnStdin("services: {}\n", "A=1"));
+        p.StandardInput.Close();
+        var output = p.StandardOutput.ReadToEnd();
+        p.WaitForExit(10_000);
+        Assert.Equal(0, p.ExitCode);
+        Assert.Contains("The compose file is valid.", output);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(tmp));
+        Directory.Delete(tmp);
+    }
+}

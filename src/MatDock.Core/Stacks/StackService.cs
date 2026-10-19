@@ -618,6 +618,29 @@ public sealed class StackService
         return meta;
     }
 
+    /// <summary>Lets compose on the environment check a compose file and its .env (nothing is deployed or kept). Output = compose's words.</summary>
+    public async Task<(bool Ok, string Output)> CheckComposeAsync(long environmentId, string composeYaml, string? envContent, CancellationToken ct = default)
+    {
+        var env = await _environmentService.GetAsync(environmentId, ct);
+        if (env is null || !env.IsEnabled)
+        {
+            return (false, "Environment not available (disabled or deleted).");
+        }
+
+        var settings = _environmentService.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var files = StackCommands.FilesOnStdin(composeYaml ?? string.Empty, envContent);
+        try
+        {
+            return await ExecOnHostAsync(settings, StackCommands.CheckConfig(head), (s, c) => s.WriteAsync(files, c).AsTask(),
+                TimeSpan.FromSeconds(Math.Max(30, _options.SshTimeoutSeconds)), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return (false, ex.Message);
+        }
+    }
+
     private sealed record HostPrep(bool Ok, string Message, SshConnectionSettings? Settings, string? Head, TimeSpan Timeout);
 
     private async Task<HostPrep> PrepareHostAsync(Stack stack, CancellationToken ct)

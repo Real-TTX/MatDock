@@ -173,6 +173,25 @@ public class EditModel : PageModel
         return Page();
     }
 
+    /// <summary>Lets compose on the chosen environment check the compose file and the .env, without saving or deploying.</summary>
+    public async Task<IActionResult> OnPostCheckAsync()
+    {
+        await LoadListsAsync();
+        ModelState.Clear();
+        if (Input.EnvironmentId <= 0 || string.IsNullOrWhiteSpace(Input.ComposeYaml))
+        {
+            StatusMessage = "Choose an environment and enter a compose file to check it.";
+            IsError = true;
+            return Page();
+        }
+
+        var (ok, output) = await _stackService.CheckComposeAsync(Input.EnvironmentId, Input.ComposeYaml, Input.EnvContent, HttpContext.RequestAborted);
+        DeployOutput = output.Trim();
+        StatusMessage = ok ? "Compose accepts the file." : "Compose found a problem.";
+        IsError = !ok;
+        return Page();
+    }
+
     /// <summary>Source-specific required fields (ComposeYaml for inline, GitRepoUrl for git).</summary>
     private bool ValidateSource()
     {

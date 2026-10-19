@@ -115,6 +115,17 @@ public static partial class StackCommands
         + "if [ -n \"$envb64\" ]; then (umask 077; printf %s \"$envb64\" | base64 -d > \"$dir/.env\"); else rm -f \"$dir/.env\"; fi; "
         + "cat > \"$dir/docker-compose.yml\"; ";
 
+    /// <summary>
+    /// <c>docker compose config</c> of the files on stdin (<see cref="FilesOnStdin"/>) in a temporary directory on the host, which is
+    /// removed afterwards: the check of the compose file with its variables by compose itself, without deploying anything.
+    /// </summary>
+    public static string CheckConfig(string dockerHead)
+    {
+        var script = "set -e; dir=$(mktemp -d); trap 'rm -rf \"$dir\"' EXIT; " + WriteFiles
+                     + "cd \"$dir\"; " + dockerHead + " compose -p matdock-check config --quiet; echo 'The compose file is valid.'";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script) + " 2>&1";
+    }
+
     /// <summary>What <see cref="Deploy"/> and <see cref="Update"/> read from stdin: the <c>.env</c> as one base64 line, then the compose file.</summary>
     public static byte[] FilesOnStdin(string composeYaml, string? envContent)
     {

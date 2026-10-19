@@ -33,7 +33,7 @@
     <pre class="output-pre">@Model.DeployOutput</pre>
 }
 
-<div class="u-maxw-lg card">
+<div class="u-maxw-xl card">
     <div class="card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -100,7 +100,7 @@
                 }
             </div>
 
-            <div data-show-when="Source=inline">
+            <div data-show-when="Source=inline" class="compose-grid">
                 <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml">
                     <textarea asp-for="Input.ComposeYaml" class="mat-textarea code-editor" data-code="yaml" rows="18" spellcheck="false" wrap="off" placeholder="services:&#10;  app:&#10;    image: nginx:alpine&#10;    environment:&#10;      - TZ=${TZ}"></textarea>
                 </mat-field>
@@ -150,6 +150,7 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Save &amp; Deploy</span></button>
                 <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Save</span></button>
+                <button type="submit" asp-page-handler="Check" class="mat-btn" formnovalidate title="Let compose on the environment check the file and the .env (nothing is saved or deployed)"><icon name="check-circle" /><span>Check</span></button>
                 <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit)
                 {
