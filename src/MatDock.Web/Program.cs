@@ -62,9 +62,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
-// Backup schedules and sync-job cron are now driven by the unified Schedules runner (see the
-// startup migration below); the standalone backup/sync scheduler services are intentionally not
-// registered anymore to avoid double-runs. Webhook-triggered syncs still run via their endpoint.
+// Every timed task (backups, bundles, sync jobs, prune, reports) runs through the Schedules; webhooks start syncs directly.
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 

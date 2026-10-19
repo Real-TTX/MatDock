@@ -35,8 +35,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Volumes.VolumeFileService>();
         services.AddScoped<Backups.BackupTargetService>();
         services.AddScoped<Backups.BundleBackupService>();
-        services.AddScoped<Backups.BackupScheduleRunner>();
-        services.AddScoped<Backups.BackupScheduleService>();
         services.AddScoped<Containers.ContainerService>();
         services.AddScoped<Stacks.StackService>();
         services.AddScoped<Templates.StackTemplateService>();

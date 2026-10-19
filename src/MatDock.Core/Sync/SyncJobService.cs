@@ -253,52 +253,6 @@ public sealed class SyncJobService
         return summary;
     }
 
-    /// <summary>Runs all scheduled jobs whose next run is due; returns how many ran.</summary>
-    public async Task<int> RunDueAsync(CancellationToken ct = default)
-    {
-        var now = DateTime.UtcNow;
-
-        var missing = await _db.SyncJobs
-            .Where(j => j.ScheduleEnabled && j.Cron != null && j.Cron != "" && j.NextRunAt == null)
-            .ToListAsync(ct);
-        if (missing.Count > 0)
-        {
-            foreach (var j in missing)
-            {
-                j.NextRunAt = SafeNext(j.Cron, now);
-            }
-            await _db.SaveChangesAsync(ct);
-        }
-
-        var due = await _db.SyncJobs
-            .Where(j => j.ScheduleEnabled && j.NextRunAt != null && j.NextRunAt <= now)
-            .ToListAsync(ct);
-
-        foreach (var job in due)
-        {
-            // Advance next-run first so a long/failed run cannot cause a tight re-run loop.
-            job.NextRunAt = SafeNext(job.Cron, now);
-            await _db.SaveChangesAsync(ct);
-
-            string summary;
-            try
-            {
-                summary = await _runner.RunAsync(job, force: false, ct);
-            }
-            catch (Exception ex)
-            {
-                summary = $"Error: {ex.Message}";
-                _logger.LogWarning(ex, "Scheduled sync '{Name}' failed.", job.Name);
-            }
-
-            job.LastRunAt = DateTime.UtcNow;
-            job.LastStatus = summary;
-            await _db.SaveChangesAsync(ct);
-        }
-
-        return due.Count;
-    }
-
     private static void ApplyJob(SyncJob job, SyncJobInput input)
     {
         job.Name = input.Name.Replace('\r', ' ').Replace('\n', ' ').Trim();
