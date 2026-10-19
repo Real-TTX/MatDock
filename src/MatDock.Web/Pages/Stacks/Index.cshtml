@@ -358,8 +358,8 @@
                                     <span class="text-muted">–</span>
                                 }
                             </td>
-                            <td class="num"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Containers.Count</a></td>
-                            <td class="num"><a href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack">@r.VolumeCount</a></td>
+                            <td class="num" data-label="Containers"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Containers.Count</a></td>
+                            <td class="num" data-label="Volumes"><a href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack">@r.VolumeCount</a></td>
                             <td class="res-cell">@{ AggResources(r); }</td>
                             <td class="actions">
                                 <div class="row-actions">

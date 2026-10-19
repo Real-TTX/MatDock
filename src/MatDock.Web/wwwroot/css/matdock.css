@@ -754,6 +754,7 @@ a.stat:hover { text-decoration: none; }
     table.data tbody tr:last-child { border-bottom: none; }
     table.data td { display: block; border: none; padding: 3px 0; white-space: normal; text-align: left; }
     table.data td.num { text-align: left; }
+    table.data td[data-label]::before { content: attr(data-label) ": "; color: var(--text-muted); font-size: .8rem; }
     table.data td.actions, table.data th.actions { text-align: left; position: static; }
     table.data td.actions { padding-top: 8px; }
     table.data td.actions .row-actions { justify-content: flex-start; flex-wrap: wrap; }
