@@ -11,7 +11,20 @@
     </div>
 </div>
 
-@if (isAdmin)
+@if (Model.TotalApps == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div><icon name="template" /></div>
+            <p>No apps yet.</p>
+            @if (isAdmin)
+            {
+                <a href="/Apps" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Add app</span></a>
+            }
+        </div>
+    </div>
+}
+else if (isAdmin)
 {
     <div class="launch-grid" style="margin-bottom:20px;">
         <a class="launch-tile launch-tile--add" href="/Apps">

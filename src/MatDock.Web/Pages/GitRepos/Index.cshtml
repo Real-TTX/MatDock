@@ -21,15 +21,17 @@
 
 <mat-table>
     <mat-table-body>
+    @if (Model.Repos.Count == 0)
+    {
+        <div class="empty-state"><div><icon name="git" /></div><p>No git repositories yet.</p></div>
+    }
+    else
+    {
     <table class="data">
         <thead>
             <tr><th>Name</th><th>Repository</th><th>Branch/tag</th><th>Credentials</th></tr>
         </thead>
         <tbody>
-            @if (Model.Repos.Count == 0)
-            {
-                <tr><td colspan="4"><div class="empty-state"><div><icon name="git" /></div><p>No git repositories yet.</p></div></td></tr>
-            }
             @foreach (var r in Model.Repos)
             {
                 <tr>
@@ -41,6 +43,7 @@
             }
         </tbody>
     </table>
+    }
     </mat-table-body>
     <mat-table-actions>
         <a href="/GitRepos/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New git repository</span></a>

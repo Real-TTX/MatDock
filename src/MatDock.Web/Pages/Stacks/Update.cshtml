@@ -31,6 +31,14 @@
 @if (Model.Report is not null && Model.Report.Error is null)
 {
     var updates = Model.Report.UpdatesAvailable;
+    if (Model.Report.Images.Count == 0)
+    {
+        <div class="card" style="margin-bottom:16px;">
+            <div class="empty-state"><div><icon name="image" /></div><p>No running images found for this stack.</p></div>
+        </div>
+    }
+    else
+    {
     <div class="alert @(updates > 0 ? "alert--warning" : "alert--success")">
         <icon name="@(updates > 0 ? "alert" : "check-circle")" />
         <span>@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</span>
@@ -42,10 +50,6 @@
                 <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
             </thead>
             <tbody>
-                @if (Model.Report.Images.Count == 0)
-                {
-                    <tr><td colspan="5"><div class="empty-state"><div><icon name="image" /></div><p>No running images found for this stack.</p></div></td></tr>
-                }
                 @foreach (var img in Model.Report.Images)
                 {
                     <tr>
@@ -72,6 +76,7 @@
             </tbody>
         </table>
     </div>
+    }
 
     <div class="card" style="max-width:620px;">
         <div class="card__header"><icon name="refresh" /><span>Run update</span></div>

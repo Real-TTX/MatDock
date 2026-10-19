@@ -165,7 +165,7 @@
         {
             <div class="empty-state">
                 <div><icon name="layers" /></div>
-                <p>No stacks yet.</p>
+                <p>@(Model.TotalCount > 0 ? "No stacks match the filter." : "No stacks yet.")</p>
             </div>
         }
         else if (isGallery)

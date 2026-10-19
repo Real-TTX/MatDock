@@ -21,15 +21,17 @@
 
 <mat-table>
     <mat-table-body>
+    @if (Model.Credentials.Count == 0)
+    {
+        <div class="empty-state"><div><icon name="key" /></div><p>No git credentials yet.</p></div>
+    }
+    else
+    {
     <table class="data">
         <thead>
             <tr><th>Name</th><th>Type</th><th>User</th></tr>
         </thead>
         <tbody>
-            @if (Model.Credentials.Count == 0)
-            {
-                <tr><td colspan="3"><div class="empty-state"><div><icon name="key" /></div><p>No git credentials yet.</p></div></td></tr>
-            }
             @foreach (var c in Model.Credentials)
             {
                 <tr>
@@ -40,6 +42,7 @@
             }
         </tbody>
     </table>
+    }
     </mat-table-body>
     <mat-table-actions>
         <a href="/GitCredentials/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New git credential</span></a>
