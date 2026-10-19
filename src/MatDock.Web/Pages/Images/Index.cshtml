@@ -1,8 +1,10 @@
 @page
 @model MatDock.Web.Pages.Images.IndexModel
+@inject MatDock.Core.Images.ImageScanService Scans
 @{
     ViewData["Title"] = "Images";
     var isAdmin = User.IsInRole("Admin");
+    var scans = await Scans.GetLatestAsync(Model.EnvId > 0 ? Model.EnvId : null);
 }
 
 <div class="page-head">
@@ -56,6 +58,7 @@
                         <th>Size</th>
                         <th>Created</th>
                         <th>Status</th>
+                        <th>Vulnerabilities</th>
                         <th class="actions">Actions</th>
                     </tr>
                 </thead>
@@ -82,6 +85,18 @@
                                 else
                                 {
                                     <span class="pill pill--unknown" title="No container uses this image"><icon name="alert" /> Unused</span>
+                                }
+                            </td>
+                            <td data-label="Vulnerabilities">
+                                @if (scans.TryGetValue((row.Environment.Id, img.Dangling ? img.Id : img.Reference), out var scan))
+                                {
+                                    <a class="pill @(scan.Critical > 0 ? "pill--error" : scan.High > 0 ? "pill--offline" : "pill--online")"
+                                       href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(img.Dangling ? img.Id : img.Reference)"
+                                       title="Scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(scan.Critical + scan.High == 0 ? "none critical/high" : $"{scan.Critical} critical · {scan.High} high")</a>
+                                }
+                                else
+                                {
+                                    <span class="cell-sub">–</span>
                                 }
                             </td>
                             <td class="actions">

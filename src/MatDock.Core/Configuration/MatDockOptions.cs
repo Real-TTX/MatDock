@@ -24,6 +24,9 @@ public sealed class MatDockOptions
     /// <summary>Tiny helper image used on the remote hosts to tar/untar volume contents.</summary>
     public string HelperImage { get; set; } = "busybox";
 
+    /// <summary>The image that scans images for vulnerabilities (Trivy), run on the Docker host of the image.</summary>
+    public string ScannerImage { get; set; } = "aquasec/trivy:latest";
+
     public AdminSeedOptions Admin { get; set; } = new();
 
     public ApiOptions Api { get; set; } = new();

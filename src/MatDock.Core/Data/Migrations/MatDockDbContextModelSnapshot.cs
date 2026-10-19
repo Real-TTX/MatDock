@@ -449,6 +449,67 @@ namespace MatDock.Core.Data.Migrations
                     b.ToTable("GitRepo", (string)null);
                 });
 
+            modelBuilder.Entity("MatDock.Core.Entities.ImageScan", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Critical")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FindingsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("High")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ImageRef")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Low")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Medium")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ScannedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Unknown")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnvironmentId", "ImageRef");
+
+                    b.ToTable("ImageScan", (string)null);
+                });
+
             modelBuilder.Entity("MatDock.Core.Entities.NotificationSettings", b =>
                 {
                     b.Property<long>("Id")

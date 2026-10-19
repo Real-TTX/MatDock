@@ -59,6 +59,75 @@ else if (Model.Detail is { } d)
         </div>
     }
 
+    <div id="live-scan" class="card card--spaced" data-live="@(Model.Running is { IsFinished: false } ? "10" : null)">
+        <div class="card__header"><icon name="lock" /><span>Vulnerabilities</span></div>
+        <div class="card__body">
+            @if (Model.Running is { } op)
+            {
+                var (text, _) = op.Read(0);
+                if (!op.IsFinished)
+                {
+                    <p class="mat-hint">Scanning… The first scan on a host downloads the vulnerability database and takes a few minutes; this part refreshes itself.</p>
+                }
+                else if (op.Error is not null)
+                {
+                    <div class="alert alert--error"><icon name="x-circle" /><span>@op.Error</span></div>
+                }
+                <pre class="output-pre">@text</pre>
+            }
+            @if (Model.Scan is { } scan)
+            {
+                var findings = MatDock.Core.Images.ImageScanService.Findings(scan);
+                <p>
+                    <span class="pill @(scan.Critical > 0 ? "pill--error" : scan.High > 0 ? "pill--offline" : "pill--online")">@scan.Critical critical · @scan.High high · @scan.Medium medium · @scan.Low low</span>
+                    <span class="cell-sub">scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                </p>
+                @if (scan.Error is not null)
+                {
+                    <div class="alert alert--warning"><icon name="alert" /><span>The last scan failed: @scan.Error</span></div>
+                }
+                @if (findings.Count > 0)
+                {
+                    <div class="mat-table__scroll">
+                        <table class="data">
+                            <thead><tr><th>Severity</th><th>Vulnerability</th><th>Package</th><th>Installed</th><th>Fixed in</th></tr></thead>
+                            <tbody>
+                                @foreach (var f in findings)
+                                {
+                                    <tr>
+                                        <td data-label="Severity"><span class="pill @(f.Severity == "CRITICAL" ? "pill--error" : f.Severity == "HIGH" ? "pill--offline" : "pill--unknown")">@f.Severity.ToLowerInvariant()</span></td>
+                                        <td data-label="Vulnerability"><strong class="mono">@f.Id</strong>@if (f.Title is not null) { <div class="cell-sub">@f.Title</div> }</td>
+                                        <td class="mono" data-label="Package">@f.Package</td>
+                                        <td class="mono cell-sub" data-label="Installed">@f.Installed</td>
+                                        <td class="mono" data-label="Fixed in">@(f.Fixed ?? "–")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (scan.Critical + scan.High + scan.Medium + scan.Low + scan.Unknown > findings.Count)
+                    {
+                        <p class="cell-sub">The @findings.Count most severe are listed.</p>
+                    }
+                }
+            }
+            else if (Model.Running is null)
+            {
+                <p class="mat-hint">Not scanned yet.</p>
+            }
+            @if (User.IsInRole("Admin") && Model.Running is not { IsFinished: false })
+            {
+                <form method="post" asp-page-handler="Scan">
+                    <input type="hidden" name="envId" value="@Model.EnvId" />
+                    <input type="hidden" name="reference" value="@Model.Reference" />
+                    <mat-form-buttons>
+                        <button type="submit" class="mat-btn"><icon name="lock" /><span>Scan now</span></button>
+                    </mat-form-buttons>
+                </form>
+            }
+        </div>
+    </div>
+
     <div class="card">
         <div class="card__header"><icon name="layers" /><span>Layers (@d.Layers.Count)</span></div>
         @if (d.Layers.Count == 0)

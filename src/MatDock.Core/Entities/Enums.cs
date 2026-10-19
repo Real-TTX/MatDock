@@ -100,7 +100,10 @@ public enum ScheduleAction
     Notify = 8,
 
     /// <summary>Checks the managed stacks for newer images; notifies, or pulls and redeploys them.</summary>
-    UpdateStacks = 9
+    UpdateStacks = 9,
+
+    /// <summary>Scans the images of the running containers for known vulnerabilities (Trivy) and notifies about critical and high ones.</summary>
+    ScanImages = 10
 }
 
 /// <summary>Why a stack bundle was taken.</summary>

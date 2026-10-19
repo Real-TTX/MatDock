@@ -56,6 +56,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 **Images**
 - List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,
   platform, entrypoint, ports, labels and the **layers** (`docker image history`); prune dangling or **all unused** images
+- **Vulnerability scan** with Trivy, run as a container on the image's own host (its database is kept in the volume
+  `matdock-trivy-cache` there): findings per image on the detail page, critical/high in the list, and the schedule action
+  *Scan images* that scans the images of the running containers and notifies about critical and high findings
 
 **Networks**
 - List, details with the attached containers, prune; a **network map** per environment: the networks and the

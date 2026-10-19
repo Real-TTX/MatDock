@@ -37,6 +37,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
+    public DbSet<ImageScan> ImageScans => Set<ImageScan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -256,6 +257,16 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.ManagedBy).HasMaxLength(100);
             e.HasIndex(x => x.Name);
             e.HasIndex(x => new { x.SourceKind, x.SourceId });
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<ImageScan>(e =>
+        {
+            e.ToTable("ImageScan");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ImageRef).HasMaxLength(320).IsRequired();
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.HasIndex(x => new { x.EnvironmentId, x.ImageRef });
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

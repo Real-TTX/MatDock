@@ -573,3 +573,62 @@ public sealed class UpdateStacksAction : IScheduleAction
         return line.Length > 200 ? line[..200] + "…" : line;
     }
 }
+
+/// <summary>
+/// Scans the image of every running container (one, or all target environments) for known vulnerabilities with Trivy and keeps the results
+/// (Images shows them); a notification lists the images with critical or high findings.
+/// </summary>
+public sealed class ScanImagesAction : ScheduleActionBase, IScheduleAction
+{
+    private readonly Containers.ContainerService _containers;
+    private readonly Images.ImageScanService _scans;
+    private readonly INotificationService _notifications;
+
+    public ScanImagesAction(EnvironmentService e, IEnvironmentConnectionService c, Containers.ContainerService containers, Images.ImageScanService scans,
+        INotificationService notifications) : base(e, c)
+    {
+        _containers = containers;
+        _scans = scans;
+        _notifications = notifications;
+    }
+
+    public ScheduleAction Type => ScheduleAction.ScanImages;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var envs = await TargetsAsync(task, ct);
+        if (envs.Count == 0) { return (false, "No target environment."); }
+
+        var scanned = 0;
+        var serious = new List<string>();
+        var errors = new List<string>();
+        foreach (var env in envs)
+        {
+            IReadOnlyList<Containers.DockerContainer> running;
+            try { running = (await _containers.ListAsync(env, ct, includeStats: false)).Where(c => c.IsRunning).ToList(); }
+            catch (Exception ex) { errors.Add($"{env.Name}: {ex.Message}"); continue; }
+
+            foreach (var image in running.Select(c => c.Image).Where(Images.ImageCommands.IsValidImageRef).Distinct(StringComparer.Ordinal))
+            {
+                var (ok, message, summary) = await _scans.ScanAsync(env, image, ct);
+                if (!ok || summary is null) { errors.Add($"{env.Name}: {message}"); continue; }
+
+                scanned++;
+                if (summary.Critical + summary.High > 0)
+                {
+                    serious.Add($"{image} on {env.Name} ({summary.Critical} critical, {summary.High} high)");
+                }
+            }
+        }
+
+        var text = serious.Count == 0
+            ? $"Scanned {scanned} image(s): no critical or high vulnerabilities."
+            : $"Scanned {scanned} image(s); {serious.Count} with critical or high vulnerabilities: {string.Join("; ", serious)}.";
+        if (serious.Count > 0 && !task.NotifyOnResult)
+        {
+            await _notifications.NotifyAsync("MatDock: vulnerable images", text, ct);
+        }
+
+        return PruneVolumesAction.Result(text, errors);
+    }
+}

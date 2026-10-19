@@ -62,11 +62,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.SyncAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.BundleBackupAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.UpdateStacksAction>();
+        services.AddScoped<Schedules.IScheduleAction, Schedules.ScanImagesAction>();
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
         services.AddScoped<Updates.UpdateService>();
         services.AddScoped<Activity.ActivityLogService>();
         services.AddScoped<Images.ImageService>();
+        services.AddScoped<Images.ImageScanService>();
         services.AddSingleton<Updates.UpdateCheckCache>();
         services.AddSingleton<Schedules.IScheduleEventBus, Schedules.ScheduleEventBus>();
         services.AddSingleton<Operations.OperationRegistry>();
