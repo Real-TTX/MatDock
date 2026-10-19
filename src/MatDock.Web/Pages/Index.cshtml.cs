@@ -26,6 +26,7 @@ public class IndexModel : PageModel
     private readonly VolumeBackupService _volumeBackupService;
     private readonly AppLaunchpadService _launchpad;
     private readonly IMemoryCache _cache;
+    private readonly HostMetricsHistory _history;
 
     public IndexModel(
         EnvironmentService environmentService,
@@ -35,8 +36,10 @@ public class IndexModel : PageModel
         BundleBackupService bundleService,
         VolumeBackupService volumeBackupService,
         AppLaunchpadService launchpad,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        HostMetricsHistory history)
     {
+        _history = history;
         _environmentService = environmentService;
         _connectionService = connectionService;
         _containerService = containerService;
@@ -135,6 +138,7 @@ public class IndexModel : PageModel
                         try { stats = await _connectionService.GetHostStatsAsync(_environmentService.BuildSettings(env), ct); }
                         catch { stats = new HostStats(); }
                         _cache.Set($"hoststats:{env.Id}", stats, StatsTtl);
+                        _history.Add(env.Id, stats);
                     }
 
                     if (containers is null)

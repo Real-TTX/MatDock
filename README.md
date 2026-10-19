@@ -37,7 +37,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 
 **Dashboard**
 - Environment tiles with **live CPU / RAM / disk** usage (the dashboard, environments, containers and stack pages
-  refresh themselves every 20–30 s while open), **top containers** by load, a feed of
+  refresh themselves every 20–30 s while open) and a line of the last 24 h, **top containers** by load, a feed of
   recent **container events** (created / started / stopped) and the **backup status**
 
 **Stacks & containers**

@@ -835,3 +835,9 @@ a.stat:hover { text-decoration: none; }
     .compose-grid.is-shown { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
     .compose-grid .code-editor { min-height: 420px; }
 }
+
+/* Host history on the environment tiles: CPU and RAM of the last 24 h. */
+.spark { display: block; width: 100%; height: 32px; margin: 4px 0 2px; }
+.spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.spark__cpu { stroke: var(--accent); }
+.spark__mem { stroke: var(--success); }

@@ -69,6 +69,7 @@ builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 builder.Services.AddHostedService<ContainerAlertMonitor>();
+builder.Services.AddHostedService<HostMetricsSampler>();
 
 // ---------------------------------------------------------------------------
 // The Mat platform contract (MatDesign docs/PLATFORM.md): /api, /api/health, /api/state, /api/configure, /api/actions

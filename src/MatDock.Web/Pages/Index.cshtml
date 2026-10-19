@@ -1,5 +1,6 @@
 @page
 @model MatDock.Web.Pages.IndexModel
+@inject MatDock.Core.Docker.HostMetricsHistory History
 @{
     ViewData["Title"] = "Dashboard";
     var scopeName = Model.IsAll ? "all environments" : (Model.Environments.FirstOrDefault()?.Name ?? "environment");
@@ -147,6 +148,20 @@ else
                         <span class="gauge__value @(st.DiskTotalBytes is null ? "gauge__value--muted" : "")">@(st.DiskTotalBytes is null ? "–" : $"{Fb(st.DiskUsedBytes ?? 0)}/{Fb(st.DiskTotalBytes.Value)}")</span>
                     </div>
                 </div>
+
+                @{
+                    var samples = History.Get(env.Id);
+                    var cpuLine = MatDock.Core.Docker.HostMetricsHistory.Sparkline(samples.Select(x => x.Cpu).ToList(), 200, 32);
+                    var memLine = MatDock.Core.Docker.HostMetricsHistory.Sparkline(samples.Select(x => x.Mem).ToList(), 200, 32);
+                }
+                @if (cpuLine is not null && memLine is not null)
+                {
+                    <svg class="spark" viewBox="0 0 200 32" preserveAspectRatio="none" role="img" aria-label="CPU and RAM since @samples[0].TimeUtc.ToLocalTime().ToString("HH:mm")">
+                        <title>CPU (blue) and RAM (green) since @samples[0].TimeUtc.ToLocalTime().ToString("dd.MM. HH:mm")</title>
+                        <polyline class="spark__mem" points="@memLine" />
+                        <polyline class="spark__cpu" points="@cpuLine" />
+                    </svg>
+                }
 
                 <div class="env-card__foot">
                     <span class="mat-badge"><icon name="box" /> @running running</span>
