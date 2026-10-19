@@ -96,7 +96,7 @@ else if (Model.Detail is { } d)
                                 {
                                     <tr>
                                         <td data-label="Severity"><span class="pill @(f.Severity == "CRITICAL" ? "pill--error" : f.Severity == "HIGH" ? "pill--offline" : "pill--unknown")">@f.Severity.ToLowerInvariant()</span></td>
-                                        <td data-label="Vulnerability"><strong class="mono">@f.Id</strong>@if (f.Title is not null) { <div class="cell-sub">@f.Title</div> }</td>
+                                        <td class="wrap" data-label="Vulnerability"><strong class="mono">@f.Id</strong>@if (f.Title is not null) { <div class="cell-sub">@(f.Title.Length > 140 ? f.Title[..140] + "…" : f.Title)</div> }</td>
                                         <td class="mono" data-label="Package">@f.Package</td>
                                         <td class="mono cell-sub" data-label="Installed">@f.Installed</td>
                                         <td class="mono" data-label="Fixed in">@(f.Fixed ?? "–")</td>
