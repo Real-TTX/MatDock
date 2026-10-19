@@ -31,6 +31,9 @@ public sealed class ScheduleInput
     /// <summary>UpdateStacks: bundle backup of a stack before its update.</summary>
     public bool UpdateBackupFirst { get; set; }
 
+    /// <summary>UpdateStacks: health gate with rollback.</summary>
+    public bool UpdateRollback { get; set; }
+
     /// <summary>Owner of a task created through the API (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so
     /// a save from the Schedules page never drops it; an empty string clears it.</summary>
     public string? ManagedBy { get; set; }

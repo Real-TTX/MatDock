@@ -83,9 +83,14 @@
         <div class="card__body">
             <p class="u-mb-sm mat-hint">Pulls the new images and redeploys.</p>
             <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
+                <input type="hidden" asp-for="Id" />
                 <label class="u-mb-sm mat-check">
                     <input asp-for="PreBackup" type="checkbox" />
                     <span>Back up the stack's volumes before updating</span>
+                </label>
+                <label class="u-mb-sm mat-check">
+                    <input asp-for="HealthGate" type="checkbox" />
+                    <span>Roll back when the containers are not up and healthy within 90 s</span>
                 </label>
                 <mat-form-buttons>
                     <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Update now</span></button>

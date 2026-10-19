@@ -15,7 +15,8 @@ Baut auf vorhandenen Bausteinen auf: Registry-v2-API (`RegistryApiClient`), Stac
 | Manuelles Update mit optionalem Bundle-Backup vorher | umgesetzt (Stacks → Update, `/api/v1/stacks/{name}/actions/update`) |
 | Badge „Update“ in der Stacks-Liste | umgesetzt (letzte Prüfung im Speicher, `UpdateCheckCache`) |
 | Zeitgesteuert: nur prüfen und melden, oder anwenden | umgesetzt (Schedule-Aktion *Update stacks*) |
-| Health-Gate, Rollback auf alte Digests, Pinning/Override, neuere Versions-Tags (Semver), Update-Historie | offen (siehe `docs/REVIEW.md`) |
+| Health-Gate (90 s, laufend und gesund) und Rollback: das alte Image bekommt vor dem Pull einen eigenen Tag (`:matdock-rollback-<tag>`) und bei einem Fehler seinen Tag zurück, dann neu deployen | umgesetzt (Update-Seite, Schedule-Aktion; die API wie bisher ohne) |
+| Pinning/Override, neuere Versions-Tags (Semver), Update-Historie | offen |
 
 ## 1. Was heißt „Update"?
 - **Bewegtes Tag** (`:latest`, `:stable`): gleicher Tag, **neuer Digest** in der Registry → Image geändert.

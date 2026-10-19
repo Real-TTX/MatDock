@@ -59,6 +59,7 @@ public class EditModel : PageModel
         public string? BundleStack { get; set; }
         public bool UpdateApply { get; set; }
         public bool UpdateBackupFirst { get; set; }
+        public bool UpdateRollback { get; set; } = true;
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -100,6 +101,7 @@ public class EditModel : PageModel
                 BundleStack = opt.BundleStack,
                 UpdateApply = opt.UpdateApply,
                 UpdateBackupFirst = opt.UpdateBackupFirst,
+                UpdateRollback = opt.UpdateRollback,
             };
         }
 
@@ -170,6 +172,7 @@ public class EditModel : PageModel
         BundleStack = Input.BundleStack,
         UpdateApply = Input.UpdateApply,
         UpdateBackupFirst = Input.UpdateBackupFirst,
+        UpdateRollback = Input.UpdateRollback,
     };
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)

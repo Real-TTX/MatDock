@@ -79,6 +79,10 @@
                         <input asp-for="Input.UpdateBackupFirst" type="checkbox" />
                         <span>Back up each stack before its update</span>
                     </label>
+                    <label class="mat-check">
+                        <input asp-for="Input.UpdateRollback" type="checkbox" />
+                        <span>Roll back when the containers are not up and healthy within 90 s</span>
+                    </label>
                 </div>
             </div>
             <div data-show-when="Input_Action=BundleBackup,UpdateStacks">

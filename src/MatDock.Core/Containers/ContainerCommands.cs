@@ -123,6 +123,30 @@ public static partial class ContainerCommands
         return VolumeCommands.PathPrefix + $"{dockerHead} compose -p '{project}' logs -f --no-color{t} --tail {lines} 2>&1";
     }
 
+    /// <summary>
+    /// Service, image reference and local image id of the given containers, one line each (<c>web nginx:latest sha256:…</c>), so an update can
+    /// put the old image back under its tag.
+    /// </summary>
+    public static string ImagesOf(string dockerHead, IReadOnlyCollection<string> ids)
+    {
+        if (ids.Count == 0 || ids.Any(id => !IsValidId(id)))
+        {
+            throw new ArgumentException("Invalid container ID.", nameof(ids));
+        }
+
+        return VolumeCommands.PathPrefix + dockerHead + " inspect --format "
+               + VolumeFileCommands.ShellQuote("{{index .Config.Labels \"com.docker.compose.service\"}} {{.Config.Image}} {{.Image}}")
+               + " " + string.Join(' ', ids.Select(id => "'" + id + "'"));
+    }
+
+    /// <summary>Reads <see cref="ImagesOf"/>: (service, image reference, image id) per line.</summary>
+    public static IReadOnlyList<(string Service, string Reference, string ImageId)> ParseImagesOf(string output)
+        => output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .Where(p => p.Length == 3 && p[2].StartsWith("sha256:", StringComparison.Ordinal))
+            .Select(p => (p[0], p[1], p[2]))
+            .ToList();
+
     /// <summary>Starts bash in the container when it has one, otherwise sh.</summary>
     public const string ShellPicker = "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi";
 

@@ -23,6 +23,9 @@ public class UpdateModel : PageModel
     [BindProperty(SupportsGet = true)] public long Id { get; set; }
     [BindProperty] public bool PreBackup { get; set; } = true;
 
+    /// <summary>Wait for the containers to be up and healthy, and put the old images back when they are not.</summary>
+    [BindProperty] public bool HealthGate { get; set; } = true;
+
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
 
@@ -53,7 +56,7 @@ public class UpdateModel : PageModel
 
     public async Task<IActionResult> OnPostUpdateAsync()
     {
-        var (ok, message) = await _updates.UpdateStackAsync(Id, PreBackup, HttpContext.RequestAborted);
+        var (ok, message) = await _updates.UpdateStackAsync(Id, PreBackup, HttpContext.RequestAborted, HealthGate ? UpdateSafety.Default : null);
         StatusMessage = message;
         IsError = !ok;
         return RedirectToPage(new { Id });

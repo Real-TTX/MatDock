@@ -288,6 +288,7 @@ public sealed class ScheduleService
                 : null,
             UpdateApply = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply,
             UpdateBackupFirst = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply && input.UpdateBackupFirst,
+            UpdateRollback = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply && input.UpdateRollback,
         }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)

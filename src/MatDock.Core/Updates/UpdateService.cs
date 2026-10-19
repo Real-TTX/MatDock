@@ -2,6 +2,7 @@ using MatDock.Core.Backups;
 using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Images;
 using MatDock.Core.Registries;
 using MatDock.Core.Stacks;
 using Microsoft.Extensions.Logging;
@@ -103,9 +104,9 @@ public sealed class UpdateService
     }
 
     /// <summary>Runs a manual update of a managed stack: optional pre-update backup, then pull + redeploy.</summary>
-    public async Task<(bool Ok, string Message)> UpdateStackAsync(long stackId, bool preBackup, CancellationToken ct = default)
+    public async Task<(bool Ok, string Message)> UpdateStackAsync(long stackId, bool preBackup, CancellationToken ct = default, UpdateSafety? safety = null)
     {
-        var outcome = await RunUpdateAsync(stackId, preBackup, ct);
+        var outcome = await RunUpdateAsync(stackId, preBackup, safety, ct);
         return (outcome.Ok, outcome.Message);
     }
 
@@ -119,6 +120,17 @@ public sealed class UpdateService
     /// <param name="ct">Cancellation.</param>
     /// <param name="log">Optional progress lines (the backup summary).</param>
     public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, CancellationToken ct = default, Action<string>? log = null)
+        => await RunUpdateAsync(stackId, preBackup, null, ct, log);
+
+    /// <summary>How long the gate waits between two looks at the containers (tests shorten it).</summary>
+    internal static TimeSpan GatePoll { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The update with a health gate (<paramref name="safety"/>): after the redeploy the containers must run, with no failing or still starting
+    /// health check, within <see cref="UpdateSafety.Grace"/>; otherwise, with <see cref="UpdateSafety.Rollback"/>, the images the containers ran before
+    /// get their tags back and the stack is deployed again (they are still on the host: a pull keeps the old image).
+    /// </summary>
+    public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null)
     {
         var stack = await _stacks.GetAsync(stackId, ct);
         if (stack is null)
@@ -146,11 +158,14 @@ public sealed class UpdateService
             log?.Invoke(backupMsg);
         }
 
+        // Keep the images the containers run now under a name of their own, so a rollback finds them after the pull.
+        var kept = safety is { Rollback: true } ? await KeepImagesAsync(env, stack.Name, ct) : null;
         log?.Invoke("==> docker compose pull && docker compose up -d");
         var before = await ContainerIdsAsync(env, stack.Name, ct);
         var (ok, output) = await _stacks.UpdateAsync(stackId, ct);
         if (!ok)
         {
+            await ForgetKeptAsync(env, kept, ct);
             return StackUpdateOutcome.Failed(output);
         }
 
@@ -158,7 +173,130 @@ public sealed class UpdateService
         var after = await ContainerIdsAsync(env, stack.Name, ct);
         // When the containers cannot be listed, report a change rather than hide one.
         var changed = before is null || after is null || !before.SetEquals(after);
-        return new StackUpdateOutcome(true, output, changed);
+        if (safety is null || !changed)
+        {
+            await ForgetKeptAsync(env, kept, ct);
+            return new StackUpdateOutcome(true, output, changed);
+        }
+
+        log?.Invoke($"==> Waiting up to {(int)safety.Grace.TotalSeconds} s for the containers to be up and healthy");
+        var (health, reason) = await GateAsync(env, stack.Name, safety.Grace, ct);
+        if (health == StackHealth.Healthy)
+        {
+            await ForgetKeptAsync(env, kept, ct);
+            return new StackUpdateOutcome(true, output + "\nThe containers are up and healthy.", changed);
+        }
+
+        reason ??= $"The containers were not up and healthy within {(int)safety.Grace.TotalSeconds} s.";
+        if (!safety.Rollback || kept is null || kept.Count == 0)
+        {
+            return StackUpdateOutcome.Failed($"{output}\nUpdated, but: {reason}");
+        }
+
+        log?.Invoke("==> Rolling back to the images from before the update");
+        var rolledBack = await RollbackAsync(env, stack.Id, kept, ct);
+        await ForgetKeptAsync(env, kept, ct);
+        return StackUpdateOutcome.Failed($"{output}\nUpdated, but: {reason} {rolledBack}");
+    }
+
+    /// <summary>Tags the image of every service with its rollback name; answers (reference, rollback name) of those that worked.</summary>
+    private async Task<IReadOnlyList<(string Reference, string Kept)>> KeepImagesAsync(DockerEnvironment env, string project, CancellationToken ct)
+    {
+        var kept = new List<(string, string)>();
+        foreach (var (_, reference, imageId) in (await _containers.ImagesOfProjectAsync(env, project, ct)).DistinctBy(i => i.Reference))
+        {
+            if (ImageCommands.RollbackReference(reference) is not { } backup || !ImageCommands.IsValidImageRef(reference) || !ImageCommands.IsValidImageRef(backup))
+            {
+                continue;
+            }
+
+            try
+            {
+                if ((await _containers.RunAsync(env, head => ImageCommands.Tag(imageId, backup, head), ct)).Ok)
+                {
+                    kept.Add((reference, backup));
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogDebug(ex, "Keeping {Reference} for a rollback failed.", reference);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>Removes the rollback names again (the image goes when nothing else holds it).</summary>
+    private async Task ForgetKeptAsync(DockerEnvironment env, IReadOnlyList<(string Reference, string Kept)>? kept, CancellationToken ct)
+    {
+        foreach (var (_, backup) in kept ?? [])
+        {
+            try { await _containers.RunAsync(env, head => ImageCommands.Untag(backup, head), ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { _logger.LogDebug(ex, "Removing {Tag} failed.", backup); }
+        }
+    }
+
+    /// <summary>Waits until the stack is healthy or failed, at most <paramref name="grace"/>; a stack that is still starting then counts as failed.</summary>
+    private async Task<(StackHealth Health, string? Reason)> GateAsync(DockerEnvironment env, string project, TimeSpan grace, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + grace;
+        var healthySince = (DateTime?)null;
+        while (true)
+        {
+            var (health, reason) = UpdateHealth.Evaluate(await _containers.ListByProjectAsync(env, project, ct));
+            if (health == StackHealth.Failed)
+            {
+                return (health, reason);
+            }
+
+            // Healthy twice in a row, so a container that crashes right after its start is caught.
+            if (health == StackHealth.Healthy)
+            {
+                if (healthySince is not null)
+                {
+                    return (health, null);
+                }
+
+                healthySince = DateTime.UtcNow;
+            }
+            else
+            {
+                healthySince = null;
+            }
+
+            if (DateTime.UtcNow >= deadline)
+            {
+                return (StackHealth.Failed, null);
+            }
+
+            await Task.Delay(GatePoll, ct);
+        }
+    }
+
+    /// <summary>Puts every service's old image back under its tag and deploys the stack again (no pull).</summary>
+    private async Task<string> RollbackAsync(DockerEnvironment env, long stackId, IReadOnlyList<(string Reference, string Kept)> kept, CancellationToken ct)
+    {
+        var errors = new List<string>();
+        foreach (var (reference, backup) in kept)
+        {
+            try
+            {
+                var (ok, text) = await _containers.RunAsync(env, head => ImageCommands.Tag(backup, reference, head), ct);
+                if (!ok)
+                {
+                    errors.Add($"{reference}: {text}");
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                errors.Add($"{reference}: {ex.Message}");
+            }
+        }
+
+        var (deployed, output) = await _stacks.DeployAsync(stackId, ct);
+        return deployed && errors.Count == 0
+            ? "Rolled back to the images from before the update."
+            : $"The rollback did not complete: {string.Join("; ", errors.Append(deployed ? string.Empty : output.Trim()).Where(e => e.Length > 0))}";
     }
 
     private async Task<HashSet<string>?> ContainerIdsAsync(DockerEnvironment env, string project, CancellationToken ct)

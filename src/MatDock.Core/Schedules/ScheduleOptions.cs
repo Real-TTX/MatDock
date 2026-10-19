@@ -39,6 +39,9 @@ public sealed class ScheduleOptions
     /// <summary>UpdateStacks: take a bundle backup of a stack before updating it (the update is skipped when it fails).</summary>
     public bool UpdateBackupFirst { get; set; }
 
+    /// <summary>UpdateStacks: wait for the containers to be up and healthy and roll back to the old images when they are not.</summary>
+    public bool UpdateRollback { get; set; }
+
     // --- Sync action (reference) ---
     /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
     public long? SyncJobId { get; set; }

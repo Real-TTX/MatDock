@@ -171,6 +171,42 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>Service, image reference and image id of every container of a compose project; empty when it cannot be read.</summary>
+    public async Task<IReadOnlyList<(string Service, string Reference, string ImageId)>> ImagesOfProjectAsync(DockerEnvironment environment, string project, CancellationToken ct = default)
+    {
+        var containers = await ListByProjectAsync(environment, project, ct);
+        if (containers.Count == 0)
+        {
+            return Array.Empty<(string, string, string)>();
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        try
+        {
+            using var client = _hostSessionFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+            var result = await RunCommandAsync(client, ContainerCommands.ImagesOf(head, containers.Select(c => c.Id).ToList()), ct);
+            return result.ExitStatus == 0 ? ContainerCommands.ParseImagesOf(result.StdOut) : Array.Empty<(string, string, string)>();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Images of {Project} on env {Env} not read.", project, environment.Id);
+            return Array.Empty<(string, string, string)>();
+        }
+    }
+
+    /// <summary>Runs one docker command on the environment; (exit code 0, output).</summary>
+    public async Task<(bool Ok, string Output)> RunAsync(DockerEnvironment environment, Func<string, string> command, CancellationToken ct = default)
+    {
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        using var client = _hostSessionFactory.Create(settings);
+        await ConnectAsync(client, settings, ct);
+        var result = await RunCommandAsync(client, command(head), ct);
+        return (result.ExitStatus == 0, (result.StdOut + result.StdErr).Trim());
+    }
+
     /// <summary>The alerts (died with an error, unhealthy) between two Unix times; null when the host cannot be asked.</summary>
     public async Task<IReadOnlyList<ContainerAlert>?> ListAlertsAsync(DockerEnvironment environment, long sinceUnix, long untilUnix, CancellationToken ct = default)
     {
