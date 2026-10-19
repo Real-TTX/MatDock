@@ -247,11 +247,13 @@
 
     /* ---------------- Confirm destructive actions ---------------- */
     document.addEventListener("submit", function (e) {
+        // The question sits on the form, or on the button that sent it (a form with several actions).
         var form = e.target;
-        if (form.matches("[data-confirm]")) {
-            if (!window.confirm(form.getAttribute("data-confirm"))) {
-                e.preventDefault();
-            }
+        var button = e.submitter && e.submitter.matches("[data-confirm]") ? e.submitter : null;
+        var question = button ? button.getAttribute("data-confirm")
+            : form.matches("[data-confirm]") ? form.getAttribute("data-confirm") : null;
+        if (question && !window.confirm(question)) {
+            e.preventDefault();
         }
     });
 

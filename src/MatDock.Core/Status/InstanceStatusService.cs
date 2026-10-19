@@ -303,7 +303,7 @@ public sealed class InstanceStatusService
     private sealed record HostData(long EnvironmentId, bool IsLocal, IReadOnlyList<DockerContainer> Containers, int Images, HostStats Stats);
 }
 
-internal static class StatusText
+public static class StatusText
 {
     /// <summary>A summary of a run that predates <see cref="ScheduledTask.LastRunOk"/>: "Error: ..." or "... Errors: ..." means it failed.</summary>
     public static bool StartsWithError(this string? summary)

@@ -1,9 +1,10 @@
-using System.Text.RegularExpressions;
 using MatDock.Core.Backups;
 using MatDock.Core.Containers;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Schedules;
+using MatDock.Core.Status;
 using MatDock.Core.Volumes;
 using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -16,12 +17,12 @@ public class IndexModel : PageModel
     // Short TTLs so the landing page stays fresh but repeated visits / refreshes don't re-open SSH each time.
     private static readonly TimeSpan StatsTtl = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan EventsTtl = TimeSpan.FromSeconds(60);
-    private static readonly Regex BackupSummary = new(@"^(\d+)/(\d+)\b", RegexOptions.Compiled);
 
     private readonly EnvironmentService _environmentService;
     private readonly IEnvironmentConnectionService _connectionService;
     private readonly ContainerService _containerService;
-    private readonly BackupScheduleService _scheduleService;
+    private readonly ScheduleService _scheduleService;
+    private readonly BundleBackupService _bundleService;
     private readonly VolumeBackupService _volumeBackupService;
     private readonly AppLaunchpadService _launchpad;
     private readonly IMemoryCache _cache;
@@ -30,7 +31,8 @@ public class IndexModel : PageModel
         EnvironmentService environmentService,
         IEnvironmentConnectionService connectionService,
         ContainerService containerService,
-        BackupScheduleService scheduleService,
+        ScheduleService scheduleService,
+        BundleBackupService bundleService,
         VolumeBackupService volumeBackupService,
         AppLaunchpadService launchpad,
         IMemoryCache cache)
@@ -39,6 +41,7 @@ public class IndexModel : PageModel
         _connectionService = connectionService;
         _containerService = containerService;
         _scheduleService = scheduleService;
+        _bundleService = bundleService;
         _volumeBackupService = volumeBackupService;
         _launchpad = launchpad;
         _cache = cache;
@@ -206,22 +209,25 @@ public class IndexModel : PageModel
 
     private async Task LoadBackupStatusAsync(long? selected, CancellationToken ct)
     {
-        var schedules = await _scheduleService.GetAllAsync(ct);
+        // The backup schedules are tasks of the Schedules page (volume backups and stack bundles).
+        var schedules = (await _scheduleService.GetAllAsync(ct)).Where(InstanceStatusService.IsBackup).ToList();
         var backups = await _volumeBackupService.GetAllAsync(ct);
+        var bundles = await _bundleService.GetBundlesAsync(selected, ct: ct);
 
         if (selected is { } envId)
         {
-            schedules = schedules.Where(s => s.EnvironmentId == envId).ToList();
+            schedules = schedules.Where(s => s.EnvironmentId is null || s.EnvironmentId == envId).ToList();
             backups = backups.Where(b => b.SourceEnvironmentId == envId).ToList();
         }
 
+        // A bundle stores its volumes as volume backups too, so the archives are the count and size.
         BackupCount = backups.Count;
         BackupBytes = backups.Sum(b => b.SizeBytes);
-        LastBackupUtc = backups.Count > 0 ? backups.Max(b => b.CreateDate) : null;
+        var newest = backups.Select(b => b.CreateDate).Concat(bundles.Select(b => b.CreateDate)).ToList();
+        LastBackupUtc = newest.Count > 0 ? newest.Max() : null;
 
-        var enabled = schedules.Where(s => s.Enabled).ToList();
+        var enabled = schedules.Where(s => s.Enabled && s.Trigger == ScheduleTrigger.Cron).ToList();
         SchedulesEnabledCount = enabled.Count;
-
         var nexts = enabled.Where(s => s.NextRunAt.HasValue).Select(s => s.NextRunAt!.Value).ToList();
         NextBackupUtc = nexts.Count > 0 ? nexts.Min() : null;
 
@@ -233,20 +239,8 @@ public class IndexModel : PageModel
         {
             LastRunUtc = lastRun.LastRunAt;
             LastRunSummary = lastRun.LastStatus;
-            LastRunOk = ParseBackupOk(lastRun.LastStatus);
+            LastRunOk = lastRun.LastRunOk ?? (string.IsNullOrEmpty(lastRun.LastStatus) ? null : !lastRun.LastStatus.StartsWithError());
         }
-    }
-
-    // Backup summaries start with "<ok>/<total> volumes backed up". null = no standard summary (config error / never run).
-    private static bool? ParseBackupOk(string? summary)
-    {
-        if (string.IsNullOrWhiteSpace(summary))
-        {
-            return null;
-        }
-
-        var m = BackupSummary.Match(summary);
-        return m.Success ? m.Groups[1].Value == m.Groups[2].Value : null;
     }
 
     public sealed record TopContainer(string EnvName, long EnvId, DockerContainer Container);

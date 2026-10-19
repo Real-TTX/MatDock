@@ -43,7 +43,7 @@
         <h1>Dashboard</h1>
     </div>
     <div class="mat-buttons">
-        <a href="/Index" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
+        <a href="/" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </div>
 </div>
 
@@ -273,7 +273,7 @@ else
             </div>
             <div class="dash-metric">
                 <div class="dash-metric__value">@(Model.NextBackupUtc is { } nb ? InFuture(nb) : "–")</div>
-                <div class="dash-metric__label">Next run (@Model.SchedulesEnabledCount active)</div>
+                <div class="dash-metric__label">Next run</div>
             </div>
             <div class="dash-metric">
                 <div class="dash-metric__value">
