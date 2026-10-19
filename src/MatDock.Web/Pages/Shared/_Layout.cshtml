@@ -49,7 +49,7 @@
             <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden />
             <aside class="sidebar">
                 <div class="sidebar__brand">
-                    <a class="brand" href="/" aria-label="MatDock Startseite">
+                    <a class="brand" href="/" aria-label="MatDock home">
                         <img class="brand__logo" src="~/img/logo.svg" alt="" width="34" height="34" />
                         <span class="brand__text">
                             <span class="brand__name">MatDock</span>
@@ -111,9 +111,12 @@
                     <a class="nav-link @(IsActive("/Networks") ? "is-active" : "")" href="/Networks">
                         <icon name="network" /><span>Networks</span>
                     </a>
-                    <a class="nav-link @(IsActive("/Backups") || IsActive("/Schedules") ? "is-active" : "")" href="/Backups">
-                        <icon name="save" /><span>Backups</span>
-                    </a>
+                    @if (isAdmin)
+                    {
+                        <a class="nav-link @(IsActive("/Backups") ? "is-active" : "")" href="/Backups">
+                            <icon name="save" /><span>Backups</span>
+                        </a>
+                    }
                     @if (hasProxy)
                     {
                         <a class="nav-link @(IsActive("/Proxy") ? "is-active" : "")" href="/Proxy">
@@ -128,7 +131,7 @@
                     }
                     @if (isAdmin)
                     {
-                        <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") ? "is-active" : "")" href="/Settings">
+                        <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") || IsActive("/GitRepos") ? "is-active" : "")" href="/Settings">
                             <icon name="settings" /><span>System</span>
                         </a>
                     }

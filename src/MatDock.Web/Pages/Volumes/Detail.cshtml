@@ -66,11 +66,8 @@ else
         @if (User.IsAdmin())
         {
             <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
-        }
-        <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
-        <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
-        @if (User.IsAdmin())
-        {
+            <a class="mat-btn" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
+            <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="save" /><span>Backups</span></a>
             <span style="flex:1 1 auto;"></span>
             <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." style="display:inline;">
                 <input type="hidden" name="envId" value="@Model.EnvId" />

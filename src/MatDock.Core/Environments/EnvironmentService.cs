@@ -154,7 +154,9 @@ public sealed class EnvironmentService
         if (secretMissing && id is > 0)
         {
             var entity = await GetAsync(id.Value, ct);
-            if (entity is not null)
+            // The stored secret only goes to the host it was saved for: a test against another host, port or user
+            // must not hand the stored password or key to that host.
+            if (entity is not null && SameEndpoint(entity, input))
             {
                 stored = BuildSettings(entity);
             }
@@ -274,6 +276,13 @@ public sealed class EnvironmentService
         return (true, "Local environment created.", env, true);
     }
 
+    /// <summary>Whether the input points at the same SSH endpoint (host, port, user) as the stored environment.</summary>
+    public static bool SameEndpoint(DockerEnvironment entity, EnvironmentInput input)
+        => entity.ConnectionType == ConnectionType.Ssh
+           && string.Equals(entity.Host, (input.Host ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+           && entity.Port == input.Port
+           && string.Equals(entity.Username, (input.Username ?? string.Empty).Trim(), StringComparison.Ordinal);
+
     private void ApplyInput(DockerEnvironment entity, EnvironmentInput input, bool isCreate)
     {
         entity.Name = input.Name.Trim();
@@ -298,6 +307,9 @@ public sealed class EnvironmentService
             return;
         }
 
+        // A secret belongs to its endpoint: when host, port or user change without a new secret, the stored one is
+        // dropped instead of being sent to the new host.
+        var endpointChanged = !isCreate && !SameEndpoint(entity, input);
         entity.Host = input.Host.Trim();
         entity.Port = input.Port;
         entity.Username = input.Username.Trim();
@@ -312,7 +324,7 @@ public sealed class EnvironmentService
             {
                 entity.EncryptedPassword = _secrets.Protect(input.Password);
             }
-            else if (isCreate)
+            else if (isCreate || endpointChanged)
             {
                 entity.EncryptedPassword = null;
             }
@@ -325,7 +337,7 @@ public sealed class EnvironmentService
             {
                 entity.EncryptedPrivateKey = _secrets.Protect(input.PrivateKeyPem);
             }
-            else if (isCreate)
+            else if (isCreate || endpointChanged)
             {
                 entity.EncryptedPrivateKey = null;
             }
@@ -335,7 +347,7 @@ public sealed class EnvironmentService
             {
                 entity.EncryptedPrivateKeyPassphrase = _secrets.Protect(input.PrivateKeyPassphrase);
             }
-            else if (isCreate || !string.IsNullOrEmpty(input.PrivateKeyPem))
+            else if (isCreate || endpointChanged || !string.IsNullOrEmpty(input.PrivateKeyPem))
             {
                 entity.EncryptedPrivateKeyPassphrase = null;
             }

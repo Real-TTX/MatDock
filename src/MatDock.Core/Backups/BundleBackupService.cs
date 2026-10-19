@@ -279,6 +279,15 @@ public sealed class BundleBackupService
             return (false, "Invalid bundle manifest.");
         }
 
+        // A new name is for a copy next to the original: it must not replace another stack (its compose, .env and volumes).
+        if (!string.IsNullOrWhiteSpace(overrideName)
+            && !string.Equals(overrideName.Trim(), manifest.Name, StringComparison.OrdinalIgnoreCase)
+            && (await _stackService.GetAllAsync(ct)).Any(s => s.EnvironmentId == targetEnv.Id
+                && string.Equals(s.Name, overrideName.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return (false, $"A stack named '{overrideName.Trim()}' already exists on {targetEnv.Name}. Choose another name.");
+        }
+
         int ok = 0, fail = 0;
         foreach (var v in manifest.Volumes)
         {

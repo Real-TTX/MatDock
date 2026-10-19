@@ -122,7 +122,7 @@ public class EditModel : PageModel
     public async Task<IActionResult> OnPostSaveAsync()
     {
         ValidateConnection();
-        ValidateSecretsForSave();
+        await ValidateSecretsForSaveAsync();
         if (!ModelState.IsValid)
         {
             return Page();
@@ -240,11 +240,21 @@ public class EditModel : PageModel
         }
     }
 
-    private void ValidateSecretsForSave()
+    private async Task ValidateSecretsForSaveAsync()
     {
-        if (IsEdit || Input.ConnectionType == ConnectionType.Local)
+        if (Input.ConnectionType == ConnectionType.Local)
         {
-            return; // blank secret = keep existing; local needs no secrets
+            return; // local needs no secrets
+        }
+
+        if (IsEdit)
+        {
+            // A blank secret keeps the stored one, but only for the host it was saved for.
+            var stored = await _environmentService.GetAsync(Input.Id!.Value, HttpContext.RequestAborted);
+            if (stored is null || EnvironmentService.SameEndpoint(stored, ToServiceInput()))
+            {
+                return;
+            }
         }
 
         if (Input.AuthType == AuthType.Password && string.IsNullOrEmpty(Input.Password))

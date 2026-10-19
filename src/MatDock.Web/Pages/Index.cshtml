@@ -105,7 +105,7 @@
         <div class="empty-state">
             <div><icon name="server" /></div>
             <p>No enabled environments to show.</p>
-            <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create your first environment</span></a>
+            @if (isAdmin) { <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create your first environment</span></a> }
         </div>
     </div>
 }
@@ -122,8 +122,8 @@ else
             <div class="env-card">
                 <div class="env-card__head">
                     <div>
-                        <div class="env-card__name"><a href="/Environments/Edit?id=@env.Id">@env.Name</a></div>
-                        <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
+                        <div class="env-card__name"><a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")">@env.Name</a></div>
+                        <div class="env-card__host">@MatDock.Web.Support.EnvironmentView.Address(env)</div>
                     </div>
                     <partial name="_StatusPill" model="env.Status" />
                 </div>
@@ -254,7 +254,7 @@ else
 @* ---- Backups ---- *@
 <div class="dash-section-head">
     <h2><icon name="download" /> <span>Backups</span></h2>
-    <a href="/Backups" class="mat-link">History →</a>
+    @if (isAdmin) { <a href="/Backups" class="mat-link">History →</a> }
 </div>
 <div class="card">
     <div class="card__body">

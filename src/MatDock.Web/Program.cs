@@ -130,6 +130,15 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AuthorizeFolder("/Users", "AdminOnly");
     options.Conventions.AuthorizeFolder("/Settings", "AdminOnly");
+    // The role "User" looks at everything and starts/stops/restarts containers; everything that reaches the hosts beyond
+    // that is for admins. Environments hold the SSH secrets and decide which hosts MatDock drives (a Local environment is
+    // the Docker socket of MatDock's own host); the list stays visible.
+    options.Conventions.AuthorizePage("/Environments/Edit", "AdminOnly");
+    options.Conventions.AuthorizePage("/Environments/Migrate", "AdminOnly");
+    // A volume with driver options can bind any host path (type=none, o=bind, device=/) → admins only.
+    options.Conventions.AuthorizePage("/Volumes/Create", "AdminOnly");
+    // Backups hold the data of every volume and the .env of the stacks; restoring overwrites volumes and stacks.
+    options.Conventions.AuthorizeFolder("/Backups", "AdminOnly");
     // The volume file explorer can read/write arbitrary files inside volumes → admins only.
     options.Conventions.AuthorizePage("/Volumes/Files", "AdminOnly");
     options.Conventions.AuthorizePage("/Volumes/FileEdit", "AdminOnly");

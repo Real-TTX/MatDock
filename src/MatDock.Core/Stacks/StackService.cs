@@ -483,8 +483,8 @@ public sealed class StackService
         }
 
         var composePath = EffectiveComposePath(stack);
-        var composeFull = Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar));
-        if (!File.Exists(composeFull))
+        var composeFull = RepoFile(workDir, Path.Combine(workDir, composePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (composeFull is null || !File.Exists(composeFull))
         {
             stack.LastStatus = "Compose file missing";
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
@@ -526,15 +526,15 @@ public sealed class StackService
 
                 foreach (var sidecar in new[] { "matdock.yml", "matdock.yaml", "matdock.json" })
                 {
-                    var path = Path.Combine(dir, sidecar);
-                    if (File.Exists(path))
+                    var path = RepoFile(workDir, Path.Combine(dir, sidecar));
+                    if (path is not null && File.Exists(path))
                     {
                         meta = AppMetadataParser.Merge(meta, AppMetadataParser.FromSidecar(File.ReadAllText(path), sidecar));
                         break;
                     }
                 }
 
-                meta = ResolveIconFile(meta, dir);
+                meta = ResolveIconFile(meta, workDir, dir);
             }
 
             // An unresolved file reference (inline stack, or missing/oversized file) must not render as text.
@@ -552,7 +552,33 @@ public sealed class StackService
         return meta is null || meta.IsEmpty ? null : AppMetadataParser.ToJson(meta);
     }
 
-    private static AppMetadata? ResolveIconFile(AppMetadata? meta, string dir)
+    /// <summary>
+    /// <paramref name="path"/> when it is a file inside the clone <paramref name="root"/> that is not reached through a symbolic
+    /// link; null otherwise. A repository decides these paths (compose path, sidecar, icon), so a link or a <c>..</c> must not
+    /// make MatDock read its own files (the keys, the database) into a stack.
+    /// </summary>
+    internal static string? RepoFile(string root, string path)
+    {
+        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var full = Path.GetFullPath(path);
+        if (!full.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        for (var current = full; current.Length > fullRoot.Length; current = Path.GetDirectoryName(current) ?? fullRoot)
+        {
+            FileSystemInfo info = Directory.Exists(current) ? new DirectoryInfo(current) : new FileInfo(current);
+            if (info.Exists && info.LinkTarget is not null)
+            {
+                return null;
+            }
+        }
+
+        return full;
+    }
+
+    private static AppMetadata? ResolveIconFile(AppMetadata? meta, string root, string dir)
     {
         if (meta is null)
         {
@@ -563,16 +589,16 @@ public sealed class StackService
         {
             if (AppIcons.IsFileName(meta.Icon))
             {
-                var path = Path.Combine(dir, meta.Icon!.Replace('/', Path.DirectorySeparatorChar));
-                meta.Icon = File.Exists(path) ? AppIcons.ToDataUrl(File.ReadAllBytes(path), path) : null;
+                var path = RepoFile(root, Path.Combine(dir, meta.Icon!.Replace('/', Path.DirectorySeparatorChar)));
+                meta.Icon = path is not null && File.Exists(path) ? AppIcons.ToDataUrl(File.ReadAllBytes(path), path) : null;
             }
 
             if (string.IsNullOrWhiteSpace(meta.Icon))
             {
                 foreach (var name in AppIcons.DefaultFileNames)
                 {
-                    var path = Path.Combine(dir, name);
-                    if (File.Exists(path))
+                    var path = RepoFile(root, Path.Combine(dir, name));
+                    if (path is not null && File.Exists(path))
                     {
                         var url = AppIcons.ToDataUrl(File.ReadAllBytes(path), path);
                         if (url is not null)

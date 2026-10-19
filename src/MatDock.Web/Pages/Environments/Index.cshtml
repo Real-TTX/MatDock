@@ -83,13 +83,13 @@
                         <div class="env-card__head">
                             <div>
                                 <div class="env-card__name">
-                                    <a href="/Environments/Edit?id=@env.Id">@env.Name</a>
+                                    <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")">@env.Name</a>
                                     @if (!env.IsEnabled)
                                     {
                                         <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
                                     }
                                 </div>
-                                <div class="env-card__host">@env.Username@@@env.Host:@env.Port</div>
+                                <div class="env-card__host">@MatDock.Web.Support.EnvironmentView.Address(env)</div>
                             </div>
                             <partial name="_StatusPill" model="env.Status" />
                         </div>
@@ -133,7 +133,7 @@
                                     <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
                                 }
                             }
-                            <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Open"><icon name="external" /></a>
+                            @if (User.IsAdmin()) { <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a> }
                         </div>
                     </div>
                 }
@@ -160,7 +160,7 @@
                         var st = Model.Stats.TryGetValue(env.Id, out var s) ? s : new MatDock.Core.Docker.HostStats();
                         <tr>
                             <td>
-                                <a href="/Environments/Edit?id=@env.Id"><strong>@env.Name</strong></a>
+                                <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")"><strong>@env.Name</strong></a>
                                 @if (!env.IsEnabled)
                                 {
                                     <span class="pill pill--unknown" style="margin-left:6px;">Disabled</span>
@@ -170,7 +170,7 @@
                                     <div class="text-muted" style="font-size:.8rem;">@env.Description</div>
                                 }
                             </td>
-                            <td class="mono">@env.Username@@@env.Host:@env.Port</td>
+                            <td class="mono">@MatDock.Web.Support.EnvironmentView.Address(env)</td>
                             <td><partial name="_StatusPill" model="env.Status" /></td>
                             <td class="res-cell">
                                 @if (st.Cores is null && st.MemTotalBytes is null && st.DiskTotalBytes is null)
@@ -216,7 +216,7 @@
                                             <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
                                         }
                                     }
-                                    <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Open"><icon name="external" /></a>
+                                    @if (User.IsAdmin()) { <a class="mat-btn mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit"><icon name="edit" /></a> }
                                 </div>
                             </td>
                         </tr>
@@ -231,7 +231,10 @@
     </mat-table-pagination>
 
     <mat-table-actions>
-        <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New environment</span></a>
+        @if (User.IsAdmin())
+        {
+            <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New environment</span></a>
+        }
         <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

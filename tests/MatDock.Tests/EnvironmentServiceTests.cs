@@ -88,7 +88,7 @@ public class EnvironmentServiceTests
     }
 
     [Fact]
-    public async Task BuildTestSettings_falls_back_to_stored_secret_when_blank()
+    public async Task BuildTestSettings_falls_back_to_stored_secret_only_for_the_same_endpoint()
     {
         using var db = new TestDatabase();
         var service = NewService(db);
@@ -97,13 +97,42 @@ public class EnvironmentServiceTests
             Name = "P", Host = "h", Username = "root", AuthType = AuthType.Password, Password = "stored"
         });
 
-        var settings = await service.BuildTestSettingsAsync(new EnvironmentInput
+        var same = await service.BuildTestSettingsAsync(new EnvironmentInput
         {
-            Host = "h2", Username = "root", AuthType = AuthType.Password, Password = null
+            Host = "h", Username = "root", AuthType = AuthType.Password, Password = null
         }, env.Id);
+        Assert.Equal("stored", same.Password);
 
-        Assert.Equal("h2", settings.Host);          // edited scalar honoured
-        Assert.Equal("stored", settings.Password);  // secret pulled from storage
+        // Another host, port or user never gets the stored password (it would hand it to that host).
+        foreach (var other in new[]
+                 {
+                     new EnvironmentInput { Host = "attacker", Username = "root", AuthType = AuthType.Password },
+                     new EnvironmentInput { Host = "h", Port = 2222, Username = "root", AuthType = AuthType.Password },
+                     new EnvironmentInput { Host = "h", Username = "admin", AuthType = AuthType.Password },
+                 })
+        {
+            var settings = await service.BuildTestSettingsAsync(other, env.Id);
+            Assert.Equal(other.Host, settings.Host);
+            Assert.Null(settings.Password);
+        }
+    }
+
+    [Fact]
+    public async Task Update_to_another_host_without_a_secret_drops_the_stored_one()
+    {
+        using var db = new TestDatabase();
+        var service = NewService(db);
+        var env = await service.CreateAsync(new EnvironmentInput
+        {
+            Name = "Prod", Host = "h", Username = "root", AuthType = AuthType.Password, Password = "keepme"
+        });
+
+        await service.UpdateAsync(env.Id, new EnvironmentInput
+        {
+            Name = "Prod", Host = "elsewhere", Username = "root", AuthType = AuthType.Password, Password = null
+        });
+
+        Assert.Null((await service.GetAsync(env.Id))!.EncryptedPassword);
     }
 
     [Fact]

@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddMatDockCore(this IServiceCollection services)
     {
         // Stateless helpers.
+        services.AddSingleton(_ => new Auth.LoginThrottle());
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();

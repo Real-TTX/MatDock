@@ -28,13 +28,16 @@ public class LoginModel : PageModel
     private readonly MatPlatformSettings _platform;
     private readonly ILogger<LoginModel> _logger;
 
-    public LoginModel(AuthService authService, SessionService sessionService, UserService users, MatPlatformSettings platform, ILogger<LoginModel> logger)
+    private readonly LoginThrottle _throttle;
+
+    public LoginModel(AuthService authService, SessionService sessionService, UserService users, MatPlatformSettings platform, LoginThrottle throttle, ILogger<LoginModel> logger)
     {
         _authService = authService;
         _sessionService = sessionService;
         _users = users;
         _platform = platform;
         _logger = logger;
+        _throttle = throttle;
     }
 
     [BindProperty]
@@ -133,12 +136,22 @@ public class LoginModel : PageModel
             return Page();
         }
 
+        var address = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (_throttle.RetryAfter(address, Input.Username) is { } wait)
+        {
+            ErrorMessage = $"Too many failed sign-ins. Try again in {Math.Max(1, (int)Math.Ceiling(wait.TotalMinutes))} min.";
+            return Page();
+        }
+
         var result = await _authService.AuthenticateAsync(Input.Username, Input.Password, HttpContext.RequestAborted);
         if (!result.Succeeded || result.User is null)
         {
+            _throttle.Failed(address, Input.Username);
             ErrorMessage = result.Error ?? "Sign-in failed.";
             return Page();
         }
+
+        _throttle.Succeeded(address, Input.Username);
 
         var user = result.User;
 

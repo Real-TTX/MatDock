@@ -64,6 +64,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Web terminal** (xterm.js) – a shell on the host or straight into a container
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
+- Two roles: **User** sees everything and starts/stops/restarts containers and reads their logs; **Admin** does the rest
+  (environments, stacks, volumes, files, backups, schedules, terminal, settings). The sign-in is locked for 15 minutes after
+  5 wrong passwords for one account (or 20 from one address)
 - **Light and dark**, works well on **mobile**, no cloud and no third-party services
 
 ## Screenshots
