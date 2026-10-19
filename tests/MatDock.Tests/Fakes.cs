@@ -44,10 +44,17 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
 
     public bool? LastPruneAll { get; private set; }
 
+    /// <summary>The SSH host key the fake server shows in a connection test.</summary>
+    public string? HostKey { get; set; }
+
     public Task<DockerConnectionResult> TestConnectionAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult(DockerConnectionResult.Ok("ok", "27.0", "1.47", "linux/amd64"));
+        var ok = DockerConnectionResult.Ok("ok", "27.0", "1.47", "linux/amd64");
+        return Task.FromResult(HostKey is null ? ok : new DockerConnectionResult
+        {
+            Success = true, Status = ok.Status, Message = ok.Message, DockerVersion = ok.DockerVersion, HostKeyFingerprint = HostKey,
+        });
     }
 
     public Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)

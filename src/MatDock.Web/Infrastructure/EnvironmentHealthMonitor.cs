@@ -66,6 +66,11 @@ public sealed class EnvironmentHealthMonitor : BackgroundService
             {
                 var result = await connection.TestConnectionAsync(environments.BuildSettings(env), ct);
                 up = result.Success;
+                if (up && env.HostKeyFingerprint is null)
+                {
+                    // Trust on first use: the key of the first good connection is the one to expect from now on.
+                    await environments.RememberHostKeyAsync(env.Id, result.HostKeyFingerprint, ct);
+                }
             }
             catch
             {

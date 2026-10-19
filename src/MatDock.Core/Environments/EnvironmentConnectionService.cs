@@ -53,9 +53,15 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
                 {
                     var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
                     var label = AccessLabel(useSudo, dockerHost);
-                    return DockerConnectionResult.Ok(
+                    var ok = DockerConnectionResult.Ok(
                         $"Connected to Docker {version} (API {apiVersion}) · Access: {label}.",
                         version, apiVersion, osArch, useSudo, dockerHost, label);
+                    return settings.IsLocal ? ok : new DockerConnectionResult
+                    {
+                        Success = ok.Success, Status = ok.Status, Message = ok.Message, DockerVersion = ok.DockerVersion,
+                        ApiVersion = ok.ApiVersion, OsArch = ok.OsArch, UseSudo = ok.UseSudo, DockerHost = ok.DockerHost,
+                        AccessLabel = ok.AccessLabel, HostKeyFingerprint = settings.HostKey.Seen,
+                    };
                 }
 
                 if (isFirstProbe)
@@ -74,6 +80,13 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         catch (Exception ex)
         {
             _logger.LogInformation(ex, "Connection test to {Host}:{Port} failed.", settings.Host, settings.Port);
+            if (settings.HostKey.Rejected)
+            {
+                return DockerConnectionResult.Fail(
+                    $"The SSH host key of {settings.Host} has changed (now {settings.HostKey.Seen}, saved {settings.HostKeyFingerprint}). "
+                    + "If the server was reinstalled, forget the saved key on the environment and test again.", EnvironmentStatus.Error);
+            }
+
             return DockerConnectionResult.Fail(DockerErrorMessages.DescribeSshError(ex), EnvironmentStatus.Error);
         }
     }

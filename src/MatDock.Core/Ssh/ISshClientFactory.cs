@@ -29,7 +29,15 @@ public sealed class SshNetClientFactory : ISshClientFactory
             Timeout = TimeSpan.FromSeconds(Math.Max(1, settings.TimeoutSeconds))
         };
 
-        return new SshClient(connectionInfo);
+        var client = new SshClient(connectionInfo);
+        client.HostKeyReceived += (_, e) =>
+        {
+            var seen = HostKeyCheck.Format(e.FingerPrintSHA256);
+            settings.HostKey.Seen = seen;
+            e.CanTrust = HostKeyCheck.Trusts(settings.HostKeyFingerprint, seen);
+            settings.HostKey.Rejected = !e.CanTrust;
+        };
+        return client;
     }
 
     // Offer both "password" and "keyboard-interactive": many servers (PAM) only accept passwords via

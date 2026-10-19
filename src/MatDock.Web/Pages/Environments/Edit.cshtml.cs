@@ -27,6 +27,9 @@ public class EditModel : PageModel
     /// <summary>Enabled state of the loaded environment (for the Enable/Disable button on the edit page).</summary>
     public bool IsEnabled { get; private set; } = true;
 
+    /// <summary>The saved SSH host key (null = none yet).</summary>
+    public string? HostKeyFingerprint { get; private set; }
+
     public DockerConnectionResult? TestResult { get; private set; }
 
     /// <summary>Set after "Generate key pair"; shown so the user can install it on the host.</summary>
@@ -96,6 +99,7 @@ public class EditModel : PageModel
 
             MapToInput(entity);
             IsEnabled = entity.IsEnabled;
+            HostKeyFingerprint = entity.HostKeyFingerprint;
         }
 
         return Page();
@@ -107,6 +111,14 @@ public class EditModel : PageModel
         StatusMessage = ok
             ? (enable ? "Environment enabled." : "Environment disabled – excluded from automatic runs and selection lists.")
             : "Environment not found.";
+        IsError = !ok;
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostForgetHostKeyAsync(long id)
+    {
+        var ok = await _environmentService.ForgetHostKeyAsync(id, HttpContext.RequestAborted);
+        StatusMessage = ok ? "Host key forgotten. The next connection saves the key the server shows." : "Environment not found.";
         IsError = !ok;
         return RedirectToPage(new { id });
     }
@@ -181,6 +193,18 @@ public class EditModel : PageModel
         {
             var settings = await _environmentService.BuildTestSettingsAsync(ToServiceInput(), Input.Id, HttpContext.RequestAborted);
             TestResult = await _connectionService.TestConnectionAsync(settings, HttpContext.RequestAborted);
+            if (TestResult.Success && Input.Id is > 0 && settings.HostKeyFingerprint is null
+                && await _environmentService.GetAsync(Input.Id.Value, HttpContext.RequestAborted) is { } saved
+                && EnvironmentService.SameEndpoint(saved, ToServiceInput()))
+            {
+                // The first successful connection to the saved host: its key is the one to expect from now on.
+                await _environmentService.RememberHostKeyAsync(saved.Id, TestResult.HostKeyFingerprint, HttpContext.RequestAborted);
+            }
+
+            if (Input.Id is > 0)
+            {
+                HostKeyFingerprint = (await _environmentService.GetAsync(Input.Id.Value, HttpContext.RequestAborted))?.HostKeyFingerprint;
+            }
         }
         catch (Exception ex)
         {

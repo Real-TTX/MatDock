@@ -34,4 +34,10 @@ public sealed class SshConnectionSettings
 
     /// <summary>Optional DOCKER_HOST value, e.g. a rootless socket (auto-detected).</summary>
     public string? DockerHost { get; init; }
+
+    /// <summary>The host key the server must show (SHA256 fingerprint); null = any key, the one seen is reported.</summary>
+    public string? HostKeyFingerprint { get; init; }
+
+    /// <summary>What the SSH connection saw of the host key (filled while connecting).</summary>
+    public HostKeyCheck HostKey { get; } = new();
 }

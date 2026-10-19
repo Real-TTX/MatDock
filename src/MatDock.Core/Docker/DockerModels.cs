@@ -27,6 +27,9 @@ public sealed class DockerConnectionResult
     /// <summary>Human-readable access label, e.g. "Standard", "sudo", "rootless (/run/user/1000/docker.sock)".</summary>
     public string? AccessLabel { get; init; }
 
+    /// <summary>The SSH host key the server showed (SSH environments), to be saved at the first successful connection.</summary>
+    public string? HostKeyFingerprint { get; init; }
+
     public static DockerConnectionResult Ok(
         string message, string? dockerVersion, string? apiVersion, string? osArch,
         bool useSudo = false, string? dockerHost = null, string? accessLabel = null) => new()

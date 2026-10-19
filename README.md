@@ -32,7 +32,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Host stats** per environment: CPU load, RAM and disk, running containers, Docker version
 - A **global environment selector** in the sidebar – one host or **"All environments"**, every
   page follows it
-- Connection test with a clear result; secrets stored **encrypted**
+- Connection test with a clear result; secrets stored **encrypted**; the **SSH host key** is saved at the first
+  connection and a server that shows another one is refused (forget it on the environment after a reinstall)
 
 **Dashboard**
 - Environment tiles with **live CPU / RAM / disk** usage (the dashboard, environments, containers and stack pages

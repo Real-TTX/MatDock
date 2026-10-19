@@ -106,7 +106,8 @@ public sealed class EnvironmentService
             PrivateKeyPassphrase = _secrets.UnprotectNullable(env.EncryptedPrivateKeyPassphrase),
             TimeoutSeconds = _options.SshTimeoutSeconds,
             UseSudo = env.UseSudo,
-            DockerHost = env.DockerHost
+            DockerHost = env.DockerHost,
+            HostKeyFingerprint = env.ConnectionType == ConnectionType.Ssh ? env.HostKeyFingerprint : null,
         };
     }
 
@@ -162,6 +163,13 @@ public sealed class EnvironmentService
             }
         }
 
+        // The saved host key holds for the same endpoint only (a test of another host learns its key).
+        string? hostKey = null;
+        if (id is > 0 && (await GetAsync(id.Value, ct)) is { } saved && SameEndpoint(saved, input))
+        {
+            hostKey = saved.HostKeyFingerprint;
+        }
+
         return new SshConnectionSettings
         {
             ConnectionType = ConnectionType.Ssh,
@@ -172,7 +180,8 @@ public sealed class EnvironmentService
             Password = string.IsNullOrEmpty(input.Password) ? stored?.Password : input.Password,
             PrivateKeyPem = string.IsNullOrEmpty(input.PrivateKeyPem) ? stored?.PrivateKeyPem : input.PrivateKeyPem,
             PrivateKeyPassphrase = string.IsNullOrEmpty(input.PrivateKeyPassphrase) ? stored?.PrivateKeyPassphrase : input.PrivateKeyPassphrase,
-            TimeoutSeconds = _options.SshTimeoutSeconds
+            TimeoutSeconds = _options.SshTimeoutSeconds,
+            HostKeyFingerprint = hostKey,
         };
     }
 
@@ -205,6 +214,7 @@ public sealed class EnvironmentService
             // Remember how Docker was reached, so volume/migration operations use the same access.
             entity.UseSudo = result.UseSudo;
             entity.DockerHost = result.DockerHost;
+            entity.HostKeyFingerprint ??= result.HostKeyFingerprint;
         }
         await _db.SaveChangesAsync(ct);
 
@@ -276,6 +286,36 @@ public sealed class EnvironmentService
         return (true, "Local environment created.", env, true);
     }
 
+    /// <summary>Saves the host key seen at a successful connection when none is saved yet (trust on first use).</summary>
+    public async Task RememberHostKeyAsync(long id, string? fingerprint, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(fingerprint))
+        {
+            return;
+        }
+
+        var entity = await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (entity is { ConnectionType: ConnectionType.Ssh, HostKeyFingerprint: null })
+        {
+            entity.HostKeyFingerprint = fingerprint;
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>Forgets the saved host key (the server was reinstalled); the next connection saves the new one.</summary>
+    public async Task<bool> ForgetHostKeyAsync(long id, CancellationToken ct = default)
+    {
+        var entity = await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.HostKeyFingerprint = null;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     /// <summary>Whether the input points at the same SSH endpoint (host, port, user) as the stored environment.</summary>
     public static bool SameEndpoint(DockerEnvironment entity, EnvironmentInput input)
         => entity.ConnectionType == ConnectionType.Ssh
@@ -310,6 +350,10 @@ public sealed class EnvironmentService
         // A secret belongs to its endpoint: when host, port or user change without a new secret, the stored one is
         // dropped instead of being sent to the new host.
         var endpointChanged = !isCreate && !SameEndpoint(entity, input);
+        if (endpointChanged)
+        {
+            entity.HostKeyFingerprint = null; // another server: its key is learned at the next connection
+        }
         entity.Host = input.Host.Trim();
         entity.Port = input.Port;
         entity.Username = input.Username.Trim();

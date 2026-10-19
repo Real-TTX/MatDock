@@ -102,6 +102,19 @@
                 </mat-form-buttons>
                 <p class="mat-hint">MatDock generates the pair; you install the public key on the host.</p>
             </div>
+
+            @if (Model.IsEdit)
+            {
+                <mat-field label="Host key" hint="Saved at the first connection; a server that shows another key is refused.">
+                    <div class="mat-buttons">
+                        <code class="mono">@(Model.HostKeyFingerprint ?? "not saved yet")</code>
+                        @if (Model.HostKeyFingerprint is not null)
+                        {
+                            <button type="submit" form="forget-key-form" class="mat-btn mat-btn--sm" data-confirm="Forget the saved host key? Only do this when the server was reinstalled."><icon name="key" /><span>Forget</span></button>
+                        }
+                    </div>
+                </mat-field>
+            }
             </div>
 
             <mat-form-buttons>
@@ -128,6 +141,7 @@
                 <input type="hidden" name="id" value="@Model.Input.Id" />
                 <input type="hidden" name="enable" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())" />
             </form>
+            <form method="post" asp-page-handler="ForgetHostKey" id="forget-key-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
             <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
         }
     </div>
