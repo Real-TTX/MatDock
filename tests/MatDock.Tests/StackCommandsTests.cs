@@ -66,17 +66,63 @@ public class StackCommandsTests
     }
 
     [Fact]
-    public void Deploy_with_env_writes_dotenv_via_base64()
+    public void The_dotenv_goes_over_stdin_never_on_the_command_line()
     {
-        var env = "FOO=bar\nBAZ=qux";
-        var cmd = StackCommands.Deploy("docker", "media", env);
-        var b64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(env));
-        Assert.Contains("echo " + b64 + " | base64 -d > \"$dir/.env\"", cmd);
+        var env = "SECRET=hunter2\r\nBAZ=qux";
+        var cmd = StackCommands.Deploy("docker", "media");
+        Assert.DoesNotContain("echo ", cmd);
+        Assert.Contains("IFS= read -r envb64", cmd);
+        Assert.Contains("(umask 077; printf %s \"$envb64\" | base64 -d > \"$dir/.env\")", cmd);
 
-        // base64 has no single quotes, so the single-quoted sh -c body stays intact.
+        var stdin = System.Text.Encoding.UTF8.GetString(StackCommands.FilesOnStdin("services: {}\r\n", env));
+        var b64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("SECRET=hunter2\nBAZ=qux"));
+        Assert.Equal(b64 + "\nservices: {}\n", stdin);
+        Assert.Equal("\nservices: {}", System.Text.Encoding.UTF8.GetString(StackCommands.FilesOnStdin("services: {}", null)));
+
+        // The single-quoted sh -c body has no single quote of its own.
         var start = cmd.IndexOf("sh -c '", System.StringComparison.Ordinal) + "sh -c '".Length;
         var end = cmd.LastIndexOf("' 2>&1", System.StringComparison.Ordinal);
         Assert.DoesNotContain("'", cmd.Substring(start, end - start));
+    }
+
+    /// <summary>The script itself, where there is a POSIX shell (Linux; the CI and the container): it writes both files from stdin.</summary>
+    [Fact]
+    public void The_files_are_written_from_stdin_by_a_real_shell()
+    {
+        if (!File.Exists("/bin/sh"))
+        {
+            return;
+        }
+
+        var dir = Directory.CreateTempSubdirectory("matdock-stack").FullName;
+        try
+        {
+            // Deploy without the docker part: everything up to "cd".
+            var cmd = StackCommands.Deploy("true", "media");
+            var script = cmd[(cmd.IndexOf("sh -c '", System.StringComparison.Ordinal) + 7)..cmd.LastIndexOf("' 2>&1", System.StringComparison.Ordinal)];
+            foreach (var (env, expectEnv) in new[] { ("A=1\nB=two words", true), (null, false) })
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("/bin/sh") { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                psi.ArgumentList.Add("-c");
+                psi.ArgumentList.Add(script);
+                psi.Environment["MATDOCK_STACKS_DIR"] = dir;
+                using var p = System.Diagnostics.Process.Start(psi)!;
+                p.StandardInput.BaseStream.Write(StackCommands.FilesOnStdin("services:\n  app:\n    image: nginx\n", env));
+                p.StandardInput.Close();
+                p.WaitForExit(10_000);
+                Assert.True(p.ExitCode == 0, p.StandardError.ReadToEnd());
+                Assert.Equal("services:\n  app:\n    image: nginx\n", File.ReadAllText(Path.Combine(dir, "media", "docker-compose.yml")));
+                Assert.Equal(expectEnv, File.Exists(Path.Combine(dir, "media", ".env")));
+                if (expectEnv)
+                {
+                    Assert.Equal("A=1\nB=two words", File.ReadAllText(Path.Combine(dir, "media", ".env")));
+                }
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]

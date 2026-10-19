@@ -411,10 +411,10 @@ public sealed class StackService
 
         await LoginRegistriesAsync(prep, ct);
 
-        var yaml = Encoding.UTF8.GetBytes(stack.ComposeYaml.Replace("\r\n", "\n"));
+        var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent);
         var command = pull
-            ? StackCommands.Update(prep.Head!, stack.Name, stack.EnvContent)
-            : StackCommands.Deploy(prep.Head!, stack.Name, stack.EnvContent);
+            ? StackCommands.Update(prep.Head!, stack.Name)
+            : StackCommands.Deploy(prep.Head!, stack.Name);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));

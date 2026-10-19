@@ -82,41 +82,46 @@ public static partial class StackCommands
         return VolumeCommands.PathPrefix + script + " 2>&1";
     }
 
-    /// <summary>Writes the compose YAML (from stdin) and runs <c>compose up -d</c>. Output merged (2&gt;&amp;1).</summary>
-    public static string Deploy(string dockerHead, string name, string? envContent = null)
+    /// <summary>
+    /// Writes the stack's files from stdin (<see cref="FilesOnStdin"/>) and runs <c>compose up -d</c>. Output merged (2&gt;&amp;1).
+    /// </summary>
+    public static string Deploy(string dockerHead, string name)
     {
         Require(name);
         // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
-        // single quotes, so it reaches the remote sh verbatim. YAML arrives on stdin via `cat`.
+        // single quotes, so it reaches the remote sh verbatim. The files arrive on stdin.
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
-                   + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
+                   + WriteFiles + "cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
-    /// <summary>Writes the compose YAML (from stdin), pulls newer images, then runs <c>compose up -d</c>.</summary>
-    public static string Update(string dockerHead, string name, string? envContent = null)
+    /// <summary>Writes the stack's files from stdin, pulls newer images, then runs <c>compose up -d</c>.</summary>
+    public static string Update(string dockerHead, string name)
     {
         Require(name);
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
-                   + "cat > \"$dir/docker-compose.yml\"; " + EnvStep(envContent) + "cd \"$dir\"; "
+                   + WriteFiles + "cd \"$dir\"; "
                    + dockerHead + " compose -p \"$name\" pull; " + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
     /// <summary>
-    /// Shell fragment that (re)writes the stack's <c>.env</c> deterministically: decode base64-embedded
-    /// content when provided, otherwise delete a stale <c>.env</c> so cleared variables take effect on the
-    /// next deploy. Base64 contains only <c>[A-Za-z0-9+/=]</c>, so it is safe inside the single-quoted body.
+    /// Reads what <see cref="FilesOnStdin"/> sends: the first line is the <c>.env</c> in base64 (empty = no <c>.env</c>, a stale one is
+    /// removed so cleared variables take effect), the rest is the compose file. The <c>.env</c> holds secrets, so it never appears on
+    /// the command line (where <c>ps</c> on the host would show it) and is readable by its owner only.
     /// </summary>
-    private static string EnvStep(string? envContent)
-    {
-        if (string.IsNullOrEmpty(envContent))
-        {
-            return "rm -f \"$dir/.env\"; ";
-        }
+    private const string WriteFiles =
+        "IFS= read -r envb64 || true; "
+        + "if [ -n \"$envb64\" ]; then (umask 077; printf %s \"$envb64\" | base64 -d > \"$dir/.env\"); else rm -f \"$dir/.env\"; fi; "
+        + "cat > \"$dir/docker-compose.yml\"; ";
 
-        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(envContent.Replace("\r\n", "\n")));
-        return "echo " + b64 + " | base64 -d > \"$dir/.env\"; ";
+    /// <summary>What <see cref="Deploy"/> and <see cref="Update"/> read from stdin: the <c>.env</c> as one base64 line, then the compose file.</summary>
+    public static byte[] FilesOnStdin(string composeYaml, string? envContent)
+    {
+        var env = string.IsNullOrEmpty(envContent)
+            ? string.Empty
+            : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(envContent.Replace("\r\n", "\n")));
+        return System.Text.Encoding.UTF8.GetBytes(env + "\n" + composeYaml.Replace("\r\n", "\n"));
     }
 
     /// <summary><c>compose down</c> for the stack (stops and removes containers, with <c>--volumes</c> also its
