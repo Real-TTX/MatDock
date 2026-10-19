@@ -163,6 +163,14 @@ public class EditModel : PageModel
         }
 
         IsError = false;
+        // Test right away: the list shows whether it is reachable and later commands know how Docker is reached there.
+        var test = await _environmentService.TestAndPersistAsync(Input.Id!.Value, HttpContext.RequestAborted);
+        if (!test.Success)
+        {
+            StatusMessage += " The connection test failed: " + test.Message;
+            IsError = true;
+        }
+
         return RedirectToPage("/Environments/Index");
     }
 

@@ -52,7 +52,6 @@ public sealed class EnvironmentHealthMonitor : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var environments = scope.ServiceProvider.GetRequiredService<EnvironmentService>();
-        var connection = scope.ServiceProvider.GetRequiredService<IEnvironmentConnectionService>();
         var bus = scope.ServiceProvider.GetRequiredService<IScheduleEventBus>();
 
         var envs = await environments.GetEnabledAsync(ct);
@@ -64,13 +63,9 @@ public sealed class EnvironmentHealthMonitor : BackgroundService
             bool up;
             try
             {
-                var result = await connection.TestConnectionAsync(environments.BuildSettings(env), ct);
+                // Saves the status, how Docker is reached (sudo, rootless socket) and, the first time, the SSH host key.
+                var result = await environments.TestAndPersistAsync(env.Id, ct);
                 up = result.Success;
-                if (up && env.HostKeyFingerprint is null)
-                {
-                    // Trust on first use: the key of the first good connection is the one to expect from now on.
-                    await environments.RememberHostKeyAsync(env.Id, result.HostKeyFingerprint, ct);
-                }
             }
             catch
             {

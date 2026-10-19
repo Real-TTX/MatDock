@@ -34,6 +34,9 @@ public sealed class ActivityTests(MatDockFactory site) : IClassFixture<MatDockFa
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
 
+        // Saving tests the connection at once and keeps the result (the list shows it, the commands use the access found).
+        Assert.Equal(MatDock.Core.Entities.EnvironmentStatus.Online, site.Db(db => db.Environments.Single(e => e.Name == name).Status));
+
         var entry = site.Db(db => db.ActivityEntries.Single(e => e.Target == name));
         Assert.Equal(MatDockFactory.Admin, entry.Actor);
         Assert.Equal("ui", entry.Source);
