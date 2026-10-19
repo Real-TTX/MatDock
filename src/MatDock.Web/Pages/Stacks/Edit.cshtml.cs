@@ -187,6 +187,10 @@ public class EditModel : PageModel
         {
             ModelState.AddModelError("Input.ComposeYaml", "Compose YAML is required.");
         }
+        else if (MatDock.Core.Stacks.ComposeCheck.Problem(Input.ComposeYaml) is { } problem)
+        {
+            ModelState.AddModelError("Input.ComposeYaml", problem);
+        }
 
         return ModelState.IsValid;
     }
