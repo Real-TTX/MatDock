@@ -104,6 +104,14 @@ public class BackupTargetEditModel : PageModel
         return RedirectToPage("/Settings/Index", new { tab = "backup" });
     }
 
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        var (ok, message) = await _targetService.DeleteAsync(id, HttpContext.RequestAborted);
+        TempData["StatusMessage"] = message;
+        TempData["IsError"] = !ok;
+        return RedirectToPage("/Settings/Index", new { tab = "backup" });
+    }
+
     public async Task<IActionResult> OnPostTestAsync()
     {
         if (!ModelState.IsValid)

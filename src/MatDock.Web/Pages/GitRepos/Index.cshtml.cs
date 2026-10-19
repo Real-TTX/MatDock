@@ -28,11 +28,4 @@ public class IndexModel : PageModel
         CredentialNames = (await _credentials.GetAllAsync(HttpContext.RequestAborted))
             .ToDictionary(c => c.Id, c => c.Name);
     }
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        await _service.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = "Git repository deleted.";
-        return RedirectToPage();
-    }
 }

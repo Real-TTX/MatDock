@@ -17,9 +17,6 @@
     <div class="page-head__title">
         <h1>Store</h1>
     </div>
-    <div class="mat-buttons">
-        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
-    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -35,7 +32,6 @@
         <div class="empty-state">
             <div><icon name="template" /></div>
             <p>No apps yet.</p>
-            <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
         </div>
     </div>
 }
@@ -77,13 +73,12 @@ else
                 <div class="app-card__foot">
                     <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install as stack"><icon name="download" /><span>Install</span></a>
                     <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="external" /><span>Open</span></a>
-                    <span style="flex:1 1 auto;"></span>
-                    <form method="post" asp-page-handler="Delete" data-confirm="Delete app '@t.Name'?" style="display:inline;">
-                        <input type="hidden" name="id" value="@t.Id" />
-                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                    </form>
                 </div>
             </div>
         }
     </div>
 }
+
+<div class="mat-buttons list-actions">
+    <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
+</div>

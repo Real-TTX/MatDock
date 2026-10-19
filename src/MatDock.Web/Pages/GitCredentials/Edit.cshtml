@@ -4,6 +4,8 @@
     ViewData["Title"] = Model.IsEdit ? "Edit git credential" : "New git credential";
 }
 
+<partial name="_SystemTabs" />
+
 <div class="page-head">
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
@@ -36,7 +38,16 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <a href="/GitCredentials" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                @if (Model.IsEdit)
+                {
+                    <span class="mat-buttons__spacer"></span>
+                    <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Delete git credential '@Model.Input.Name'?"><icon name="trash" /><span>Delete</span></button>
+                }
             </mat-form-buttons>
         </form>
+        @if (Model.IsEdit)
+        {
+            <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
+        }
     </div>
 </div>

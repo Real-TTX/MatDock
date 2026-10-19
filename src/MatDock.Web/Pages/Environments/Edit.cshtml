@@ -107,25 +107,28 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
+                @if (Model.IsEdit)
+                {
+                    <button type="submit" form="toggle-form" class="mat-btn">
+                        <icon name="@(Model.IsEnabled ? "lock" : "check-circle")" /><span>@(Model.IsEnabled ? "Disable" : "Enable")</span>
+                    </button>
+                }
                 <a href="/Environments" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                @if (Model.IsEdit)
+                {
+                    <span class="mat-buttons__spacer"></span>
+                    <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Delete environment '@Model.Input.Name'?"><icon name="trash" /><span>Delete</span></button>
+                }
             </mat-form-buttons>
         </form>
 
         @if (Model.IsEdit)
         {
-            <div class="mat-buttons" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-                <form method="post" asp-page-handler="Toggle" style="display:inline;">
-                    <input type="hidden" name="id" value="@Model.Input.Id" />
-                    <input type="hidden" name="enable" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())" />
-                    <button type="submit" class="mat-btn" formnovalidate>
-                        <icon name="@(Model.IsEnabled ? "lock" : "check-circle")" /><span>@(Model.IsEnabled ? "Disable" : "Enable")</span>
-                    </button>
-                </form>
-                <form method="post" asp-page-handler="Delete" data-confirm="Delete environment '@Model.Input.Name'?" style="display:inline;">
-                    <input type="hidden" name="id" value="@Model.Input.Id" />
-                    <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Delete</span></button>
-                </form>
-            </div>
+            <form method="post" asp-page-handler="Toggle" id="toggle-form">
+                <input type="hidden" name="id" value="@Model.Input.Id" />
+                <input type="hidden" name="enable" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())" />
+            </form>
+            <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
         }
     </div>
 </div>

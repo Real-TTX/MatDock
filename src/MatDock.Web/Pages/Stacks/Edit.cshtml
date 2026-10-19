@@ -151,8 +151,17 @@
                 <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Save &amp; Deploy</span></button>
                 <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Save</span></button>
                 <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                @if (Model.IsEdit)
+                {
+                    <span class="mat-buttons__spacer"></span>
+                    <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Remove '@Model.Input.Name' from MatDock? Its containers keep running."><icon name="trash" /><span>Remove from MatDock</span></button>
+                }
             </mat-form-buttons>
         </form>
+        @if (Model.IsEdit)
+        {
+            <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
+        }
     </div>
 </div>
 

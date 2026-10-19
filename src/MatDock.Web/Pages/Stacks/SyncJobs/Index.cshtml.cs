@@ -31,11 +31,4 @@ public class IndexModel : PageModel
                   || summary.Contains("failed", StringComparison.OrdinalIgnoreCase);
         return RedirectToPage();
     }
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        await _syncJobs.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = "Sync job deleted.";
-        return RedirectToPage();
-    }
 }

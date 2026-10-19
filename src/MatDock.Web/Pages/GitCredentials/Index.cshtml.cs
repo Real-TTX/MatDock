@@ -23,12 +23,4 @@ public class IndexModel : PageModel
     {
         Credentials = await _service.GetAllAsync(HttpContext.RequestAborted);
     }
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        var deleted = await _service.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Git credential deleted." : "Git credential not found.";
-        IsError = !deleted;
-        return RedirectToPage();
-    }
 }

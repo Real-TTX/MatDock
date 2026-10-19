@@ -10,9 +10,6 @@
     <div class="page-head__title">
         <h1>Notifications</h1>
     </div>
-    <div class="mat-buttons">
-        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -89,7 +86,7 @@
     <mat-form-buttons>
         <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
         <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Send test</span></button>
-        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
+        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </mat-form-buttons>
     <p class="text-muted" style="font-size:.82rem;margin-top:8px;">Save before sending a test.</p>
 </form>

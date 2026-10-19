@@ -23,12 +23,4 @@ public class IndexModel : PageModel
     {
         Templates = await _templateService.GetAllAsync(HttpContext.RequestAborted);
     }
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        var deleted = await _templateService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "Template deleted." : "Template not found.";
-        IsError = !deleted;
-        return RedirectToPage();
-    }
 }

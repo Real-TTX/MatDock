@@ -296,4 +296,11 @@ public class EditModel : PageModel
         Credentials = await _gitCredentials.GetAllAsync(HttpContext.RequestAborted);
         SavedRepos = await _gitRepos.GetAllAsync(HttpContext.RequestAborted);
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        await _syncJobs.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Sync job deleted.";
+        return RedirectToPage("Index");
+    }
 }

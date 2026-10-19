@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Entities;
 using MatDock.Core.Users;
+using MatDock.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -19,6 +20,9 @@ public class EditModel : PageModel
     public InputModel Input { get; set; } = new();
 
     public bool IsEdit => Input.Id is > 0;
+
+    /// <summary>The signed-in user edits their own account (which they cannot delete).</summary>
+    public bool IsSelf => IsEdit && Input.Id == User.GetUserId();
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
@@ -121,5 +125,28 @@ public class EditModel : PageModel
 
         IsError = false;
         return RedirectToPage("/Users/Index");
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        if (User.GetUserId() == id)
+        {
+            StatusMessage = "You cannot delete your own account.";
+            IsError = true;
+            return RedirectToPage("Index");
+        }
+
+        var user = await _userService.GetAsync(id, HttpContext.RequestAborted);
+        if (user is { Role: UserRole.Admin, IsActive: true } && await _userService.CountActiveAdminsAsync(HttpContext.RequestAborted) <= 1)
+        {
+            StatusMessage = "The last administrator cannot be deleted.";
+            IsError = true;
+            return RedirectToPage("Index");
+        }
+
+        var deleted = await _userService.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = deleted ? "User deleted." : "User not found.";
+        IsError = !deleted;
+        return RedirectToPage("Index");
     }
 }

@@ -120,4 +120,11 @@ public class EditModel : PageModel
 
     private async Task LoadListsAsync()
         => Credentials = await _credentials.GetAllAsync(HttpContext.RequestAborted);
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Git repository deleted.";
+        return RedirectToPage("Index");
+    }
 }

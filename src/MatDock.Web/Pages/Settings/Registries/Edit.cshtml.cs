@@ -115,4 +115,11 @@ public class EditModel : PageModel
         Insecure = Input.Insecure,
         Enabled = Input.Enabled,
     };
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Registry deleted.";
+        return RedirectToPage("Index");
+    }
 }

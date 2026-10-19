@@ -215,6 +215,15 @@ public class EditModel : PageModel
         return await _stackService.CreateAsync(input, HttpContext.RequestAborted);
     }
 
+    /// <summary>Removes the stack from MatDock (as on the list); its containers keep running.</summary>
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = deleted ? "Stack removed from MatDock." : "Stack not found.";
+        IsError = !deleted;
+        return RedirectToPage("Index");
+    }
+
     private async Task LoadListsAsync()
     {
         Environments = await _environmentService.GetEnabledAsync(HttpContext.RequestAborted);

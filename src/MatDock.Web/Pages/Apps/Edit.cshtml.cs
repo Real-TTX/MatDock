@@ -109,4 +109,12 @@ public class EditModel : PageModel
 
         return RedirectToPage("Index");
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        var deleted = await _templateService.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = deleted ? "Template deleted." : "Template not found.";
+        TempData["IsError"] = !deleted;
+        return RedirectToPage("Index");
+    }
 }

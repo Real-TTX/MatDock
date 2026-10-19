@@ -10,9 +10,6 @@
     <div class="page-head__title">
         <h1>@ViewData["Title"]</h1>
     </div>
-    <div class="mat-buttons">
-        <a href="/Settings/Proxies" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
 </div>
 
 @if (Model.TestMessage is not null)
@@ -61,7 +58,16 @@
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
                 <a href="/Settings/Proxies" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                @if (Model.IsEdit)
+                {
+                    <span class="mat-buttons__spacer"></span>
+                    <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Delete proxy '@Model.Input.Name'?"><icon name="trash" /><span>Delete</span></button>
+                }
             </mat-form-buttons>
         </form>
+        @if (Model.IsEdit)
+        {
+            <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
+        }
     </div>
 </div>

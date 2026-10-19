@@ -63,12 +63,4 @@ public class IndexModel : PageModel
         StatusMessage = "Local storage is now the default.";
         return RedirectToPage(new { Tab = "backup" });
     }
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        var (ok, message) = await _targetService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = message;
-        IsError = !ok;
-        return RedirectToPage(new { Tab = "backup" });
-    }
 }

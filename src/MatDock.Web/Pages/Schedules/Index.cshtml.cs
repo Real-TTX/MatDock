@@ -29,13 +29,6 @@ public class IndexModel : PageModel
         EnvNames = (await _environments.GetAllAsync(HttpContext.RequestAborted)).ToDictionary(e => e.Id, e => e.Name);
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        await _service.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = "Schedule deleted.";
-        return RedirectToPage();
-    }
-
     public async Task<IActionResult> OnPostRunNowAsync(long id)
     {
         var summary = await _service.RunNowAsync(id, HttpContext.RequestAborted);

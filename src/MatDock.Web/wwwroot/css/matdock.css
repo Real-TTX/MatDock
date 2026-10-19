@@ -211,6 +211,7 @@ h2 { font-size: 1.2rem; }
 
 .mat-buttons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mat-buttons__spacer { flex: 1 1 auto; }
+.mat-buttons.list-actions { margin-top: 16px; } /* list actions under a grid that has no table frame */
 
 /* ============================================================================
    Cards & surfaces

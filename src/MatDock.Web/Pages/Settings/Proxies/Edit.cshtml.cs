@@ -115,4 +115,11 @@ public class EditModel : PageModel
         Token = Input.Token,
         Enabled = Input.Enabled,
     };
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Proxy connection deleted.";
+        return RedirectToPage("Index");
+    }
 }

@@ -5,7 +5,8 @@
     var onNotifications = Is("/Settings/Notifications");
     var onProxies = Is("/Settings/Proxies");
     var onRegistries = Is("/Settings/Registries");
-    var onBackupTargets = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase);
+    var onBackupTargets = Is("/Settings/BackupTargetEdit")
+        || (Is("/Settings") && !onNotifications && !onProxies && !onRegistries && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
     var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onBackupTargets;
 }
 <nav class="mat-tabs">

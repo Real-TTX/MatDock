@@ -187,7 +187,7 @@ else if (Model.Results.Count == 0)
             <button type="submit" id="mig-start" class="mat-btn mat-btn--primary" disabled="@(selCount == 0)">
                 <icon name="server" /><span>Start migration (<span id="mig-count">@selCount</span>)</span>
             </button>
-            <a href="/Volumes?EnvId=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Cancel</span></a>
+            <a href="/Volumes?EnvId=@Model.Input.SourceEnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
         </mat-form-buttons>
     </form>
 }

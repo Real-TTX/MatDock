@@ -95,4 +95,12 @@ public class EditModel : PageModel
 
         return RedirectToPage("Index");
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        var deleted = await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = deleted ? "Git credential deleted." : "Git credential not found.";
+        TempData["IsError"] = !deleted;
+        return RedirectToPage("Index");
+    }
 }

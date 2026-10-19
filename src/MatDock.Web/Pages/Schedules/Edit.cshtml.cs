@@ -29,6 +29,8 @@ public class EditModel : PageModel
 
     /// <summary>Owner of a schedule created through the API (shown as a hint; a save here keeps it).</summary>
     public string? ManagedBy { get; private set; }
+    /// <summary>A copy of a sync job's timing: it belongs to the job and cannot be deleted here.</summary>
+    public bool IsSyncSchedule { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
 
@@ -76,6 +78,7 @@ public class EditModel : PageModel
 
             var opt = ScheduleOptions.Parse(t.OptionsJson);
             ManagedBy = t.ManagedBy;
+            IsSyncSchedule = t.SourceKind == ScheduleService.SyncSource;
             Input = new InputModel
             {
                 Id = t.Id,
@@ -140,7 +143,9 @@ public class EditModel : PageModel
         BackupTargets = await _backupTargets.GetAllAsync(ct);
         if (Input.Id is > 0)
         {
-            ManagedBy = (await _service.GetAsync(Input.Id.Value, ct))?.ManagedBy;
+            var task = await _service.GetAsync(Input.Id.Value, ct);
+            ManagedBy = task?.ManagedBy;
+            IsSyncSchedule = task?.SourceKind == ScheduleService.SyncSource;
         }
     }
 
@@ -166,4 +171,19 @@ public class EditModel : PageModel
         UpdateApply = Input.UpdateApply,
         UpdateBackupFirst = Input.UpdateBackupFirst,
     };
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id)
+    {
+        // The timing of a sync job belongs to the job: deleting its copy here would leave the job without a schedule.
+        if ((await _service.GetAsync(id, HttpContext.RequestAborted))?.SourceKind == ScheduleService.SyncSource)
+        {
+            StatusMessage = "This schedule belongs to a sync job; edit the job instead.";
+            TempData["IsError"] = true;
+            return RedirectToPage("Index");
+        }
+
+        await _service.DeleteAsync(id, HttpContext.RequestAborted);
+        StatusMessage = "Schedule deleted.";
+        return RedirectToPage("Index");
+    }
 }

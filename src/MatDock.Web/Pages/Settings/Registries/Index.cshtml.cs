@@ -18,11 +18,4 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
         => Registries = await _service.GetAllAsync(HttpContext.RequestAborted);
-
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        await _service.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = "Registry deleted.";
-        return RedirectToPage();
-    }
 }

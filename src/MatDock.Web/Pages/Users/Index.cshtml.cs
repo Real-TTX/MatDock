@@ -60,21 +60,6 @@ public class IndexModel : PageModel
         Items = list.Skip((Pagination.Page - 1) * PageSize).Take(PageSize).ToList();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(long id)
-    {
-        if (User.GetUserId() == id)
-        {
-            StatusMessage = "You cannot delete your own account.";
-            IsError = true;
-            return RedirectToPage();
-        }
-
-        var deleted = await _userService.DeleteAsync(id, HttpContext.RequestAborted);
-        StatusMessage = deleted ? "User deleted." : "User not found.";
-        IsError = !deleted;
-        return RedirectToPage();
-    }
-
     private static IEnumerable<User> Order<TKey>(IEnumerable<User> source, Func<User, TKey> key, bool descending)
         => descending ? source.OrderByDescending(key) : source.OrderBy(key);
 }
