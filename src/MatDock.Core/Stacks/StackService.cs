@@ -894,10 +894,9 @@ public sealed class StackService
         }
 
         var url = input.GitRepoUrl.Trim();
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!Git.GitUrls.IsSupported(url))
         {
-            return "Git URL must start with http:// or https://.";
+            return Git.GitUrls.Requirement;
         }
 
         // Validate the same (trimmed) value that Apply stores and EffectiveComposePath later normalizes.

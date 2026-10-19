@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using LibGit2Sharp;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MatDock.Core.Git;
@@ -21,10 +22,12 @@ public sealed class GitOperationException : Exception
 public sealed partial class GitRepositoryService
 {
     private readonly ILogger<GitRepositoryService> _logger;
+    private readonly IServiceScopeFactory? _scopes;
 
-    public GitRepositoryService(ILogger<GitRepositoryService> logger)
+    public GitRepositoryService(ILogger<GitRepositoryService> logger, IServiceScopeFactory? scopes = null)
     {
         _logger = logger;
+        _scopes = scopes;
     }
 
     /// <summary>Clones <paramref name="repoUrl"/> (optionally a branch/tag) into a fresh temp dir and
@@ -41,7 +44,8 @@ public sealed partial class GitRepositoryService
                     options.BranchName = reference.Trim();
                 }
 
-                if (secret is not null && !string.IsNullOrEmpty(secret.Token))
+                var (url, ssh) = Remote(repoUrl, secret);
+                if (ssh is null && secret is not null && !string.IsNullOrEmpty(secret.Token))
                 {
                     options.FetchOptions.CredentialsProvider = (_, _, _) => new UsernamePasswordCredentials
                     {
@@ -51,7 +55,17 @@ public sealed partial class GitRepositoryService
                 }
 
                 ct.ThrowIfCancellationRequested();
-                Repository.Clone(repoUrl, workDir, options);
+                using (ssh is null ? null : SshGitContext.Use(ssh))
+                {
+                    try
+                    {
+                        Repository.Clone(url, workDir, options);
+                    }
+                    finally
+                    {
+                        AfterSsh(ssh, secret);
+                    }
+                }
 
                 // The .git history is not needed on the target host and would bloat the transfer.
                 // Best-effort only: a transient lock on a pack file (AV/indexer on Windows) must NOT
@@ -74,7 +88,7 @@ public sealed partial class GitRepositoryService
             {
                 TryDelete(workDir);
                 _logger.LogInformation(ex, "Git clone of {Repo} failed.", Sanitize(repoUrl));
-                throw new GitOperationException(Describe(ex, !string.IsNullOrEmpty(secret?.Token)), ex);
+                throw new GitOperationException(Describe(ex, secret?.HasSecret == true), ex);
             }
         }, ct);
 
@@ -100,7 +114,8 @@ public sealed partial class GitRepositoryService
                     options.BranchName = reference.Trim();
                 }
 
-                if (secret is not null && !string.IsNullOrEmpty(secret.Token))
+                var (url, ssh) = Remote(repoUrl, secret);
+                if (ssh is null && secret is not null && !string.IsNullOrEmpty(secret.Token))
                 {
                     options.FetchOptions.CredentialsProvider = (_, _, _) => new UsernamePasswordCredentials
                     {
@@ -110,7 +125,17 @@ public sealed partial class GitRepositoryService
                 }
 
                 ct.ThrowIfCancellationRequested();
-                Repository.Clone(repoUrl, workDir, options);
+                using (ssh is null ? null : SshGitContext.Use(ssh))
+                {
+                    try
+                    {
+                        Repository.Clone(url, workDir, options);
+                    }
+                    finally
+                    {
+                        AfterSsh(ssh, secret);
+                    }
+                }
 
                 // Capture the commit BEFORE .git is removed (used for change detection).
                 string? sha = null;
@@ -144,7 +169,7 @@ public sealed partial class GitRepositoryService
             {
                 TryDelete(workDir);
                 _logger.LogInformation(ex, "Git clone/scan of {Repo} failed.", Sanitize(repoUrl));
-                throw new GitOperationException(Describe(ex, !string.IsNullOrEmpty(secret?.Token)), ex);
+                throw new GitOperationException(Describe(ex, secret?.HasSecret == true), ex);
             }
         }, ct);
 
@@ -159,7 +184,16 @@ public sealed partial class GitRepositoryService
             {
                 ct.ThrowIfCancellationRequested();
                 List<Reference> refs;
-                if (secret is not null && !string.IsNullOrEmpty(secret.Token))
+                var (url, ssh) = Remote(repoUrl, secret);
+                if (ssh is not null)
+                {
+                    using (SshGitContext.Use(ssh))
+                    {
+                        try { refs = Repository.ListRemoteReferences(url).ToList(); }
+                        finally { AfterSsh(ssh, secret); }
+                    }
+                }
+                else if (secret is not null && !string.IsNullOrEmpty(secret.Token))
                 {
                     refs = Repository.ListRemoteReferences(repoUrl, (_, _, _) => new UsernamePasswordCredentials
                     {
@@ -250,6 +284,40 @@ public sealed partial class GitRepositoryService
         catch
         {
             // best effort – temp dirs are reclaimed by the OS eventually.
+        }
+    }
+
+    /// <summary>An ssh URL (both forms) as the <c>ssh://</c> URL the transport takes, with the key of <paramref name="secret"/>; https as it is.</summary>
+    private static (string Url, SshGitContext? Ssh) Remote(string repoUrl, GitCredentialSecret? secret)
+        => GitUrls.IsSsh(repoUrl)
+            ? (GitUrls.ToSshUri(repoUrl), new SshGitContext(secret?.PrivateKeyPem, secret?.Passphrase, secret?.HostKeyFingerprint))
+            : (repoUrl, null);
+
+    /// <summary>After an ssh clone: a refused host key becomes a clear error; the first host key seen is saved with the credentials.</summary>
+    private void AfterSsh(SshGitContext? ssh, GitCredentialSecret? secret)
+    {
+        if (ssh is null)
+        {
+            return;
+        }
+
+        if (ssh.HostKeyRejected)
+        {
+            throw new GitOperationException($"The SSH host key of the Git server has changed (now {ssh.SeenHostKey}, saved {ssh.HostKeyFingerprint}). "
+                                            + "If that is expected, clear the host key in the Git credentials.");
+        }
+
+        if (ssh.SeenHostKey is { } seen && secret is { CredentialId: { } id, HostKeyFingerprint: null } && _scopes is not null)
+        {
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                scope.ServiceProvider.GetRequiredService<GitCredentialService>().RememberHostKeyAsync(id, seen).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "The host key of the Git server was not saved.");
+            }
         }
     }
 

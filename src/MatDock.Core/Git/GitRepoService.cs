@@ -75,9 +75,9 @@ public sealed class GitRepoService
     public async Task<(bool Ok, string Message)> TestAsync(string url, string? reference, long? credentialId, CancellationToken ct = default)
     {
         var trimmed = (url ?? string.Empty).Trim();
-        if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!GitUrls.IsSupported(trimmed))
         {
-            return (false, "Git URL must start with http:// or https://.");
+            return (false, GitUrls.Requirement);
         }
 
         GitCredentialSecret? secret = null;
@@ -128,9 +128,9 @@ public sealed class GitRepoService
         }
 
         var url = (input.Url ?? string.Empty).Trim();
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!GitUrls.IsSupported(url))
         {
-            return "Git URL must start with http:// or https://.";
+            return GitUrls.Requirement;
         }
 
         return null;

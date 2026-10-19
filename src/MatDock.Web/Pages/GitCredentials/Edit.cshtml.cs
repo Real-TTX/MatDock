@@ -33,6 +33,15 @@ public class EditModel : PageModel
         public string? Username { get; set; }
 
         public string? Token { get; set; }
+
+        public GitAuthType AuthType { get; set; } = GitAuthType.HttpsToken;
+
+        public string? PrivateKeyPem { get; set; }
+
+        public string? Passphrase { get; set; }
+
+        [StringLength(120)]
+        public string? HostKeyFingerprint { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -50,7 +59,9 @@ public class EditModel : PageModel
                 Id = cred.Id,
                 Name = cred.Name,
                 Username = cred.Username,
-                // Token intentionally not surfaced.
+                AuthType = cred.AuthType,
+                HostKeyFingerprint = cred.HostKeyFingerprint,
+                // Token and key intentionally not surfaced.
             };
         }
 
@@ -67,9 +78,12 @@ public class EditModel : PageModel
         var input = new GitCredentialInput
         {
             Name = Input.Name,
-            AuthType = GitAuthType.HttpsToken,
+            AuthType = Input.AuthType,
             Username = Input.Username,
             Token = Input.Token,
+            PrivateKeyPem = Input.PrivateKeyPem,
+            Passphrase = Input.Passphrase,
+            HostKeyFingerprint = Input.HostKeyFingerprint,
         };
 
         if (IsEdit)

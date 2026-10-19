@@ -358,7 +358,16 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("CreateUserId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EncryptedPassphrase")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedPrivateKey")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EncryptedToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HostKeyFingerprint")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

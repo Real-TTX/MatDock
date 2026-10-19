@@ -36,7 +36,7 @@
             {
                 <tr>
                     <td><a href="/GitCredentials/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
-                    <td class="text-muted">@(c.AuthType == MatDock.Core.Entities.GitAuthType.HttpsToken ? "HTTPS-Token" : c.AuthType.ToString())</td>
+                    <td class="text-muted">@(c.AuthType == MatDock.Core.Entities.GitAuthType.SshKey ? "SSH key" : "HTTPS token")</td>
                     <td class="text-muted">@(string.IsNullOrEmpty(c.Username) ? "–" : c.Username)</td>
                 </tr>
             }

@@ -9,4 +9,12 @@ public sealed class GitCredentialInput
     public GitAuthType AuthType { get; set; } = GitAuthType.HttpsToken;
     public string? Username { get; set; }
     public string? Token { get; set; }
+
+    /// <summary>SSH key (blank on edit = keep the stored one).</summary>
+    public string? PrivateKeyPem { get; set; }
+
+    public string? Passphrase { get; set; }
+
+    /// <summary>The expected host key of the Git server (SHA256:…); blank = learn it at the first clone.</summary>
+    public string? HostKeyFingerprint { get; set; }
 }

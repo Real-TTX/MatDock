@@ -43,7 +43,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 **Stacks & containers**
 - **Managed and discovered** Compose stacks side by side – list or tiles, **expandable to the
   container cards** with per-service actions
-- Add a stack from the **Compose editor**, from **Git**, or from an **App template**
+- Add a stack from the **Compose editor**, from **Git** (HTTPS with a token, or SSH with a key; the Git server's host key
+  is saved at the first clone), or from an **App template**
 - Deploy / redeploy / stop, aggregated **resources** per stack
 - Container list with **short status** (hover for detail), **ports as clickable tags**, combined
   **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**

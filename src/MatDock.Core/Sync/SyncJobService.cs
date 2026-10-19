@@ -174,9 +174,9 @@ public sealed class SyncJobService
     public async Task<SyncScanResult> ScanAsync(string repoUrl, string? reference, long? credentialId, string? subdirectory = null, CancellationToken ct = default)
     {
         var url = (repoUrl ?? string.Empty).Trim();
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!Git.GitUrls.IsSupported(url))
         {
-            return new SyncScanResult(false, "Git URL must start with http:// or https://.", null, Array.Empty<string>());
+            return new SyncScanResult(false, Git.GitUrls.Requirement, null, Array.Empty<string>());
         }
 
         GitCredentialSecret? secret = null;
@@ -285,9 +285,9 @@ public sealed class SyncJobService
         }
 
         var url = (input.GitRepoUrl ?? string.Empty).Trim();
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!Git.GitUrls.IsSupported(url))
         {
-            return "Git URL must start with http:// or https://.";
+            return Git.GitUrls.Requirement;
         }
 
         if (!string.IsNullOrWhiteSpace(input.Cron) && !CronSchedule.IsValid(input.Cron))

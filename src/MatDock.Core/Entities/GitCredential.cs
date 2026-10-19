@@ -16,4 +16,13 @@ public class GitCredential : AuditableEntity
 
     /// <summary>Data-Protection-encrypted personal access token / password.</summary>
     public string? EncryptedToken { get; set; }
+
+    /// <summary>SSH key (PEM/OpenSSH), Data-Protection-encrypted.</summary>
+    public string? EncryptedPrivateKey { get; set; }
+
+    /// <summary>Passphrase of the SSH key, encrypted; null when it has none.</summary>
+    public string? EncryptedPassphrase { get; set; }
+
+    /// <summary>The SSH host key of the Git server (SHA256), saved at the first clone; another one is refused.</summary>
+    public string? HostKeyFingerprint { get; set; }
 }

@@ -46,9 +46,10 @@ public enum EnvironmentStatus
 public enum GitAuthType
 {
     /// <summary>HTTPS with username + personal access token (default).</summary>
-    HttpsToken = 0
+    HttpsToken = 0,
 
-    // Future: SshKey = 1
+    /// <summary>SSH with a private key (ssh:// or git@host:path URLs).</summary>
+    SshKey = 1
 }
 
 /// <summary>When a sync job actually redeploys its stacks on a schedule/webhook trigger.</summary>
