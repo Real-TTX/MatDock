@@ -56,8 +56,11 @@ builder.Services.AddSingleton<MatDock.Web.Infrastructure.SetupState>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
+    // Every sender, or only the proxies of MatDock__TrustedProxies.
+    if (TrustedProxies.Apply(options, builder.Configuration[TrustedProxies.Setting]) is { } problem)
+    {
+        throw new InvalidOperationException(problem);
+    }
 });
 
 builder.Services.AddMatDockCore();
