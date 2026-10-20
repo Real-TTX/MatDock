@@ -2,65 +2,57 @@
 @model MatDock.Web.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "Profile";
+    ViewData["Width"] = "narrow";
     // Land on the password tab when a change is required or the last submit failed.
     var pwActive = Model.MustChange || !ViewData.ModelState.IsValid;
 }
 
 @if (Model.MustChange)
 {
-    <div class="mat-alert mat-alert--warning">
+    <div class="mat-alert mat-alert--warning" role="alert">
         <icon name="alert" />
-        <span>Please set your own password before continuing.</span>
+        <div class="mat-alert__body">Please set your own password before continuing.</div>
     </div>
 }
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
+<div class="mat-stack" data-tabs>
+    <div class="mat-tabs" role="tablist" aria-label="Profile">
+        <button type="button" class="mat-tab" role="tab" id="tab-general" aria-controls="panel-general" aria-selected="@(pwActive ? "false" : "true")" tabindex="@(pwActive ? "-1" : "0")"><icon name="user" /><span>General</span></button>
+        <button type="button" class="mat-tab" role="tab" id="tab-password" aria-controls="panel-password" aria-selected="@(pwActive ? "true" : "false")" tabindex="@(pwActive ? "0" : "-1")"><icon name="key" /><span>Password</span></button>
     </div>
-}
 
-<div data-tabs>
-    <nav class="mat-tabs">
-        <button type="button" class="mat-tab @(pwActive ? "" : "is-active")" data-tab="general"><icon name="user" /><span>General</span></button>
-        <button type="button" class="mat-tab @(pwActive ? "is-active" : "")" data-tab="password"><icon name="key" /><span>Password</span></button>
-    </nav>
-
-    <div data-tab-panel="general" hidden="@(pwActive ? "hidden" : null)">
-        <div class="mat-card" style="max-width:560px;">
-            <div class="mat-card__head"><icon name="user" /><span>Account</span></div>
-            <div class="mat-card__body">
-                <div class="mat-form">
-                    <mat-field label="Username"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
-                    <mat-field label="Display name"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
-                    <mat-field label="Role"><input class="mat-input" value="@Model.Role" disabled /></mat-field>
-                </div>
-            </div>
+    <div class="mat-card" role="tabpanel" id="panel-general" aria-labelledby="tab-general" hidden="@(pwActive ? "hidden" : null)">
+        <div class="mat-card__head"><icon name="user" /><span class="mat-card__title">Account</span></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Username</dt><dd>@Model.Username</dd>
+                <dt>Display name</dt><dd>@Model.DisplayName</dd>
+                <dt>Role</dt><dd>@Model.Role</dd>
+            </dl>
         </div>
     </div>
 
-    <div data-tab-panel="password" hidden="@(pwActive ? null : "hidden")">
-        <div class="mat-card" style="max-width:560px;">
-            <div class="mat-card__head"><icon name="key" /><span>Change password</span></div>
-            <div class="mat-card__body">
-                <form method="post" class="mat-form">
-                    <partial name="_ValidationSummary" />
+    <div class="mat-card" role="tabpanel" id="panel-password" aria-labelledby="tab-password" hidden="@(pwActive ? null : "hidden")">
+        <div class="mat-card__head"><icon name="key" /><span class="mat-card__title">Change password</span></div>
+        <div class="mat-card__body">
+            <form method="post" class="mat-form">
+                <partial name="_ValidationSummary" />
 
-                    <mat-field label="Current password" asp-for="Input.CurrentPassword">
-                        <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
-                    </mat-field>
-                    <mat-field label="New password" asp-for="Input.NewPassword">
-                        <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
-                    </mat-field>
-                    <mat-field label="Confirm new password" asp-for="Input.ConfirmPassword">
-                        <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
-                    </mat-field>
+                <mat-field label="Current password" asp-for="Input.CurrentPassword" required="true">
+                    <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />
+                </mat-field>
+                <mat-field label="New password" asp-for="Input.NewPassword" required="true">
+                    <input asp-for="Input.NewPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+                <mat-field label="Confirm new password" asp-for="Input.ConfirmPassword" required="true">
+                    <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
 
-                    <mat-form-buttons>
-                        <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                    </mat-form-buttons>
-                </form>
-            </div>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                </mat-form-buttons>
+            </form>
         </div>
     </div>
 </div>

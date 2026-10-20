@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.GitRepos.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit git repository" : "New git repository";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Git repositories", "/GitRepos") };
 }
 
@@ -14,7 +15,7 @@
     </div>
 }
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -45,7 +46,7 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary" formnovalidate><icon name="plug" /><span>Test connection</span></button>
-                <a href="/GitRepos" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/GitRepos" class="mat-btn mat-btn--secondary">Cancel</a>
                 @if (Model.IsEdit)
                 {
                     <span class="mat-btn-row__spacer"></span>

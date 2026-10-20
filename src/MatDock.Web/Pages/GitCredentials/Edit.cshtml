@@ -2,12 +2,13 @@
 @model MatDock.Web.Pages.GitCredentials.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit git credential" : "New git credential";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Git credentials", "/GitCredentials") };
 }
 
 <partial name="_SystemTabs" />
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -26,7 +27,7 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="GitAuthType=HttpsToken">
+            <div class="mat-stack" data-show-if="#GitAuthType" data-show-value="HttpsToken">
                 <div class="mat-form__grid">
                     <mat-field label="User" asp-for="Input.Username" hint="Git username (for GitHub any value usually works, e.g. the account name).">
                         <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="e.g. your-github-name" />
@@ -42,7 +43,7 @@
                 </div>
             </div>
 
-            <div data-show-when="GitAuthType=SshKey">
+            <div class="mat-stack" data-show-if="#GitAuthType" data-show-value="SshKey">
                 <mat-field label="Private SSH key" asp-for="Input.PrivateKeyPem" hint="@keyHint">
                     <textarea asp-for="Input.PrivateKeyPem" class="mat-textarea mat-mono" rows="6" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
                 </mat-field>
@@ -58,7 +59,7 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                <a href="/GitCredentials" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/GitCredentials" class="mat-btn mat-btn--secondary">Cancel</a>
                 @if (Model.IsEdit)
                 {
                     <span class="mat-btn-row__spacer"></span>

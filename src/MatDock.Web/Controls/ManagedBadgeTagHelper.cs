@@ -23,7 +23,7 @@ public sealed class ManagedBadgeTagHelper : TagHelper
 
         output.TagName = "span";
         output.TagMode = TagMode.StartTagAndEndTag;
-        output.Attributes.SetAttribute("class", "mat-badge mat-badge--managed");
+        output.Attributes.SetAttribute("class", "mat-pill mat-pill--info");
         output.Attributes.SetAttribute("title", $"Created by {owner}. Manual changes may be overwritten.");
         output.Content.SetContent($"Managed by {owner}");
     }

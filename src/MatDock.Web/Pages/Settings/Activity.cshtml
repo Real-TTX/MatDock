@@ -8,36 +8,35 @@
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="u-contents js-autosubmit">
+        <form method="get" class="mat-row js-autosubmit md-toolbar-form">
             <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (user, action, target, environment)…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (user, action, target, environment)…" aria-label="Search the activity" />
             </div>
-            <div class="mat-row mat-row--nowrap">
-                <label for="activity-failed"><icon name="filter" /></label>
-                <select id="activity-failed" name="Failed" class="mat-select">
-                    <option value="false" selected="@(!Model.Failed)">All</option>
-                    <option value="true" selected="@Model.Failed">Failed only</option>
-                </select>
-            </div>
+            <select id="activity-failed" name="Failed" class="mat-select mat-w-auto" aria-label="Result">
+                <option value="false" selected="@(!Model.Failed)">All</option>
+                <option value="true" selected="@Model.Failed">Failed only</option>
+            </select>
+            <span class="mat-toolbar__spacer"></span>
+            <span class="mat-toolbar__info">@Model.Pagination.TotalItems entries</span>
         </form>
-        <span class="u-ml-auto mat-muted">@Model.Pagination.TotalItems entries</span>
     </mat-table-toolbar>
 
     <mat-table-body>
         @if (Model.Items.Count == 0)
         {
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="clock" /></div><p>@(string.IsNullOrWhiteSpace(Model.Q) && !Model.Failed ? "Nothing recorded yet." : "No entries match the filter.")</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="clock" /></div><p class="mat-empty__title">@(string.IsNullOrWhiteSpace(Model.Q) && !Model.Failed ? "Nothing recorded yet" : "No entries match the filter")</p></div>
         }
         else
         {
+            <div class="mat-table-wrap">
             <table class="mat-table">
                 <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Environment</th><th>Result</th></tr></thead>
                 <tbody>
                     @foreach (var e in Model.Items)
                     {
                         <tr>
-                            <td class="cell-sub mat-nowrap" data-label="Time">@e.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td class="mat-muted mat-nowrap" data-label="Time">@e.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
                             <td class="mat-nowrap" data-label="User">@e.Actor@if (e.Source == "api") { <span class="mat-pill mat-pill--plain">API</span> }</td>
                             <td data-label="Action">@e.Action</td>
                             <td class="mat-mono mat-text-wrap" data-label="Target">@(e.Target ?? "–")</td>
@@ -53,13 +52,14 @@
                                 }
                                 @if (!string.IsNullOrEmpty(e.Message))
                                 {
-                                    <div class="cell-sub">@e.Message</div>
+                                    <small class="mat-muted mat-d-block mat-mt-1">@e.Message</small>
                                 }
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+            </div>
         }
     </mat-table-body>
 

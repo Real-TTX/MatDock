@@ -6,138 +6,141 @@
 }
 
 <partial name="_BackupTabs" />
-
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 @if (Model.Bundles.Count > 0)
 {
-    <h2 style="font-size:1rem;margin:4px 0 8px;">Stack bundles</h2>
-    <mat-table>
-        <mat-table-body>
-            <table class="mat-table">
-                <thead>
-                    <tr><th>Environment</th><th>Stack</th><th>Kind</th><th>Status</th><th>Target</th><th class="mat-num">Volumes</th><th class="mat-num">Size</th><th>Created</th><th class="mat-table__cell-actions">Actions</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var b in Model.Bundles)
-                    {
-                        var (statusCls, statusLabel) = b.Status switch
-                        {
-                            StackBackupStatus.Succeeded => ("pill--online", "ok"),
-                            StackBackupStatus.Failed => ("pill--error", "failed"),
-                            _ => ("pill--offline", "running"),
-                        };
-                        <tr>
-                            <td class="mat-nowrap">@b.EnvironmentName</td>
-                            <td>
-                                <strong>@b.StackName</strong>
-                                @if (!string.IsNullOrEmpty(b.Note))
+    <section class="mat-section">
+        <h2>Stack bundles</h2>
+        <mat-table>
+            <mat-table-body>
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead>
+                            <tr><th>Environment</th><th>Stack</th><th>Kind</th><th>Status</th><th>Target</th><th class="mat-num">Volumes</th><th class="mat-num">Size</th><th>Created</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.Bundles)
+                            {
+                                var (statusTone, statusLabel) = b.Status switch
                                 {
-                                    <div class="cell-sub">@b.Note</div>
-                                }
-                            </td>
-                            <td class="cell-sub mat-nowrap">@(b.Kind switch { StackBackupKind.Scheduled => "scheduled", StackBackupKind.PreUpdate => "before update", _ => "manual" })@(b.Consistent ? " · stopped" : "")</td>
-                            <td><span class="mat-pill @statusCls" title="@b.Message">@statusLabel</span></td>
-                            <td><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
-                            <td class="mat-num">@b.VolumeCount</td>
-                            <td class="mat-num">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
-                            <td class="mat-muted mat-nowrap">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                            <td class="mat-table__cell-actions">
-                                <div class="mat-table__actions">
-                                    @if (b.Status == StackBackupStatus.Succeeded)
-                                    {
-                                        <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first." class="mat-d-inline">
-                                            <input type="hidden" name="id" value="@b.Id" />
-                                            <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Restore"><icon name="refresh" /><span>Restore</span></button>
-                                        </form>
-                                    }
-                                    <span class="u-gap"></span>
-                                    <form method="post" asp-page-handler="DeleteBundle" data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?" class="mat-d-inline">
-                                        <input type="hidden" name="id" value="@b.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </mat-table-body>
-    </mat-table>
-    <h2 style="font-size:1rem;margin:18px 0 8px;">Volume backups</h2>
+                                    StackBackupStatus.Succeeded => ("mat-pill--ok", "ok"),
+                                    StackBackupStatus.Failed => ("mat-pill--error", "failed"),
+                                    _ => ("mat-pill--warn", "running"),
+                                };
+                                <tr>
+                                    <td class="mat-nowrap" data-label="Environment">@b.EnvironmentName</td>
+                                    <td data-label="Stack">
+                                        <div class="mat-table__name">
+                                            <span>@b.StackName
+                                                @if (!string.IsNullOrEmpty(b.Note))
+                                                {
+                                                    <small>@b.Note</small>
+                                                }
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="mat-muted mat-nowrap" data-label="Kind">@(b.Kind switch { StackBackupKind.Scheduled => "scheduled", StackBackupKind.PreUpdate => "before update", _ => "manual" })@(b.Consistent ? " · stopped" : "")</td>
+                                    <td data-label="Status"><span class="mat-pill @statusTone" title="@b.Message">@statusLabel</span></td>
+                                    <td data-label="Target"><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
+                                    <td class="mat-num" data-label="Volumes">@b.VolumeCount</td>
+                                    <td class="mat-num" data-label="Size">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
+                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="mat-table__cell-actions">
+                                        <div class="mat-table__actions">
+                                            @if (b.Status == StackBackupStatus.Succeeded)
+                                            {
+                                                <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first.">
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary"><icon name="restore" /><span>Restore</span></button>
+                                                </form>
+                                            }
+                                            <form method="post" asp-page-handler="DeleteBundle" data-confirm-danger data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?">
+                                                <input type="hidden" name="id" value="@b.Id" />
+                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Delete" aria-label="Delete"><icon name="trash" /></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </mat-table-body>
+        </mat-table>
+    </section>
 }
 
-<mat-table>
-    <mat-table-toolbar>
-        <form method="get" class="u-contents js-autosubmit">
-            @if (!string.IsNullOrEmpty(Model.Volume))
-            {
-                <input type="hidden" name="Volume" value="@Model.Volume" />
-            }
-            <div class="mat-input-icon mat-toolbar__search">
-                <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, environment)…" />
-            </div>
-            @if (Model.EnvNames.Count > 1)
-            {
-                <div class="mat-row mat-row--nowrap">
-                    <label for="filter-env"><icon name="filter" /></label>
-                    <select id="filter-env" name="Env" class="mat-select">
+<section class="mat-section">
+    @if (Model.Bundles.Count > 0)
+    {
+        <h2>Volume backups</h2>
+    }
+    <mat-table>
+        <mat-table-toolbar>
+            <form method="get" class="mat-row js-autosubmit md-toolbar-form">
+                @if (!string.IsNullOrEmpty(Model.Volume))
+                {
+                    <input type="hidden" name="Volume" value="@Model.Volume" />
+                }
+                <div class="mat-input-icon mat-toolbar__search">
+                    <icon name="search" />
+                    <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, environment)…" aria-label="Search backups" />
+                </div>
+                @if (Model.EnvNames.Count > 1)
+                {
+                    <select id="filter-env" name="Env" class="mat-select mat-w-auto" aria-label="Environment">
                         <option value="">All environments</option>
                         @foreach (var n in Model.EnvNames)
                         {
                             <option value="@n" selected="@(Model.Env == n)">@n</option>
                         }
                     </select>
+                }
+                <span class="mat-toolbar__spacer"></span>
+                <span class="mat-toolbar__info">@Model.Items.Count backups</span>
+            </form>
+        </mat-table-toolbar>
+
+        <mat-table-body>
+            @if (Model.Items.Count == 0)
+            {
+                <div class="mat-empty">
+                    <div class="mat-empty__icon"><icon name="save" /></div>
+                    <p class="mat-empty__title">No backups yet</p>
                 </div>
             }
-            <span class="mat-toolbar__spacer"></span>
-            <span class="mat-muted"><strong>@Model.Items.Count</strong> Backups</span>
-        </form>
-    </mat-table-toolbar>
-
-    <mat-table-body>
-        @if (Model.Items.Count == 0)
-        {
-            <div class="mat-empty">
-                <div><icon name="save" /></div>
-                <p>No backups yet.</p>
-            </div>
-        }
-        else
-        {
-            <table class="mat-table">
-                <thead>
-                    <tr><th>Environment</th><th>Volume</th><th>Target</th><th class="mat-num">Size</th><th>Created</th><th class="mat-table__cell-actions">Actions</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var b in Model.Items)
-                    {
-                        <tr>
-                            <td class="mat-nowrap">@b.SourceEnvironmentName</td>
-                            <td><strong>@b.VolumeName</strong></td>
-                            <td><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
-                            <td class="mat-num">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
-                            <td class="mat-muted mat-nowrap">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                            <td class="mat-table__cell-actions">
-                                <div class="mat-table__actions">
-                                    <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Backups/Restore?id=@b.Id" title="Restore"><icon name="refresh" /><span>Restore</span></a>
-                                    <span class="u-gap"></span>
-                                    <form method="post" asp-page-handler="Delete" data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?" class="mat-d-inline">
-                                        <input type="hidden" name="id" value="@b.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </mat-table-body>
-</mat-table>
+            else
+            {
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead>
+                            <tr><th>Environment</th><th>Volume</th><th>Target</th><th class="mat-num">Size</th><th>Created</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.Items)
+                            {
+                                <tr>
+                                    <td class="mat-nowrap" data-label="Environment">@b.SourceEnvironmentName</td>
+                                    <td data-label="Volume"><strong>@b.VolumeName</strong></td>
+                                    <td data-label="Target"><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
+                                    <td class="mat-num" data-label="Size">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
+                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="mat-table__cell-actions">
+                                        <div class="mat-table__actions">
+                                            <a class="mat-btn mat-btn--sm mat-btn--secondary" href="/Backups/Restore?id=@b.Id"><icon name="restore" /><span>Restore</span></a>
+                                            <form method="post" asp-page-handler="Delete" data-confirm-danger data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?">
+                                                <input type="hidden" name="id" value="@b.Id" />
+                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Delete" aria-label="Delete"><icon name="trash" /></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </mat-table-body>
+    </mat-table>
+</section>

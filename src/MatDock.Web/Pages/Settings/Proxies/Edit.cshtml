@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.Settings.Proxies.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit proxy" : "New proxy";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Proxies", "/Settings/Proxies") };
 }
 
@@ -14,7 +15,7 @@
     </div>
 }
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -34,7 +35,7 @@
                 <mat-field label="API URL" asp-for="Input.Url" hint="Caddy admin URL or Matcad base URL.">
                     <input asp-for="Input.Url" class="mat-input" placeholder="http://host:2019" />
                 </mat-field>
-                <div data-show-when="Input_Provider=Caddy">
+                <div class="mat-stack" data-show-if="#Input_Provider" data-show-value="Caddy">
                     <mat-field label="Caddy server name (optional)" asp-for="Input.ServerName" hint="Blank = auto-detect the first HTTP server">
                         <input asp-for="Input.ServerName" class="mat-input" placeholder="srv0" />
                     </mat-field>
@@ -52,7 +53,7 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary" formnovalidate><icon name="plug" /><span>Test connection</span></button>
-                <a href="/Settings/Proxies" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/Settings/Proxies" class="mat-btn mat-btn--secondary">Cancel</a>
                 @if (Model.IsEdit)
                 {
                     <span class="mat-btn-row__spacer"></span>

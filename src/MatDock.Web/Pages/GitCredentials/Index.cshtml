@@ -6,21 +6,17 @@
 
 <partial name="_SystemTabs" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
     <mat-table-body>
     @if (Model.Credentials.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="key" /></div><p>No git credentials yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="key" /></div><p class="mat-empty__title">No git credentials yet.</p></div>
     }
     else
     {
+    <div class="mat-table-wrap">
     <table class="mat-table">
         <thead>
             <tr><th>Name</th><th>Type</th><th>User</th></tr>
@@ -29,13 +25,14 @@
             @foreach (var c in Model.Credentials)
             {
                 <tr>
-                    <td><a href="/GitCredentials/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
-                    <td class="mat-muted">@(c.AuthType == MatDock.Core.Entities.GitAuthType.SshKey ? "SSH key" : "HTTPS token")</td>
-                    <td class="mat-muted">@(string.IsNullOrEmpty(c.Username) ? "–" : c.Username)</td>
+                    <td data-label="Name"><a href="/GitCredentials/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
+                    <td class="mat-muted" data-label="Type">@(c.AuthType == MatDock.Core.Entities.GitAuthType.SshKey ? "SSH key" : "HTTPS token")</td>
+                    <td class="mat-muted" data-label="User">@(string.IsNullOrEmpty(c.Username) ? "–" : c.Username)</td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
     }
     </mat-table-body>
     <mat-table-actions>

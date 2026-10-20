@@ -10,14 +10,14 @@
         || (Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
     var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && !onBackupTargets;
 }
-<nav class="mat-tabs">
-    <a class="mat-tab @(onGeneral ? "is-active" : "")" href="/Settings"><icon name="settings" /><span>General</span></a>
-    <a class="mat-tab @(Is("/Users") ? "is-active" : "")" href="/Users"><icon name="users" /><span>Users</span></a>
-    <a class="mat-tab @(onNotifications ? "is-active" : "")" href="/Settings/Notifications"><icon name="alert" /><span>Notifications</span></a>
-    <a class="mat-tab @(Is("/GitCredentials") ? "is-active" : "")" href="/GitCredentials"><icon name="key" /><span>Git credentials</span></a>
-    <a class="mat-tab @(Is("/GitRepos") ? "is-active" : "")" href="/GitRepos"><icon name="git" /><span>Git repos</span></a>
-    <a class="mat-tab @(onProxies ? "is-active" : "")" href="/Settings/Proxies"><icon name="route" /><span>Proxies</span></a>
-    <a class="mat-tab @(onRegistries ? "is-active" : "")" href="/Settings/Registries"><icon name="registry" /><span>Registries</span></a>
-    <a class="mat-tab @(onBackupTargets ? "is-active" : "")" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
-    <a class="mat-tab @(onActivity ? "is-active" : "")" href="/Settings/Activity"><icon name="clock" /><span>Activity</span></a>
+<nav class="mat-tabs" aria-label="System">
+    <a class="mat-tab @(onGeneral ? "is-active" : "")" aria-current="@(onGeneral ? "page" : null)" href="/Settings"><icon name="settings" /><span>General</span></a>
+    <a class="mat-tab @(Is("/Users") ? "is-active" : "")" aria-current="@(Is("/Users") ? "page" : null)" href="/Users"><icon name="users" /><span>Users</span></a>
+    <a class="mat-tab @(onNotifications ? "is-active" : "")" aria-current="@(onNotifications ? "page" : null)" href="/Settings/Notifications"><icon name="alert" /><span>Notifications</span></a>
+    <a class="mat-tab @(Is("/GitCredentials") ? "is-active" : "")" aria-current="@(Is("/GitCredentials") ? "page" : null)" href="/GitCredentials"><icon name="key" /><span>Git credentials</span></a>
+    <a class="mat-tab @(Is("/GitRepos") ? "is-active" : "")" aria-current="@(Is("/GitRepos") ? "page" : null)" href="/GitRepos"><icon name="git" /><span>Git repos</span></a>
+    <a class="mat-tab @(onProxies ? "is-active" : "")" aria-current="@(onProxies ? "page" : null)" href="/Settings/Proxies"><icon name="route" /><span>Proxies</span></a>
+    <a class="mat-tab @(onRegistries ? "is-active" : "")" aria-current="@(onRegistries ? "page" : null)" href="/Settings/Registries"><icon name="registry" /><span>Registries</span></a>
+    <a class="mat-tab @(onBackupTargets ? "is-active" : "")" aria-current="@(onBackupTargets ? "page" : null)" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
+    <a class="mat-tab @(onActivity ? "is-active" : "")" aria-current="@(onActivity ? "page" : null)" href="/Settings/Activity"><icon name="clock" /><span>Activity</span></a>
 </nav>

@@ -33,8 +33,6 @@
 .card__header { padding: 11px 16px; border-bottom: 1px solid var(--border); font-weight: 650; display: flex; align-items: center; gap: 10px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .form-grid .span-2 { grid-column: 1 / -1; }
-[data-show-when] { display: none; flex-direction: column; gap: 16px; }
-[data-show-when].is-shown { display: flex; }
 table.mat-table td.wrap { white-space: normal; }
 .row-actions { display: inline-flex; gap: 6px; }
 .code-wrap { position: relative; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
@@ -557,7 +555,7 @@ a.stat:hover { text-decoration: none; }
 
 /* Stack editor: compose and .env side by side on wide screens. */
 @media (min-width: 1280px) {
-    .compose-grid.is-shown { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+    .compose-grid:not([hidden]) { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
     .compose-grid .code-editor { min-height: 420px; }
 }
 
@@ -681,3 +679,8 @@ a.stat:hover { text-decoration: none; }
 .md-netmap a:hover rect, .md-netmap a:focus rect { stroke: var(--mat-accent); }
 .md-netmap__svg:has(.md-netmap__node:hover) .md-netmap__edge { opacity: .25; }
 .md-netmap__edge.is-lit { stroke: var(--mat-accent); stroke-width: 2.5; opacity: 1 !important; }
+/* ---- Area D: backups, schedules, settings, users, git ---- */
+/* A GET form that fills a list's toolbar (search, filter, count) and sends itself on a change (js-autosubmit). */
+.md-toolbar-form { flex: 1 1 auto; min-width: 0; }
+/* A settings page of forms under the full-width tabs of the System area keeps the width of a narrow page. */
+.md-narrow { width: 100%; max-width: 48rem; }

@@ -4,7 +4,7 @@
     var onTargets = On("/Backups/Targets");
     var onHistory = On("/Backups") && !onTargets;
 }
-<nav class="mat-tabs">
-    <a class="mat-tab @(onHistory ? "is-active" : "")" href="/Backups"><icon name="save" /><span>History</span></a>
-    <a class="mat-tab @(onTargets ? "is-active" : "")" href="/Backups/Targets"><icon name="server" /><span>Targets</span></a>
+<nav class="mat-tabs" aria-label="Backups">
+    <a class="mat-tab @(onHistory ? "is-active" : "")" href="/Backups" aria-current="@(onHistory ? "page" : null)"><icon name="save" /><span>History</span></a>
+    <a class="mat-tab @(onTargets ? "is-active" : "")" href="/Backups/Targets" aria-current="@(onTargets ? "page" : null)"><icon name="server" /><span>Targets</span></a>
 </nav>

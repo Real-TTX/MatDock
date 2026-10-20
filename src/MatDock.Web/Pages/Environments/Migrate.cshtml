@@ -128,14 +128,14 @@ else if (Model.Results.Count == 0)
             </mat-field>
         </div>
 
-        <div data-show-when="MigrationMode=Direct">
+        <div class="mat-stack" data-show-if="#MigrationMode" data-show-value="Direct">
             <div class="mat-alert mat-alert--info">
                 <icon name="info" />
                 <div class="mat-alert__body">Streams the data over SSH with <code>tar</code>; needs <code>busybox</code> on both hosts.</div>
             </div>
         </div>
 
-        <div data-show-when="MigrationMode=ViaBackup">
+        <div class="mat-stack" data-show-if="#MigrationMode" data-show-value="ViaBackup">
             <div class="mat-form">
                 <mat-field label="Backup target (intermediate storage)" asp-for="Input.BackupTargetId">
                     <select asp-for="Input.BackupTargetId" class="mat-select">

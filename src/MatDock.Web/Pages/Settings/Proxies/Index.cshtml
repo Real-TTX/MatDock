@@ -6,21 +6,17 @@
 
 <partial name="_SystemTabs" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
     <mat-table-body>
     @if (Model.Connections.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p>No reverse proxies yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p class="mat-empty__title">No reverse proxies yet.</p></div>
     }
     else
     {
+    <div class="mat-table-wrap">
     <table class="mat-table">
         <thead>
             <tr><th>Name</th><th>Provider</th><th>URL</th><th>Status</th></tr>
@@ -29,14 +25,15 @@
             @foreach (var c in Model.Connections)
             {
                 <tr>
-                    <td><a href="/Settings/Proxies/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
-                    <td>@c.Provider</td>
-                    <td class="mat-text-wrap"><span class="mat-mono">@c.Url</span></td>
-                    <td>@(c.Enabled ? "enabled" : "disabled")</td>
+                    <td data-label="Name"><a href="/Settings/Proxies/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
+                    <td data-label="Provider">@c.Provider</td>
+                    <td class="mat-text-wrap" data-label="URL"><span class="mat-mono">@c.Url</span></td>
+                    <td data-label="Status"><span class="mat-pill @(c.Enabled ? "mat-pill--ok" : "mat-pill--plain")">@(c.Enabled ? "enabled" : "disabled")</span></td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
     }
     </mat-table-body>
     <mat-table-actions>

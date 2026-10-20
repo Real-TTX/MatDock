@@ -7,90 +7,82 @@
 
 <partial name="_SystemTabs" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 @if (!Model.IsBackupTab)
 {
-    <div class="mat-mb-4 u-maxw mat-card">
-        <div class="mat-card__head"><icon name="whale" /><span>MatDock</span></div>
-        <div class="mat-table-wrap">
-            <table class="mat-table">
-                <tbody>
-                    <tr><th style="width:200px;">Version</th><td class="mat-mono">@AppVersion.Informational</td></tr>
-                    <tr><th>Local backup path</th><td class="mat-mono">@Model.LocalPath</td></tr>
-                </tbody>
-            </table>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="whale" /><span class="mat-card__title">MatDock</span></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Version</dt><dd class="mat-mono">@AppVersion.Informational</dd>
+                <dt>Local backup path</dt><dd class="mat-mono">@Model.LocalPath</dd>
+            </dl>
         </div>
     </div>
-
 }
 else
 {
     <mat-table>
-        <mat-table-toolbar>
-            <strong>Backup targets</strong>
-        </mat-table-toolbar>
-
         <mat-table-body>
-            <table class="mat-table">
-                <thead>
-                    <tr><th>Name</th><th>Type</th><th>Details</th><th>Default</th><th class="mat-table__cell-actions">Actions</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Local (MatDock)</strong></td>
-                        <td>Local</td>
-                        <td class="cell-sub">@Model.LocalPath</td>
-                        <td>
-                            @if (Model.LocalIsDefault)
-                            {
-                                <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>Default</span></span>
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="LocalDefault" class="mat-d-inline">
-                                    <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm">Set as default</button>
-                                </form>
-                            }
-                        </td>
-                        <td class="mat-table__cell-actions"><span class="mat-muted">–</span></td>
-                    </tr>
-                    @foreach (var t in Model.Targets)
-                    {
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead>
+                        <tr><th>Name</th><th>Type</th><th>Details</th><th>Default</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                    </thead>
+                    <tbody>
                         <tr>
-                            <td><a href="/Settings/BackupTargetEdit?id=@t.Id"><strong>@t.Name</strong></a></td>
-                            <td>@t.Type</td>
-                            <td class="cell-sub">@(t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "")</td>
-                            <td>
-                                @if (t.IsDefault)
+                            <td data-label="Name"><strong>Local (MatDock)</strong></td>
+                            <td data-label="Type">Local</td>
+                            <td class="mat-mono mat-text-break" data-label="Details">@Model.LocalPath</td>
+                            <td data-label="Default">
+                                @if (Model.LocalIsDefault)
                                 {
                                     <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>Default</span></span>
                                 }
                                 else
                                 {
-                                    <form method="post" asp-page-handler="Default" class="mat-d-inline">
-                                        <input type="hidden" name="id" value="@t.Id" />
+                                    <form method="post" asp-page-handler="LocalDefault">
                                         <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm">Set as default</button>
                                     </form>
                                 }
                             </td>
-                            <td class="mat-table__cell-actions">
-                                <div class="mat-table__actions">
-                                    <form method="post" asp-page-handler="Test" class="mat-d-inline">
-                                        <input type="hidden" name="id" value="@t.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Test"><icon name="plug" /></button>
-                                    </form>
-                                </div>
-                            </td>
+                            <td></td>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                        @foreach (var t in Model.Targets)
+                        {
+                            var details = t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "";
+                            <tr>
+                                <td data-label="Name"><a href="/Settings/BackupTargetEdit?id=@t.Id"><strong>@t.Name</strong></a></td>
+                                <td data-label="Type">@t.Type</td>
+                                <td class="mat-mono mat-text-break" data-label="Details">@details</td>
+                                <td data-label="Default">
+                                    @if (t.IsDefault)
+                                    {
+                                        <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>Default</span></span>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="Default">
+                                            <input type="hidden" name="id" value="@t.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm">Set as default</button>
+                                        </form>
+                                    }
+                                </td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">
+                                        <form method="post" asp-page-handler="Test">
+                                            <input type="hidden" name="id" value="@t.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Test the connection" aria-label="Test the connection"><icon name="plug" /></button>
+                                        </form>
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Settings/BackupTargetEdit?id=@t.Id" title="Edit" aria-label="Edit"><icon name="edit" /></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </mat-table-body>
 
         <mat-table-actions>

@@ -35,7 +35,7 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="Input_Type=nfs" class="mat-form">
+            <div class="mat-form" data-show-if="#Input_Type" data-show-value="nfs">
                 <div class="mat-form__grid">
                     <mat-field label="NFS server" asp-for="Input.NfsServer" hint="Host or IP of the NFS server.">
                         <input asp-for="Input.NfsServer" class="mat-input" placeholder="10.0.0.5" />
@@ -49,7 +49,7 @@
                 </div>
             </div>
 
-            <div data-show-when="Input_Type=cifs" class="mat-form">
+            <div class="mat-form" data-show-if="#Input_Type" data-show-value="cifs">
                 <div class="mat-form__grid">
                     <mat-field label="Share" asp-for="Input.CifsShare" class="mat-field--full" hint="UNC path, e.g. //nas/share/appdata.">
                         <input asp-for="Input.CifsShare" class="mat-input" placeholder="//nas/share/appdata" />
@@ -66,7 +66,7 @@
                 </div>
             </div>
 
-            <div data-show-when="Input_Type=custom" class="mat-form">
+            <div class="mat-form" data-show-if="#Input_Type" data-show-value="custom">
                 <mat-field label="Driver" asp-for="Input.CustomDriver">
                     <input asp-for="Input.CustomDriver" class="mat-input" placeholder="local" />
                 </mat-field>

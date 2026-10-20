@@ -6,19 +6,14 @@
 
 <partial name="_SystemTabs" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
-<form method="post">
+<form method="post" class="mat-stack md-narrow">
     <partial name="_ValidationSummary" />
 
-    <div class="mat-mb-4 u-maxw mat-card">
-        <div class="mat-card__head"><icon name="alert" /><span>Triggers</span></div>
-        <div class="mat-card__body">
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="bell" /><span class="mat-card__title">Triggers</span></div>
+        <div class="mat-card__body mat-stack mat-stack--sm">
             <label class="mat-check">
                 <input asp-for="Input.NotifyOnFailure" type="checkbox" />
                 <span>Notify on failures</span>
@@ -30,9 +25,9 @@
         </div>
     </div>
 
-    <div class="mat-mb-4 u-maxw mat-card">
-        <div class="mat-card__head"><icon name="server" /><span>Email (SMTP)</span></div>
-        <div class="mat-card__body">
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="mail" /><span class="mat-card__title">Email (SMTP)</span></div>
+        <div class="mat-card__body mat-form">
             <label class="mat-check">
                 <input asp-for="Input.SmtpEnabled" type="checkbox" />
                 <span>Enabled</span>
@@ -41,38 +36,42 @@
             {
                 <div class="mat-alert mat-alert--info"><icon name="server" /><div class="mat-alert__body">@relay.Description</div></div>
             }
-            <div class="mat-form">
-            <fieldset class="fieldset-plain" disabled="@(Model.Relay is not null)">
-                <mat-field label="SMTP host" asp-for="Input.SmtpHost">
-                    <input asp-for="Input.SmtpHost" class="mat-input" placeholder="smtp.example.com" autocomplete="off" />
-                </mat-field>
-                <mat-field label="Port" asp-for="Input.SmtpPort">
-                    <input asp-for="Input.SmtpPort" type="number" min="1" max="65535" class="mat-input" />
-                </mat-field>
+            @* With MatSMTP the server fields are fixed: the fieldset disables them, so they are shown but not posted. *@
+            <fieldset class="mat-fieldset mat-form" disabled="@(Model.Relay is not null)">
+                <legend class="mat-sr-only">SMTP server</legend>
+                <div class="mat-form__grid">
+                    <mat-field label="SMTP host" asp-for="Input.SmtpHost">
+                        <input asp-for="Input.SmtpHost" class="mat-input" placeholder="smtp.example.com" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Port" asp-for="Input.SmtpPort">
+                        <input asp-for="Input.SmtpPort" type="number" min="1" max="65535" class="mat-input" />
+                    </mat-field>
+                </div>
                 <label class="mat-check">
                     <input asp-for="Input.SmtpUseTls" type="checkbox" />
                     <span>Use TLS/STARTTLS</span>
                 </label>
-                <mat-field label="User" asp-for="Input.SmtpUsername">
-                    <input asp-for="Input.SmtpUsername" class="mat-input" autocomplete="off" />
-                </mat-field>
-                <mat-field label="Password" asp-for="Input.SmtpPassword" hint="@(Model.Relay is null && Model.HasStoredPassword ? "Leave blank to keep the stored password." : null)">
-                    <input asp-for="Input.SmtpPassword" type="password" class="mat-input" autocomplete="new-password" />
-                </mat-field>
+                <div class="mat-form__grid">
+                    <mat-field label="User" asp-for="Input.SmtpUsername">
+                        <input asp-for="Input.SmtpUsername" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Password" asp-for="Input.SmtpPassword" hint="@(Model.Relay is null && Model.HasStoredPassword ? "Leave blank to keep the stored password." : null)">
+                        <input asp-for="Input.SmtpPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                </div>
                 <mat-field label="Sender (From)" asp-for="Input.SmtpFrom">
                     <input asp-for="Input.SmtpFrom" class="mat-input" placeholder="matdock@example.com" autocomplete="off" />
                 </mat-field>
             </fieldset>
-                <mat-field label="Recipients (To)" asp-for="Input.SmtpTo" hint="Separate multiple with commas.">
-                    <input asp-for="Input.SmtpTo" class="mat-input" placeholder="admin@example.com" autocomplete="off" />
-                </mat-field>
-            </div>
+            <mat-field label="Recipients (To)" asp-for="Input.SmtpTo" hint="Separate multiple with commas.">
+                <input asp-for="Input.SmtpTo" class="mat-input" placeholder="admin@example.com" autocomplete="off" />
+            </mat-field>
         </div>
     </div>
 
-    <div class="mat-mb-4 u-maxw mat-card">
-        <div class="mat-card__head"><icon name="plug" /><span>Webhook</span></div>
-        <div class="mat-card__body">
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="plug" /><span class="mat-card__title">Webhook</span></div>
+        <div class="mat-card__body mat-form">
             <label class="mat-check">
                 <input asp-for="Input.WebhookEnabled" type="checkbox" />
                 <span>Enabled</span>
@@ -85,8 +84,7 @@
 
     <mat-form-buttons>
         <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-        <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary"><icon name="plug" /><span>Send test</span></button>
-        <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+        <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary" title="Save before sending a test."><icon name="mail" /><span>Send test</span></button>
+        <span class="mat-hint">Save before sending a test.</span>
     </mat-form-buttons>
-    <p class="mat-muted" style="font-size:.82rem;margin-top:8px;">Save before sending a test.</p>
 </form>

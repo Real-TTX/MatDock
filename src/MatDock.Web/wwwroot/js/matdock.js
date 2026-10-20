@@ -2,35 +2,6 @@
 (function () {
     "use strict";
 
-    /* ---------------- Dependent fields ----------------
-       Markup: <div data-show-when="AuthType=1"> ... </div>
-       Shows the block only when control #AuthType has value 1 (comma = OR).      */
-    function evaluateDependents() {
-        document.querySelectorAll("[data-show-when]").forEach(function (el) {
-            var spec = el.getAttribute("data-show-when");
-            var eq = spec.indexOf("=");
-            if (eq < 0) { return; }
-            var id = spec.slice(0, eq);
-            var wanted = spec.slice(eq + 1).split(",");
-            var control = document.getElementById(id);
-            if (!control) { return; }
-            // Checkboxes expose a static .value ("true"); use the checked state so toggles can drive reveals.
-            var value = control.type === "checkbox" ? (control.checked ? "true" : "false") : control.value;
-            el.classList.toggle("is-shown", wanted.indexOf(value) !== -1);
-        });
-    }
-
-    document.querySelectorAll("[data-show-when]").forEach(function (el) {
-        var id = el.getAttribute("data-show-when").split("=")[0];
-        var control = document.getElementById(id);
-        if (control && !control.dataset.matDependentBound) {
-            control.dataset.matDependentBound = "1";
-            control.addEventListener("change", evaluateDependents);
-            control.addEventListener("input", evaluateDependents);
-        }
-    });
-    evaluateDependents();
-
     /* ---------------- Toolbar auto-submit ----------------
        Forms marked .js-autosubmit submit on select change and on debounced text input. */
     document.querySelectorAll("form.js-autosubmit").forEach(function (form) {
@@ -137,20 +108,6 @@
         applyFilter();
         update();
     })();
-
-    /* ---------------- Client-side tabs ----------------
-       <div data-tabs> <button data-tab="x"> … </button> <div data-tab-panel="x"> … </div> </div> */
-    document.querySelectorAll("[data-tabs]").forEach(function (group) {
-        var tabs = Array.prototype.slice.call(group.querySelectorAll("[data-tab]"));
-        var panels = Array.prototype.slice.call(group.querySelectorAll("[data-tab-panel]"));
-        tabs.forEach(function (tab) {
-            tab.addEventListener("click", function () {
-                var name = tab.getAttribute("data-tab");
-                tabs.forEach(function (t) { t.classList.toggle("is-active", t === tab); });
-                panels.forEach(function (p) { p.hidden = p.getAttribute("data-tab-panel") !== name; });
-            });
-        });
-    });
 
     /* ---------------- Lightweight code editor (YAML / .env) ----------------
        Overlay highlighter: a transparent <textarea> sits over a syntax-coloured <pre>,

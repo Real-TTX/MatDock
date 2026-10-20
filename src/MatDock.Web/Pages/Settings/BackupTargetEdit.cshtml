@@ -2,6 +2,7 @@
 @model MatDock.Web.Pages.Settings.BackupTargetEditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit backup target" : "New backup target";
+    ViewData["Width"] = "narrow";
     var pwHint = Model.IsEdit ? "Leave blank to keep the stored password." : null;
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Backup targets", "/Settings?tab=backup") };
 }
@@ -15,7 +16,7 @@
     </div>
 }
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -54,7 +55,7 @@
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary"><icon name="plug" /><span>Test connection</span></button>
-                <a href="/Settings?tab=backup" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/Settings?tab=backup" class="mat-btn mat-btn--secondary">Cancel</a>
                 @if (Model.IsEdit)
                 {
                     <span class="mat-btn-row__spacer"></span>

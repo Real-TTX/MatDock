@@ -8,18 +8,18 @@
 
 @if (Model.Result is not null)
 {
-    <div class="result-banner @(Model.Result.Success ? "result-banner--ok" : "result-banner--fail")">
+    <div class="mat-alert @(Model.Result.Success ? "mat-alert--success" : "mat-alert--danger")" role="status">
         <icon name="@(Model.Result.Success ? "check-circle" : "x-circle")" />
-        <div>
-            <div class="result-banner__big">@(Model.Result.Success ? "Restore successful" : "Restore failed")</div>
-            <div class="result-banner__sub">@Model.Result.Message</div>
+        <div class="mat-alert__body">
+            <strong class="mat-alert__title">@(Model.Result.Success ? "Restore successful" : "Restore failed")</strong>
+            @Model.Result.Message
         </div>
     </div>
 }
 
 @if (Model.Backup is null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">Backup not found.</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">Backup not found.</div></div>
 }
 else if (Model.Environments.Count == 0)
 {
@@ -27,22 +27,26 @@ else if (Model.Environments.Count == 0)
 }
 else
 {
-    <form method="post" data-confirm="Start restore now?">
+    <form method="post" class="mat-form" data-confirm="Start restore now?">
         <input type="hidden" asp-for="Input.BackupId" />
         <partial name="_ValidationSummary" />
 
-        <div class="migrate">
-            <div class="migrate__side migrate__side--source">
-                <h3><icon name="save" /><span>Backup</span></h3>
-                <div class="migrate__env">@Model.Backup.VolumeName</div>
-                <div class="migrate__host">from @Model.Backup.SourceEnvironmentName · @VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes) · @Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+        <div class="mat-grid mat-grid--2">
+            <div class="mat-card">
+                <div class="mat-card__head"><icon name="save" /><span class="mat-card__title">Backup</span></div>
+                <div class="mat-card__body">
+                    <dl class="mat-kv">
+                        <dt>Volume</dt><dd><strong>@Model.Backup.VolumeName</strong></dd>
+                        <dt>From</dt><dd>@Model.Backup.SourceEnvironmentName</dd>
+                        <dt>Size</dt><dd>@VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes)</dd>
+                        <dt>Created</dt><dd>@Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+                    </dl>
+                </div>
             </div>
 
-            <div class="migrate__arrow"><icon name="chevron-right" /></div>
-
-            <div class="migrate__side migrate__side--target">
-                <h3><icon name="server" /><span>Target</span></h3>
-                <div class="mat-form">
+            <div class="mat-card">
+                <div class="mat-card__head"><icon name="server" /><span class="mat-card__title">Target</span></div>
+                <div class="mat-card__body mat-form">
                     <mat-field label="Target environment" asp-for="Input.TargetEnvId">
                         <select asp-for="Input.TargetEnvId" class="mat-select">
                             @foreach (var env in Model.Environments)
@@ -67,8 +71,8 @@ else
         </div>
 
         <mat-form-buttons>
-            <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Start restore</span></button>
-            <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+            <button type="submit" class="mat-btn mat-btn--primary"><icon name="restore" /><span>Start restore</span></button>
+            <a href="/Backups" class="mat-btn mat-btn--secondary">Cancel</a>
         </mat-form-buttons>
     </form>
 }

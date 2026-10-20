@@ -65,7 +65,7 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="Source=store">
+            <div class="mat-stack" data-show-if="#Source" data-show-value="store">
                 @if (Model.Apps.Count == 0)
                 {
                     <p class="mat-hint">No apps yet. Create one in the <a href="/Apps">Store</a>, then install it here.</p>
@@ -95,7 +95,7 @@
                 }
             </div>
 
-            <div data-show-when="Source=inline" class="compose-grid">
+            <div class="compose-grid" data-show-if="#Source" data-show-value="inline">
                 <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml">
                     <textarea asp-for="Input.ComposeYaml" class="mat-textarea code-editor" data-code="yaml" rows="18" spellcheck="false" wrap="off" placeholder="services:&#10;  app:&#10;    image: nginx:alpine&#10;    environment:&#10;      - TZ=${TZ}"></textarea>
                 </mat-field>
@@ -104,7 +104,7 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="Source=git">
+            <div class="mat-stack" data-show-if="#Source" data-show-value="git">
                 <div class="mat-form__grid">
                     @if (Model.SavedRepos.Count > 0)
                     {

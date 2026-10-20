@@ -1,11 +1,11 @@
 @model MatDock.Core.Entities.EnvironmentStatus
 @{
-    var (cssClass, icon, label) = Model switch
+    var (tone, icon, label) = Model switch
     {
-        MatDock.Core.Entities.EnvironmentStatus.Online => ("pill--online", "check-circle", "Online"),
-        MatDock.Core.Entities.EnvironmentStatus.Offline => ("pill--offline", "clock", "Offline"),
-        MatDock.Core.Entities.EnvironmentStatus.Error => ("pill--error", "x-circle", "Error"),
-        _ => ("pill--unknown", "clock", "Unknown")
+        MatDock.Core.Entities.EnvironmentStatus.Online => ("mat-pill--ok", "check-circle", "Online"),
+        MatDock.Core.Entities.EnvironmentStatus.Offline => ("mat-pill--warn", "clock", "Offline"),
+        MatDock.Core.Entities.EnvironmentStatus.Error => ("mat-pill--error", "x-circle", "Error"),
+        _ => ("mat-pill--plain", "clock", "Unknown")
     };
 }
-<span class="mat-pill @cssClass"><icon name="@icon" /><span>@label</span></span>
+<span class="mat-pill @tone"><icon name="@icon" /><span>@label</span></span>

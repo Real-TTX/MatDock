@@ -6,23 +6,16 @@
 
 <partial name="_SystemTabs" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="u-contents js-autosubmit">
+        <form method="get" class="mat-row js-autosubmit md-toolbar-form">
             <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search…" aria-label="Search users" />
             </div>
-            <div class="mat-row mat-row--nowrap">
-                <label for="sort-field">Sort</label>
-                <select id="sort-field" name="SortKey" class="mat-select">
+            <select id="sort-field" name="SortKey" class="mat-select mat-w-auto" aria-label="Sort">
                     <option value="UsernameAsc" selected="@(Model.SortKey == "UsernameAsc")">A–Z: Username</option>
                     <option value="UsernameDesc" selected="@(Model.SortKey == "UsernameDesc")">Z–A: Username</option>
                     <option value="DisplayNameAsc" selected="@(Model.SortKey == "DisplayNameAsc")">A–Z: Display name</option>
@@ -32,17 +25,17 @@
                     <option value="LastLoginDesc" selected="@(Model.SortKey == "LastLoginDesc")">9–0: Last login</option>
                     <option value="LastLoginAsc" selected="@(Model.SortKey == "LastLoginAsc")">0–9: Last login</option>
                 </select>
-            </div>
         </form>
     </mat-table-toolbar>
 
     <mat-table-body>
         @if (Model.Items.Count == 0)
         {
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="users" /></div><p>No users found.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="users" /></div><p class="mat-empty__title">No users found.</p></div>
         }
         else
         {
+            <div class="mat-table-wrap">
             <table class="mat-table">
                 <thead>
                     <tr><th>Username</th><th>Display name</th><th>Role</th><th>Status</th><th>Last login</th></tr>
@@ -51,10 +44,10 @@
                     @foreach (var u in Model.Items)
                     {
                         <tr>
-                            <td><a href="/Users/Edit?id=@u.Id"><strong>@u.Username</strong></a></td>
-                            <td>@u.DisplayName</td>
-                            <td><span class="mat-tag">@u.Role</span></td>
-                            <td>
+                            <td data-label="Username"><a href="/Users/Edit?id=@u.Id"><strong>@u.Username</strong></a></td>
+                            <td data-label="Display name">@u.DisplayName</td>
+                            <td data-label="Role"><span class="mat-tag">@u.Role</span></td>
+                            <td data-label="Status">
                                 @if (u.IsActive)
                                 {
                                     <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>Active</span></span>
@@ -64,11 +57,12 @@
                                     <span class="mat-pill mat-pill--plain"><span>Inactive</span></span>
                                 }
                             </td>
-                            <td class="mat-muted mat-nowrap">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="mat-muted mat-nowrap" data-label="Last login">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                         </tr>
                     }
                 </tbody>
             </table>
+            </div>
         }
     </mat-table-body>
 

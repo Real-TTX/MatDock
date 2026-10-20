@@ -42,13 +42,13 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="ConnectionType=Local">
+            <div class="mat-stack" data-show-if="#ConnectionType" data-show-value="Local">
                 <div class="mat-alert mat-alert--info">
                     <icon name="server" /><div class="mat-alert__body">Requires <code>-v /var/run/docker.sock:/var/run/docker.sock</code>.</div>
                 </div>
             </div>
 
-            <div data-show-when="ConnectionType=Ssh,Tcp">
+            <div class="mat-stack" data-show-if="#ConnectionType" data-show-value="Ssh,Tcp">
                 <div class="mat-form__grid">
                     <mat-field label="Host" asp-for="Input.Host">
                         <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com or 10.0.0.5" />
@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <div data-show-when="ConnectionType=Tcp">
+            <div class="mat-stack" data-show-if="#ConnectionType" data-show-value="Tcp">
                 <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">Without TLS anyone who reaches the port controls Docker on that host. Use the certificates of the daemon (<code>--tlsverify</code>).</div></div>
                 <mat-field label="CA certificate (ca.pem)" asp-for="Input.TlsCa">
                     <textarea asp-for="Input.TlsCa" class="mat-textarea mat-mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
@@ -73,7 +73,7 @@
                 </mat-field>
             </div>
 
-            <div data-show-when="ConnectionType=Ssh">
+            <div class="mat-stack" data-show-if="#ConnectionType" data-show-value="Ssh">
                 <div class="mat-form__grid">
                     <mat-field label="SSH user" asp-for="Input.Username">
                         <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="e.g. root" />
@@ -91,13 +91,13 @@
                 var secretHint = Model.IsEdit ? "Leave empty to keep the stored one (only while host, port and user stay the same)." : null;
             }
 
-            <div data-show-when="AuthType=Password">
+            <div class="mat-stack" data-show-if="#AuthType" data-show-value="Password">
                 <mat-field label="Password" asp-for="Input.Password" hint="@secretHint">
                     <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
             </div>
 
-            <div data-show-when="AuthType=PrivateKey">
+            <div class="mat-stack" data-show-if="#AuthType" data-show-value="PrivateKey">
                 @if (!string.IsNullOrEmpty(Model.GeneratedPublicKey))
                 {
                     <div class="mat-alert mat-alert--success">

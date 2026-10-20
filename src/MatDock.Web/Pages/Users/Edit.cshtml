@@ -2,13 +2,14 @@
 @model MatDock.Web.Pages.Users.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit user" : "New user";
+    ViewData["Width"] = "narrow";
     var pwHint = Model.IsEdit ? "Leave blank to keep the current password." : null;
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Users", "/Users") };
 }
 
 <partial name="_SystemTabs" />
 
-<div class="u-maxw-sm mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -30,7 +31,7 @@
                 </mat-field>
 
                 <mat-field label="Status">
-                    <label class="mat-mt-2 mat-check">
+                    <label class="mat-check">
                         <input asp-for="Input.IsActive" type="checkbox" />
                         <span>Account is active</span>
                     </label>
@@ -47,7 +48,7 @@
 
             <mat-form-buttons>
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                <a href="/Users" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/Users" class="mat-btn mat-btn--secondary">Cancel</a>
                 @if (Model.IsEdit && !Model.IsSelf)
                 {
                     <span class="mat-btn-row__spacer"></span>

@@ -221,7 +221,7 @@ public sealed class MatSmtpSiteTests(MatSmtpFactory site) : IClassFixture<MatSmt
         await SignIn.PostLocalFormAsync(browser, "/Account/Login", login);
         var html = await (await browser.GetAsync("/Settings/Notifications")).Content.ReadAsStringAsync();
         Assert.Contains("Mail is sent through MatSMTP", html);
-        Assert.Contains("<fieldset class=\"fieldset-plain\" disabled=\"disabled\">", html);
+        Assert.Contains("<fieldset class=\"mat-fieldset mat-form\" disabled=\"disabled\">", html);
         Assert.DoesNotContain(MatSmtpFactory.Password, html);
 
         var saved = await browser.PostAsync("/Settings/Notifications?handler=Save", new FormUrlEncodedContent(new Dictionary<string, string>

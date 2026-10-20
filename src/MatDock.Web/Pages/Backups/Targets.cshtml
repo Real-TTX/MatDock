@@ -2,7 +2,6 @@
 @model MatDock.Web.Pages.Backups.TargetsModel
 @{
     ViewData["Title"] = "Backup targets";
-    var isAdmin = User.IsInRole("Admin");
     string Fmt(long b)
     {
         string[] u = { "B", "KB", "MB", "GB", "TB" };
@@ -13,125 +12,142 @@
 }
 
 <partial name="_BackupTabs" />
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
-@if (!string.IsNullOrEmpty(Model.StatusMessage))
-{
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
-}
-
-<div class="view-toggle" role="group" aria-label="Target" style="margin-bottom:16px;flex-wrap:wrap;">
-    <a class="@(Model.TargetId == 0 ? "is-active" : "")" href="/Backups/Targets"><icon name="save" /><span>Local (MatDock)</span></a>
+<nav class="mat-tabs mat-tabs--pills" aria-label="Target">
+    <a class="mat-tab @(Model.TargetId == 0 ? "is-active" : "")" href="/Backups/Targets" aria-current="@(Model.TargetId == 0 ? "page" : null)"><icon name="save" /><span>Local (MatDock)</span></a>
     @foreach (var t in Model.Targets)
     {
-        <a class="@(Model.TargetId == t.Id ? "is-active" : "")" href="/Backups/Targets?targetId=@t.Id"><icon name="server" /><span>@t.Name</span></a>
+        <a class="mat-tab @(Model.TargetId == t.Id ? "is-active" : "")" href="/Backups/Targets?targetId=@t.Id" aria-current="@(Model.TargetId == t.Id ? "page" : null)"><icon name="server" /><span>@t.Name</span></a>
     }
-</div>
+</nav>
 
 @if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.SelectedName: @Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.SelectedName: @Model.Error</div></div>
 }
 
-<div class="mat-p-0 mat-card">
-    <div class="mat-card__head"><icon name="save" /><span>@Model.SelectedName</span><span class="mat-btn-row__spacer"></span><span class="mat-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
-    <div class="mat-table-wrap">
-        <table class="mat-table">
-            <thead>
-                <tr><th>Archive</th><th>Type</th><th>Size</th><th>Modified</th><th class="mat-table__cell-actions">Actions</th></tr>
-            </thead>
-            <tbody>
-                @if (Model.Archives.Count == 0)
-                {
-                    <tr><td colspan="5"><div class="mat-empty"><div class="mat-empty__icon"><icon name="save" /></div><p>No archives found at this target.</p></div></td></tr>
-                }
-                @foreach (var a in Model.Archives)
-                {
-                    MatDock.Core.Volumes.VolumeBackupService.TryParseArchiveName(a.FileName, out var parsedEnv, out _, out _);
-                    <tr>
-                        <td class="mat-text-wrap">
-                            <strong class="mat-mono" style="font-size:.82rem;">@a.FileName</strong>
-                            <div class="cell-sub">
-                                @if (a.Known) { <span class="mat-tag">This instance</span> } else { <span class="mat-tag" title="Not recorded by this MatDock instance">Foreign</span> }
-                                @if (!string.IsNullOrEmpty(a.VolumeName)) { <span>· @a.VolumeName</span> }
-                                @if (!string.IsNullOrEmpty(a.SourceEnvName)) { <span>· @a.SourceEnvName</span> }
-                            </div>
-                        </td>
-                        <td>@(a.IsBundle ? "Bundle" : "Volume")</td>
-                        <td class="cell-sub">@Fmt(a.SizeBytes)</td>
-                        <td class="mat-muted mat-nowrap">@(a.ModifiedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
-                        <td class="mat-table__cell-actions">
-                            <div class="mat-table__actions" style="justify-content:flex-end;">
-                                @if (!a.IsBundle)
-                                {
-                                    <details class="restore-pop">
-                                        <summary class="mat-btn mat-btn--sm mat-btn--primary" title="Restore"><icon name="refresh" /><span>Restore</span></summary>
-                                        <div class="restore-form">
-                                            <form method="post" asp-page-handler="Restore">
-                                                <input type="hidden" name="targetId" value="@Model.TargetId" />
-                                                <input type="hidden" name="fileName" value="@a.FileName" />
-                                                <div class="mat-field">
-                                                    <label class="mat-label">Target environment</label>
-                                                    <select name="envId" class="mat-select" required>
-                                                        @foreach (var e in Model.Environments)
-                                                        {
-                                                            <option value="@e.Id" selected="@(e.Id == parsedEnv)">@e.Name</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                                <div class="mat-field">
-                                                    <label class="mat-label">Target volume</label>
-                                                    <input name="targetVolume" class="mat-input" value="@a.VolumeName" placeholder="volume name" required />
-                                                </div>
-                                                <label class="mat-check"><input type="checkbox" name="overwrite" value="true" /><span>Overwrite if the volume already contains data</span></label>
-                                                <label class="mat-check"><input type="checkbox" name="stopContainers" value="true" /><span>Stop containers during restore</span></label>
-                                                <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore '@a.FileName' into the selected volume?"><icon name="refresh" /><span>Restore now</span></button>
-                                            </form>
-                                        </div>
-                                    </details>
-                                }
-                                else
-                                {
-                                    <details class="restore-pop">
-                                        <summary class="mat-btn mat-btn--sm mat-btn--primary" title="Restore stack"><icon name="refresh" /><span>Restore</span></summary>
-                                        <div class="restore-form">
-                                            <form method="post" asp-page-handler="RestoreBundle">
-                                                <input type="hidden" name="targetId" value="@Model.TargetId" />
-                                                <input type="hidden" name="fileName" value="@a.FileName" />
-                                                <div class="mat-field">
-                                                    <label class="mat-label">Target environment</label>
-                                                    <select name="envId" class="mat-select" required>
-                                                        @foreach (var e in Model.Environments)
-                                                        {
-                                                            <option value="@e.Id">@e.Name</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                                <div class="mat-field">
-                                                    <label class="mat-label">Stack name (optional)</label>
-                                                    <input name="newName" class="mat-input" placeholder="keep original" />
-                                                </div>
-                                                <label class="mat-check"><input type="checkbox" name="overwriteVolumes" value="true" /><span>Overwrite existing volume data</span></label>
-                                                <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore stack from '@a.FileName'? (restore volumes, recreate &amp; deploy)"><icon name="refresh" /><span>Restore stack</span></button>
-                                            </form>
-                                        </div>
-                                    </details>
-                                }
-                                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Backups/Targets?handler=Download&targetId=@Model.TargetId&fileName=@Uri.EscapeDataString(a.FileName)" title="Download"><icon name="download" /></a>
-                                <form method="post" asp-page-handler="Delete" data-confirm="Delete '@a.FileName' from this target?" class="mat-d-inline">
-                                    <input type="hidden" name="targetId" value="@Model.TargetId" />
-                                    <input type="hidden" name="fileName" value="@a.FileName" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<div class="mat-list">
+    <div class="mat-toolbar" role="toolbar" aria-label="@Model.SelectedName">
+        <strong>@Model.SelectedName</strong>
+        <span class="mat-toolbar__spacer"></span>
+        <span class="mat-toolbar__info">@Model.Archives.Count archive(s)</span>
     </div>
+
+    @if (Model.Archives.Count == 0)
+    {
+        <div class="mat-empty">
+            <div class="mat-empty__icon"><icon name="save" /></div>
+            <p class="mat-empty__title">No archives found at this target</p>
+        </div>
+    }
+    else
+    {
+        <div class="mat-table-wrap">
+            <table class="mat-table">
+                <thead>
+                    <tr><th>Archive</th><th>Type</th><th class="mat-num">Size</th><th>Modified</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Archives.Count; i++)
+                    {
+                        var a = Model.Archives[i];
+                        <tr>
+                            <td data-label="Archive">
+                                <div class="mat-table__name">
+                                    <span>
+                                        <span class="mat-mono mat-text-break">@a.FileName</span>
+                                        <small>
+                                            @if (a.Known) { <span class="mat-tag">This instance</span> } else { <span class="mat-tag" title="Not recorded by this MatDock instance">Foreign</span> }
+                                            @if (!string.IsNullOrEmpty(a.VolumeName)) { <span>· @a.VolumeName</span> }
+                                            @if (!string.IsNullOrEmpty(a.SourceEnvName)) { <span>· @a.SourceEnvName</span> }
+                                        </small>
+                                    </span>
+                                </div>
+                            </td>
+                            <td data-label="Type">@(a.IsBundle ? "Bundle" : "Volume")</td>
+                            <td class="mat-num" data-label="Size">@Fmt(a.SizeBytes)</td>
+                            <td class="mat-muted mat-nowrap" data-label="Modified">@(a.ModifiedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="mat-table__cell-actions">
+                                <div class="mat-table__actions">
+                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary" data-dialog-open="restore-@i" aria-haspopup="dialog"><icon name="restore" /><span>Restore</span></button>
+                                    <a class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" href="/Backups/Targets?handler=Download&targetId=@Model.TargetId&fileName=@Uri.EscapeDataString(a.FileName)" title="Download" aria-label="Download"><icon name="download" /></a>
+                                    <form method="post" asp-page-handler="Delete" data-confirm-danger data-confirm="Delete '@a.FileName' from this target?">
+                                        <input type="hidden" name="targetId" value="@Model.TargetId" />
+                                        <input type="hidden" name="fileName" value="@a.FileName" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Delete" aria-label="Delete"><icon name="trash" /></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
+
+@* One restore dialog per archive: a volume goes into a volume, a bundle becomes a stack again. *@
+@for (var i = 0; i < Model.Archives.Count; i++)
+{
+    var a = Model.Archives[i];
+    MatDock.Core.Volumes.VolumeBackupService.TryParseArchiveName(a.FileName, out var parsedEnv, out _, out _);
+    <dialog class="mat-dialog mat-dialog--sm" id="restore-@i" aria-labelledby="restore-@i-title">
+        <form method="post" asp-page-handler="@(a.IsBundle ? "RestoreBundle" : "Restore")" class="mat-dialog__form">
+            <div class="mat-dialog__head">
+                <icon name="restore" />
+                <h2 class="mat-dialog__title" id="restore-@i-title">@(a.IsBundle ? "Restore stack" : "Restore volume")</h2>
+                <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-dialog__close" data-dialog-close aria-label="Close"><icon name="x" /></button>
+            </div>
+            <div class="mat-dialog__body mat-form">
+                <p class="mat-mono mat-text-break">@a.FileName</p>
+                <input type="hidden" name="targetId" value="@Model.TargetId" />
+                <input type="hidden" name="fileName" value="@a.FileName" />
+                <div class="mat-field">
+                    <label class="mat-label" for="restore-@i-env">Target environment</label>
+                    <select id="restore-@i-env" name="envId" class="mat-select" required>
+                        @foreach (var e in Model.Environments)
+                        {
+                            <option value="@e.Id" selected="@(!a.IsBundle && e.Id == parsedEnv)">@e.Name</option>
+                        }
+                    </select>
+                    <span class="mat-error" aria-live="polite"></span>
+                </div>
+                @if (a.IsBundle)
+                {
+                    <div class="mat-field">
+                        <label class="mat-label" for="restore-@i-name">Stack name (optional)</label>
+                        <input id="restore-@i-name" name="newName" class="mat-input" placeholder="keep original" />
+                    </div>
+                    <label class="mat-check"><input type="checkbox" name="overwriteVolumes" value="true" /><span>Overwrite existing volume data</span></label>
+                }
+                else
+                {
+                    <div class="mat-field">
+                        <label class="mat-label" for="restore-@i-volume">Target volume <span class="mat-req" aria-hidden="true">*</span></label>
+                        <input id="restore-@i-volume" name="targetVolume" class="mat-input" value="@a.VolumeName" placeholder="volume name" required />
+                        <span class="mat-error" aria-live="polite"></span>
+                    </div>
+                    <label class="mat-check"><input type="checkbox" name="overwrite" value="true" /><span>Overwrite if the volume already contains data</span></label>
+                    <label class="mat-check"><input type="checkbox" name="stopContainers" value="true" /><span>Stop containers during restore</span></label>
+                }
+            </div>
+            <div class="mat-dialog__foot">
+                <div class="mat-btn-row mat-btn-row--plain">
+                    @if (a.IsBundle)
+                    {
+                        <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore stack from '@a.FileName'? (restore volumes, recreate &amp; deploy)"><icon name="restore" /><span>Restore stack</span></button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="mat-btn mat-btn--primary" data-confirm="Restore '@a.FileName' into the selected volume?"><icon name="restore" /><span>Restore now</span></button>
+                    }
+                    <button type="button" class="mat-btn mat-btn--secondary" data-dialog-close>Cancel</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
+}
 
 @section Actions {
     @if (User.IsInRole("Admin"))

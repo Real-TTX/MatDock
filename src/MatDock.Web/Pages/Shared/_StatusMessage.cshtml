@@ -1,0 +1,16 @@
+@model (string? Message, bool IsError)
+@*
+    What a page did, told after its redirect (TempData StatusMessage / IsError): something that went wrong is an alert at the top of the
+    content, a success is a toast (matui.js shows every [data-toast] once).
+*@
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Message</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.Message" data-tone="success" hidden></div>
+    }
+}
