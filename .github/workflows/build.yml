@@ -52,7 +52,7 @@ jobs:
           -p:BuildDate=${{ steps.ver.outputs.date }}
 
       - name: Test
-        run: dotnet test MatDock.slnx -c Release --no-build --verbosity normal
+        run: dotnet test MatDock.slnx -c Release --no-build --verbosity normal --logger GitHubActions
 
       - name: Resolve version string
         id: appver
