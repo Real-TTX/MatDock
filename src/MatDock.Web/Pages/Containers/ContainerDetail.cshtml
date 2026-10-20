@@ -9,69 +9,69 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span></div>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
 }
 
 @if (Model.Error is not null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
-    <div class="u-mb mat-btn-row">
+    <div class="mat-mb-4 mat-btn-row">
         @if (openUrl is not null)
         {
-            <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
+            <a class="mat-btn mat-btn--secondary" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
         }
-        <a class="mat-btn" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
+        <a class="mat-btn mat-btn--secondary" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
         @if (c.IsRunning && User.IsInRole("Admin"))
         {
-            <a class="mat-btn" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
-            <a class="mat-btn" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
+            <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+            <a class="mat-btn mat-btn--secondary" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
         }
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" class="u-inline">
+            <form method="post" asp-page-handler="Action" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn"><icon name="refresh" /><span>Restart</span></button>
+                <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Restart</span></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="u-inline">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
         else
         {
-            <form method="post" asp-page-handler="Action" class="u-inline">
+            <form method="post" asp-page-handler="Action" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
             </form>
         }
     </div>
 
-    <div class="u-mb card">
-        <div class="card__header"><icon name="box" /><span>Details</span></div>
+    <div class="mat-mb-4 mat-card">
+        <div class="mat-card__head"><icon name="box" /><span>Details</span></div>
         <div class="mat-table-wrap">
             <table class="mat-table">
                 <tbody>
-                    <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="pill pill--unknown">@c.Status</span>}</td></tr>
-                    <tr><th>Image</th><td class="mono">@c.Image</td></tr>
+                    <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="mat-pill mat-pill--plain">@c.Status</span>}</td></tr>
+                    <tr><th>Image</th><td class="mat-mono">@c.Image</td></tr>
                     <tr><th>Stack</th><td>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</td></tr>
                     <tr><th>Ports</th><td><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td></tr>
                     <tr><th>CPU</th><td>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</td></tr>
                     <tr><th>RAM</th><td>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td></tr>
-                    <tr><th>ID</th><td class="mono">@c.Id</td></tr>
+                    <tr><th>ID</th><td class="mat-mono">@c.Id</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card__header"><icon name="volume" /><span>Volumes &amp; Mounts</span><span class="mat-badge">@Model.Mounts.Count</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="volume" /><span>Volumes &amp; Mounts</span><span class="mat-tag">@Model.Mounts.Count</span></div>
         @if (Model.Mounts.Count == 0)
         {
-            <div class="empty-state"><p>No mounts.</p></div>
+            <div class="mat-empty"><p>No mounts.</p></div>
         }
         else
         {
@@ -83,7 +83,7 @@ else if (c is not null)
                         {
                             <tr>
                                 <td>@(m.IsVolume ? "Volume" : m.Type)</td>
-                                <td class="wrap mono">
+                                <td class="mat-text-wrap mat-mono">
                                     @if (m.IsVolume && !string.IsNullOrEmpty(m.Name))
                                     {
                                         <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(m.Name)">@m.Name</a>
@@ -93,7 +93,7 @@ else if (c is not null)
                                         @(m.Source ?? "–")
                                     }
                                 </td>
-                                <td class="mono">@m.Destination</td>
+                                <td class="mat-mono">@m.Destination</td>
                                 <td>@(m.ReadWrite ? "rw" : "ro")</td>
                             </tr>
                         }

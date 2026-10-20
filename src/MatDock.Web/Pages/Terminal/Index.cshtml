@@ -8,13 +8,13 @@
 
 <link rel="stylesheet" href="~/lib/xterm/xterm.css" />
 
-<div class="card" style="padding:10px;background:#0b0f14;border-color:#0b0f14;">
+<div class="mat-card" style="padding:10px;background:#0b0f14;border-color:#0b0f14;">
     <div id="terminal"
          data-env-id="@Model.EnvId"
          data-container="@(Model.Container ?? string.Empty)"
          style="height:calc(100vh - 220px);min-height:320px;width:100%;"></div>
 </div>
-<p class="u-mt-sm mat-hint">Interactive shell over SSH. Type <code>exit</code> or leave the page to end it.</p>
+<p class="mat-mt-2 mat-hint">Interactive shell over SSH. Type <code>exit</code> or leave the page to end it.</p>
 
 @section Scripts {
     <script src="~/lib/xterm/xterm.js"></script>

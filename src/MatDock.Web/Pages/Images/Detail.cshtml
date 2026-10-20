@@ -8,27 +8,27 @@
 
 @if (Model.Error is not null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (Model.Detail is { } d)
 {
-    <div class="card card--spaced">
-        <div class="card__header"><icon name="image" /><span>Details</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="image" /><span>Details</span></div>
         <div class="mat-table-wrap">
             <table class="mat-table data--keyvalue">
                 <tbody>
                     <tr><th>Environment</th><td>@Model.Environment!.Name</td></tr>
-                    <tr><th>ID</th><td class="mono">@d.Id</td></tr>
-                    @if (d.Tags.Count > 0) { <tr><th>Tags</th><td class="mono">@string.Join(", ", d.Tags)</td></tr> }
-                    @if (d.Digests.Count > 0) { <tr><th>Digest</th><td class="mono wrap">@string.Join(", ", d.Digests)</td></tr> }
+                    <tr><th>ID</th><td class="mat-mono">@d.Id</td></tr>
+                    @if (d.Tags.Count > 0) { <tr><th>Tags</th><td class="mat-mono">@string.Join(", ", d.Tags)</td></tr> }
+                    @if (d.Digests.Count > 0) { <tr><th>Digest</th><td class="mat-mono mat-text-wrap">@string.Join(", ", d.Digests)</td></tr> }
                     <tr><th>Created</th><td>@(d.CreatedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td></tr>
                     <tr><th>Size</th><td>@Fb(d.SizeBytes)</td></tr>
                     <tr><th>Platform</th><td>@d.Platform</td></tr>
-                    @if (d.Entrypoint is not null) { <tr><th>Entrypoint</th><td class="mono wrap">@d.Entrypoint</td></tr> }
-                    @if (d.Command is not null) { <tr><th>Command</th><td class="mono wrap">@d.Command</td></tr> }
-                    @if (d.WorkingDir is not null) { <tr><th>Working dir</th><td class="mono">@d.WorkingDir</td></tr> }
-                    @if (d.User is not null) { <tr><th>User</th><td class="mono">@d.User</td></tr> }
-                    @if (d.ExposedPorts.Count > 0) { <tr><th>Ports</th><td class="mono">@string.Join(", ", d.ExposedPorts)</td></tr> }
+                    @if (d.Entrypoint is not null) { <tr><th>Entrypoint</th><td class="mat-mono mat-text-wrap">@d.Entrypoint</td></tr> }
+                    @if (d.Command is not null) { <tr><th>Command</th><td class="mat-mono mat-text-wrap">@d.Command</td></tr> }
+                    @if (d.WorkingDir is not null) { <tr><th>Working dir</th><td class="mat-mono">@d.WorkingDir</td></tr> }
+                    @if (d.User is not null) { <tr><th>User</th><td class="mat-mono">@d.User</td></tr> }
+                    @if (d.ExposedPorts.Count > 0) { <tr><th>Ports</th><td class="mat-mono">@string.Join(", ", d.ExposedPorts)</td></tr> }
                 </tbody>
             </table>
         </div>
@@ -36,14 +36,14 @@ else if (Model.Detail is { } d)
 
     @if (d.Labels.Count > 0)
     {
-        <div class="card card--spaced">
-            <div class="card__header"><icon name="template" /><span>Labels</span></div>
+        <div class="mat-card">
+            <div class="mat-card__head"><icon name="template" /><span>Labels</span></div>
             <div class="mat-table-wrap">
                 <table class="mat-table data--keyvalue">
                     <tbody>
                         @foreach (var (key, value) in d.Labels)
                         {
-                            <tr><th class="mono">@key</th><td class="mono wrap">@value</td></tr>
+                            <tr><th class="mat-mono">@key</th><td class="mat-mono mat-text-wrap">@value</td></tr>
                         }
                     </tbody>
                 </table>
@@ -51,9 +51,9 @@ else if (Model.Detail is { } d)
         </div>
     }
 
-    <div id="live-scan" class="card card--spaced" data-live="@(Model.Running is { IsFinished: false } ? "10" : null)">
-        <div class="card__header"><icon name="lock" /><span>Vulnerabilities</span></div>
-        <div class="card__body">
+    <div id="live-scan" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "10" : null)">
+        <div class="mat-card__head"><icon name="lock" /><span>Vulnerabilities</span></div>
+        <div class="mat-card__body">
             @if (Model.Running is { } op)
             {
                 var (text, _) = op.Read(0);
@@ -63,7 +63,7 @@ else if (Model.Detail is { } d)
                 }
                 else if (op.Error is not null)
                 {
-                    <div class="alert alert--error"><icon name="x-circle" /><span>@op.Error</span></div>
+                    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
                 }
                 <pre class="output-pre">@text</pre>
             }
@@ -71,12 +71,12 @@ else if (Model.Detail is { } d)
             {
                 var findings = MatDock.Core.Images.ImageScanService.Findings(scan);
                 <p>
-                    <span class="pill @(scan.Critical > 0 ? "pill--error" : scan.High > 0 ? "pill--offline" : "pill--online")">@scan.Critical critical · @scan.High high · @scan.Medium medium · @scan.Low low</span>
+                    <span class="mat-pill @(scan.Critical > 0 ? "mat-pill--error" : scan.High > 0 ? "mat-pill--warn" : "mat-pill--ok")">@scan.Critical critical · @scan.High high · @scan.Medium medium · @scan.Low low</span>
                     <span class="cell-sub">scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
                 </p>
                 @if (scan.Error is not null)
                 {
-                    <div class="alert alert--warning"><icon name="alert" /><span>The last scan failed: @scan.Error</span></div>
+                    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">The last scan failed: @scan.Error</div></div>
                 }
                 @if (findings.Count > 0)
                 {
@@ -87,11 +87,11 @@ else if (Model.Detail is { } d)
                                 @foreach (var f in findings)
                                 {
                                     <tr>
-                                        <td data-label="Severity"><span class="pill @(f.Severity == "CRITICAL" ? "pill--error" : f.Severity == "HIGH" ? "pill--offline" : "pill--unknown")">@f.Severity.ToLowerInvariant()</span></td>
-                                        <td class="wrap" data-label="Vulnerability"><strong class="mono">@f.Id</strong>@if (f.Title is not null) { <div class="cell-sub">@(f.Title.Length > 140 ? f.Title[..140] + "…" : f.Title)</div> }</td>
-                                        <td class="mono" data-label="Package">@f.Package</td>
-                                        <td class="mono cell-sub" data-label="Installed">@f.Installed</td>
-                                        <td class="mono" data-label="Fixed in">@(f.Fixed ?? "–")</td>
+                                        <td data-label="Severity"><span class="mat-pill @(f.Severity == "CRITICAL" ? "mat-pill--error" : f.Severity == "HIGH" ? "mat-pill--warn" : "mat-pill--plain")">@f.Severity.ToLowerInvariant()</span></td>
+                                        <td class="mat-text-wrap" data-label="Vulnerability"><strong class="mat-mono">@f.Id</strong>@if (f.Title is not null) { <div class="cell-sub">@(f.Title.Length > 140 ? f.Title[..140] + "…" : f.Title)</div> }</td>
+                                        <td class="mat-mono" data-label="Package">@f.Package</td>
+                                        <td class="mat-mono cell-sub" data-label="Installed">@f.Installed</td>
+                                        <td class="mat-mono" data-label="Fixed in">@(f.Fixed ?? "–")</td>
                                     </tr>
                                 }
                             </tbody>
@@ -113,18 +113,18 @@ else if (Model.Detail is { } d)
                     <input type="hidden" name="envId" value="@Model.EnvId" />
                     <input type="hidden" name="reference" value="@Model.Reference" />
                     <mat-form-buttons>
-                        <button type="submit" class="mat-btn"><icon name="lock" /><span>Scan now</span></button>
+                        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="lock" /><span>Scan now</span></button>
                     </mat-form-buttons>
                 </form>
             }
         </div>
     </div>
 
-    <div class="card">
-        <div class="card__header"><icon name="layers" /><span>Layers (@d.Layers.Count)</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="layers" /><span>Layers (@d.Layers.Count)</span></div>
         @if (d.Layers.Count == 0)
         {
-            <div class="empty-state"><div><icon name="layers" /></div><p>No layer history.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="layers" /></div><p>No layer history.</p></div>
         }
         else
         {
@@ -135,9 +135,9 @@ else if (Model.Detail is { } d)
                         @foreach (var layer in d.Layers)
                         {
                             <tr>
-                                <td class="mono wrap" data-label="Instruction">@layer.CreatedBy</td>
-                                <td class="nowrap" data-label="Size">@layer.Size</td>
-                                <td class="cell-sub nowrap" data-label="Created">@layer.CreatedSince</td>
+                                <td class="mat-mono mat-text-wrap" data-label="Instruction">@layer.CreatedBy</td>
+                                <td class="mat-nowrap" data-label="Size">@layer.Size</td>
+                                <td class="cell-sub mat-nowrap" data-label="Created">@layer.CreatedSince</td>
                             </tr>
                         }
                     </tbody>

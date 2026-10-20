@@ -10,32 +10,32 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span></div>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
 }
 
 <div id="live-stack" data-live="20">
 @if (Model.Error is not null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else
 {
     var allRunning = Model.RunningCount == Model.TotalCount;
     var noneRunning = Model.RunningCount == 0;
-    <div class="alert @(allRunning ? "alert--success" : noneRunning ? "alert--warning" : "alert--info")">
+    <div class="mat-alert @(allRunning ? "mat-alert--success" : noneRunning ? "mat-alert--warning" : "mat-alert--info")">
         <icon name="box" />
         <span><strong>@Model.RunningCount / @Model.TotalCount running</strong> — @(allRunning ? "Stack fully running" : noneRunning ? "Stack stopped" : "Stack partially running")</span>
     </div>
 
-    <div class="u-flush card">
+    <div class="mat-p-0 mat-card">
         <table class="mat-table">
-            <thead><tr><th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="actions">Actions</th></tr></thead>
+            <thead><tr><th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="mat-table__cell-actions">Actions</th></tr></thead>
             <tbody>
                 @foreach (var c in Model.Containers.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
                 {
                     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
                     <tr>
-                        <td class="wrap">
+                        <td class="mat-text-wrap">
                             <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
                             @if (!string.IsNullOrEmpty(c.Service)) { <div class="cell-sub">@c.Service</div> }
                         </td>
@@ -44,7 +44,7 @@ else
                         <td class="res-cell">
                             @if (c.CpuPercent is null && c.MemPercent is null && string.IsNullOrEmpty(c.MemUsage))
                             {
-                                <span class="text-muted">–</span>
+                                <span class="mat-muted">–</span>
                             }
                             else
                             {
@@ -62,27 +62,27 @@ else
                                 </div>
                             }
                         </td>
-                        <td class="actions">
-                            <div class="row-actions">
+                        <td class="mat-table__cell-actions">
+                            <div class="mat-table__actions">
                                 @if (openUrl is not null)
                                 {
-                                    <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open"><icon name="external" /></a>
+                                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open"><icon name="external" /></a>
                                 }
-                                <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
                                 @if (c.IsRunning)
                                 {
-                                    <form method="post" asp-page-handler="Action" class="u-inline">
+                                    <form method="post" asp-page-handler="Action" class="mat-d-inline">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Restart"><icon name="refresh" /></button>
                                     </form>
-                                    <form method="post" asp-page-handler="Action" data-confirm="Stop '@c.Name'?" class="u-inline">
+                                    <form method="post" asp-page-handler="Action" data-confirm="Stop '@c.Name'?" class="mat-d-inline">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
                                     </form>
                                 }
                                 else
                                 {
-                                    <form method="post" asp-page-handler="Action" class="u-inline">
+                                    <form method="post" asp-page-handler="Action" class="mat-d-inline">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
                                     </form>

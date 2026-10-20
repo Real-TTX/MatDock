@@ -21,22 +21,22 @@
         var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, env.BaseUrl);
         if (openUrl is not null)
         {
-            <a class="mat-btn mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open app"><icon name="external" /></a>
+            <a class="mat-btn mat-btn--secondary mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open app"><icon name="external" /></a>
         }
         if (isAdmin && c.IsRunning)
         {
-            <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
+            <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
         }
-        <a class="mat-btn mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
-        <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack"><icon name="volume" /></a>
+        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack"><icon name="volume" /></a>
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" class="u-inline">
+            <form method="post" asp-page-handler="Action" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn mat-btn--sm" title="Restart"><icon name="refresh" /></button>
+                <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Restart"><icon name="refresh" /></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="u-inline">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
@@ -44,7 +44,7 @@
         }
         else
         {
-            <form method="post" asp-page-handler="Action" class="u-inline">
+            <form method="post" asp-page-handler="Action" class="mat-d-inline">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
@@ -57,7 +57,7 @@
     {
         if (c.CpuPercent is null && c.MemPercent is null && string.IsNullOrEmpty(c.MemUsage))
         {
-            <span class="text-muted">–</span>
+            <span class="mat-muted">–</span>
             return;
         }
         <div class="res">
@@ -79,8 +79,8 @@
         var env = r.Env;
         var c = r.Container;
         <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
-            <td class="nowrap">@env.Name</td>
-            <td class="wrap">
+            <td class="mat-nowrap">@env.Name</td>
+            <td class="mat-text-wrap">
                 <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
                 @if (!string.IsNullOrEmpty(c.Project))
                 {
@@ -90,8 +90,8 @@
             <td><container-status state="@c.State" status="@c.Status" /></td>
             <td class="ports"><container-ports ports="@c.Ports" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
             <td class="res-cell">@{ Resources(c); }</td>
-            <td class="actions">
-                <div class="row-actions">@{ await Actions(r); }</div>
+            <td class="mat-table__cell-actions">
+                <div class="mat-table__actions">@{ await Actions(r); }</div>
             </td>
         </tr>
     }
@@ -99,13 +99,13 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 @foreach (var err in Model.LoadErrors)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@err</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@err</div></div>
 }
 
 <mat-table>
@@ -114,7 +114,7 @@
             <icon name="search" />
             <input type="search" id="container-filter" class="mat-input" placeholder="Filter (name, image, stack, env, port)…" autocomplete="off" />
         </div>
-        <div class="toolbar-field">
+        <div class="mat-row mat-row--nowrap">
             <label for="container-status"><icon name="filter" /></label>
             <select id="container-status" class="mat-select">
                 <option value="">All statuses</option>
@@ -122,7 +122,7 @@
                 <option value="stopped">Stopped</option>
             </select>
         </div>
-        <span class="text-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
+        <span class="mat-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
         <div class="u-ml-auto view-toggle" role="group" aria-label="View">
             <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
             <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
@@ -133,11 +133,11 @@
         <div id="live-containers" data-live="20">
         @if (Model.Environments.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>No active environment.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No active environment.</p></div>
         }
         else if (Model.Rows.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>No containers found.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No containers found.</p></div>
         }
         else if (isGallery)
         {
@@ -148,7 +148,7 @@
                     var c = r.Container;
                     <div class="env-card" data-item data-state="@State(c)" data-search="@SearchKey(r)">
                         <div class="env-card__head">
-                            <div class="u-minw-0">
+                            <div class="mat-min-w-0">
                                 <div class="env-card__name"><a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></div>
                                 <div class="env-card__host" title="@c.Image">@c.Image</div>
                             </div>
@@ -169,10 +169,10 @@
                         </div>
 
                         <div class="env-card__foot">
-                            <span class="mat-badge"><icon name="server" /> @env.Name</span>
+                            <span class="mat-tag"><icon name="server" /> @env.Name</span>
                             @if (!string.IsNullOrEmpty(c.Project))
                             {
-                                <span class="mat-badge"><icon name="layers" /> @c.Project</span>
+                                <span class="mat-tag"><icon name="layers" /> @c.Project</span>
                             }
                             <span class="mat-btn-row__spacer"></span>
                             @{ await Actions(r); }
@@ -187,7 +187,7 @@
                 <thead>
                     <tr>
                         <th>Environment</th>
-                        <th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="actions">Actions</th>
+                        <th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="mat-table__cell-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -202,6 +202,6 @@
     </mat-table-body>
 
     <mat-table-actions>
-        <a href="@ViewUrl(Model.View)" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
+        <a href="@ViewUrl(Model.View)" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

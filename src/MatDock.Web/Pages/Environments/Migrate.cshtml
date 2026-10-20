@@ -30,11 +30,11 @@
 
 @if (Model.SourceEnvironment is null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>Source environment not found.</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">Source environment not found.</div></div>
 }
 else if (Model.TargetEnvironments.Count == 0)
 {
-    <div class="alert alert--warning">
+    <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
         <span>A migration requires at least two environments. Create another environment first.</span>
     </div>
@@ -58,11 +58,11 @@ else if (Model.Results.Count == 0)
                 <label class="mat-label vol-picker-label">Volumes to migrate</label>
                 @if (Model.LoadError is not null)
                 {
-                    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.LoadError</span></div>
+                    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.LoadError</div></div>
                 }
                 else if (Model.AvailableVolumes.Count == 0)
                 {
-                    <div class="alert alert--warning"><icon name="alert" /><span>No volumes on this environment.</span></div>
+                    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">No volumes on this environment.</div></div>
                 }
                 else
                 {
@@ -72,9 +72,9 @@ else if (Model.Results.Count == 0)
                             <input type="search" class="mat-input" data-vol-filter placeholder="Filter volumes…" autocomplete="off" />
                         </div>
                         <div class="vol-picker__head">
-                            <a href="#" class="mat-link" data-vol-all>Select all</a>
-                            <span class="text-muted">·</span>
-                            <a href="#" class="mat-link" data-vol-none>None</a>
+                            <a href="#" class="" data-vol-all>Select all</a>
+                            <span class="mat-muted">·</span>
+                            <a href="#" class="" data-vol-none>None</a>
                             <span class="vol-picker__count"><span data-vol-shown>@Model.AvailableVolumes.Count</span> / @Model.AvailableVolumes.Count</span>
                         </div>
                         <div class="vol-picker__list">
@@ -106,7 +106,7 @@ else if (Model.Results.Count == 0)
                     <mat-field id="mig-rename" hidden="@(selCount != 1)" label="Target volume name" asp-for="Input.TargetVolume" hint="Rename on the target (single volume only).">
                         <input asp-for="Input.TargetVolume" class="mat-input" />
                     </mat-field>
-                    <div id="mig-multi-note" class="alert alert--info" hidden="@(selCount <= 1)">
+                    <div id="mig-multi-note" class="mat-alert mat-alert--info" hidden="@(selCount <= 1)">
                         <icon name="volume" />
                         <span>Each selected volume is created on the target with the same name.</span>
                     </div>
@@ -128,7 +128,7 @@ else if (Model.Results.Count == 0)
         </div>
 
         <div data-show-when="MigrationMode=Direct">
-            <div class="alert alert--info">
+            <div class="mat-alert mat-alert--info">
                 <icon name="alert" />
                 <span>Streams the data over SSH with <code>tar</code>; needs <code>busybox</code> on both hosts.</span>
             </div>
@@ -150,21 +150,21 @@ else if (Model.Results.Count == 0)
                     <span>Keep backups after a successful migration (safety net)</span>
                 </label>
             </div>
-            <div class="alert alert--info">
+            <div class="mat-alert mat-alert--info">
                 <icon name="save" />
                 <span>Backs up each volume, then restores it on the target; needs free space at the backup target.</span>
             </div>
         </div>
 
-        <div class="u-mt mat-form">
+        <div class="mat-mt-4 mat-form">
             @if (Model.AffectedContainers.Count > 0)
             {
-                <div class="alert--stack alert alert--info">
+                <div class="alert--stack mat-alert mat-alert--info">
                     <div><icon name="box" /> <strong>@Model.AffectedContainers.Count container(s)</strong> use the selected volume(s):</div>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
                         @foreach (var c in Model.AffectedContainers)
                         {
-                            <span class="pill @(c.IsRunning ? "pill--online" : "pill--unknown")">@c.Name</span>
+                            <span class="mat-pill @(c.IsRunning ? "mat-pill--ok" : "mat-pill--plain")">@c.Name</span>
                         }
                     </div>
                 </div>

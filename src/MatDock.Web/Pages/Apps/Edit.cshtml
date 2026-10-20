@@ -5,13 +5,13 @@
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Store", "/Apps") };
 }
 
-<div class="u-maxw-lg card">
-    <div class="card__body">
+<div class="u-maxw-lg mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Name" asp-for="Input.Name">
                     <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nginx Web Server" />
                 </mat-field>
@@ -20,11 +20,11 @@
                     <input asp-for="Input.Category" class="mat-input" placeholder="e.g. Web, Database" />
                 </mat-field>
 
-                <mat-field label="Description" asp-for="Input.Description" class="span-2">
+                <mat-field label="Description" asp-for="Input.Description" class="mat-field--full">
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
-                <mat-field label="Icon URL" asp-for="Input.IconUrl" class="span-2" hint="Optional.">
+                <mat-field label="Icon URL" asp-for="Input.IconUrl" class="mat-field--full" hint="Optional.">
                     <input asp-for="Input.IconUrl" class="mat-input" placeholder="https://…/logo.png" />
                 </mat-field>
             </div>

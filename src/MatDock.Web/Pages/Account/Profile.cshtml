@@ -8,15 +8,15 @@
 
 @if (Model.MustChange)
 {
-    <div class="alert alert--warning">
+    <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
         <span>Please set your own password before continuing.</span>
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
@@ -27,9 +27,9 @@
     </nav>
 
     <div data-tab-panel="general" hidden="@(pwActive ? "hidden" : null)">
-        <div class="card" style="max-width:560px;">
-            <div class="card__header"><icon name="user" /><span>Account</span></div>
-            <div class="card__body">
+        <div class="mat-card" style="max-width:560px;">
+            <div class="mat-card__head"><icon name="user" /><span>Account</span></div>
+            <div class="mat-card__body">
                 <div class="mat-form">
                     <mat-field label="Username"><input class="mat-input" value="@Model.Username" disabled /></mat-field>
                     <mat-field label="Display name"><input class="mat-input" value="@Model.DisplayName" disabled /></mat-field>
@@ -40,9 +40,9 @@
     </div>
 
     <div data-tab-panel="password" hidden="@(pwActive ? null : "hidden")">
-        <div class="card" style="max-width:560px;">
-            <div class="card__header"><icon name="key" /><span>Change password</span></div>
-            <div class="card__body">
+        <div class="mat-card" style="max-width:560px;">
+            <div class="mat-card__head"><icon name="key" /><span>Change password</span></div>
+            <div class="mat-card__body">
                 <form method="post" class="mat-form">
                     <partial name="_ValidationSummary" />
 

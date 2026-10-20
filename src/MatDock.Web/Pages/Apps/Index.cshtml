@@ -15,15 +15,15 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
 @if (Model.Templates.Count == 0)
 {
-    <div class="card">
-        <div class="empty-state">
+    <div class="mat-card">
+        <div class="mat-empty">
             <div><icon name="template" /></div>
             <p>No apps yet.</p>
         </div>
@@ -50,11 +50,11 @@ else
                     {
                         <span class="app-card__icon app-card__icon--letter" style="background:@Accent(t.Name);">@(string.IsNullOrEmpty(t.Name) ? "?" : char.ToUpperInvariant(t.Name[0]).ToString())</span>
                     }
-                    <div class="u-minw-0">
+                    <div class="mat-min-w-0">
                         <div class="app-card__name"><a href="/Apps/Edit?id=@t.Id">@t.Name</a></div>
                         @if (!string.IsNullOrEmpty(t.Category))
                         {
-                            <span class="mat-badge">@t.Category</span>
+                            <span class="mat-tag">@t.Category</span>
                         }
                     </div>
                 </div>
@@ -66,7 +66,7 @@ else
 
                 <div class="app-card__foot">
                     <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install as stack"><icon name="download" /><span>Install</span></a>
-                    <a class="mat-btn mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="external" /><span>Open</span></a>
+                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="external" /><span>Open</span></a>
                 </div>
             </div>
         }

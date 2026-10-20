@@ -10,13 +10,13 @@
 
 @if (Model.TestMessage is not null)
 {
-    <div class="alert @(Model.TestOk ? "alert--success" : "alert--error")">
-        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><span>@Model.TestMessage</span>
+    <div class="mat-alert @(Model.TestOk ? "mat-alert--success" : "mat-alert--danger")">
+        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><div class="mat-alert__body">@Model.TestMessage</div>
     </div>
 }
 
-<div class="u-maxw card">
-    <div class="card__body">
+<div class="u-maxw mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
@@ -25,7 +25,7 @@
                 <input asp-for="Input.Name" class="mat-input" placeholder="e.g. NAS backups" />
             </mat-field>
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Host (NAS)" asp-for="Input.SmbHost">
                     <input asp-for="Input.SmbHost" class="mat-input" placeholder="nas.local or 192.168.1.20" />
                 </mat-field>
@@ -53,7 +53,7 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Test connection</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary"><icon name="plug" /><span>Test connection</span></button>
                 <a href="/Settings?tab=backup" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit)
                 {

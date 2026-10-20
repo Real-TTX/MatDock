@@ -7,18 +7,18 @@
 
 <partial name="_SystemTabs" />
 
-<div class="u-maxw card">
-    <div class="card__body">
+<div class="u-maxw mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
 
-            <div class="form-grid">
-                <mat-field label="Name" asp-for="Input.Name" class="span-2" hint="Display name, e.g. GitHub – Deploy.">
+            <div class="mat-form__grid">
+                <mat-field label="Name" asp-for="Input.Name" class="mat-field--full" hint="Display name, e.g. GitHub – Deploy.">
                     <input asp-for="Input.Name" class="mat-input" placeholder="e.g. GitHub – Deploy" />
                 </mat-field>
 
-                <mat-field label="Type" asp-for="Input.AuthType" class="span-2">
+                <mat-field label="Type" asp-for="Input.AuthType" class="mat-field--full">
                     <select asp-for="Input.AuthType" id="GitAuthType" class="mat-select">
                         <option value="HttpsToken">HTTPS with a token</option>
                         <option value="SshKey">SSH with a key (ssh:// or git@host:org/repo.git)</option>
@@ -27,7 +27,7 @@
             </div>
 
             <div data-show-when="GitAuthType=HttpsToken">
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="User" asp-for="Input.Username" hint="Git username (for GitHub any value usually works, e.g. the account name).">
                         <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="e.g. your-github-name" />
                     </mat-field>
@@ -44,14 +44,14 @@
 
             <div data-show-when="GitAuthType=SshKey">
                 <mat-field label="Private SSH key" asp-for="Input.PrivateKeyPem" hint="@keyHint">
-                    <textarea asp-for="Input.PrivateKeyPem" class="mat-textarea mono" rows="6" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                    <textarea asp-for="Input.PrivateKeyPem" class="mat-textarea mat-mono" rows="6" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
                 </mat-field>
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="Key passphrase" asp-for="Input.Passphrase" hint="Optional.">
                         <input asp-for="Input.Passphrase" type="password" class="mat-input" autocomplete="new-password" />
                     </mat-field>
                     <mat-field label="Host key of the Git server" asp-for="Input.HostKeyFingerprint" hint="SHA256:…; empty = saved at the first clone, another one is then refused.">
-                        <input asp-for="Input.HostKeyFingerprint" class="mat-input mono" autocomplete="off" placeholder="SHA256:…" />
+                        <input asp-for="Input.HostKeyFingerprint" class="mat-input mat-mono" autocomplete="off" placeholder="SHA256:…" />
                     </mat-field>
                 </div>
             </div>

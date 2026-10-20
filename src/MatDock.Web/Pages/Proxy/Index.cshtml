@@ -7,14 +7,14 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
 @if (Model.Connections.Count == 0)
 {
-    <div class="empty-state">
+    <div class="mat-empty">
         <div><icon name="route" /></div>
         <p>No proxy configured. Add one under <a href="/Settings/Proxies">System → Proxies</a>.</p>
     </div>
@@ -23,7 +23,7 @@
 
 @if (Model.Connections.Count > 1)
 {
-    <div class="u-maxw-xs u-mb mat-form">
+    <div class="u-maxw-xs mat-mb-4 mat-form">
         <label class="mat-label" for="conn-picker">Proxy</label>
         <select id="conn-picker" class="mat-select" data-nav-select="/Proxy?ConnId={v}">
             @foreach (var c in Model.Connections)
@@ -36,12 +36,12 @@
 
 @if (Model.Selected is not null)
 {
-    <div class="u-mb u-maxw card">
-        <div class="card__header"><icon name="plus" /><span>Add route on @Model.Selected.Name</span></div>
-        <div class="card__body">
+    <div class="mat-mb-4 u-maxw mat-card">
+        <div class="mat-card__head"><icon name="plus" /><span>Add route on @Model.Selected.Name</span></div>
+        <div class="mat-card__body">
             <form method="post" asp-page-handler="Add" class="mat-form">
                 <input type="hidden" name="connId" value="@Model.Selected.Id" />
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="Hostname">
                         <input name="host" class="mat-input" placeholder="app.example.com" required />
                     </mat-field>
@@ -62,28 +62,28 @@
 
     @if (Model.RouteError is not null)
     {
-        <div class="alert alert--warning"><icon name="alert" /><span>Could not load routes: @Model.RouteError</span></div>
+        <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">Could not load routes: @Model.RouteError</div></div>
     }
 
-    <div class="u-flush card">
+    <div class="mat-p-0 mat-card">
         <table class="mat-table">
             <thead>
-                <tr><th>Hostname</th><th>Upstream</th><th>TLS</th><th class="actions">Actions</th></tr>
+                <tr><th>Hostname</th><th>Upstream</th><th>TLS</th><th class="mat-table__cell-actions">Actions</th></tr>
             </thead>
             <tbody>
                 @if (Model.Routes.Count == 0)
                 {
-                    <tr><td colspan="4"><div class="empty-state"><div><icon name="route" /></div><p>No MatDock-managed routes on this proxy yet.</p></div></td></tr>
+                    <tr><td colspan="4"><div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p>No MatDock-managed routes on this proxy yet.</p></div></td></tr>
                 }
                 @foreach (var r in Model.Routes)
                 {
                     <tr>
-                        <td class="wrap"><strong>@r.Host</strong></td>
-                        <td class="mono">@r.Upstream</td>
+                        <td class="mat-text-wrap"><strong>@r.Host</strong></td>
+                        <td class="mat-mono">@r.Upstream</td>
                         <td>@(r.Tls ? "yes" : "–")</td>
-                        <td class="actions">
-                            <div class="row-actions">
-                                <form method="post" asp-page-handler="Remove" data-confirm="Delete route @r.Host?" class="u-inline">
+                        <td class="mat-table__cell-actions">
+                            <div class="mat-table__actions">
+                                <form method="post" asp-page-handler="Remove" data-confirm="Delete route @r.Host?" class="mat-d-inline">
                                     <input type="hidden" name="connId" value="@Model.Selected.Id" />
                                     <input type="hidden" name="routeId" value="@r.Id" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Delete"><icon name="trash" /></button>

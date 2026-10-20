@@ -7,7 +7,7 @@
 
 @if (Model.Registries.Count == 0)
 {
-    <div class="empty-state">
+    <div class="mat-empty">
         <div><icon name="registry" /></div>
         <p>No registry configured. Add one under <a href="/Settings/Registries">System → Registries</a>.</p>
     </div>
@@ -16,7 +16,7 @@
 
 @if (Model.Registries.Count > 1)
 {
-    <div class="u-maxw-xs u-mb mat-form">
+    <div class="u-maxw-xs mat-mb-4 mat-form">
         <label class="mat-label" for="conn-picker">Registry</label>
         <select id="conn-picker" class="mat-select" data-nav-select="/Registry?ConnId={v}">
             @foreach (var r in Model.Registries)
@@ -29,22 +29,22 @@
 
 @if (Model.Selected is not null)
 {
-    <div class="card" style="max-width:960px;margin-bottom:16px;">
-        <div class="card__header"><icon name="registry" /><span>Repositories on @Model.Selected.Host</span></div>
-        <div class="card__body">
+    <div class="mat-card" style="max-width:960px;margin-bottom:16px;">
+        <div class="mat-card__head"><icon name="registry" /><span>Repositories on @Model.Selected.Host</span></div>
+        <div class="mat-card__body">
             <form method="get" class="mat-form" style="max-width:520px;margin-bottom:12px;">
                 <input type="hidden" name="ConnId" value="@Model.Selected.Id" />
                 <mat-field label="Open a repository by name" hint="e.g. library/nginx or myorg/app — needed for registries without a catalog (Docker Hub)">
                     <div style="display:flex;gap:8px;">
-                        <input name="Repo" value="@Model.Repo" class="mat-input mono" placeholder="library/nginx" />
-                        <button type="submit" class="mat-btn"><icon name="search" /><span>Tags</span></button>
+                        <input name="Repo" value="@Model.Repo" class="mat-input mat-mono" placeholder="library/nginx" />
+                        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="search" /><span>Tags</span></button>
                     </div>
                 </mat-field>
             </form>
 
             @if (Model.Catalog?.Error is not null)
             {
-                <div class="alert alert--warning"><icon name="alert" /><span>@Model.Catalog.Error</span></div>
+                <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">@Model.Catalog.Error</div></div>
             }
             else if (Model.Catalog is not null)
             {
@@ -54,7 +54,7 @@
                 </div>
                 @if (Model.Catalog.Repositories.Count == 0)
                 {
-                    <div class="empty-state"><div><icon name="box" /></div><p>No repositories reported by this registry.</p></div>
+                    <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No repositories reported by this registry.</p></div>
                 }
                 else
                 {
@@ -63,7 +63,7 @@
                         {
                             <a class="reg-repo @(string.Equals(Model.Repo, repo, StringComparison.Ordinal) ? "is-active" : "")"
                                data-filter-row href="/Registry?ConnId=@Model.Selected.Id&Repo=@Uri.EscapeDataString(repo)">
-                                <icon name="box" /><span class="mono">@repo</span>
+                                <icon name="box" /><span class="mat-mono">@repo</span>
                             </a>
                         }
                     </div>
@@ -74,16 +74,16 @@
 
     @if (Model.Tags is not null)
     {
-        <div class="card" style="max-width:960px;">
-            <div class="card__header"><icon name="layers" /><span>Tags — <span class="mono">@Model.Tags.Repository</span></span></div>
-            <div class="card__body">
+        <div class="mat-card" style="max-width:960px;">
+            <div class="mat-card__head"><icon name="layers" /><span>Tags — <span class="mat-mono">@Model.Tags.Repository</span></span></div>
+            <div class="mat-card__body">
                 @if (Model.Tags.Error is not null)
                 {
-                    <div class="alert alert--warning"><icon name="alert" /><span>@Model.Tags.Error</span></div>
+                    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">@Model.Tags.Error</div></div>
                 }
                 else if (Model.Tags.Tags.Count == 0)
                 {
-                    <div class="empty-state"><div><icon name="layers" /></div><p>No tags found for this repository.</p></div>
+                    <div class="mat-empty"><div class="mat-empty__icon"><icon name="layers" /></div><p>No tags found for this repository.</p></div>
                 }
                 else
                 {
@@ -95,7 +95,7 @@
                                 {
                                     <tr>
                                         <td><strong>@tag</strong></td>
-                                        <td class="mono">@Model.Selected.Host/@Model.Tags.Repository:@tag</td>
+                                        <td class="mat-mono">@Model.Selected.Host/@Model.Tags.Repository:@tag</td>
                                     </tr>
                                 }
                             </tbody>

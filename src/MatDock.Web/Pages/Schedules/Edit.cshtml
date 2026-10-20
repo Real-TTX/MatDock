@@ -7,13 +7,13 @@
 
 @if (ManagedBadgeTagHelper.DisplayName(Model.ManagedBy) is { } owner)
 {
-    <div class="alert alert--info" style="max-width:820px;">
-        <icon name="plug" /><span><managed-badge value="@Model.ManagedBy" /> This schedule was created by @owner. Manual changes may be overwritten the next time @owner updates it.</span>
+    <div class="mat-alert mat-alert--info" style="max-width:820px;">
+        <icon name="plug" /><div class="mat-alert__body"><managed-badge value="@Model.ManagedBy" /> This schedule was created by @owner. Manual changes may be overwritten the next time @owner updates it.</div>
     </div>
 }
 
-<div class="card" style="max-width:820px;">
-    <div class="card__body">
+<div class="mat-card" style="max-width:820px;">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
@@ -22,7 +22,7 @@
                 <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Nightly prune" />
             </mat-field>
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Action" asp-for="Input.Action">
                     <select asp-for="Input.Action" id="Input_Action" class="mat-select">
                         <option value="Summary">Status summary (notification)</option>
@@ -87,7 +87,7 @@
                 </mat-field>
             </div>
             <div data-show-when="Input_Action=Backup,BundleBackup">
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="Backup target" asp-for="Input.BackupTargetId" hint="Where archives are stored">
                         <select asp-for="Input.BackupTargetId" class="mat-select">
                             <option value="">Local (/data/backups)</option>
@@ -110,7 +110,7 @@
                 </label>
             </div>
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Trigger" asp-for="Input.Trigger">
                     <select asp-for="Input.Trigger" id="Input_Trigger" class="mat-select">
                         <option value="Cron">Time (cron)</option>
@@ -149,7 +149,7 @@
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                 @if (Model.IsEdit)
                 {
-                    <button type="submit" asp-page-handler="RunNow" class="mat-btn" formnovalidate><icon name="refresh" /><span>Run now</span></button>
+                    <button type="submit" asp-page-handler="RunNow" class="mat-btn mat-btn--secondary" formnovalidate><icon name="refresh" /><span>Run now</span></button>
                 }
                 <a href="/Schedules" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit && !Model.IsSyncSchedule)

@@ -8,17 +8,17 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
 <form method="post">
     <partial name="_ValidationSummary" />
 
-    <div class="u-mb u-maxw card">
-        <div class="card__header"><icon name="alert" /><span>Triggers</span></div>
-        <div class="card__body">
+    <div class="mat-mb-4 u-maxw mat-card">
+        <div class="mat-card__head"><icon name="alert" /><span>Triggers</span></div>
+        <div class="mat-card__body">
             <label class="mat-check">
                 <input asp-for="Input.NotifyOnFailure" type="checkbox" />
                 <span>Notify on failures</span>
@@ -30,16 +30,16 @@
         </div>
     </div>
 
-    <div class="u-mb u-maxw card">
-        <div class="card__header"><icon name="server" /><span>Email (SMTP)</span></div>
-        <div class="card__body">
+    <div class="mat-mb-4 u-maxw mat-card">
+        <div class="mat-card__head"><icon name="server" /><span>Email (SMTP)</span></div>
+        <div class="mat-card__body">
             <label class="mat-check">
                 <input asp-for="Input.SmtpEnabled" type="checkbox" />
                 <span>Enabled</span>
             </label>
             @if (Model.Relay is { } relay)
             {
-                <div class="alert alert--info"><icon name="server" /><span>@relay.Description</span></div>
+                <div class="mat-alert mat-alert--info"><icon name="server" /><div class="mat-alert__body">@relay.Description</div></div>
             }
             <div class="mat-form">
             <fieldset class="fieldset-plain" disabled="@(Model.Relay is not null)">
@@ -70,9 +70,9 @@
         </div>
     </div>
 
-    <div class="u-mb u-maxw card">
-        <div class="card__header"><icon name="plug" /><span>Webhook</span></div>
-        <div class="card__body">
+    <div class="mat-mb-4 u-maxw mat-card">
+        <div class="mat-card__head"><icon name="plug" /><span>Webhook</span></div>
+        <div class="mat-card__body">
             <label class="mat-check">
                 <input asp-for="Input.WebhookEnabled" type="checkbox" />
                 <span>Enabled</span>
@@ -85,8 +85,8 @@
 
     <mat-form-buttons>
         <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-        <button type="submit" asp-page-handler="Test" class="mat-btn"><icon name="plug" /><span>Send test</span></button>
+        <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary"><icon name="plug" /><span>Send test</span></button>
         <a href="/Settings" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
     </mat-form-buttons>
-    <p class="text-muted" style="font-size:.82rem;margin-top:8px;">Save before sending a test.</p>
+    <p class="mat-muted" style="font-size:.82rem;margin-top:8px;">Save before sending a test.</p>
 </form>

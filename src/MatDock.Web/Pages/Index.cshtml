@@ -78,7 +78,7 @@
 {
     <div class="dash-section-head">
         <h2><icon name="apps" /> <span>Apps</span></h2>
-        <a href="/Launchpad" class="mat-link">All apps →</a>
+        <a href="/Launchpad" class="">All apps →</a>
     </div>
     <div class="launch-grid" style="margin-bottom:22px;">
         @foreach (var t in Model.AppTiles)
@@ -91,12 +91,12 @@
 @* ---- Environments ---- *@
 <div class="dash-section-head">
     <h2><icon name="server" /> <span>Environments</span></h2>
-    <a href="/Environments" class="mat-link">Manage →</a>
+    <a href="/Environments" class="">Manage →</a>
 </div>
 @if (Model.Environments.Count == 0)
 {
-    <div class="card" style="margin-bottom:22px;">
-        <div class="empty-state">
+    <div class="mat-card" style="margin-bottom:22px;">
+        <div class="mat-empty">
             <div><icon name="server" /></div>
             <p>No enabled environments to show.</p>
             @if (isAdmin) { <a href="/Environments/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create your first environment</span></a> }
@@ -155,17 +155,17 @@ else
                 }
 
                 <div class="env-card__foot">
-                    <span class="mat-badge"><icon name="box" /> @running running</span>
+                    <span class="mat-tag"><icon name="box" /> @running running</span>
                     <span style="flex:1 1 auto;"></span>
                     @if (isAdmin)
                     {
-                        <a class="mat-btn mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
+                        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks"><icon name="layers" /></a>
                     }
-                    <a class="mat-btn mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
-                    <a class="mat-btn mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
+                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers"><icon name="box" /></a>
+                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes"><icon name="volume" /></a>
                     @if (isAdmin)
                     {
-                        <a class="mat-btn mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
+                        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell"><icon name="terminal" /></a>
                     }
                 </div>
             </div>
@@ -176,20 +176,20 @@ else
 @* ---- Usage ---- *@
 <div class="dash-section-head">
     <h2><icon name="box" /> <span>Usage</span></h2>
-    <a href="/Containers" class="mat-link">All containers →</a>
+    <a href="/Containers" class="">All containers →</a>
 </div>
-<div class="card" style="margin-bottom:22px;">
-    <div class="card__body" style="padding:0;">
+<div class="mat-card" style="margin-bottom:22px;">
+    <div class="mat-card__body" style="padding:0;">
         @if (Model.TopContainers.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>No running containers.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No running containers.</p></div>
         }
         else
         {
             <div class="mat-table-wrap">
                 <table class="mat-table">
                     <thead>
-                        <tr><th>Container</th>@if (Model.IsAll) { <th>Environment</th> }<th class="num">CPU</th><th class="num">RAM</th></tr>
+                        <tr><th>Container</th>@if (Model.IsAll) { <th>Environment</th> }<th class="mat-num">CPU</th><th class="mat-num">RAM</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var t in Model.TopContainers)
@@ -198,27 +198,27 @@ else
                             <tr>
                                 <td>
                                     <a href="/Containers/ContainerDetail?envId=@t.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
-                                    <div class="text-muted" style="font-size:.78rem;">@c.Image</div>
+                                    <div class="mat-muted" style="font-size:.78rem;">@c.Image</div>
                                 </td>
                                 @if (Model.IsAll)
                                 {
-                                    <td class="text-muted">@t.EnvName</td>
+                                    <td class="mat-muted">@t.EnvName</td>
                                 }
-                                <td class="num">
+                                <td class="mat-num">
                                     @if (c.CpuPercent is not null)
                                     {
                                         <div>@($"{c.CpuPercent:0.0}")%</div>
                                         <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.CpuPercent.Value)))%"></span></span>
                                     }
-                                    else { <span class="text-muted">–</span> }
+                                    else { <span class="mat-muted">–</span> }
                                 </td>
-                                <td class="num" title="@c.MemUsage">
+                                <td class="mat-num" title="@c.MemUsage">
                                     @if (c.MemPercent is not null)
                                     {
                                         <div>@($"{c.MemPercent:0.0}")%</div>
                                         <span class="ubar"><span class="ubar__fill" style="width:@(Math.Min(100, (int)Math.Round(c.MemPercent.Value)))%"></span></span>
                                     }
-                                    else { <span class="text-muted">–</span> }
+                                    else { <span class="mat-muted">–</span> }
                                 </td>
                             </tr>
                         }
@@ -233,11 +233,11 @@ else
 <div class="dash-section-head">
     <h2><icon name="clock" /> <span>Recent activity</span></h2>
 </div>
-<div class="card" style="margin-bottom:22px;">
-    <div class="card__body" style="padding:0;">
+<div class="mat-card" style="margin-bottom:22px;">
+    <div class="mat-card__body" style="padding:0;">
         @if (Model.RecentEvents.Count == 0)
         {
-            <div class="empty-state"><div><icon name="clock" /></div><p>No recent container events.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="clock" /></div><p>No recent container events.</p></div>
         }
         else
         {
@@ -249,7 +249,7 @@ else
                     <li class="feed__item">
                         <span class="feed__dot @style.Cls"><icon name="@style.Icon" /></span>
                         <div class="feed__body">
-                            <div><strong>@ev.ContainerName</strong> <span class="text-muted">@ev.Kind</span></div>
+                            <div><strong>@ev.ContainerName</strong> <span class="mat-muted">@ev.Kind</span></div>
                             <div class="feed__meta">@(Model.IsAll ? row.EnvName + " · " : "")@Ago(ev.TimeUtc)</div>
                         </div>
                     </li>
@@ -262,10 +262,10 @@ else
 @* ---- Backups ---- *@
 <div class="dash-section-head">
     <h2><icon name="download" /> <span>Backups</span></h2>
-    @if (isAdmin) { <a href="/Backups" class="mat-link">History →</a> }
+    @if (isAdmin) { <a href="/Backups" class="">History →</a> }
 </div>
-<div class="card">
-    <div class="card__body">
+<div class="mat-card">
+    <div class="mat-card__body">
         <div class="dash-metrics">
             <div class="dash-metric">
                 <div class="dash-metric__value">@Model.BackupCount</div>
@@ -287,19 +287,19 @@ else
                 <div class="dash-metric__value">
                     @if (Model.LastRunUtc is null)
                     {
-                        <span class="text-muted">–</span>
+                        <span class="mat-muted">–</span>
                     }
                     else if (Model.LastRunOk == true)
                     {
-                        <span class="pill pill--online"><icon name="check-circle" /> OK</span>
+                        <span class="mat-pill mat-pill--ok"><icon name="check-circle" /> OK</span>
                     }
                     else if (Model.LastRunOk == false)
                     {
-                        <span class="pill pill--error"><icon name="x-circle" /> Failed</span>
+                        <span class="mat-pill mat-pill--error"><icon name="x-circle" /> Failed</span>
                     }
                     else
                     {
-                        <span class="pill pill--unknown">@(string.IsNullOrWhiteSpace(Model.LastRunSummary) ? "Unknown" : Model.LastRunSummary)</span>
+                        <span class="mat-pill mat-pill--plain">@(string.IsNullOrWhiteSpace(Model.LastRunSummary) ? "Unknown" : Model.LastRunSummary)</span>
                     }
                 </div>
                 <div class="dash-metric__label">Last scheduled run@(Model.LastRunUtc is { } lr ? $" · {Ago(lr)}" : "")</div>

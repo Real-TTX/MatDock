@@ -5,7 +5,7 @@
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Networks", "/Networks") };
 }
 
-<div class="u-maxw-xs u-mb mat-form">
+<div class="u-maxw-xs mat-mb-4 mat-form">
     <label class="mat-label" for="prune-env">Environment</label>
     <select id="prune-env" class="mat-select" data-nav-select="/Networks/Prune?env={v}">
         <option value="0" selected="@(Model.EnvId == 0)">All environments</option>
@@ -41,7 +41,7 @@
 
 @if (Model.Errors.Count > 0)
 {
-    <div class="alert alert--warning">
+    <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
         <span>Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</span>
     </div>
@@ -51,29 +51,29 @@
 {
     @if (Model.TotalUnused == 0)
     {
-        <div class="alert alert--success"><icon name="check-circle" /><span>No unused networks — nothing to prune.</span></div>
-        <a href="/Networks" class="mat-btn"><icon name="back" /><span>Back to networks</span></a>
+        <div class="mat-alert mat-alert--success"><icon name="check-circle" /><div class="mat-alert__body">No unused networks — nothing to prune.</div></div>
+        <a href="/Networks" class="mat-btn mat-btn--secondary"><icon name="back" /><span>Back to networks</span></a>
     }
     else
     {
-        <div class="alert alert--warning">
+        <div class="mat-alert mat-alert--warning">
             <icon name="alert" />
             <span>The following <strong>@Model.TotalUnused</strong> unused network(s) will be <strong>permanently deleted</strong>. Predefined networks (bridge/host/none) are never touched.</span>
         </div>
 
         @foreach (var g in Model.Groups)
         {
-            <div class="u-mb card">
-                <div class="card__header">
+            <div class="mat-mb-4 mat-card">
+                <div class="mat-card__head">
                     <icon name="server" /><span>@g.Environment.Name</span>
-                    <span class="mat-badge">@g.Networks.Count</span>
+                    <span class="mat-tag">@g.Networks.Count</span>
                 </div>
                 <div class="mat-table-wrap" style="max-height:320px;">
                     <table class="mat-table">
                         <tbody>
                             @foreach (var name in g.Networks)
                             {
-                                <tr><td class="mono">@name</td></tr>
+                                <tr><td class="mat-mono">@name</td></tr>
                             }
                         </tbody>
                     </table>

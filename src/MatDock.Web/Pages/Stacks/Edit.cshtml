@@ -7,20 +7,20 @@
 
 @if (!string.IsNullOrEmpty(Model.FromTemplateName))
 {
-    <div class="alert alert--info">
-        <icon name="template" /><span>Prefilled from app '@Model.FromTemplateName'.</span>
+    <div class="mat-alert mat-alert--info">
+        <icon name="template" /><div class="mat-alert__body">Prefilled from app '@Model.FromTemplateName'.</div>
     </div>
 }
 @if (ManagedBadgeTagHelper.DisplayName(Model.ManagedBy) is { } owner)
 {
-    <div class="alert alert--info">
-        <icon name="plug" /><span><managed-badge value="@Model.ManagedBy" /> This stack was created by @owner. Manual changes may be overwritten the next time @owner updates it.</span>
+    <div class="mat-alert mat-alert--info">
+        <icon name="plug" /><div class="mat-alert__body"><managed-badge value="@Model.ManagedBy" /> This stack was created by @owner. Manual changes may be overwritten the next time @owner updates it.</div>
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.DeployOutput))
@@ -28,13 +28,13 @@
     <pre class="output-pre">@Model.DeployOutput</pre>
 }
 
-<div class="u-maxw-xl card">
-    <div class="card__body">
+<div class="u-maxw-xl mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Name" asp-for="Input.Name" hint="Compose project name.">
                     @if (Model.IsEdit)
                     {
@@ -87,7 +87,7 @@
                                 <span class="app-pick__name">@a.Name</span>
                                 @if (!string.IsNullOrEmpty(a.Category))
                                 {
-                                    <span class="mat-badge">@a.Category</span>
+                                    <span class="mat-tag">@a.Category</span>
                                 }
                             </button>
                         }
@@ -105,10 +105,10 @@
             </div>
 
             <div data-show-when="Source=git">
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     @if (Model.SavedRepos.Count > 0)
                     {
-                        <mat-field label="Use a saved repository (optional)" class="span-2" hint="Prefills the URL, branch and credentials below.">
+                        <mat-field label="Use a saved repository (optional)" class="mat-field--full" hint="Prefills the URL, branch and credentials below.">
                             <select id="stack-repo-picker" class="mat-select">
                                 <option value="">— manual entry —</option>
                                 @foreach (var r in Model.SavedRepos)
@@ -118,7 +118,7 @@
                             </select>
                         </mat-field>
                     }
-                    <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" class="span-2">
+                    <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" class="mat-field--full">
                         <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/user/repo.git" />
                     </mat-field>
 
@@ -130,7 +130,7 @@
                         <input asp-for="Input.GitComposePath" class="mat-input" placeholder="docker-compose.yml" />
                     </mat-field>
 
-                    <mat-field label="Git credentials" asp-for="Input.GitCredentialId" class="span-2" hint="Only for private repositories.">
+                    <mat-field label="Git credentials" asp-for="Input.GitCredentialId" class="mat-field--full" hint="Only for private repositories.">
                         <select asp-for="Input.GitCredentialId" class="mat-select">
                             <option value="">– public / no access –</option>
                             @foreach (var cred in Model.GitCredentials)
@@ -144,8 +144,8 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Save &amp; Deploy</span></button>
-                <button type="submit" asp-page-handler="Save" class="mat-btn"><icon name="save" /><span>Save</span></button>
-                <button type="submit" asp-page-handler="Check" class="mat-btn" formnovalidate title="Let compose on the environment check the file and the .env (nothing is saved or deployed)"><icon name="check-circle" /><span>Check</span></button>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--secondary"><icon name="save" /><span>Save</span></button>
+                <button type="submit" asp-page-handler="Check" class="mat-btn mat-btn--secondary" formnovalidate title="Let compose on the environment check the file and the .env (nothing is saved or deployed)"><icon name="check-circle" /><span>Check</span></button>
                 <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit)
                 {

@@ -13,7 +13,7 @@
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (user, action, target, environment)…" />
             </div>
-            <div class="toolbar-field">
+            <div class="mat-row mat-row--nowrap">
                 <label for="activity-failed"><icon name="filter" /></label>
                 <select id="activity-failed" name="Failed" class="mat-select">
                     <option value="false" selected="@(!Model.Failed)">All</option>
@@ -21,13 +21,13 @@
                 </select>
             </div>
         </form>
-        <span class="u-ml-auto text-muted">@Model.Pagination.TotalItems entries</span>
+        <span class="u-ml-auto mat-muted">@Model.Pagination.TotalItems entries</span>
     </mat-table-toolbar>
 
     <mat-table-body>
         @if (Model.Items.Count == 0)
         {
-            <div class="empty-state"><div><icon name="clock" /></div><p>@(string.IsNullOrWhiteSpace(Model.Q) && !Model.Failed ? "Nothing recorded yet." : "No entries match the filter.")</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="clock" /></div><p>@(string.IsNullOrWhiteSpace(Model.Q) && !Model.Failed ? "Nothing recorded yet." : "No entries match the filter.")</p></div>
         }
         else
         {
@@ -37,19 +37,19 @@
                     @foreach (var e in Model.Items)
                     {
                         <tr>
-                            <td class="cell-sub nowrap" data-label="Time">@e.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
-                            <td class="nowrap" data-label="User">@e.Actor@if (e.Source == "api") { <span class="pill pill--unknown">API</span> }</td>
+                            <td class="cell-sub mat-nowrap" data-label="Time">@e.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td class="mat-nowrap" data-label="User">@e.Actor@if (e.Source == "api") { <span class="mat-pill mat-pill--plain">API</span> }</td>
                             <td data-label="Action">@e.Action</td>
-                            <td class="mono wrap" data-label="Target">@(e.Target ?? "–")</td>
-                            <td class="nowrap" data-label="Environment">@(e.Environment ?? "–")</td>
+                            <td class="mat-mono mat-text-wrap" data-label="Target">@(e.Target ?? "–")</td>
+                            <td class="mat-nowrap" data-label="Environment">@(e.Environment ?? "–")</td>
                             <td data-label="Result">
                                 @if (e.Ok)
                                 {
-                                    <span class="pill pill--online" title="@e.Message"><icon name="check-circle" /> OK</span>
+                                    <span class="mat-pill mat-pill--ok" title="@e.Message"><icon name="check-circle" /> OK</span>
                                 }
                                 else
                                 {
-                                    <span class="pill pill--error" title="@e.Message"><icon name="x-circle" /> Failed</span>
+                                    <span class="mat-pill mat-pill--error" title="@e.Message"><icon name="x-circle" /> Failed</span>
                                 }
                                 @if (!string.IsNullOrEmpty(e.Message))
                                 {

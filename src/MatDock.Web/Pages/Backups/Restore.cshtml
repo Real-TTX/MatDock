@@ -19,11 +19,11 @@
 
 @if (Model.Backup is null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>Backup not found.</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">Backup not found.</div></div>
 }
 else if (Model.Environments.Count == 0)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>No target environment available.</span></div>
+    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">No target environment available.</div></div>
 }
 else
 {

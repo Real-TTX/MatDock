@@ -7,7 +7,7 @@
 
 @if (Model.Environments.Count > 1)
 {
-    <div class="u-mb">
+    <div class="mat-mb-4">
         <select class="mat-select fs-volswitch" aria-label="Environment" data-nav-select="/Networks/Map?envId={v}">
             @foreach (var env in Model.Environments)
             {
@@ -19,21 +19,21 @@
 
 @if (Model.Environment is null)
 {
-    <div class="card"><div class="empty-state"><div><icon name="server" /></div><p>No active environment.</p></div></div>
+    <div class="mat-card"><div class="mat-empty"><div class="mat-empty__icon"><icon name="server" /></div><p>No active environment.</p></div></div>
 }
 else if (Model.Error is not null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (Model.Map is { } map)
 {
     if (map.Containers.Count == 0)
     {
-        <div class="card"><div class="empty-state"><div><icon name="network" /></div><p>No container is attached to a network.</p></div></div>
+        <div class="mat-card"><div class="mat-empty"><div class="mat-empty__icon"><icon name="network" /></div><p>No container is attached to a network.</p></div></div>
     }
     else
     {
-        <div class="card netmap">
+        <div class="mat-card netmap">
             <svg class="netmap__svg" viewBox="0 0 @map.Width @map.Height" role="img" aria-label="Networks and their containers on @Model.Environment.Name">
                 @foreach (var e in map.Edges)
                 {
@@ -61,6 +61,6 @@ else if (Model.Map is { } map)
                 }
             </svg>
         </div>
-        <p class="text-muted netmap__legend">A thick border: the container is on several networks.</p>
+        <p class="mat-muted netmap__legend">A thick border: the container is on several networks.</p>
     }
 }

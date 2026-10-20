@@ -8,8 +8,8 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
@@ -20,7 +20,7 @@
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search…" />
             </div>
-            <div class="toolbar-field">
+            <div class="mat-row mat-row--nowrap">
                 <label for="sort-field">Sort</label>
                 <select id="sort-field" name="SortKey" class="mat-select">
                     <option value="UsernameAsc" selected="@(Model.SortKey == "UsernameAsc")">A–Z: Username</option>
@@ -39,7 +39,7 @@
     <mat-table-body>
         @if (Model.Items.Count == 0)
         {
-            <div class="empty-state"><div><icon name="users" /></div><p>No users found.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="users" /></div><p>No users found.</p></div>
         }
         else
         {
@@ -53,18 +53,18 @@
                         <tr>
                             <td><a href="/Users/Edit?id=@u.Id"><strong>@u.Username</strong></a></td>
                             <td>@u.DisplayName</td>
-                            <td><span class="mat-badge">@u.Role</span></td>
+                            <td><span class="mat-tag">@u.Role</span></td>
                             <td>
                                 @if (u.IsActive)
                                 {
-                                    <span class="pill pill--online"><icon name="check-circle" /><span>Active</span></span>
+                                    <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>Active</span></span>
                                 }
                                 else
                                 {
-                                    <span class="pill pill--unknown"><span>Inactive</span></span>
+                                    <span class="mat-pill mat-pill--plain"><span>Inactive</span></span>
                                 }
                             </td>
-                            <td class="text-muted nowrap">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="mat-muted mat-nowrap">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                         </tr>
                     }
                 </tbody>

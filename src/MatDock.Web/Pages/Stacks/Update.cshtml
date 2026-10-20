@@ -10,14 +10,14 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
 @if (Model.Report?.Error is not null)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Could not check for updates: @Model.Report.Error</span></div>
+    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">Could not check for updates: @Model.Report.Error</div></div>
 }
 
 @if (Model.Report is not null && Model.Report.Error is null)
@@ -25,18 +25,18 @@
     var updates = Model.Report.UpdatesAvailable;
     if (Model.Report.Images.Count == 0)
     {
-        <div class="u-mb card">
-            <div class="empty-state"><div><icon name="image" /></div><p>No running images found for this stack.</p></div>
+        <div class="mat-mb-4 mat-card">
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="image" /></div><p>No running images found for this stack.</p></div>
         </div>
     }
     else
     {
-    <div class="alert @(updates > 0 ? "alert--warning" : "alert--success")">
+    <div class="mat-alert @(updates > 0 ? "mat-alert--warning" : "mat-alert--success")">
         <icon name="@(updates > 0 ? "alert" : "check-circle")" />
         <span>@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</span>
     </div>
 
-    <div class="u-flush u-mb card">
+    <div class="mat-p-0 mat-mb-4 mat-card">
         <table class="mat-table">
             <thead>
                 <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
@@ -46,11 +46,11 @@
                 {
                     <tr>
                         <td>@img.Service</td>
-                        <td class="wrap"><span class="mono">@img.Image</span></td>
+                        <td class="mat-text-wrap"><span class="mat-mono">@img.Image</span></td>
                         <td>
                             @if (img.UpdateAvailable)
                             {
-                                <span class="pill pill--offline"><icon name="alert" /> Update</span>
+                                <span class="mat-pill mat-pill--warn"><icon name="alert" /> Update</span>
                             }
                             else if (img.Note is not null)
                             {
@@ -58,11 +58,11 @@
                             }
                             else
                             {
-                                <span class="pill pill--online"><icon name="check-circle" /> Up to date</span>
+                                <span class="mat-pill mat-pill--ok"><icon name="check-circle" /> Up to date</span>
                             }
                         </td>
-                        <td class="mono cell-sub" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
-                        <td class="mono cell-sub" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
+                        <td class="mat-mono cell-sub" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
+                        <td class="mat-mono cell-sub" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
                     </tr>
                 }
             </tbody>
@@ -70,17 +70,17 @@
     </div>
     }
 
-    <div class="u-maxw-sm card">
-        <div class="card__header"><icon name="refresh" /><span>Run update</span></div>
-        <div class="card__body">
-            <p class="u-mb-sm mat-hint">Pulls the new images and redeploys.</p>
+    <div class="u-maxw-sm mat-card">
+        <div class="mat-card__head"><icon name="refresh" /><span>Run update</span></div>
+        <div class="mat-card__body">
+            <p class="mat-mb-3 mat-hint">Pulls the new images and redeploys.</p>
             <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
                 <input type="hidden" asp-for="Id" />
-                <label class="u-mb-sm mat-check">
+                <label class="mat-mb-3 mat-check">
                     <input asp-for="PreBackup" type="checkbox" />
                     <span>Back up the stack's volumes before updating</span>
                 </label>
-                <label class="u-mb-sm mat-check">
+                <label class="mat-mb-3 mat-check">
                     <input asp-for="HealthGate" type="checkbox" />
                     <span>Roll back when the containers are not up and healthy within 90 s</span>
                 </label>

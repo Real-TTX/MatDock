@@ -8,8 +8,8 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
@@ -17,7 +17,7 @@
     <mat-table-body>
     @if (Model.Connections.Count == 0)
     {
-        <div class="empty-state"><div><icon name="route" /></div><p>No reverse proxies yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p>No reverse proxies yet.</p></div>
     }
     else
     {
@@ -31,7 +31,7 @@
                 <tr>
                     <td><a href="/Settings/Proxies/Edit?id=@c.Id"><strong>@c.Name</strong></a></td>
                     <td>@c.Provider</td>
-                    <td class="wrap"><span class="mono">@c.Url</span></td>
+                    <td class="mat-text-wrap"><span class="mat-mono">@c.Url</span></td>
                     <td>@(c.Enabled ? "enabled" : "disabled")</td>
                 </tr>
             }

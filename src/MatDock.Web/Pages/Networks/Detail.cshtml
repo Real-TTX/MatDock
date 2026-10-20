@@ -8,19 +8,19 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
 @if (Model.Error is not null)
 {
-    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.Error</span></div>
+    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 
 @if (Model.Detail is null)
 {
-    <div class="alert alert--warning"><icon name="alert" /><span>Network "@Model.NetworkName" was not found on this host.</span></div>
+    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">Network "@Model.NetworkName" was not found on this host.</div></div>
 }
 else
 {
@@ -29,7 +29,7 @@ else
     @if (isAdmin && !Model.IsPredefined)
     {
         var netInUse = d.Containers.Count > 0;
-        <div class="u-mb mat-btn-row">
+        <div class="mat-mb-4 mat-btn-row">
             <form method="post" asp-page-handler="Remove" data-confirm="Delete network &quot;@d.Name&quot;?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="network" value="@d.Name" />
@@ -41,13 +41,13 @@ else
         </div>
     }
 
-    <div class="u-mb card">
-        <div class="card__header"><icon name="network" /><span>Details</span></div>
+    <div class="mat-mb-4 mat-card">
+        <div class="mat-card__head"><icon name="network" /><span>Details</span></div>
         <div class="mat-table-wrap">
             <table class="mat-table">
                 <tbody>
-                    <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
-                    <tr><th>ID</th><td class="mono">@d.Id</td></tr>
+                    <tr><th style="width:180px;">Name</th><td class="mat-mono">@d.Name</td></tr>
+                    <tr><th>ID</th><td class="mat-mono">@d.Id</td></tr>
                     <tr><th>Driver</th><td>@d.Driver</td></tr>
                     <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
                     <tr><th>Internal</th><td>@(d.Internal ? "yes" : "no")</td></tr>
@@ -55,7 +55,7 @@ else
                     <tr><th>IPv6</th><td>@(d.EnableIPv6 ? "yes" : "no")</td></tr>
                     @if (d.Subnets.Count > 0)
                     {
-                        <tr><th>Subnets</th><td class="mono">@string.Join(", ", d.Subnets)</td></tr>
+                        <tr><th>Subnets</th><td class="mat-mono">@string.Join(", ", d.Subnets)</td></tr>
                     }
                     <tr><th>Created</th><td>@(d.CreatedAt ?? "–")</td></tr>
                 </tbody>
@@ -65,15 +65,15 @@ else
 
     @if (d.Options.Count > 0)
     {
-        <div class="u-mb card">
-            <div class="card__header"><icon name="settings" /><span>Options</span></div>
+        <div class="mat-mb-4 mat-card">
+            <div class="mat-card__head"><icon name="settings" /><span>Options</span></div>
             <div class="mat-table-wrap">
                 <table class="mat-table">
                     <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Options)
                         {
-                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@kv.Value</td></tr>
                         }
                     </tbody>
                 </table>
@@ -83,15 +83,15 @@ else
 
     @if (d.Labels.Count > 0)
     {
-        <div class="u-mb card">
-            <div class="card__header"><icon name="filter" /><span>Labels</span></div>
+        <div class="mat-mb-4 mat-card">
+            <div class="mat-card__head"><icon name="filter" /><span>Labels</span></div>
             <div class="mat-table-wrap">
                 <table class="mat-table">
                     <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Labels)
                         {
-                            <tr><td class="mono">@kv.Key</td><td class="mono">@kv.Value</td></tr>
+                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@kv.Value</td></tr>
                         }
                     </tbody>
                 </table>
@@ -99,11 +99,11 @@ else
         </div>
     }
 
-    <div class="card">
-        <div class="card__header"><icon name="box" /><span>Connected containers</span><span class="mat-badge">@d.Containers.Count</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="box" /><span>Connected containers</span><span class="mat-tag">@d.Containers.Count</span></div>
         @if (d.Containers.Count == 0)
         {
-            <div class="empty-state"><div><icon name="box" /></div><p>No container is connected to this network.</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No container is connected to this network.</p></div>
         }
         else
         {

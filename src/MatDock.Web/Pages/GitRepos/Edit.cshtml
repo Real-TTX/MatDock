@@ -9,13 +9,13 @@
 
 @if (Model.TestMessage is not null)
 {
-    <div class="alert @(Model.TestOk ? "alert--success" : "alert--error")">
-        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><span>@Model.TestMessage</span>
+    <div class="mat-alert @(Model.TestOk ? "mat-alert--success" : "mat-alert--danger")">
+        <icon name="@(Model.TestOk ? "check-circle" : "x-circle")" /><div class="mat-alert__body">@Model.TestMessage</div>
     </div>
 }
 
-<div class="u-maxw card">
-    <div class="card__body">
+<div class="u-maxw mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
@@ -24,7 +24,7 @@
                 <input asp-for="Input.Name" class="mat-input" placeholder="e.g. prod apps repo" />
             </mat-field>
 
-            <div class="form-grid">
+            <div class="mat-form__grid">
                 <mat-field label="Repository URL" asp-for="Input.Url">
                     <input asp-for="Input.Url" class="mat-input" placeholder="https://github.com/org/repo.git" />
                 </mat-field>
@@ -44,7 +44,7 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary" formnovalidate><icon name="plug" /><span>Test connection</span></button>
                 <a href="/GitRepos" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit)
                 {

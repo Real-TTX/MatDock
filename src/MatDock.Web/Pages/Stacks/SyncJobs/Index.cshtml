@@ -6,8 +6,8 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
@@ -15,7 +15,7 @@
     <mat-table-body>
         @if (Model.Jobs.Count == 0)
         {
-            <div class="empty-state">
+            <div class="mat-empty">
                 <div><icon name="refresh" /></div>
                 <p>No sync jobs yet.</p>
             </div>
@@ -30,22 +30,22 @@
                         <th>Triggers</th>
                         <th>Composes</th>
                         <th>Last run</th>
-                        <th class="actions">Actions</th>
+                        <th class="mat-table__cell-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var job in Model.Jobs)
                     {
                         <tr>
-                            <td class="wrap">
+                            <td class="mat-text-wrap">
                                 <a href="/Stacks/SyncJobs/Edit?id=@job.Id"><strong>@job.Name</strong></a>
                                 @if (!job.ScheduleEnabled && !job.WebhookEnabled)
                                 {
                                     <span class="tag-system" title="Only manual 'Sync now'">manual only</span>
                                 }
                             </td>
-                            <td class="wrap">
-                                <span class="mono">@job.GitRepoUrl</span>
+                            <td class="mat-text-wrap">
+                                <span class="mat-mono">@job.GitRepoUrl</span>
                                 @if (!string.IsNullOrEmpty(job.GitReference))
                                 {
                                     <div class="cell-sub">@job.GitReference</div>
@@ -54,7 +54,7 @@
                             <td>
                                 @if (job.ScheduleEnabled && !string.IsNullOrEmpty(job.Cron))
                                 {
-                                    <span class="mono" title="Scheduled">@job.Cron</span>
+                                    <span class="mat-mono" title="Scheduled">@job.Cron</span>
                                 }
                                 @if (job.WebhookEnabled)
                                 {
@@ -62,10 +62,10 @@
                                 }
                                 @if (!job.ScheduleEnabled && !job.WebhookEnabled)
                                 {
-                                    <span class="text-muted">manual</span>
+                                    <span class="mat-muted">manual</span>
                                 }
                             </td>
-                            <td><span class="mat-badge">@(Model.Counts.TryGetValue(job.Id, out var c) ? c : 0)</span></td>
+                            <td><span class="mat-tag">@(Model.Counts.TryGetValue(job.Id, out var c) ? c : 0)</span></td>
                             <td class="cell-sub">
                                 @(job.LastRunAt?.ToString("yyyy-MM-dd HH:mm") ?? "–")
                                 @if (!string.IsNullOrEmpty(job.LastStatus))
@@ -73,11 +73,11 @@
                                     <div class="cell-sub">@job.LastStatus</div>
                                 }
                             </td>
-                            <td class="actions">
-                                <div class="row-actions">
-                                    <form method="post" asp-page-handler="Run" class="u-inline" data-confirm="Run sync '@job.Name' now?">
+                            <td class="mat-table__cell-actions">
+                                <div class="mat-table__actions">
+                                    <form method="post" asp-page-handler="Run" class="mat-d-inline" data-confirm="Run sync '@job.Name' now?">
                                         <input type="hidden" name="id" value="@job.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--sm" title="Sync now"><icon name="refresh" /></button>
+                                        <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Sync now"><icon name="refresh" /></button>
                                     </form>
                                 </div>
                             </td>

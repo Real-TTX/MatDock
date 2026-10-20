@@ -8,8 +8,8 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><span>@Model.StatusMessage</span>
+    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
+        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
     </div>
 }
 
@@ -17,7 +17,7 @@
     <mat-table-body>
     @if (Model.Repos.Count == 0)
     {
-        <div class="empty-state"><div><icon name="git" /></div><p>No git repositories yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="git" /></div><p>No git repositories yet.</p></div>
     }
     else
     {
@@ -30,9 +30,9 @@
             {
                 <tr>
                     <td><a href="/GitRepos/Edit?id=@r.Id"><strong>@r.Name</strong></a></td>
-                    <td class="wrap"><span class="mono">@r.Url</span></td>
-                    <td class="text-muted">@(string.IsNullOrEmpty(r.Reference) ? "default" : r.Reference)</td>
-                    <td class="text-muted">@(r.GitCredentialId is > 0 && Model.CredentialNames.TryGetValue(r.GitCredentialId.Value, out var n) ? n : "public")</td>
+                    <td class="mat-text-wrap"><span class="mat-mono">@r.Url</span></td>
+                    <td class="mat-muted">@(string.IsNullOrEmpty(r.Reference) ? "default" : r.Reference)</td>
+                    <td class="mat-muted">@(r.GitCredentialId is > 0 && Model.CredentialNames.TryGetValue(r.GitCredentialId.Value, out var n) ? n : "public")</td>
                 </tr>
             }
         </tbody>

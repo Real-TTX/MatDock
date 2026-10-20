@@ -7,32 +7,32 @@
 
 @if (Model.TestResult is not null)
 {
-    <div class="alert @(Model.TestResult.Success ? "alert--success" : "alert--error")">
+    <div class="mat-alert @(Model.TestResult.Success ? "mat-alert--success" : "mat-alert--danger")">
         <icon name="@(Model.TestResult.Success ? "check-circle" : "x-circle")" />
         <span>@Model.TestResult.Message</span>
     </div>
 }
 
-<div class="u-maxw card">
-    <div class="card__body">
+<div class="u-maxw mat-card">
+    <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
             <partial name="_ValidationSummary" />
 
-            <div class="form-grid">
-                <mat-field label="Name" asp-for="Input.Name" class="span-2">
+            <div class="mat-form__grid">
+                <mat-field label="Name" asp-for="Input.Name" class="mat-field--full">
                     <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Production" />
                 </mat-field>
 
-                <mat-field label="Description" asp-for="Input.Description" class="span-2">
+                <mat-field label="Description" asp-for="Input.Description" class="mat-field--full">
                     <input asp-for="Input.Description" class="mat-input" placeholder="Optional" />
                 </mat-field>
 
-                <mat-field label="Base URL" asp-for="Input.BaseUrl" class="span-2" hint="Optional. Used for 'Open' links; a container can override it with the label matdock.openurl.">
+                <mat-field label="Base URL" asp-for="Input.BaseUrl" class="mat-field--full" hint="Optional. Used for 'Open' links; a container can override it with the label matdock.openurl.">
                     <input asp-for="Input.BaseUrl" class="mat-input" placeholder="https://host.example.com" />
                 </mat-field>
 
-                <mat-field label="Connection type" asp-for="Input.ConnectionType" class="span-2">
+                <mat-field label="Connection type" asp-for="Input.ConnectionType" class="mat-field--full">
                     <select asp-for="Input.ConnectionType" id="ConnectionType" class="mat-select">
                         <option value="Ssh">SSH (remote host)</option>
                         <option value="Local">Local (Docker socket)</option>
@@ -42,13 +42,13 @@
             </div>
 
             <div data-show-when="ConnectionType=Local">
-                <div class="alert alert--info">
-                    <icon name="server" /><span>Requires <code>-v /var/run/docker.sock:/var/run/docker.sock</code>.</span>
+                <div class="mat-alert mat-alert--info">
+                    <icon name="server" /><div class="mat-alert__body">Requires <code>-v /var/run/docker.sock:/var/run/docker.sock</code>.</div>
                 </div>
             </div>
 
             <div data-show-when="ConnectionType=Ssh,Tcp">
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="Host" asp-for="Input.Host">
                         <input asp-for="Input.Host" class="mat-input" placeholder="host.example.com or 10.0.0.5" />
                     </mat-field>
@@ -60,20 +60,20 @@
             </div>
 
             <div data-show-when="ConnectionType=Tcp">
-                <div class="alert alert--warning"><icon name="alert" /><span>Without TLS anyone who reaches the port controls Docker on that host. Use the certificates of the daemon (<code>--tlsverify</code>).</span></div>
+                <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">Without TLS anyone who reaches the port controls Docker on that host. Use the certificates of the daemon (<code>--tlsverify</code>).</div></div>
                 <mat-field label="CA certificate (ca.pem)" asp-for="Input.TlsCa">
-                    <textarea asp-for="Input.TlsCa" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                    <textarea asp-for="Input.TlsCa" class="mat-textarea mat-mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
                 </mat-field>
                 <mat-field label="Client certificate (cert.pem)" asp-for="Input.TlsCert">
-                    <textarea asp-for="Input.TlsCert" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                    <textarea asp-for="Input.TlsCert" class="mat-textarea mat-mono" rows="4" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
                 </mat-field>
                 <mat-field label="Client key (key.pem)" asp-for="Input.TlsKey" hint="@(Model.IsEdit ? "Leave empty to keep the stored key." : null)">
-                    <textarea asp-for="Input.TlsKey" class="mat-textarea mono" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                    <textarea asp-for="Input.TlsKey" class="mat-textarea mat-mono" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
                 </mat-field>
             </div>
 
             <div data-show-when="ConnectionType=Ssh">
-                <div class="form-grid">
+                <div class="mat-form__grid">
                     <mat-field label="SSH user" asp-for="Input.Username">
                         <input asp-for="Input.Username" class="mat-input" autocomplete="off" placeholder="e.g. root" />
                     </mat-field>
@@ -99,7 +99,7 @@
             <div data-show-when="AuthType=PrivateKey">
                 @if (!string.IsNullOrEmpty(Model.GeneratedPublicKey))
                 {
-                    <div class="alert--stack alert alert--success">
+                    <div class="alert--stack mat-alert mat-alert--success">
                         <div><icon name="key" /> <strong>Install the public key on the host:</strong> run once on <code>@Model.Input.Host</code> as <code>@Model.Input.Username</code> (then <em>Save</em> below):</div>
                         <textarea class="mat-textarea" rows="2" readonly data-select-on-click>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
                     </div>
@@ -111,7 +111,7 @@
                     <input asp-for="Input.PrivateKeyPassphrase" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
                 <mat-form-buttons>
-                    <button type="submit" asp-page-handler="GenerateKey" class="mat-btn" formnovalidate><icon name="key" /><span>Generate key pair</span></button>
+                    <button type="submit" asp-page-handler="GenerateKey" class="mat-btn mat-btn--secondary" formnovalidate><icon name="key" /><span>Generate key pair</span></button>
                 </mat-form-buttons>
                 <p class="mat-hint">MatDock generates the pair; you install the public key on the host.</p>
             </div>
@@ -120,10 +120,10 @@
             {
                 <mat-field label="Host key" hint="Saved at the first connection; a server that shows another key is refused.">
                     <div class="mat-btn-row">
-                        <code class="mono">@(Model.HostKeyFingerprint ?? "not saved yet")</code>
+                        <code class="mat-mono">@(Model.HostKeyFingerprint ?? "not saved yet")</code>
                         @if (Model.HostKeyFingerprint is not null)
                         {
-                            <button type="submit" form="forget-key-form" class="mat-btn mat-btn--sm" data-confirm="Forget the saved host key? Only do this when the server was reinstalled."><icon name="key" /><span>Forget</span></button>
+                            <button type="submit" form="forget-key-form" class="mat-btn mat-btn--secondary mat-btn--sm" data-confirm="Forget the saved host key? Only do this when the server was reinstalled."><icon name="key" /><span>Forget</span></button>
                         }
                     </div>
                 </mat-field>
@@ -132,10 +132,10 @@
 
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
-                <button type="submit" asp-page-handler="Test" class="mat-btn" formnovalidate><icon name="plug" /><span>Test connection</span></button>
+                <button type="submit" asp-page-handler="Test" class="mat-btn mat-btn--secondary" formnovalidate><icon name="plug" /><span>Test connection</span></button>
                 @if (Model.IsEdit)
                 {
-                    <button type="submit" form="toggle-form" class="mat-btn">
+                    <button type="submit" form="toggle-form" class="mat-btn mat-btn--secondary">
                         <icon name="@(Model.IsEnabled ? "lock" : "check-circle")" /><span>@(Model.IsEnabled ? "Disable" : "Enable")</span>
                     </button>
                 }
