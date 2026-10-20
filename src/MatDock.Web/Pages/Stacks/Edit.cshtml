@@ -19,16 +19,21 @@
 }
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div class="mat-alert mat-alert--success" role="status"><icon name="check-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
 }
 @if (!string.IsNullOrEmpty(Model.DeployOutput))
 {
-    <pre class="output-pre">@Model.DeployOutput</pre>
+    <pre class="mat-code md-output">@Model.DeployOutput</pre>
 }
 
-<div class="u-maxw-xl mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -72,19 +77,19 @@
                 }
                 else
                 {
-                    <div class="search" style="margin-bottom:8px;">
+                    <div class="mat-input-icon">
                         <icon name="search" />
-                        <input type="search" id="app-search" class="mat-input" placeholder="Search apps…" autocomplete="off" />
+                        <input type="search" id="app-search" class="mat-input" placeholder="Search apps…" aria-label="Search the apps" autocomplete="off" />
                     </div>
-                    <div id="app-list" class="app-picker">
+                    <div id="app-list" class="md-app-picker">
                         @foreach (var a in Model.Apps)
                         {
-                            <button type="button" class="app-pick" title="@a.Description"
+                            <button type="button" class="md-app-pick" title="@a.Description"
                                     data-slug="@MatDock.Core.Stacks.StackCommands.Slugify(a.Name)"
                                     data-compose="@a.ComposeYaml"
                                     data-search="@($"{a.Name} {a.Category}".ToLowerInvariant())">
                                 <icon name="template" />
-                                <span class="app-pick__name">@a.Name</span>
+                                <span class="md-app-pick__name">@a.Name</span>
                                 @if (!string.IsNullOrEmpty(a.Category))
                                 {
                                     <span class="mat-tag">@a.Category</span>
@@ -95,12 +100,12 @@
                 }
             </div>
 
-            <div class="compose-grid" data-show-if="#Source" data-show-value="inline">
+            <div class="md-compose" data-show-if="#Source" data-show-value="inline">
                 <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml">
-                    <textarea asp-for="Input.ComposeYaml" class="mat-textarea code-editor" data-code="yaml" rows="18" spellcheck="false" wrap="off" placeholder="services:&#10;  app:&#10;    image: nginx:alpine&#10;    environment:&#10;      - TZ=${TZ}"></textarea>
+                    <textarea asp-for="Input.ComposeYaml" class="mat-textarea" data-code="yaml" rows="18" spellcheck="false" wrap="off" placeholder="services:&#10;  app:&#10;    image: nginx:alpine&#10;    environment:&#10;      - TZ=${TZ}"></textarea>
                 </mat-field>
                 <mat-field label="Environment variables (.env)" asp-for="Input.EnvContent" hint="One KEY=value per line, used for ${VAR} substitution in the compose file.">
-                    <textarea asp-for="Input.EnvContent" class="mat-textarea code-editor" data-code="env" rows="6" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin&#10;PUID=1000"></textarea>
+                    <textarea asp-for="Input.EnvContent" class="mat-textarea" data-code="env" rows="6" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin&#10;PUID=1000"></textarea>
                 </mat-field>
             </div>
 
@@ -108,8 +113,8 @@
                 <div class="mat-form__grid">
                     @if (Model.SavedRepos.Count > 0)
                     {
-                        <mat-field label="Use a saved repository (optional)" class="mat-field--full" hint="Prefills the URL, branch and credentials below.">
-                            <select id="stack-repo-picker" class="mat-select">
+                        <mat-field label="Use a saved repository (optional)" for-id="stack-repo-picker" full="true" hint="Prefills the URL, branch and credentials below.">
+                            <select id="stack-repo-picker" class="mat-select" data-repo-picker>
                                 <option value="">— manual entry —</option>
                                 @foreach (var r in Model.SavedRepos)
                                 {
@@ -118,7 +123,7 @@
                             </select>
                         </mat-field>
                     }
-                    <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" class="mat-field--full">
+                    <mat-field label="Repository URL" asp-for="Input.GitRepoUrl" full="true">
                         <input asp-for="Input.GitRepoUrl" class="mat-input" placeholder="https://github.com/user/repo.git" />
                     </mat-field>
 
@@ -130,7 +135,7 @@
                         <input asp-for="Input.GitComposePath" class="mat-input" placeholder="docker-compose.yml" />
                     </mat-field>
 
-                    <mat-field label="Git credentials" asp-for="Input.GitCredentialId" class="mat-field--full" hint="Only for private repositories.">
+                    <mat-field label="Git credentials" asp-for="Input.GitCredentialId" full="true" hint="Only for private repositories.">
                         <select asp-for="Input.GitCredentialId" class="mat-select">
                             <option value="">– public / no access –</option>
                             @foreach (var cred in Model.GitCredentials)
@@ -162,49 +167,5 @@
 </div>
 
 @section Scripts {
-    <script>
-        (function () {
-            var picker = document.getElementById('stack-repo-picker');
-            if (picker) {
-                picker.addEventListener('change', function () {
-                    var opt = picker.selectedOptions[0];
-                    if (!opt || !opt.value) { return; }
-                    var url = document.querySelector('[name="Input.GitRepoUrl"]');
-                    var ref = document.querySelector('[name="Input.GitReference"]');
-                    var cred = document.querySelector('[name="Input.GitCredentialId"]');
-                    if (url) { url.value = opt.getAttribute('data-url') || ''; }
-                    if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
-                    if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
-                });
-            }
-
-            // App Store picker: filter apps and, on pick, prefill name + compose, then jump to the editor.
-            var appList = document.getElementById('app-list');
-            if (appList) {
-                var picks = Array.prototype.slice.call(appList.querySelectorAll('.app-pick'));
-                var appSearch = document.getElementById('app-search');
-                if (appSearch) {
-                    appSearch.addEventListener('input', function () {
-                        var q = appSearch.value.trim().toLowerCase();
-                        picks.forEach(function (b) {
-                            b.style.display = (q === '' || (b.getAttribute('data-search') || '').indexOf(q) !== -1) ? '' : 'none';
-                        });
-                    });
-                }
-                picks.forEach(function (b) {
-                    b.addEventListener('click', function () {
-                        var nameEl = document.querySelector('[name="Input.Name"]');
-                        var composeEl = document.querySelector('[name="Input.ComposeYaml"]');
-                        if (nameEl && !nameEl.readOnly && !nameEl.value) { nameEl.value = b.getAttribute('data-slug') || ''; }
-                        if (composeEl) {
-                            composeEl.value = b.getAttribute('data-compose') || '';
-                            composeEl.dispatchEvent(new Event('input', { bubbles: true })); // refresh the highlighter
-                        }
-                        var src = document.getElementById('Source');
-                        if (src) { src.value = 'inline'; src.dispatchEvent(new Event('change', { bubbles: true })); }
-                    });
-                });
-            }
-        })();
-    </script>
+    <script src="~/js/stack-forms.js" asp-append-version="true"></script>
 }

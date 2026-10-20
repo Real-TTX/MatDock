@@ -148,7 +148,7 @@
                                 <td data-label="CPU" class="mat-num">
                                     @if (c.CpuPercent is not null)
                                     {
-                                        <div class="md-usage">
+                                        <div class="md-usage-cell">
                                             <span>@($"{c.CpuPercent:0.0}")%</span>
                                             <div class="mat-meter mat-meter--sm"><div class="mat-meter__fill" data-value="@EnvironmentView.Percent(c.CpuPercent)"></div></div>
                                         </div>
@@ -158,7 +158,7 @@
                                 <td data-label="RAM" class="mat-num" title="@c.MemUsage">
                                     @if (c.MemPercent is not null)
                                     {
-                                        <div class="md-usage">
+                                        <div class="md-usage-cell">
                                             <span>@($"{c.MemPercent:0.0}")%</span>
                                             <div class="mat-meter mat-meter--sm"><div class="mat-meter__fill" data-value="@EnvironmentView.Percent(c.MemPercent)"></div></div>
                                         </div>

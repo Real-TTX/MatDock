@@ -593,7 +593,7 @@ a.stat:hover { text-decoration: none; }
 .md-spark__mem { stroke: var(--mat-success); }
 
 /* Usage in a table cell: value with a small meter below; RAM/CPU/disk rows of the environments list. */
-.md-usage { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--mat-space-1); min-width: 5em; }
+.md-usage-cell { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--mat-space-1); min-width: 5em; }
 .md-res { display: flex; flex-direction: column; gap: var(--mat-space-1); min-width: 9rem; }
 .md-res__row { display: grid; grid-template-columns: 2.5em minmax(0, 1fr) 3em; align-items: center; gap: var(--mat-space-2); font-size: var(--mat-fs-xs); }
 
@@ -684,3 +684,111 @@ a.stat:hover { text-decoration: none; }
 .md-toolbar-form { flex: 1 1 auto; min-width: 0; }
 /* A settings page of forms under the full-width tabs of the System area keeps the width of a narrow page. */
 .md-narrow { width: 100%; max-width: 48rem; }
+/* ---- Area B: stacks, containers, logs, terminal ---- */
+/* RAM / CPU of a container or a stack: label, meter, value (UsageTagHelper). */
+.md-usage { display: flex; flex-direction: column; gap: var(--mat-space-1); min-width: 8rem; }
+.md-usage__row { display: grid; grid-template-columns: 2.2rem minmax(3rem, 1fr) 3rem; align-items: center; gap: var(--mat-space-2); font-size: var(--mat-fs-xs); }
+.md-usage__k { color: var(--mat-text-muted); }
+.md-usage__v { text-align: right; font-variant-numeric: tabular-nums; }
+.md-usage--lg { gap: var(--mat-space-2); }
+.md-usage--lg .md-usage__row { grid-template-columns: 2.5rem minmax(3rem, 1fr) auto; font-size: var(--mat-fs-sm); }
+.md-usage--lg .md-usage__v { min-width: 5.5rem; }
+
+/* Port tags: published ones link to the app. */
+.md-ports { display: flex; flex-wrap: wrap; gap: var(--mat-space-1); }
+a.md-port-link { background: var(--mat-accent-soft); color: var(--mat-accent-text); text-decoration: none; }
+a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
+
+/* Container tiles (Containers, view Tiles). */
+.md-tiles { grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+.md-tile { --mat-card-pad: var(--mat-space-4); --mat-card-head-pad-y: var(--mat-space-3); display: flex; flex-direction: column; }
+.md-tile > .mat-card__head { align-items: flex-start; }
+.md-tile__title { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.md-tile__title > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-tile > .mat-card__body { flex: 1 1 auto; }
+.md-tile__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-2); }
+.md-tile__foot > .mat-table__actions { margin-left: auto; flex-wrap: wrap; }
+
+/* Stack cards (Stacks, view Tiles): a card that opens to its containers. */
+.md-stacks { grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); align-items: start; }
+.md-stack { --mat-card-pad: var(--mat-space-4); }
+.md-stack__head { cursor: pointer; list-style: none; }
+.md-stack__head::-webkit-details-marker { display: none; }
+.md-stack:not([open]) > .md-stack__head { border-bottom: 0; }
+.md-stack > .md-stack__head > .md-stack__chev { color: var(--mat-text-muted); transition: transform var(--mat-dur) var(--mat-ease); }
+.md-stack[open] > .md-stack__head > .md-stack__chev { transform: rotate(90deg); }
+.md-stack__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.md-stack__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-2); }
+.md-stack__title .mat-card__sub { display: inline-flex; align-items: center; gap: var(--mat-space-1); }
+.md-stack > .mat-card__foot { flex-wrap: wrap; gap: var(--mat-space-2); }
+
+/* The containers of a stack as small tiles (in a stack card and in the opened row of the list). */
+.md-ctiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); gap: var(--mat-space-3); }
+.md-ctile { display: flex; flex-direction: column; gap: var(--mat-space-1); min-width: 0; padding: var(--mat-space-3); background: var(--mat-surface-2); border: 1px solid var(--mat-border); border-radius: var(--mat-radius); }
+.md-ctile__top { display: flex; align-items: center; justify-content: space-between; gap: var(--mat-space-2); min-width: 0; }
+.md-ctile__name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-ctile__meta { font-size: var(--mat-fs-xs); color: var(--mat-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-ctile__actions { justify-content: flex-start; flex-wrap: wrap; margin-top: var(--mat-space-1); }
+
+/* Stacks list: the button that opens a row to its containers, and that row. */
+.md-row-toggle .mat-icon { transition: transform var(--mat-dur) var(--mat-ease); }
+.md-row-toggle[aria-expanded="true"] .mat-icon { transform: rotate(90deg); }
+.mat-table tr.md-stack-detail > td { background: var(--mat-surface-2); }
+
+/* The output of compose (deploy, check). */
+.md-output { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Code editor (matdock.js): a transparent textarea over a highlighted copy of its text; both share font and padding. */
+.md-code { position: relative; border: 1px solid var(--mat-border-strong); border-radius: var(--mat-radius); background: var(--mat-surface); overflow: hidden; }
+.md-code:focus-within { border-color: var(--mat-accent); box-shadow: var(--mat-focus-ring); }
+.md-code > .md-code__hl, .md-code > textarea {
+    margin: 0; padding: var(--mat-space-3); border: 0; border-radius: 0;
+    font-family: var(--mat-mono); font-size: var(--mat-fs-sm); line-height: 1.55; letter-spacing: normal;
+    tab-size: 2; white-space: pre; box-sizing: border-box;
+}
+.md-code > .md-code__hl { position: absolute; inset: 0; overflow: hidden; background: transparent; color: var(--mat-text); pointer-events: none; }
+.md-code > .md-code__hl code { font: inherit; padding: 0; background: none; white-space: pre; display: block; }
+.md-code > textarea { position: relative; z-index: 1; display: block; width: 100%; min-height: 6rem; resize: vertical; overflow: auto; background: transparent; color: transparent; caret-color: var(--mat-text); box-shadow: none; }
+.md-code > textarea:focus { outline: none; box-shadow: none; }
+.md-code > textarea::placeholder { color: var(--mat-text-faint); }
+
+/* Stack editor: compose and .env side by side on wide screens. */
+@media (min-width: 1280px) {
+    .md-compose:not([hidden]) { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--mat-space-4); align-items: start; }
+    .md-compose textarea[data-code="yaml"] { min-height: 26rem; }
+}
+
+/* App Store picker in the stack editor. */
+.md-app-picker { display: flex; flex-direction: column; gap: var(--mat-space-2); max-height: 21rem; overflow: auto; }
+.md-app-pick { display: flex; align-items: center; gap: var(--mat-space-3); width: 100%; padding: var(--mat-space-2) var(--mat-space-3); text-align: left; font: inherit; color: var(--mat-text); background: var(--mat-surface); border: 1px solid var(--mat-border); border-radius: var(--mat-radius); cursor: pointer; }
+.md-app-pick:hover { border-color: var(--mat-accent); background: var(--mat-surface-2); }
+.md-app-pick__name { font-weight: 650; }
+.md-app-pick > .mat-tag { margin-left: auto; }
+
+/* Live log viewer. */
+.md-log .mat-btn.is-active { background: var(--mat-accent-soft-strong); border-color: var(--mat-accent); color: var(--mat-accent-text); }
+.md-log__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mat-text-faint); }
+.md-log__live.is-live .md-log__dot { background: var(--mat-success); animation: md-pulse 1.6s infinite; }
+@keyframes md-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mat-success) 55%, transparent); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.md-log__search { flex: 0 1 12rem; min-width: 8rem; }
+.md-log__matches { min-width: 3.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+.md-log__status { font-size: var(--mat-fs-xs); color: var(--mat-text-muted); }
+.md-log__status.is-live { color: var(--mat-success-text); }
+.md-log__status.is-error { color: var(--mat-danger-text); }
+.md-log__pane { min-height: 16rem; max-height: 70vh; overflow: auto; padding: var(--mat-space-3) var(--mat-space-4); background: var(--mat-surface); border: 1px solid var(--mat-border); border-radius: var(--mat-radius-lg); box-shadow: var(--mat-shadow-1); }
+.md-log__lines { font-family: var(--mat-mono); font-size: var(--mat-fs-xs); line-height: 1.5; }
+.md-log__line { white-space: pre; }
+.md-log__pane.is-wrap .md-log__line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.md-log__line mark { background: color-mix(in srgb, var(--mat-warning) 45%, transparent); color: inherit; border-radius: 2px; }
+.md-log__line mark.is-current { background: var(--mat-warning); outline: 1px solid var(--mat-warning); }
+@media (prefers-reduced-motion: reduce) { .md-log__live.is-live .md-log__dot { animation: none; } }
+
+/* Terminal: a dark screen in both themes; terminal.js gives xterm the colours of this frame. */
+.md-terminal { padding: var(--mat-space-3); border-radius: var(--mat-radius-lg); background: light-dark(var(--mat-text), var(--mat-bg)); color: light-dark(var(--mat-surface), var(--mat-text)); }
+.md-terminal__screen { width: 100%; height: calc(100dvh - 16rem); min-height: 20rem; }
+
+/* Rows of actions whose forms only carry one button: the buttons take part in the order of the row (primary first, danger last). */
+.md-actions > form { display: contents; }
+.md-actions > form > .mat-btn { order: 1; }
+.md-actions > form > .mat-btn--primary { order: 0; }
+.md-actions > form > .mat-btn--danger { order: 3; }

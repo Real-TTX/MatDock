@@ -2,22 +2,22 @@
 @model MatDock.Web.Pages.Terminal.IndexModel
 @{
     ViewData["Title"] = Model.Title;
+    ViewData["Width"] = "wide";
     var backHref = Model.Container is null ? "/Environments" : $"/Containers?EnvId={Model.EnvId}";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { (Model.Container is null ? "Environments" : "Containers", backHref) };
 }
 
 <link rel="stylesheet" href="~/lib/xterm/xterm.css" />
 
-<div class="mat-card" style="padding:10px;background:#0b0f14;border-color:#0b0f14;">
-    <div id="terminal"
+<div class="md-terminal">
+    <div id="terminal" class="md-terminal__screen"
          data-env-id="@Model.EnvId"
-         data-container="@(Model.Container ?? string.Empty)"
-         style="height:calc(100vh - 220px);min-height:320px;width:100%;"></div>
+         data-container="@(Model.Container ?? string.Empty)"></div>
 </div>
-<p class="mat-mt-2 mat-hint">Interactive shell over SSH. Type <code>exit</code> or leave the page to end it.</p>
+<p class="mat-hint">Interactive shell over SSH. Type <code>exit</code> or leave the page to end it.</p>
 
 @section Scripts {
     <script src="~/lib/xterm/xterm.js"></script>
     <script src="~/lib/xterm/xterm-addon-fit.js"></script>
-    <script src="~/js/terminal.js"></script>
+    <script src="~/js/terminal.js" asp-append-version="true"></script>
 }

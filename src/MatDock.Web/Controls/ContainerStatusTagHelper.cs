@@ -5,7 +5,7 @@ namespace MatDock.Web.Controls;
 
 /// <summary>
 /// Renders a short container status pill ("Up", "Down", "Error", …) from the Docker state, with the full
-/// status text (e.g. "Up 13 days (healthy)") as the hover title.
+/// status text (e.g. "Up 13 days (healthy)") as the hover title. The MatUi pill draws its dot in the colour of the state.
 /// <code>&lt;container-status state="@c.State" status="@c.Status" /&gt;</code>
 /// </summary>
 [HtmlTargetElement("container-status")]
@@ -16,7 +16,7 @@ public sealed partial class ContainerStatusTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        var (label, cls, icon) = Map(State, Status);
+        var (label, cls) = Map(State, Status);
 
         output.TagName = "span";
         output.TagMode = TagMode.StartTagAndEndTag;
@@ -26,31 +26,28 @@ public sealed partial class ContainerStatusTagHelper : TagHelper
             output.Attributes.SetAttribute("title", Status);
         }
 
-        var labelHtml = System.Net.WebUtility.HtmlEncode(label);
-        output.Content.SetHtmlContent(string.IsNullOrEmpty(icon) ? labelHtml : $"{IconSvg(icon)} {labelHtml}");
+        output.Content.SetContent(label);
     }
 
-    // Same status vocabulary as the Stacks list badge: play = running, pause = stopped/down, alert = problem.
-    private static (string Label, string Cls, string Icon) Map(string? state, string? status)
+    // Same status vocabulary as the Stacks list: ok = running, warn = needs a look, error = failed, plain = stopped.
+    private static (string Label, string Cls) Map(string? state, string? status)
     {
         var s = (state ?? string.Empty).ToLowerInvariant();
         return s switch
         {
             "running" => Contains(status, "unhealthy")
-                ? ("Unhealthy", "mat-pill--warn", "alert")
-                : ("Up", "mat-pill--ok", "play"),
-            "restarting" => ("Restarting", "mat-pill--warn", "alert"),
-            "paused" => ("Paused", "mat-pill--warn", "pause"),
-            "created" => ("Created", "mat-pill--plain", "pause"),
-            "removing" => ("Removing", "mat-pill--warn", "alert"),
-            "dead" => ("Dead", "mat-pill--error", "alert"),
-            "exited" => ExitCode(status) == 0 ? ("Down", "mat-pill--plain", "pause") : ("Error", "mat-pill--error", "alert"),
-            "" => ("?", "mat-pill--plain", ""),
-            _ => (char.ToUpperInvariant(s[0]) + s[1..], "mat-pill--plain", ""),
+                ? ("Unhealthy", "mat-pill--warn")
+                : ("Up", "mat-pill--ok"),
+            "restarting" => ("Restarting", "mat-pill--warn"),
+            "paused" => ("Paused", "mat-pill--warn"),
+            "created" => ("Created", "mat-pill--plain"),
+            "removing" => ("Removing", "mat-pill--warn"),
+            "dead" => ("Dead", "mat-pill--error"),
+            "exited" => ExitCode(status) == 0 ? ("Down", "mat-pill--plain") : ("Error", "mat-pill--error"),
+            "" => ("?", "mat-pill--plain"),
+            _ => (char.ToUpperInvariant(s[0]) + s[1..], "mat-pill--plain"),
         };
     }
-
-    private static string IconSvg(string name) => MatDock.Web.Support.Ui.Icon(name).ToString() ?? string.Empty;
 
     private static bool Contains(string? text, string token)
         => text is not null && text.Contains(token, StringComparison.OrdinalIgnoreCase);

@@ -3,24 +3,25 @@
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit sync job" : "New sync job";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Sync jobs", "/Stacks/SyncJobs") };
+    ViewData["Width"] = "narrow";
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="u-maxw-lg mat-alert mat-alert--success"><icon name="check-circle" /><span>@Model.StatusMessage</span></div>
+    <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
 }
 
-<form method="post" class="u-maxw-lg mat-form">
+<form method="post" class="mat-form">
     <input type="hidden" asp-for="Input.Id" />
     <partial name="_ValidationSummary" />
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="git" /><span>Repository</span></div>
-        <div class="mat-card__body">
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="git" /><h2 class="mat-card__title">Repository</h2></div>
+        <div class="mat-card__body mat-form">
             @if (Model.SavedRepos.Count > 0)
             {
-                <mat-field label="Saved repository (optional)">
-                    <select id="repo-picker" class="mat-select">
+                <mat-field label="Saved repository (optional)" for-id="repo-picker">
+                    <select id="repo-picker" class="mat-select" data-repo-picker>
                         <option value="">— manual entry —</option>
                         @foreach (var r in Model.SavedRepos)
                         {
@@ -52,7 +53,7 @@
                     </select>
                 </mat-field>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div class="mat-row">
                 <button type="submit" asp-page-handler="Scan" class="mat-btn mat-btn--secondary" formnovalidate>
                     <icon name="refresh" /><span>Scan repository</span>
                 </button>
@@ -68,14 +69,14 @@
         </div>
     </div>
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="clock" /><span>Triggers</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="clock" /><h2 class="mat-card__title">Triggers</h2></div>
         <div class="mat-card__body">
-            <div class="mat-switches">
+            <div class="mat-stack">
                 <label class="mat-switch">
                     <input asp-for="Input.ScheduleEnabled" type="checkbox" />
                     <span class="mat-switch__track"></span>
-                    <span class="">Scheduled</span>
+                    <span>Scheduled</span>
                 </label>
                 <div class="mat-stack" data-show-if="#Input_ScheduleEnabled" data-show-value="true">
                     <mat-field label="Cron (UTC)" asp-for="Input.Cron">
@@ -85,12 +86,12 @@
                 <label class="mat-switch">
                     <input asp-for="Input.WebhookEnabled" type="checkbox" />
                     <span class="mat-switch__track"></span>
-                    <span class="">Webhook</span>
+                    <span>Webhook</span>
                 </label>
             </div>
             @if (Model.IsEdit)
             {
-                <div style="margin-top:6px;">
+                <div class="mat-mt-4">
                     <button type="submit" asp-page-handler="RunNow" name="id" value="@Model.Input.Id" class="mat-btn mat-btn--secondary" formnovalidate>
                         <icon name="refresh" /><span>Sync now</span>
                     </button>
@@ -99,36 +100,36 @@
         </div>
     </div>
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="settings" /><span>Deploy behavior</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="settings" /><h2 class="mat-card__title">Deploy behavior</h2></div>
         <div class="mat-card__body">
-            <div class="mat-switches">
+            <div class="mat-stack">
                 <label class="mat-switch">
                     <input asp-for="Input.OnlyOnChange" type="checkbox" />
                     <span class="mat-switch__track"></span>
-                    <span class="">Only deploy on change</span>
+                    <span>Only deploy on change</span>
                 </label>
                 <label class="mat-switch">
                     <input asp-for="Input.PullImages" type="checkbox" />
                     <span class="mat-switch__track"></span>
-                    <span class="">Pull images before deploy</span>
+                    <span>Pull images before deploy</span>
                 </label>
                 <label class="mat-switch">
                     <input asp-for="Input.PruneRemoved" type="checkbox" />
                     <span class="mat-switch__track"></span>
-                    <span class="">Prune removed / deselected stacks</span>
+                    <span>Prune removed / deselected stacks</span>
                 </label>
             </div>
         </div>
     </div>
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="layers" /><span>Compose files → environments</span></div>
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="layers" /><h2 class="mat-card__title">Compose files → environments</h2></div>
         <div class="mat-card__body">
             @if (Model.Input.Rows.Count == 0)
             {
                 <div class="mat-empty">
-                    <div><icon name="git" /></div>
+                    <div class="mat-empty__icon"><icon name="git" /></div>
                     <p>Scan the repository to list its compose files.</p>
                 </div>
             }
@@ -148,19 +149,19 @@
                             {
                                 var row = Model.Input.Rows[i];
                                 <tr>
-                                    <td class="mat-text-wrap">
-                                        <span class="mat-mono">@row.ComposePath</span>
+                                    <td data-label="Compose file">
+                                        <span class="mat-mono mat-text-break">@row.ComposePath</span>
                                         @if (!row.InRepo)
                                         {
-                                            <span class="tag-unused" title="No longer in the repo">removed</span>
+                                            <span class="mat-pill mat-pill--warn" title="No longer in the repo">removed</span>
                                         }
                                         <input type="hidden" name="Input.Rows[@i].ComposePath" value="@row.ComposePath" />
                                     </td>
-                                    <td>
-                                        <input name="Input.Rows[@i].StackName" value="@row.StackName" class="mat-input" style="min-width:150px;" />
+                                    <td data-label="Stack name">
+                                        <input name="Input.Rows[@i].StackName" value="@row.StackName" class="mat-input mat-input--sm" aria-label="Stack name for @row.ComposePath" />
                                     </td>
-                                    <td>
-                                        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                                    <td data-label="Environments">
+                                        <div class="mat-row">
                                             @foreach (var env in Model.Environments)
                                             {
                                                 <label class="mat-check">
@@ -197,12 +198,12 @@
 
 @if (Model.IsEdit && Model.WebhookUrl is not null)
 {
-    <div class="mat-mt-4 u-maxw-lg mat-card">
-        <div class="mat-card__head"><icon name="plug" /><span>Webhook</span></div>
-        <div class="mat-card__body">
+    <div class="mat-card">
+        <div class="mat-card__head"><icon name="plug" /><h2 class="mat-card__title">Webhook</h2></div>
+        <div class="mat-card__body mat-stack">
             <p class="mat-hint">Add as a <strong>push webhook</strong> in your Git host. Keep it secret.</p>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input class="mat-input mat-mono" style="min-width:420px;flex:1;" value="@Model.WebhookUrl" readonly data-select-on-click />
+            <div class="mat-row">
+                <input class="mat-input mat-mono mat-flex-fill" value="@Model.WebhookUrl" readonly data-select-on-click aria-label="Webhook URL" />
                 <form method="post" asp-page-handler="Regenerate" data-confirm="Regenerate the webhook URL? The old URL stops working.">
                     <input type="hidden" name="id" value="@Model.Input.Id" />
                     <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm"><icon name="refresh" /><span>Regenerate</span></button>
@@ -213,20 +214,5 @@
 }
 
 @section Scripts {
-    <script>
-        (function () {
-            var picker = document.getElementById('repo-picker');
-            if (!picker) { return; }
-            picker.addEventListener('change', function () {
-                var opt = picker.selectedOptions[0];
-                if (!opt || !opt.value) { return; }
-                var url = document.querySelector('[name="Input.GitRepoUrl"]');
-                var ref = document.querySelector('[name="Input.GitReference"]');
-                var cred = document.querySelector('[name="Input.GitCredentialId"]');
-                if (url) { url.value = opt.getAttribute('data-url') || ''; }
-                if (ref) { ref.value = opt.getAttribute('data-ref') || ''; }
-                if (cred) { cred.value = opt.getAttribute('data-cred') || ''; }
-            });
-        })();
-    </script>
+    <script src="~/js/stack-forms.js" asp-append-version="true"></script>
 }

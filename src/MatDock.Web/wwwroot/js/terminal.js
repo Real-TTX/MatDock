@@ -9,16 +9,14 @@
     var envId = el.getAttribute("data-env-id");
     var container = el.getAttribute("data-container") || "";
 
+    var frameStyle = window.getComputedStyle(el.parentElement || el);
     var term = new window.Terminal({
         cursorBlink: true,
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
         fontSize: 13,
         scrollback: 5000,
-        theme: {
-            background: "#0b0f14",
-            foreground: "#d5dbe3",
-            cursor: "#d5dbe3"
-        }
+        // The colours of the frame (.md-terminal, MatUi tokens), so the screen and its frame are one surface.
+        theme: { background: frameStyle.backgroundColor, foreground: frameStyle.color, cursor: frameStyle.color }
     });
 
     var FitAddonCtor = (window.FitAddon && window.FitAddon.FitAddon) || window.FitAddon;

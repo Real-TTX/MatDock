@@ -3,13 +3,15 @@
     "use strict";
 
     /* ---------------- Toolbar auto-submit ----------------
-       Forms marked .js-autosubmit submit on select change and on debounced text input. */
+       Forms marked .js-autosubmit submit on select change and on debounced text input. Their fields may stand
+       elsewhere on the page (form="id", e.g. in a .mat-toolbar), so form.elements is used. */
     document.querySelectorAll("form.js-autosubmit").forEach(function (form) {
         var timer;
-        form.querySelectorAll("select").forEach(function (sel) {
+        var fields = Array.prototype.slice.call(form.elements);
+        fields.filter(function (el) { return el.tagName === "SELECT"; }).forEach(function (sel) {
             sel.addEventListener("change", function () { form.submit(); });
         });
-        form.querySelectorAll("input[type=search], input[type=text]").forEach(function (input) {
+        fields.filter(function (el) { return el.tagName === "INPUT" && (el.type === "search" || el.type === "text"); }).forEach(function (input) {
             input.addEventListener("input", function () {
                 clearTimeout(timer);
                 timer = setTimeout(function () { form.submit(); }, 400);
@@ -121,11 +123,11 @@
             return esc(src).replace(
                 /(^[ \t]*#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*)|(^[ \t]*(?:- )?)([A-Za-z0-9_.\-]+)(:)(?=\s|$)|(#.*$)/gm,
                 function (m, cfull, str, varr, kpre, key, colon, cinl) {
-                    if (cfull !== undefined) { return '<span class="t-com">' + cfull + '</span>'; }
-                    if (str !== undefined) { return '<span class="t-str">' + str + '</span>'; }
-                    if (varr !== undefined) { return '<span class="t-var">' + varr + '</span>'; }
-                    if (key !== undefined) { return kpre + '<span class="t-key">' + key + '</span>' + colon; }
-                    if (cinl !== undefined) { return '<span class="t-com">' + cinl + '</span>'; }
+                    if (cfull !== undefined) { return '<span class="mat-code__com">' + cfull + '</span>'; }
+                    if (str !== undefined) { return '<span class="mat-code__str">' + str + '</span>'; }
+                    if (varr !== undefined) { return '<span class="mat-code__attr">' + varr + '</span>'; }
+                    if (key !== undefined) { return kpre + '<span class="mat-code__kw">' + key + '</span>' + colon; }
+                    if (cinl !== undefined) { return '<span class="mat-code__com">' + cinl + '</span>'; }
                     return m;
                 });
         }
@@ -134,9 +136,9 @@
             return esc(src).replace(
                 /(^[ \t]*#.*$)|(\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*)|(^[ \t]*(?:export[ \t]+)?)([A-Za-z_][A-Za-z0-9_]*)(=)/gm,
                 function (m, com, varr, kpre, key, eq) {
-                    if (com !== undefined) { return '<span class="t-com">' + com + '</span>'; }
-                    if (varr !== undefined) { return '<span class="t-var">' + varr + '</span>'; }
-                    if (key !== undefined) { return kpre + '<span class="t-key">' + key + '</span>' + eq; }
+                    if (com !== undefined) { return '<span class="mat-code__com">' + com + '</span>'; }
+                    if (varr !== undefined) { return '<span class="mat-code__attr">' + varr + '</span>'; }
+                    if (key !== undefined) { return kpre + '<span class="mat-code__kw">' + key + '</span>' + eq; }
                     return m;
                 });
         }
@@ -145,9 +147,9 @@
             var hl = ta.getAttribute("data-code") === "env" ? hlEnv : hlYaml;
 
             var wrap = document.createElement("div");
-            wrap.className = "code-wrap";
+            wrap.className = "md-code";
             var pre = document.createElement("pre");
-            pre.className = "code-hl";
+            pre.className = "md-code__hl";
             pre.setAttribute("aria-hidden", "true");
             var code = document.createElement("code");
             pre.appendChild(code);
@@ -223,7 +225,10 @@
                     var doc = new DOMParser().parseFromString(html, "text/html");
                     regions.forEach(function (region) {
                         var fresh = doc.getElementById(region.id);
-                        if (fresh) { region.innerHTML = fresh.innerHTML; if (window.MatUi) { window.MatUi.refresh(region); } }
+                        if (fresh) {
+                            region.innerHTML = fresh.innerHTML;
+                            if (window.MatUi) { window.MatUi.refresh(region); }
+                        }
                     });
                     document.dispatchEvent(new CustomEvent("matdock:live"));
                 })
@@ -306,15 +311,15 @@ function matdockPromptSubmit(btn, message, current) {
 }
 
 /* Expandable table rows (Stacks list): toggle the detail row that immediately follows the
-   clicked row and rotate the chevron. The detail row is a sibling <tr class="stack-detail">. */
+   clicked row and turn the chevron. The detail row is a sibling <tr class="md-stack-detail">. */
 function matdockToggleRow(btn) {
     var row = btn.closest("tr");
     if (!row) { return; }
     var detail = row.nextElementSibling;
-    if (!detail || !detail.classList.contains("stack-detail")) { return; }
+    if (!detail || !detail.classList.contains("md-stack-detail")) { return; }
     var wasHidden = detail.hasAttribute("hidden");
     if (wasHidden) { detail.removeAttribute("hidden"); } else { detail.setAttribute("hidden", ""); }
-    btn.classList.toggle("is-open", wasHidden);
+    btn.setAttribute("aria-expanded", wasHidden ? "true" : "false");
 }
 
 /* Global environment selector (sidebar): persist the choice in a cookie and navigate to the current

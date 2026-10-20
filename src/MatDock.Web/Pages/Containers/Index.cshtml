@@ -3,14 +3,11 @@
 @model MatDock.Web.Pages.Containers.IndexModel
 @{
     ViewData["Title"] = "Containers";
-    var ci = System.Globalization.CultureInfo.InvariantCulture;
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsInRole("Admin");
 
     string SearchKey(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r) => $"{r.Env.Name} {r.Container.Name} {r.Container.Image} {r.Container.Service} {r.Container.Project} {r.Container.Ports}".ToLowerInvariant();
     string State(DockerContainer c) => c.IsRunning ? "running" : "stopped";
-    string CpuText(DockerContainer c) => c.CpuPercent is { } v ? $"{v.ToString("0.0", ci)}%" : "–";
-    string Pct(double? v) => Math.Clamp(v ?? 0, 0, 100).ToString(ci);
     string ViewUrl(string v) => $"/Containers?view={v}";
 
     // Shared action buttons (used by both list rows and tiles). Async because it renders TagHelpers.
@@ -21,111 +18,73 @@
         var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, env.BaseUrl);
         if (openUrl is not null)
         {
-            <a class="mat-btn mat-btn--secondary mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open app"><icon name="external" /></a>
+            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open app" aria-label="Open app"><icon name="external" /></a>
         }
         if (isAdmin && c.IsRunning)
         {
-            <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell"><icon name="terminal" /></a>
+            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
         }
-        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
-        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack"><icon name="volume" /></a>
+        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
+        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack" aria-label="Volumes"><icon name="volume" /></a>
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" class="mat-d-inline">
+            <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Restart"><icon name="refresh" /></button>
+                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
             </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="mat-d-inline">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Stop" />
-                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger" title="Stop"><icon name="stop" /></button>
+                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
             </form>
         }
         else
         {
-            <form method="post" asp-page-handler="Action" class="mat-d-inline">
+            <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Start" />
-                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Start"><icon name="play" /></button>
+                <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Start" aria-label="Start"><icon name="play" /></button>
             </form>
         }
-    }
-
-    // Combined CPU/RAM cell: two mini-bars with %, full detail on hover.
-    void Resources(DockerContainer c)
-    {
-        if (c.CpuPercent is null && c.MemPercent is null && string.IsNullOrEmpty(c.MemUsage))
-        {
-            <span class="mat-muted">–</span>
-            return;
-        }
-        <div class="res">
-            <div class="res__row" title="RAM: @(string.IsNullOrEmpty(c.MemUsage) ? "n/a" : c.MemUsage)@(c.MemPercent is { } mp ? $" ({mp.ToString("0.0", ci)}%)" : "")">
-                <span class="res__k">RAM</span>
-                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.MemPercent))%"></span></span>
-                <span class="res__v">@(c.MemPercent is { } m ? Math.Round(m).ToString(ci) + "%" : "–")</span>
-            </div>
-            <div class="res__row" title="CPU: @(c.CpuPercent is { } cp ? cp.ToString("0.0", ci) + "%" : "n/a")">
-                <span class="res__k">CPU</span>
-                <span class="ubar"><span class="ubar__fill" style="width:@(Pct(c.CpuPercent))%"></span></span>
-                <span class="res__v">@(c.CpuPercent is { } cv ? cv.ToString("0.0", ci) + "%" : "–")</span>
-            </div>
-        </div>
-    }
-
-    async Task Row(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r)
-    {
-        var env = r.Env;
-        var c = r.Container;
-        <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
-            <td class="mat-nowrap">@env.Name</td>
-            <td class="mat-text-wrap">
-                <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a>
-                @if (!string.IsNullOrEmpty(c.Project))
-                {
-                    <div class="cell-sub">@c.Project@(string.IsNullOrEmpty(c.Service) ? "" : " / " + c.Service)</div>
-                }
-            </td>
-            <td><container-status state="@c.State" status="@c.Status" /></td>
-            <td class="ports"><container-ports ports="@c.Ports" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
-            <td class="res-cell">@{ Resources(c); }</td>
-            <td class="mat-table__cell-actions">
-                <div class="mat-table__actions">@{ await Actions(r); }</div>
-            </td>
-        </tr>
     }
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 @foreach (var err in Model.LoadErrors)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@err</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@err</div></div>
 }
 
 <mat-table>
     <mat-table-toolbar>
         <div class="mat-input-icon mat-toolbar__search">
             <icon name="search" />
-            <input type="search" id="container-filter" class="mat-input" placeholder="Filter (name, image, stack, env, port)…" autocomplete="off" />
+            <input type="search" id="container-filter" class="mat-input" placeholder="Filter (name, image, stack, env, port)…" aria-label="Filter the containers" autocomplete="off" data-shortcut="/" />
         </div>
-        <div class="mat-row mat-row--nowrap">
-            <label for="container-status"><icon name="filter" /></label>
-            <select id="container-status" class="mat-select">
-                <option value="">All statuses</option>
-                <option value="running">Running</option>
-                <option value="stopped">Stopped</option>
-            </select>
-        </div>
-        <span class="mat-muted" style="font-size:.85rem;"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
-        <div class="u-ml-auto view-toggle" role="group" aria-label="View">
-            <a href="@ViewUrl("list")" class="@(isGallery ? "" : "is-active")" title="List" aria-label="List"><icon name="menu" /></a>
-            <a href="@ViewUrl("gallery")" class="@(isGallery ? "is-active" : "")" title="Tiles" aria-label="Tiles"><icon name="dashboard" /></a>
+        <label class="mat-sr-only" for="container-status">Status</label>
+        <select id="container-status" class="mat-select mat-w-auto">
+            <option value="">All statuses</option>
+            <option value="running">Running</option>
+            <option value="stopped">Stopped</option>
+        </select>
+        <span class="mat-toolbar__spacer"></span>
+        <span class="mat-toolbar__info" aria-live="polite"><strong id="container-count">@Model.Rows.Count</strong> of <span id="container-total">@Model.Rows.Count</span></span>
+        <div class="mat-toolbar__end">
+            <div class="mat-btn-group" role="group" aria-label="View">
+                <a href="@ViewUrl("list")" class="mat-btn mat-btn--sm mat-btn--icon @(isGallery ? "" : "is-active")" aria-current="@(isGallery ? null : "true")" title="List" aria-label="List"><icon name="list" /></a>
+                <a href="@ViewUrl("gallery")" class="mat-btn mat-btn--sm mat-btn--icon @(isGallery ? "is-active" : "")" aria-current="@(isGallery ? "true" : null)" title="Tiles" aria-label="Tiles"><icon name="grid" /></a>
+            </div>
         </div>
     </mat-table-toolbar>
 
@@ -133,49 +92,37 @@
         <div id="live-containers" data-live="20">
         @if (Model.Environments.Count == 0)
         {
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No active environment.</p></div>
+            <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="box" /></div><p>No active environment.</p></div>
         }
         else if (Model.Rows.Count == 0)
         {
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No containers found.</p></div>
+            <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="box" /></div><p>No containers found.</p></div>
         }
         else if (isGallery)
         {
-            <div class="cbox-grid" id="container-grid">
+            <div class="mat-grid md-tiles" id="container-grid">
                 @foreach (var r in Model.Rows)
                 {
                     var env = r.Env;
                     var c = r.Container;
-                    <div class="env-card" data-item data-state="@State(c)" data-search="@SearchKey(r)">
-                        <div class="env-card__head">
-                            <div class="mat-min-w-0">
-                                <div class="env-card__name"><a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></div>
-                                <div class="env-card__host" title="@c.Image">@c.Image</div>
+                    <div class="mat-card md-tile" data-item data-state="@State(c)" data-search="@SearchKey(r)">
+                        <div class="mat-card__head">
+                            <div class="md-tile__title">
+                                <a class="mat-card__title" href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
+                                <span class="mat-card__sub mat-mono" title="@c.Image">@c.Image</span>
                             </div>
                             <container-status state="@c.State" status="@c.Status" />
                         </div>
-
-                        <div class="env-card__gauges">
-                            <div class="gauge">
-                                <span class="gauge__label">CPU</span>
-                                <span class="gauge__track"><span class="gauge__fill" style="width:@(Pct(c.CpuPercent))%"></span></span>
-                                <span class="gauge__value @(c.CpuPercent is null ? "gauge__value--muted" : "")">@CpuText(c)</span>
-                            </div>
-                            <div class="gauge">
-                                <span class="gauge__label">RAM</span>
-                                <span class="gauge__track"><span class="gauge__fill" style="width:@(Pct(c.MemPercent))%"></span></span>
-                                <span class="gauge__value @(string.IsNullOrEmpty(c.MemUsage) ? "gauge__value--muted" : "")">@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</span>
-                            </div>
+                        <div class="mat-card__body">
+                            <usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" large="true" />
                         </div>
-
-                        <div class="env-card__foot">
+                        <div class="mat-card__foot md-tile__foot">
                             <span class="mat-tag"><icon name="server" /> @env.Name</span>
                             @if (!string.IsNullOrEmpty(c.Project))
                             {
                                 <span class="mat-tag"><icon name="layers" /> @c.Project</span>
                             }
-                            <span class="mat-btn-row__spacer"></span>
-                            @{ await Actions(r); }
+                            <div class="mat-table__actions">@{ await Actions(r); }</div>
                         </div>
                     </div>
                 }
@@ -183,20 +130,42 @@
         }
         else
         {
-            <table class="mat-table ctable" id="container-table">
-                <thead>
-                    <tr>
-                        <th>Environment</th>
-                        <th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="mat-table__cell-actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var r in Model.Rows)
-                    {
-                        await Row(r);
-                    }
-                </tbody>
-            </table>
+            <div class="mat-table-wrap">
+                <table class="mat-table" id="container-table">
+                    <thead>
+                        <tr>
+                            <th>Environment</th><th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Rows)
+                        {
+                            var env = r.Env;
+                            var c = r.Container;
+                            <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
+                                <td data-label="Environment" class="mat-nowrap">@env.Name</td>
+                                <td data-label="Container">
+                                    <div class="mat-table__name">
+                                        <span>
+                                            <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
+                                            @if (!string.IsNullOrEmpty(c.Project))
+                                            {
+                                                <small class="mat-mono">@c.Project@(string.IsNullOrEmpty(c.Service) ? "" : " / " + c.Service)</small>
+                                            }
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
+                                <td data-label="Ports"><container-ports ports="@c.Ports" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
+                                <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" /></td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">@{ await Actions(r); }</div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
         </div>
     </mat-table-body>

@@ -9,17 +9,38 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")"><icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
-    <div class="mat-mb-4 mat-btn-row">
+    <div class="mat-actions md-actions">
+        @if (c.IsRunning)
+        {
+            <form method="post" asp-page-handler="Action">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
+                <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Restart</span></button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Action">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
+            </form>
+        }
         @if (openUrl is not null)
         {
             <a class="mat-btn mat-btn--secondary" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
@@ -32,58 +53,52 @@ else if (c is not null)
         }
         @if (c.IsRunning)
         {
-            <form method="post" asp-page-handler="Action" class="mat-d-inline">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Restart</span></button>
-            </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?" class="mat-d-inline">
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
-        else
-        {
-            <form method="post" asp-page-handler="Action" class="mat-d-inline">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
-                <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Start</span></button>
-            </form>
-        }
     </div>
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="box" /><span>Details</span></div>
-        <div class="mat-table-wrap">
-            <table class="mat-table">
-                <tbody>
-                    <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="mat-pill mat-pill--plain">@c.Status</span>}</td></tr>
-                    <tr><th>Image</th><td class="mat-mono">@c.Image</td></tr>
-                    <tr><th>Stack</th><td>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</td></tr>
-                    <tr><th>Ports</th><td><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td></tr>
-                    <tr><th>CPU</th><td>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</td></tr>
-                    <tr><th>RAM</th><td>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</td></tr>
-                    <tr><th>ID</th><td class="mat-mono">@c.Id</td></tr>
-                </tbody>
-            </table>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="box" /><h2 class="mat-card__title">Details</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Status</dt>
+                <dd><container-status state="@c.State" status="@c.Status" /></dd>
+                <dt>Image</dt>
+                <dd class="mat-mono">@c.Image</dd>
+                <dt>Stack</dt>
+                <dd>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</dd>
+                <dt>Ports</dt>
+                <dd><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
+                <dt>CPU</dt>
+                <dd>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</dd>
+                <dt>RAM</dt>
+                <dd>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</dd>
+                <dt>ID</dt>
+                <dd class="mat-mono">@c.Id</dd>
+            </dl>
         </div>
-    </div>
+    </section>
 
-    <div class="mat-card">
-        <div class="mat-card__head"><icon name="volume" /><span>Volumes &amp; Mounts</span><span class="mat-tag">@Model.Mounts.Count</span></div>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="volume" /><h2 class="mat-card__title">Volumes &amp; mounts</h2><span class="mat-badge">@Model.Mounts.Count</span></div>
         @if (Model.Mounts.Count == 0)
         {
             <div class="mat-empty"><p>No mounts.</p></div>
         }
         else
         {
-            <div class="mat-table-wrap">
+            <div class="mat-card__body mat-p-0">
                 <table class="mat-table">
                     <thead><tr><th>Type</th><th>Source</th><th>Target (in container)</th><th>Mode</th></tr></thead>
                     <tbody>
                         @foreach (var m in Model.Mounts)
                         {
                             <tr>
-                                <td>@(m.IsVolume ? "Volume" : m.Type)</td>
-                                <td class="mat-text-wrap mat-mono">
+                                <td data-label="Type">@(m.IsVolume ? "Volume" : m.Type)</td>
+                                <td data-label="Source" class="mat-mono mat-text-break">
                                     @if (m.IsVolume && !string.IsNullOrEmpty(m.Name))
                                     {
                                         <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(m.Name)">@m.Name</a>
@@ -93,13 +108,13 @@ else if (c is not null)
                                         @(m.Source ?? "–")
                                     }
                                 </td>
-                                <td class="mat-mono">@m.Destination</td>
-                                <td>@(m.ReadWrite ? "rw" : "ro")</td>
+                                <td data-label="Target" class="mat-mono mat-text-break">@m.Destination</td>
+                                <td data-label="Mode">@(m.ReadWrite ? "rw" : "ro")</td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
         }
-    </div>
+    </section>
 }

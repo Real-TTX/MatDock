@@ -3,51 +3,50 @@
 @{
     var target = string.IsNullOrEmpty(Model.Stack) ? Model.Id : Model.Stack;
     ViewData["Title"] = $"Logs · {target}";
+    ViewData["Width"] = "wide";
     var tail = Model.Tail <= 0 ? 200 : Model.Tail;
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { (string.IsNullOrEmpty(Model.Stack) ? "Containers" : Model.Stack, string.IsNullOrEmpty(Model.Stack) ? $"/Containers?EnvId={Model.EnvId}" : $"/Containers/Stack?envId={Model.EnvId}&project={Uri.EscapeDataString(Model.Stack)}") };
 }
 
-<div class="logview" id="logview"
+<div class="mat-stack md-log" id="logview"
      data-envid="@Model.EnvId"
      data-container="@(string.IsNullOrEmpty(Model.Stack) ? Model.Id : "")"
      data-stack="@Model.Stack"
      data-tail="@tail">
-    <div class="logview__bar">
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm logview__live is-live" data-log-live title="Pause / resume live stream">
-            <span class="logview__dot"></span><span data-log-live-label>Live</span>
+    <div class="mat-toolbar" role="toolbar" aria-label="Log tools">
+        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm md-log__live is-live" data-log-live title="Pause / resume live stream">
+            <span class="md-log__dot"></span><span data-log-live-label>Live</span>
         </button>
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm is-active" data-log-follow title="Auto-scroll to newest"><icon name="chevron-right" /><span>Follow</span></button>
+        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm is-active" data-log-follow title="Auto-scroll to newest"><icon name="arrow-down" /><span>Follow</span></button>
 
-        <span class="logview__group" role="group" aria-label="Lines">
-            <span class="mat-muted" style="font-size:.8rem;">Lines</span>
+        <div class="mat-btn-group" role="group" aria-label="Lines">
             @foreach (var n in new[] { 100, 200, 500, 1000 })
             {
-                <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm @(tail == n ? "mat-btn--primary" : "")" data-log-tail="@n">@n</button>
+                <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm @(tail == n ? "is-active" : "")" aria-pressed="@(tail == n ? "true" : "false")" data-log-tail="@n" title="Last @n lines">@n</button>
             }
-        </span>
+        </div>
 
-        <span class="mat-toolbar__spacer"></span>
 
-        <span class="search logview__search">
+        <div class="mat-input-icon md-log__search">
             <icon name="filter" />
-            <input type="search" class="mat-input" data-log-filter placeholder="Filter (live)…" autocomplete="off" />
-        </span>
-        <span class="search logview__search">
+            <input type="search" class="mat-input mat-input--sm" data-log-filter placeholder="Filter (live)…" aria-label="Filter the lines" autocomplete="off" />
+        </div>
+        <div class="mat-input-icon md-log__search">
             <icon name="search" />
-            <input type="search" class="mat-input" data-log-search placeholder="Search…" autocomplete="off" />
-        </span>
-        <span class="logview__matches mat-muted" data-log-matches></span>
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-prev title="Previous match"><icon name="chevron-left" /></button>
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-next title="Next match"><icon name="chevron-right" /></button>
+            <input type="search" class="mat-input mat-input--sm" data-log-search placeholder="Search…" aria-label="Search the lines" autocomplete="off" />
+        </div>
+        <span class="mat-toolbar__info md-log__matches" data-log-matches aria-live="polite"></span>
+        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-log-prev title="Previous match" aria-label="Previous match"><icon name="chevron-up" /></button>
+        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-log-next title="Next match" aria-label="Next match"><icon name="chevron-down" /></button>
 
         <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-timestamps title="Show the time of each line"><icon name="clock" /><span>Time</span></button>
         <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-wrap title="Toggle line wrap"><icon name="menu" /><span>Wrap</span></button>
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-clear title="Clear"><icon name="trash" /></button>
-        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-log-download title="Download"><icon name="download" /></button>
+        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-log-clear title="Clear" aria-label="Clear"><icon name="trash" /></button>
+        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-log-download title="Download" aria-label="Download"><icon name="download" /></button>
     </div>
 
-    <div class="logview__status" data-log-status>Connecting…</div>
-    <div class="logview__pane" data-log-pane><div class="logview__lines" data-log-lines></div></div>
+    <div class="md-log__status" data-log-status role="status">Connecting…</div>
+    <div class="md-log__pane" data-log-pane><div class="md-log__lines" data-log-lines></div></div>
 </div>
 
 @section Scripts {

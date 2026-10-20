@@ -10,9 +10,14 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Report?.Error is not null)
@@ -25,62 +30,60 @@
     var updates = Model.Report.UpdatesAvailable;
     if (Model.Report.Images.Count == 0)
     {
-        <div class="mat-mb-4 mat-card">
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="image" /></div><p>No running images found for this stack.</p></div>
-        </div>
+        <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="image" /></div><p>No running images found for this stack.</p></div>
     }
     else
     {
-    <div class="mat-alert @(updates > 0 ? "mat-alert--warning" : "mat-alert--success")">
-        <icon name="@(updates > 0 ? "alert" : "check-circle")" />
-        <span>@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</span>
-    </div>
+        <div class="mat-alert @(updates > 0 ? "mat-alert--warning" : "mat-alert--success")">
+            <icon name="@(updates > 0 ? "alert" : "check-circle")" />
+            <div class="mat-alert__body">@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</div>
+        </div>
 
-    <div class="mat-p-0 mat-mb-4 mat-card">
-        <table class="mat-table">
-            <thead>
-                <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var img in Model.Report.Images)
-                {
-                    <tr>
-                        <td>@img.Service</td>
-                        <td class="mat-text-wrap"><span class="mat-mono">@img.Image</span></td>
-                        <td>
-                            @if (img.UpdateAvailable)
-                            {
-                                <span class="mat-pill mat-pill--warn"><icon name="alert" /> Update</span>
-                            }
-                            else if (img.Note is not null)
-                            {
-                                <span class="cell-sub">@img.Note</span>
-                            }
-                            else
-                            {
-                                <span class="mat-pill mat-pill--ok"><icon name="check-circle" /> Up to date</span>
-                            }
-                        </td>
-                        <td class="mat-mono cell-sub" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
-                        <td class="mat-mono cell-sub" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+        <div class="mat-table-wrap">
+            <table class="mat-table">
+                <thead>
+                    <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var img in Model.Report.Images)
+                    {
+                        <tr>
+                            <td data-label="Service">@img.Service</td>
+                            <td data-label="Image" class="mat-mono mat-text-break">@img.Image</td>
+                            <td data-label="Status">
+                                @if (img.UpdateAvailable)
+                                {
+                                    <span class="mat-pill mat-pill--warn">Update</span>
+                                }
+                                else if (img.Note is not null)
+                                {
+                                    <span class="mat-muted">@img.Note</span>
+                                }
+                                else
+                                {
+                                    <span class="mat-pill mat-pill--ok">Up to date</span>
+                                }
+                            </td>
+                            <td data-label="Local" class="mat-mono mat-muted" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
+                            <td data-label="Registry" class="mat-mono mat-muted" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 
-    <div class="u-maxw-sm mat-card">
-        <div class="mat-card__head"><icon name="refresh" /><span>Run update</span></div>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="refresh" /><h2 class="mat-card__title">Run update</h2></div>
         <div class="mat-card__body">
-            <p class="mat-mb-3 mat-hint">Pulls the new images and redeploys.</p>
-            <form method="post" asp-page-handler="Update" data-confirm="Update stack '@Model.Stack?.Name' now?">
+            <form method="post" asp-page-handler="Update" class="mat-form" data-confirm="Update stack '@Model.Stack?.Name' now?">
+                <p class="mat-hint">Pulls the new images and redeploys.</p>
                 <input type="hidden" asp-for="Id" />
-                <label class="mat-mb-3 mat-check">
+                <label class="mat-check">
                     <input asp-for="PreBackup" type="checkbox" />
                     <span>Back up the stack's volumes before updating</span>
                 </label>
-                <label class="mat-mb-3 mat-check">
+                <label class="mat-check">
                     <input asp-for="HealthGate" type="checkbox" />
                     <span>Roll back when the containers are not up and healthy within 90 s</span>
                 </label>
@@ -89,7 +92,7 @@
                 </mat-form-buttons>
             </form>
         </div>
-    </div>
+    </section>
 }
 
 @section Actions {

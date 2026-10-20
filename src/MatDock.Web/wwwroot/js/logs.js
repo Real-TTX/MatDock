@@ -46,7 +46,7 @@
 
     function status(text, cls) {
         statusEl.textContent = text;
-        statusEl.className = "logview__status" + (cls ? " " + cls : "");
+        statusEl.className = "md-log__status" + (cls ? " " + cls : "");
     }
 
     function atBottom() { return paneEl.scrollHeight - paneEl.scrollTop - paneEl.clientHeight < 24; }
@@ -62,7 +62,7 @@
 
     function pushLine(raw) {
         var el = document.createElement("div");
-        el.className = "logview__line";
+        el.className = "md-log__line";
         el._raw = raw;
         renderLine(el);
         linesEl.appendChild(el);
@@ -176,8 +176,8 @@
     root.querySelectorAll("[data-log-tail]").forEach(function (btn) {
         btn.addEventListener("click", function () {
             state.tail = parseInt(btn.dataset.logTail, 10) || 200;
-            root.querySelectorAll("[data-log-tail]").forEach(function (b) { b.classList.remove("mat-btn--primary"); });
-            btn.classList.add("mat-btn--primary");
+            root.querySelectorAll("[data-log-tail]").forEach(function (b) { b.classList.remove("is-active"); b.setAttribute("aria-pressed", "false"); });
+            btn.classList.add("is-active"); btn.setAttribute("aria-pressed", "true");
             clearLines();
             state.live = true; setLiveUI(true);
             connect(false);

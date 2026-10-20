@@ -27,12 +27,12 @@ public sealed class PortsTagHelper : TagHelper
         // generated content is actually rendered instead of dropped.
         output.TagMode = TagMode.StartTagAndEndTag;
         var existing = output.Attributes["class"]?.Value?.ToString();
-        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existing) ? "port-tags" : $"port-tags {existing}");
+        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existing) ? "md-ports" : $"md-ports {existing}");
 
         var (published, exposed) = Parse(Ports);
         if (published.Count == 0 && exposed.Count == 0)
         {
-            output.Content.SetHtmlContent("<span class=\"text-muted\">–</span>");
+            output.Content.SetHtmlContent("<span class=\"mat-muted\">–</span>");
             return;
         }
 
@@ -43,17 +43,17 @@ public sealed class PortsTagHelper : TagHelper
             if (!string.IsNullOrEmpty(Host))
             {
                 var url = WebUtility.HtmlEncode($"{Scheme}://{Host}:{hostPort}");
-                sb.Append($"<a class=\"port-tag port-tag--link\" href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open {url}\">{label}</a>");
+                sb.Append($"<a class=\"mat-tag mat-mono md-port-link\" href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open {url}\">{label}</a>");
             }
             else
             {
-                sb.Append($"<span class=\"port-tag\">{label}</span>");
+                sb.Append($"<span class=\"mat-tag mat-mono\">{label}</span>");
             }
         }
 
         foreach (var cp in exposed)
         {
-            sb.Append($"<span class=\"port-tag port-tag--muted\" title=\"exposed, not published\">{WebUtility.HtmlEncode(cp)}</span>");
+            sb.Append($"<span class=\"mat-tag mat-mono mat-muted\" title=\"exposed, not published\">{WebUtility.HtmlEncode(cp)}</span>");
         }
 
         output.Content.SetHtmlContent(sb.ToString());
