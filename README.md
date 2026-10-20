@@ -377,7 +377,7 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 
 | Milestone | Content | Status |
 |---|---|---|
-| Foundation | Docker, CI, versioning, auth, roles, sessions, design system | ✅ |
+| Foundation | Docker, CI, versioning, auth, roles, sessions | ✅ |
 | Environments | SSH + local socket, host stats, global selector | ✅ |
 | Volumes | Listing, migration between hosts, file explorer | ✅ |
 | Backups | Scheduled jobs, retention, history, SMB targets, restore | ✅ |
@@ -386,7 +386,8 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Apps | Compose templates with icons, one-click install | ✅ |
 | Review | Security fixes, alerts, scheduled updates, activity log, network map, container files – see [docs/REVIEW.md](docs/REVIEW.md) | ✅ |
 | Review 2 | MatSMTP, update rollback, CVE scans, Docker API hosts, Git over SSH, files without a shell | ✅ |
-| Next | restic, MatUi – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
+| MatUi | The UI on the MatUi toolkit like the other engines (shell, components, dialogs, accent of the registry) | ✅ |
+| Next | restic – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
 
 ## Branches & versioning
 

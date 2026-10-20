@@ -45,8 +45,8 @@ both WebSockets, the constant-time API key, secrets never rendered back, `return
   `BackupScheduleService`, its runner and input, `SyncJobService.RunDueAsync`.
 - `docs/UPDATE-MANAGEMENT.md` has a status table.
 
-Left as it is, on purpose: the Proxy page adds a route with a small form above the list (a quick action, not CRUD);
-dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi (see plan item 8).
+Left as it is, on purpose: the Proxy page adds a route with a small form above the list (a quick action, not CRUD).
+The dynamic inline styles (gauge widths) and the own stylesheet are gone since the move to MatUi (section 5).
 
 ## 2. Against Dockhand
 
@@ -83,7 +83,7 @@ dynamic inline styles (gauge widths). MatDock has its own stylesheet, not MatUi 
 | # | What | Where | Effort | Risks |
 |---|---|---|---|---|
 | 1 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup --stdin` of the volume tar stream, restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage` beside `SmbBackupStorage`, `ScheduleAction.ResticMaintenance` | L | The restic binary in the image (or a restic container on the host); repository password handling; long operations |
-| 2 | **Move the UI onto MatUi** – see section 5 | all pages | L | see there |
+| 2 | ~~Move the UI onto MatUi~~ – done, see section 5 | all pages | L | – |
 | 3 | Update history and pinning: keep the update runs (old/new digest, result, rollback) and let a service be pinned to a digest so automatic updates leave it alone; newer version tags (semver) next to moving tags | `UpdateService`, a table `StackUpdateRun`, Stacks/Update | M | Semver of tags is guesswork for many images (`latest`, `16-alpine`) |
 | 4 | Per-environment rights (a user sees and controls only some environments) | `User` ↔ `DockerEnvironment`, `EnvSelection`, every list | M | Every page and the API filter by it; only worth it beyond a small team |
 | 5 | The CIFS password of a new volume is still on the `docker volume create` command line (Docker takes it only as an `--opt`; it is in the volume's options anyway) | – | – | Not fixable in MatDock; documented |
@@ -119,25 +119,19 @@ Everything was tried against real Docker on this PC (local registry for the roll
 docker:dind with TLS, Trivy) besides the tests. Tests: 410 at the start, 543 now (Windows and Linux, `mcr.microsoft.com/dotnet/sdk:10.0`);
 build without warnings. Migrations: `AddActivityLog`, `AddEnvironmentHostKey`, `AddGitSshKey`, `AddEnvironmentDockerApi`, `AddImageScan`.
 
-## 5. Moving the UI onto MatUi
+## 5. The UI on MatUi
 
-**Assessment.** MatDock does not use MatUi: it has its own stylesheet (`matdock.css`, about 850 lines) and script (`matdock.js`). Its class
-names grew from the same roots – 16 of its 28 `mat-*` classes exist in MatUi (`mat-btn`, `mat-field`, `mat-input`, `mat-select`, `mat-tabs`,
-`mat-badge`, `mat-switch` …) – but they are defined differently, and both stylesheets are global. Loading `matui.css` therefore changes every page
-at once, and the shell (menu, top bar, theme button, environment switch) is one layout for all pages. A page-by-page move behind a switch
-would mean two design systems side by side on the same class names; that is not safe, so the move was **not started**. It is a step of its
-own, done on a branch and released as a whole:
+**Done** (branch `feature/review`). MatDock now runs on the MatUi toolkit like the other engines (Mattiverse, MatIdentity, MatSMTP, Matcad, Matddns):
 
 | Step | What | Where |
 |---|---|---|
-| 1 | Copy MatUi (`matui.css`, `matui.js`, `matui.boot.js`, `matui-icons.svg`; CODE-03), `data-app="matdock"` on `<html>`. The registry has MatDock's accent as `#1d78be`; MatDock still uses Docker blue `#2496ed` – decide which one stays (or record it as `FoundAccent`) | `wwwroot/`, `_Layout.cshtml`, MatDesign `AppRegistry.cs` |
-| 2 | The shell: `mat-nav` with groups (Overview: Dashboard, Environments, Apps · Docker: Stacks, Containers, Images, Volumes, Networks · Operations: Sync, Schedules, Backups · System), the user menu at the foot with *Sign out* last, the three-state theme button (`data-theme-save-url` when it is kept per user), a breadcrumb and the page head; the environment switch becomes a context choice in the switcher (SHELL-15) | `_Layout.cshtml`, `Support/EnvSelection.cs` |
-| 3 | The list and form helpers render MatUi markup: `<mat-table>` → `mat-toolbar` (search field, Filter and Sort as dialogs, chips for what is in effect) + `mat-table` + `mat-pager`; `<mat-field>` → MatUi field with hint and error; `<mat-form-buttons>` → `mat-btn-row` | `Controls/*TagHelper.cs` – most pages follow without edits |
-| 4 | Own components to MatUi: `card` → `mat-card`, `alert` → `mat-alert`, `pill` → `mat-pill`/`mat-tag`, `stat` → `mat-stat`, `empty-state` → `mat-empty`, the CPU/RAM gauges → `mat-meter` with `data-value` (removes the last inline `style` widths), `data-label` on every table cell (TABLE-02) | all pages |
-| 5 | Dialogs: `data-confirm` and the prompts of the file browser use the toolkit's dialogs (`MatUi.confirm`/`prompt`); the confirm/prompt code of `matdock.js` goes | `matdock.js`, Volumes/Files |
-| 6 | What only MatDock has keeps its own classes with an app prefix: log viewer, terminal, network map, file browser, code editor, host lines | `matdock.css` (shrinks to these) |
-| 7 | Delete the rest of `matdock.css`: its colour variables (`--mat-*` tokens instead), the gradient buttons, lifting cards, upper-case labels (COLOR-06) | `matdock.css` |
-| 8 | Check: MatDesign *Identity → Audit*, `node tools/matui-check.js`, screenshots light/dark/390 px of every page, `PageMarkupTests` extended (no `style=` attributes, `data-label` in tables) | tests, `docs/images` |
+| 1 | MatUi 0.2.0 copied from MatDesign (`matui.css`, `matui.js`, `matui.boot.js`, `matui-icons.svg`; CODE-03); `scripts/update-matui.ps1` fetches a newer one. `data-app="matdock"` gives the registry's accent `#1d78be` (also the theme colour and the manifest); Docker blue is gone | `wwwroot/matui`, `Support/Toolkit.cs`, `Support/Ui.cs` |
+| 2 | The shell: `mat-nav` with groups (Dashboard, Environments, Apps · Docker · Operations · Administration), the environment as a switcher menu, the user menu with *Profile* and *Sign out* last, the three-state theme button, breadcrumb and top-bar actions; the layout renders the page heading (`Title`, `Heading`, `Sub`, `Crumbs`). Sign-in, setup and error pages are `mat-auth` cards (`_Bare`) | `_Layout`, `_Head`, `_Bare` |
+| 3 | The helpers render MatUi markup: `<mat-table>` → `mat-list` with `mat-toolbar`, `mat-table-wrap`, `mat-pager`, `mat-actions`; `<mat-field>` → field with `mat-error`; `<mat-form-buttons>` → `mat-btn-row`; tabs, pills, the validation summary | `Controls/`, `_ValidationSummary` |
+| 4 | Every page on MatUi components: cards, alerts, pills/tags, stats, empty states, `mat-kv`, meters with `data-value` instead of inline widths, `data-label` on every table cell, toasts for “done”; the inline scripts moved to files (`stack-forms.js`) | all pages |
+| 5 | Dialogs from the toolkit: `data-confirm` and `MatUi.prompt` (file explorer); dependent fields with `data-show-if`; MatDock's own theme, confirm and dependent-field code is gone from `matdock.js` | `matdock.js` |
+| 6–7 | `matdock.css` went from 843 lines of its own design to ~235 lines of what only MatDock has (environment tiles, usage meters, stack/container tiles, log viewer, terminal, code editor, file explorer, network map), all `md-` prefixed and with the toolkit's tokens only | `matdock.css` |
+| 8 | `UiTests` (like Matddns): every page renders without inline style, script or handlers, icons only from the sprite (inlined once), `data-label` on table cells, the accent equals MatDesign's registry and the manifest, `matdock.css` has no colours or variables of its own. Screenshots light/dark/390 px checked; README screenshots refreshed | `tests/…/UiTests.cs`, `docs/images` |
 
-**Effort** L (several days); **risk** visual regressions on every page – nothing changes for `/api/v1`, `/api` or the data. Steps 1–3 carry
-most of the gain (the shell and the list/edit patterns of the whole family); 4–7 are mechanical after that.
+Behaviour notes: “done” messages are toasts now; hidden dependent fields are not posted (a sync job keeps its cron when its schedule is switched
+off); the offline page uses the toolkit too. `/api/v1` and `/api` are unchanged.
