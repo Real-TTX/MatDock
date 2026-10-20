@@ -3,17 +3,18 @@
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit environment" : "New environment";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Environments", "/Environments") };
+    ViewData["Width"] = "narrow";
 }
 
 @if (Model.TestResult is not null)
 {
     <div class="mat-alert @(Model.TestResult.Success ? "mat-alert--success" : "mat-alert--danger")">
         <icon name="@(Model.TestResult.Success ? "check-circle" : "x-circle")" />
-        <span>@Model.TestResult.Message</span>
+        <div class="mat-alert__body">@Model.TestResult.Message</div>
     </div>
 }
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -99,9 +100,12 @@
             <div data-show-when="AuthType=PrivateKey">
                 @if (!string.IsNullOrEmpty(Model.GeneratedPublicKey))
                 {
-                    <div class="alert--stack mat-alert mat-alert--success">
-                        <div><icon name="key" /> <strong>Install the public key on the host:</strong> run once on <code>@Model.Input.Host</code> as <code>@Model.Input.Username</code> (then <em>Save</em> below):</div>
-                        <textarea class="mat-textarea" rows="2" readonly data-select-on-click>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
+                    <div class="mat-alert mat-alert--success">
+                        <icon name="key" />
+                        <div class="mat-alert__body mat-stack mat-stack--sm">
+                        <div><strong>Install the public key on the host:</strong> run once on <code>@Model.Input.Host</code> as <code>@Model.Input.Username</code> (then <em>Save</em> below):</div>
+                        <textarea class="mat-textarea mat-mono" rows="2" readonly data-select-on-click>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh &amp;&amp; echo '@Model.GeneratedPublicKey' &gt;&gt; ~/.ssh/authorized_keys &amp;&amp; chmod 600 ~/.ssh/authorized_keys</textarea>
+                        </div>
                     </div>
                 }
                 <mat-field label="Private SSH key (PEM)" asp-for="Input.PrivateKeyPem" hint="@secretHint">
@@ -119,7 +123,7 @@
             @if (Model.IsEdit)
             {
                 <mat-field label="Host key" hint="Saved at the first connection; a server that shows another key is refused.">
-                    <div class="mat-btn-row">
+                    <div class="mat-row">
                         <code class="mat-mono">@(Model.HostKeyFingerprint ?? "not saved yet")</code>
                         @if (Model.HostKeyFingerprint is not null)
                         {

@@ -4,13 +4,13 @@
 }
 @if (kind == MatDock.Web.Support.AppView.IconKind.Image)
 {
-    <img class="app-icon" src="@Model.Icon" alt="" loading="lazy" />
+    <img class="md-app-icon" src="@Model.Icon" alt="" loading="lazy" />
 }
 else if (kind == MatDock.Web.Support.AppView.IconKind.Lucide)
 {
-    <span class="app-icon app-icon--glyph"><icon name="@Model.Icon" /></span>
+    <span class="md-app-icon md-app-icon--glyph"><icon name="@Model.Icon" /></span>
 }
 else if (kind == MatDock.Web.Support.AppView.IconKind.Glyph)
 {
-    <span class="app-icon app-icon--glyph">@Model.Icon</span>
+    <span class="md-app-icon md-app-icon--glyph">@Model.Icon</span>
 }

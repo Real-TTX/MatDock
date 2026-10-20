@@ -3,9 +3,10 @@
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit app" : "New app";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Store", "/Apps") };
+    ViewData["Width"] = "narrow";
 }
 
-<div class="u-maxw-lg mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
@@ -30,7 +31,7 @@
             </div>
 
             <mat-field label="docker-compose.yml" asp-for="Input.ComposeYaml" hint="Template for new stacks.">
-                <textarea asp-for="Input.ComposeYaml" class="mat-textarea" rows="18" spellcheck="false" style="font-family:var(--mono);font-size:.85rem;" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
+                <textarea asp-for="Input.ComposeYaml" class="mat-textarea mat-mono" rows="18" spellcheck="false" placeholder="services:&#10;  app:&#10;    image: nginx:alpine"></textarea>
             </mat-field>
 
             <mat-form-buttons>

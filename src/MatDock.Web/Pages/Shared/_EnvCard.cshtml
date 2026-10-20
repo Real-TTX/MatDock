@@ -1,0 +1,92 @@
+@model MatDock.Web.Support.EnvCardModel
+@inject MatDock.Core.Docker.HostMetricsHistory History
+@*
+    The tile of an environment (dashboard, gallery of the environments): status, CPU/RAM/disk as meters, on the dashboard the history of the
+    last 24 h, and the links to its stacks, containers, volumes and shell.
+*@
+@{
+    var env = Model.Env;
+    var st = Model.Stats;
+    var isAdmin = User.IsInRole("Admin");
+    string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
+    var cpuText = st.Cores is null ? "–" : Model.OnDashboard ? $"{EnvironmentView.Percent(st.CpuPercent)}%" : $"Load {st.Load1:0.00}/{st.Cores}";
+    var memText = st.MemTotalBytes is null ? "–" : $"{Fb(st.MemUsedBytes ?? 0)}/{Fb(st.MemTotalBytes.Value)}";
+    var diskText = st.DiskTotalBytes is null ? "–" : $"{Fb(st.DiskUsedBytes ?? 0)}/{Fb(st.DiskTotalBytes.Value)}";
+    var gauges = new[]
+    {
+        ("CPU", st.CpuPercent, cpuText),
+        ("RAM", st.MemPercent, memText),
+        ("Disk", st.DiskPercent, diskText),
+    };
+}
+<article class="mat-card md-env-card">
+    <div class="md-env-card__head">
+        <div class="mat-min-w-0">
+            <div class="md-env-card__name">
+                <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")">@env.Name</a>
+                @if (!env.IsEnabled)
+                {
+                    <span class="mat-pill mat-pill--plain">Disabled</span>
+                }
+            </div>
+            <div class="mat-small mat-muted mat-mono">@EnvironmentView.Address(env)</div>
+        </div>
+        <partial name="_StatusPill" model="env.Status" />
+    </div>
+
+    <div class="md-env-card__gauges">
+        @foreach (var (label, pct, text) in gauges)
+        {
+            <div class="md-gauge">
+                <span class="mat-muted">@label</span>
+                <div class="mat-meter"><div class="mat-meter__fill" data-value="@EnvironmentView.Percent(pct)" data-tone="@EnvironmentView.Tone(pct)"></div></div>
+                <span class="md-gauge__value @(text == "–" ? "mat-muted" : "")">@text</span>
+            </div>
+        }
+    </div>
+
+    @if (Model.OnDashboard)
+    {
+        var samples = History.Get(env.Id);
+        var cpuLine = MatDock.Core.Docker.HostMetricsHistory.Sparkline(samples.Select(x => x.Cpu).ToList(), 200, 32);
+        var memLine = MatDock.Core.Docker.HostMetricsHistory.Sparkline(samples.Select(x => x.Mem).ToList(), 200, 32);
+        if (cpuLine is not null && memLine is not null)
+        {
+            <svg class="md-spark" viewBox="0 0 200 32" preserveAspectRatio="none" role="img" aria-label="CPU and RAM since @samples[0].TimeUtc.ToLocalTime().ToString("HH:mm")">
+                <title>CPU (accent) and RAM (green) since @samples[0].TimeUtc.ToLocalTime().ToString("dd.MM. HH:mm")</title>
+                <polyline class="md-spark__mem" points="@memLine" />
+                <polyline class="md-spark__cpu" points="@cpuLine" />
+            </svg>
+        }
+    }
+
+    <div class="md-env-card__foot">
+        <span class="mat-tag"><icon name="box" /> @(Model.Running?.ToString() ?? "–") running</span>
+        @if (!Model.OnDashboard)
+        {
+            @if (!string.IsNullOrEmpty(env.DockerVersion))
+            {
+                <span class="mat-small mat-muted">Docker @env.DockerVersion</span>
+            }
+            <span class="mat-small mat-muted">checked @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "never")</span>
+        }
+        <span class="mat-flex-grow"></span>
+        @if (env.IsEnabled)
+        {
+            @if (isAdmin)
+            {
+                <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Stacks?EnvId=@env.Id" title="Stacks" aria-label="Stacks"><icon name="layers" /></a>
+            }
+            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers?EnvId=@env.Id" title="Containers" aria-label="Containers"><icon name="box" /></a>
+            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@env.Id" title="Volumes" aria-label="Volumes"><icon name="volume" /></a>
+            @if (isAdmin)
+            {
+                <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
+            }
+        }
+        @if (!Model.OnDashboard && User.IsAdmin())
+        {
+            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Environments/Edit?id=@env.Id" title="Edit" aria-label="Edit"><icon name="edit" /></a>
+        }
+    </div>
+</article>

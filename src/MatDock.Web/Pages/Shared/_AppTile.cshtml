@@ -1,27 +1,27 @@
 @model MatDock.Web.Support.AppTile
-<div class="launch-tile" data-filter-row data-name="@($"{Model.Name} {Model.EnvName} {Model.Meta.Description}".ToLowerInvariant())">
-    <div class="launch-tile__icon">
+<article class="mat-card md-app-tile" data-filter-row data-name="@($"{Model.Name} {Model.EnvName} {Model.Meta.Description}".ToLowerInvariant())">
+    <div class="md-app-tile__head">
         @if (Model.Meta.Icon is not null)
         {
             <partial name="_AppIcon" model="Model.Meta" />
         }
         else
         {
-            <span class="app-icon app-icon--glyph"><icon name="box" /></span>
+            <span class="md-app-icon md-app-icon--glyph"><icon name="box" /></span>
         }
-    </div>
-    <div class="launch-tile__body">
-        <div class="launch-tile__name">@Model.Name</div>
-        @if (!string.IsNullOrWhiteSpace(Model.Meta.Description))
-        {
-            <div class="launch-tile__desc">@Model.Meta.Description</div>
-        }
-        <div class="launch-tile__env">
-            <icon name="server" /> @Model.EnvName
-            <span class="u-ml-xs mat-pill @(Model.StatusKind == "running" ? "mat-pill--ok" : Model.StatusKind == "partial" ? "mat-pill--warn" : "mat-pill--plain")">@(Model.Total > 0 ? $"{Model.Running}/{Model.Total}" : "idle")</span>
+        <div class="mat-min-w-0">
+            <div class="md-app-tile__name">@Model.Name</div>
+            <div class="mat-small mat-muted">
+                <icon name="server" /> @Model.EnvName
+                <span class="mat-pill @(Model.StatusKind == "running" ? "mat-pill--ok" : Model.StatusKind == "partial" ? "mat-pill--warn" : "mat-pill--plain")">@(Model.Total > 0 ? $"{Model.Running}/{Model.Total}" : "idle")</span>
+            </div>
         </div>
     </div>
-    <div class="launch-tile__actions">
+    @if (!string.IsNullOrWhiteSpace(Model.Meta.Description))
+    {
+        <p class="mat-small mat-muted">@Model.Meta.Description</p>
+    }
+    <div class="mat-actions md-app-tile__actions">
         @if (Model.OpenUrl is not null)
         {
             <a class="mat-btn mat-btn--sm mat-btn--primary" href="@Model.OpenUrl" target="_blank" rel="noopener"><icon name="external" /><span>Open</span></a>
@@ -31,8 +31,8 @@
             var href = MatDock.Web.Support.AppView.ActionHref(act, Model.Host, Model.Port);
             if (href is not null)
             {
-                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@(string.IsNullOrEmpty(act.Icon) ? "external" : act.Icon)" /><span>@act.Name</span></a>
+                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@(MatDock.Web.Support.AppView.KindOf(act.Icon) == MatDock.Web.Support.AppView.IconKind.Lucide ? act.Icon! : "external")" /><span>@act.Name</span></a>
             }
         }
     </div>
-</div>
+</article>

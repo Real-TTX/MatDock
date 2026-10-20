@@ -2,77 +2,76 @@
 @model MatDock.Web.Pages.Apps.IndexModel
 @{
     ViewData["Title"] = "Store";
-
-    // Deterministic accent for the letter avatar so each app keeps a stable colour.
-    string Accent(string name)
-    {
-        var hues = new[] { "#2563eb", "#0891b2", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#ca8a04", "#dc2626" };
-        int sum = 0;
-        foreach (var ch in name) { sum += ch; }
-        return hues[Math.Abs(sum) % hues.Length];
-    }
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
-@if (Model.Templates.Count == 0)
-{
-    <div class="mat-card">
-        <div class="mat-empty">
-            <div><icon name="template" /></div>
-            <p>No apps yet.</p>
+<div class="mat-list">
+    @if (Model.Templates.Count == 0)
+    {
+        <div class="mat-empty mat-empty--first">
+            <div class="mat-empty__icon"><icon name="template" /></div>
+            <p class="mat-empty__title">No apps yet.</p>
+            <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
         </div>
-    </div>
-}
-else
-{
-    <div class="fs-toolbar">
-        <div class="mat-input-icon mat-toolbar__search">
-            <icon name="search" />
-            <input type="search" class="mat-input" placeholder="Search apps…" data-filter-table="#app-grid" autocomplete="off" />
-        </div>
-    </div>
-    <div class="app-grid" id="app-grid">
-        @foreach (var t in Model.Templates)
-        {
-            <div class="app-card" data-filter-row>@* filterable by the search above *@
-                <div class="app-card__head">
-                    @if (!string.IsNullOrEmpty(t.IconUrl))
-                    {
-                        <span class="app-card__icon"><img src="@t.IconUrl" alt="" loading="lazy" referrerpolicy="no-referrer" /></span>
-                    }
-                    else
-                    {
-                        <span class="app-card__icon app-card__icon--letter" style="background:@Accent(t.Name);">@(string.IsNullOrEmpty(t.Name) ? "?" : char.ToUpperInvariant(t.Name[0]).ToString())</span>
-                    }
-                    <div class="mat-min-w-0">
-                        <div class="app-card__name"><a href="/Apps/Edit?id=@t.Id">@t.Name</a></div>
-                        @if (!string.IsNullOrEmpty(t.Category))
-                        {
-                            <span class="mat-tag">@t.Category</span>
-                        }
-                    </div>
-                </div>
-
-                @if (!string.IsNullOrEmpty(t.Description))
-                {
-                    <p class="app-card__desc">@t.Description</p>
-                }
-
-                <div class="app-card__foot">
-                    <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install as stack"><icon name="download" /><span>Install</span></a>
-                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="external" /><span>Open</span></a>
-                </div>
+    }
+    else
+    {
+        <div class="mat-toolbar" role="toolbar" aria-label="Store tools">
+            <div class="mat-input-icon mat-toolbar__search">
+                <icon name="search" />
+                <input type="search" class="mat-input" placeholder="Search apps…" aria-label="Search apps" data-filter-table="#app-grid" autocomplete="off" />
             </div>
-        }
-    </div>
-}
+            <span class="mat-toolbar__spacer"></span>
+            <span class="mat-toolbar__info">@Model.Templates.Count @(Model.Templates.Count == 1 ? "app" : "apps")</span>
+        </div>
+        <div class="mat-gallery md-app-grid" id="app-grid">
+            @foreach (var t in Model.Templates)
+            {
+                <article class="mat-card md-app-tile" data-filter-row>@* filterable by the search above *@
+                    <div class="md-app-tile__head">
+                        @if (!string.IsNullOrEmpty(t.IconUrl))
+                        {
+                            <img class="md-app-icon md-app-icon--lg" src="@t.IconUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
+                        }
+                        else
+                        {
+                            <span class="mat-avatar mat-avatar--lg" aria-hidden="true">@(string.IsNullOrEmpty(t.Name) ? "?" : char.ToUpperInvariant(t.Name[0]).ToString())</span>
+                        }
+                        <div class="mat-min-w-0">
+                            <div class="md-app-tile__name"><a href="/Apps/Edit?id=@t.Id">@t.Name</a></div>
+                            @if (!string.IsNullOrEmpty(t.Category))
+                            {
+                                <span class="mat-tag">@t.Category</span>
+                            }
+                        </div>
+                    </div>
 
-<div class="mat-btn-row list-actions">
-    <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
+                    @if (!string.IsNullOrEmpty(t.Description))
+                    {
+                        <p class="mat-small mat-muted">@t.Description</p>
+                    }
+
+                    <div class="mat-actions md-app-tile__actions">
+                        <a class="mat-btn mat-btn--sm mat-btn--primary" href="/Stacks/Edit?templateId=@t.Id" title="Install as stack"><icon name="download" /><span>Install</span></a>
+                        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Apps/Edit?id=@t.Id" title="Open"><icon name="edit" /><span>Open</span></a>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+
+    <div class="mat-actions">
+        <a href="/Apps/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New app</span></a>
+    </div>
 </div>

@@ -7,46 +7,42 @@
 
 @if (Model.TotalApps == 0)
 {
-    <div class="mat-card">
-        <div class="mat-empty">
-            <div><icon name="template" /></div>
-            <p>No apps yet.</p>
-            @if (isAdmin)
-            {
-                <a href="/Apps" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Add app</span></a>
-            }
-        </div>
+    <div class="mat-empty mat-empty--framed">
+        <div class="mat-empty__icon"><icon name="template" /></div>
+        <p class="mat-empty__title">No apps yet.</p>
+        @if (isAdmin)
+        {
+            <a href="/Apps" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Add app</span></a>
+        }
     </div>
 }
-else if (isAdmin)
+else
 {
-    <div class="launch-grid" style="margin-bottom:20px;">
-        <a class="launch-tile launch-tile--add" href="/Apps">
-            <span class="launch-add__plus"><icon name="plus" /></span>
-            <span class="launch-add__label">Add app</span>
-        </a>
-    </div>
-}
-
-@if (Model.TotalApps > 0)
-{
-    <div class="fs-toolbar">
+    <div class="mat-toolbar" role="toolbar" aria-label="Apps tools">
         <div class="mat-input-icon mat-toolbar__search">
             <icon name="search" />
-            <input type="search" class="mat-input" placeholder="Search apps…" data-filter-table="#apps-wrap" autocomplete="off" />
+            <input type="search" class="mat-input" placeholder="Search apps…" aria-label="Search apps" data-filter-table="#apps-wrap" autocomplete="off" />
         </div>
+        @if (isAdmin)
+        {
+            <div class="mat-toolbar__end">
+                <a href="/Apps" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Add app</span></a>
+            </div>
+        }
     </div>
 }
 
-<div id="apps-wrap">
+<div id="apps-wrap" class="mat-stack mat-stack--lg">
     @foreach (var group in Model.Groups)
     {
-        <h2 class="launch-cat">@group.Category <span class="mat-muted">(@group.Apps.Count)</span></h2>
-        <div class="launch-grid">
-            @foreach (var t in group.Apps)
-            {
-                <partial name="_AppTile" model="t" />
-            }
-        </div>
+        <section class="mat-section">
+            <h2 class="md-section-title">@group.Category <span class="mat-muted">(@group.Apps.Count)</span></h2>
+            <div class="mat-grid">
+                @foreach (var t in group.Apps)
+                {
+                    <partial name="_AppTile" model="t" />
+                }
+            </div>
+        </section>
     }
 </div>

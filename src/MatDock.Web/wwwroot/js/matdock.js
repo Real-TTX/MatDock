@@ -87,8 +87,8 @@
     (function () {
         var picker = document.querySelector("[data-migrate-volumes]");
         if (!picker) { return; }
-        var checks = Array.prototype.slice.call(picker.querySelectorAll(".mig-vol"));
-        var rows = Array.prototype.slice.call(picker.querySelectorAll(".vol-picker__row"));
+        var checks = Array.prototype.slice.call(picker.querySelectorAll("[data-vol-check]"));
+        var rows = Array.prototype.slice.call(picker.querySelectorAll("[data-vol-row]"));
         var countEl = document.getElementById("mig-count");
         var startBtn = document.getElementById("mig-start");
         var rename = document.getElementById("mig-rename");
@@ -124,7 +124,7 @@
                 e.preventDefault();
                 rows.forEach(function (r) {
                     if (r.hidden) { return; }
-                    var c = r.querySelector(".mig-vol");
+                    var c = r.querySelector("[data-vol-check]");
                     if (c) { c.checked = value; }
                 });
                 update();
@@ -266,7 +266,7 @@
                     var doc = new DOMParser().parseFromString(html, "text/html");
                     regions.forEach(function (region) {
                         var fresh = doc.getElementById(region.id);
-                        if (fresh) { region.innerHTML = fresh.innerHTML; }
+                        if (fresh) { region.innerHTML = fresh.innerHTML; if (window.MatUi) { window.MatUi.refresh(region); } }
                     });
                     document.dispatchEvent(new CustomEvent("matdock:live"));
                 })

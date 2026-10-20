@@ -566,3 +566,57 @@ a.stat:hover { text-decoration: none; }
 .spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .spark__cpu { stroke: var(--accent); }
 .spark__mem { stroke: var(--success); }
+
+/* ---- Area A: dashboard, environments, apps ---- */
+/* A section title with its icon (dashboard, launchpad). */
+.md-section-title { display: flex; align-items: center; gap: var(--mat-space-2); font-size: var(--mat-fs-lg); }
+.md-section-title .mat-icon { color: var(--mat-accent-text); }
+
+/* Key figures on the dashboard: a tinted icon beside a MatUi stat; the whole card is a link. */
+.mat-card.md-stat { display: flex; align-items: center; gap: var(--mat-space-4); padding: var(--mat-space-4) var(--mat-space-5); }
+.md-stat__icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--mat-radius); background: var(--mat-accent-soft); color: var(--mat-accent-text); font-size: 1.3rem; }
+.md-stat__icon--ok { background: var(--mat-success-bg); color: var(--mat-success-text); }
+.md-stat__icon--warn { background: var(--mat-warning-bg); color: var(--mat-warning-text); }
+.md-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--mat-space-5); }
+
+/* The tile of an environment: name and status, three usage meters, the 24 h history, links. */
+.md-env-card { display: flex; flex-direction: column; gap: var(--mat-space-3); padding: var(--mat-space-4); }
+.md-env-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--mat-space-3); }
+.md-env-card__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-2); font-weight: 650; font-size: var(--mat-fs-lg); }
+.md-env-card__gauges { display: flex; flex-direction: column; gap: var(--mat-space-2); }
+.md-env-card__foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-1); }
+.md-gauge { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--mat-space-3); font-size: var(--mat-fs-sm); }
+.md-gauge__value { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Host history: CPU and RAM of the last 24 h as two lines. */
+.md-spark { display: block; width: 100%; height: 32px; }
+.md-spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.md-spark__cpu { stroke: var(--mat-accent); }
+.md-spark__mem { stroke: var(--mat-success); }
+
+/* Usage in a table cell: value with a small meter below; RAM/CPU/disk rows of the environments list. */
+.md-usage { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--mat-space-1); min-width: 5em; }
+.md-res { display: flex; flex-direction: column; gap: var(--mat-space-1); min-width: 9rem; }
+.md-res__row { display: grid; grid-template-columns: 2.5em minmax(0, 1fr) 3em; align-items: center; gap: var(--mat-space-2); font-size: var(--mat-fs-xs); }
+
+/* Volume migration: source and target side by side, the picker of the source volumes. */
+.md-migrate { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--mat-space-4); align-items: stretch; }
+.md-migrate__arrow { display: grid; place-items: center; color: var(--mat-accent-text); font-size: 1.6rem; }
+.md-vol-picker { display: flex; flex-direction: column; gap: var(--mat-space-2); padding: var(--mat-space-3); border: 1px solid var(--mat-border); border-radius: var(--mat-radius); background: var(--mat-surface-2); }
+.md-vol-picker__list { max-height: 15rem; overflow-y: auto; display: flex; flex-direction: column; }
+@media (max-width: 760px) {
+    .md-migrate { grid-template-columns: minmax(0, 1fr); }
+    .md-migrate__arrow { transform: rotate(90deg); }
+}
+
+/* Apps: the tiles of the launchpad and of the store, the icon of an app. */
+.md-app-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.md-app-tile { display: flex; flex-direction: column; gap: var(--mat-space-3); padding: var(--mat-space-4); }
+.md-app-tile__head { display: flex; align-items: center; gap: var(--mat-space-3); }
+.md-app-tile__head .mat-small { display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-1); }
+.md-app-tile__name { font-weight: 650; font-size: var(--mat-fs-lg); overflow-wrap: anywhere; }
+.md-app-tile__actions { margin-top: auto; }
+.md-app-icon { flex: none; width: 26px; height: 26px; border-radius: var(--mat-radius); object-fit: cover; }
+.md-app-icon--glyph { display: inline-grid; place-items: center; background: var(--mat-surface-3); color: var(--mat-accent-text); font-size: 1rem; line-height: 1; }
+.md-app-tile .md-app-icon { width: 44px; height: 44px; font-size: 1.5rem; }
+.md-app-icon--lg { object-fit: contain; }
