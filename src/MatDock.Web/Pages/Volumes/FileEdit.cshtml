@@ -9,38 +9,41 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (Model.IsImage)
 {
-    <div class="mat-card">
-        <div class="mat-card__head"><icon name="eye" /><span>Preview</span></div>
-        <div class="mat-card__body file-preview">
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="eye" /><h2 class="mat-card__title">Preview</h2></div>
+        <div class="mat-card__body md-file-preview">
             <img src="@downloadUrl" alt="@Model.FileName" />
         </div>
-    </div>
+    </section>
 }
 else if (Model.IsBinary)
 {
-    <div class="mat-card">
-        <div class="mat-empty">
-            <div><icon name="file" /></div>
-            <p>Binary file – no text preview available.</p>
-            <a href="@downloadUrl" class="mat-btn mat-btn--primary"><icon name="download" /><span>Download</span></a>
-        </div>
+    <div class="mat-empty mat-empty--framed">
+        <div class="mat-empty__icon"><icon name="file" /></div>
+        <p>Binary file – no text preview available.</p>
+        <a href="@downloadUrl" class="mat-btn mat-btn--primary"><icon name="download" /><span>Download</span></a>
     </div>
 }
 else
 {
     var editable = !Model.Truncated && !Model.NonUtf8;
-    @if (Model.Truncated)
+    if (Model.Truncated)
     {
         <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">The file is larger than @(MatDock.Core.Volumes.VolumeFileCommands.MaxReadBytes / 1024) KB – only the beginning is shown, saving is disabled (no data loss).</div></div>
     }
@@ -48,16 +51,15 @@ else
     {
         <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">The file is not UTF-8 encoded – read-only to avoid corruption.</div></div>
     }
-    <form method="post" asp-page-handler="Save">
+    <form method="post" asp-page-handler="Save" class="mat-form">
         <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Container" /><input type="hidden" asp-for="Path" />
-        <textarea name="FileContent" class="mat-textarea mat-mono" rows="24" spellcheck="false" style="width:100%;font-size:.85rem;" readonly="@(editable ? null : "readonly")">@Model.FileContent</textarea>
+        <textarea name="FileContent" class="mat-textarea mat-mono md-file-text" rows="24" spellcheck="false" aria-label="Content of @Model.FileName" readonly="@(editable ? null : "readonly")">@Model.FileContent</textarea>
         <mat-form-buttons>
             @if (editable)
             {
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
             }
-            <a href="@downloadUrl" class="mat-btn mat-btn--secondary"><icon name="download" /><span>Download</span></a>
-            <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>@(editable ? "Cancel" : "Back")</span></a>
+            <a href="@backUrl" class="mat-btn mat-btn--secondary">@(editable ? "Cancel" : "Back")</a>
         </mat-form-buttons>
     </form>
 }

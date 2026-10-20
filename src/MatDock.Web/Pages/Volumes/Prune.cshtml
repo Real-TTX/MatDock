@@ -2,10 +2,11 @@
 @model MatDock.Web.Pages.Volumes.PruneModel
 @{
     ViewData["Title"] = "Prune volumes";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Volumes", "/Volumes") };
 }
 
-<div class="u-maxw-xs mat-mb-4 mat-form">
+<div class="mat-field">
     <label class="mat-label" for="prune-env">Environment</label>
     <select id="prune-env" class="mat-select" data-nav-select="/Volumes/Prune?env={v}">
         <option value="0" selected="@(Model.EnvId == 0)">All environments</option>
@@ -20,97 +21,92 @@
 {
     var removed = Model.Results.Sum(r => r.Removed);
     var ok = Model.Results.All(r => r.Success);
-    <div class="result-banner @(ok ? "result-banner--ok" : "result-banner--fail")">
+    <div class="mat-alert @(ok ? "mat-alert--success" : "mat-alert--danger")" role="status">
         <icon name="@(ok ? "check-circle" : "alert")" />
-        <div>
-            <div class="result-banner__big">@removed volume(s) removed</div>
-            <div class="result-banner__sub">Prune finished@(ok ? "" : " with errors")</div>
+        <div class="mat-alert__body">
+            <strong class="mat-alert__title">@removed volume(s) removed</strong>
+            Prune finished@(ok ? "" : " with errors").
+            <ul class="mat-alert__list">
+                @foreach (var r in Model.Results)
+                {
+                    <li><strong>@r.Environment</strong> — @(r.Success ? $"{r.Removed} removed" : "failed")@(string.IsNullOrWhiteSpace(r.Detail) ? "" : $" · {r.Detail}")</li>
+                }
+            </ul>
         </div>
     </div>
-    <ul class="result-steps">
-        @foreach (var r in Model.Results)
-        {
-            <li>
-                <icon name="@(r.Success ? "check-circle" : "x-circle")" />
-                <span><strong>@r.Environment</strong> — @(r.Success ? $"{r.Removed} removed" : "failed")@(string.IsNullOrWhiteSpace(r.Detail) ? "" : $" · {r.Detail}")</span>
-            </li>
-        }
-    </ul>
-    <a href="/Volumes" class="mat-btn mat-btn--primary"><icon name="volume" /><span>Back to volumes</span></a>
+    <div class="mat-actions">
+        <a href="/Volumes" class="mat-btn mat-btn--primary"><icon name="volume" /><span>Back to volumes</span></a>
+    </div>
 }
 
 @if (Model.Errors.Count > 0)
 {
     <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
-        <span>Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</span>
+        <div class="mat-alert__body">Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</div>
     </div>
 }
 
 @if (Model.Results is null)
 {
-    @if (Model.TotalUnused == 0)
+    if (Model.TotalUnused == 0)
     {
         <div class="mat-alert mat-alert--success"><icon name="check-circle" /><div class="mat-alert__body">No unused volumes — nothing to prune.</div></div>
-        <a href="/Volumes" class="mat-btn mat-btn--secondary"><icon name="back" /><span>Back to volumes</span></a>
+        <div class="mat-actions">
+            <a href="/Volumes" class="mat-btn mat-btn--secondary"><icon name="back" /><span>Back to volumes</span></a>
+        </div>
     }
     else
     {
         <div class="mat-alert mat-alert--warning">
             <icon name="alert" />
-            <span>
+            <div class="mat-alert__body">
                 <strong>@Model.LocalCount</strong> local volume(s) and <strong>@Model.ShareCount</strong> network share(s) are unused.
                 Deleted permanently. Network shares are excluded unless you include them.
-            </span>
+            </div>
         </div>
 
         @foreach (var g in Model.Groups)
         {
-            <div class="mat-mb-4 mat-card">
+            <section class="mat-card">
                 <div class="mat-card__head">
-                    <icon name="server" /><span>@g.Environment.Name</span>
-                    <span class="mat-tag">@g.Volumes.Count</span>
+                    <icon name="server" /><h2 class="mat-card__title">@g.Environment.Name</h2>
+                    <span class="mat-badge">@g.Volumes.Count</span>
                 </div>
-                <div class="mat-table-wrap" style="max-height:320px;">
-                    <table class="mat-table">
-                        <tbody>
-                            @foreach (var v in g.Volumes)
+                <ul class="md-plain-list md-scroll-list">
+                    @foreach (var v in g.Volumes)
+                    {
+                        <li class="mat-mono">
+                            @v.Name
+                            @if (v.IsNetworkShare)
                             {
-                                <tr>
-                                    <td class="mat-mono">
-                                        @v.Name
-                                        @if (v.IsNetworkShare)
-                                        {
-                                            <span class="tag-system" title="NFS/CIFS network share">share</span>
-                                        }
-                                    </td>
-                                </tr>
+                                <span class="mat-tag" title="NFS/CIFS network share">share</span>
                             }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        </li>
+                    }
+                </ul>
+            </section>
         }
 
-        <form method="post" data-confirm="Permanently delete the selected unused volumes? This cannot be undone.">
+        <form method="post" class="mat-form" data-confirm="Permanently delete the selected unused volumes? This cannot be undone." data-confirm-danger>
             <input type="hidden" name="Env" value="@Model.EnvId" />
-            <div class="mat-mb-4 mat-card">
-                <div class="mat-card__body">
-                    <label class="mat-check">
-                        <input asp-for="IncludeLocal" type="checkbox" />
-                        <span>Local volumes (@Model.LocalCount)</span>
-                    </label>
-                    <label class="mat-mt-2 mat-check">
-                        <input asp-for="IncludeShares" type="checkbox" />
-                        <span>Network shares — NFS/CIFS (@Model.ShareCount) — off by default</span>
-                    </label>
-                </div>
-            </div>
+            <fieldset class="mat-field mat-fieldset">
+                <legend class="mat-label">Include</legend>
+                <label class="mat-check">
+                    <input asp-for="IncludeLocal" type="checkbox" />
+                    <span>Local volumes (@Model.LocalCount)</span>
+                </label>
+                <label class="mat-check">
+                    <input asp-for="IncludeShares" type="checkbox" />
+                    <span>Network shares — NFS/CIFS (@Model.ShareCount) — off by default</span>
+                </label>
+            </fieldset>
             <mat-form-buttons>
+                <a href="/Volumes" class="mat-btn mat-btn--secondary">Cancel</a>
+                <span class="mat-btn-row__spacer"></span>
                 <button type="submit" class="mat-btn mat-btn--danger">
                     <icon name="broom" /><span>Prune selected volumes</span>
                 </button>
-                <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     }

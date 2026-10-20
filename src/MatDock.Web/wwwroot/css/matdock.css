@@ -620,3 +620,64 @@ a.stat:hover { text-decoration: none; }
 .md-app-icon--glyph { display: inline-grid; place-items: center; background: var(--mat-surface-3); color: var(--mat-accent-text); font-size: 1rem; line-height: 1; }
 .md-app-tile .md-app-icon { width: 44px; height: 44px; font-size: 1.5rem; }
 .md-app-icon--lg { object-fit: contain; }
+/* ---- Area C: images, volumes, files, networks, registry, proxy ---- */
+/* A form that only groups the fields of a toolbar: its children sit in the toolbar's row. */
+.md-contents { display: contents; }
+
+/* A plain list inside a card (unused volumes/networks, connected containers); long ones scroll. */
+.md-plain-list { list-style: none; margin: 0; padding: var(--mat-space-2) 0; }
+.md-plain-list > li { display: flex; align-items: center; gap: var(--mat-space-2); padding: var(--mat-space-2) var(--mat-space-6); border-top: 1px solid var(--mat-border); overflow-wrap: anywhere; }
+.md-plain-list > li:first-child { border-top: 0; }
+.md-scroll-list { max-height: 20rem; overflow-y: auto; }
+
+/* Command output of a scan. */
+.md-output { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+
+/* File explorer: the path of the folder, the entries, the upload field, the preview of an image, the text of a file. */
+.md-fs-volume { max-width: 16rem; }
+.md-fs-path { min-width: 0; }
+.md-fs-path ol { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--mat-space-2); margin: 0; padding: 0; }
+.md-fs-path li { display: inline-flex; align-items: center; gap: var(--mat-space-2); color: var(--mat-text-muted); }
+.md-fs-path li + li::before { content: "/"; color: var(--mat-text-faint); }
+.md-fs-path a { display: inline-flex; align-items: center; color: var(--mat-accent-text); }
+.md-fs-path li[aria-current="page"] { color: var(--mat-text); font-weight: 650; }
+.md-fs-entry { color: inherit; font-weight: 500; }
+.md-fs-entry:hover { color: var(--mat-accent-text); text-decoration: none; }
+.md-fs-entry > .mat-icon { color: var(--mat-text-muted); }
+.md-fs-entry--dir { font-weight: 650; }
+.md-fs-entry--dir > .mat-icon { color: var(--mat-accent-text); }
+.md-fs-upload input[type=file] { max-width: 14rem; font-size: var(--mat-fs-sm); color: var(--mat-text-muted); }
+.md-fs-upload input[type=file]::file-selector-button { font: inherit; margin-right: var(--mat-space-2); padding: var(--mat-space-1) var(--mat-space-3); border: 1px solid var(--mat-border-strong); border-radius: var(--mat-radius); background: var(--mat-surface-2); color: var(--mat-text); cursor: pointer; }
+.md-file-text { min-height: 28rem; font-size: var(--mat-fs-sm); }
+.md-file-preview { display: grid; place-items: center; }
+.md-file-preview img {
+    max-width: 100%; max-height: 70vh; border-radius: var(--mat-radius); border: 1px solid var(--mat-border);
+    /* a checkerboard, so transparent images stay legible in both modes */
+    background-image:
+        linear-gradient(45deg, var(--mat-surface-3) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--mat-surface-3) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--mat-surface-3) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--mat-surface-3) 75%);
+    background-size: 18px 18px;
+    background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+
+/* Registry browser: the repositories of a registry. */
+.md-repo-list { display: flex; flex-direction: column; gap: 2px; max-height: 28rem; overflow: auto; }
+.md-repo-list__item { display: flex; align-items: center; gap: var(--mat-space-3); padding: var(--mat-space-2) var(--mat-space-3); border-radius: var(--mat-radius); color: var(--mat-text); }
+.md-repo-list__item:hover { background: var(--mat-surface-2); text-decoration: none; }
+.md-repo-list__item.is-active { background: var(--mat-accent-soft-strong); color: var(--mat-accent-text); }
+
+/* Network map: networks left, containers right, a line per attachment; hovering a node lights its lines. */
+.md-netmap { padding: var(--mat-space-3); overflow-x: auto; }
+.md-netmap__svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.md-netmap__edge { fill: none; stroke: var(--mat-border-strong); stroke-width: 1.5; }
+.md-netmap__node rect { fill: var(--mat-surface); stroke: var(--mat-border); stroke-width: 1.5; }
+.md-netmap__node--net rect { fill: var(--mat-accent-soft); stroke: var(--mat-accent); }
+.md-netmap__node--con.is-bridge rect { stroke: var(--mat-accent); stroke-width: 3; }
+.md-netmap__node--con.is-stopped { opacity: .55; }
+.md-netmap__label { font: 600 13px var(--mat-font); fill: var(--mat-text); }
+.md-netmap__sub { font: 11px var(--mat-font); fill: var(--mat-text-muted); }
+.md-netmap a:hover rect, .md-netmap a:focus rect { stroke: var(--mat-accent); }
+.md-netmap__svg:has(.md-netmap__node:hover) .md-netmap__edge { opacity: .25; }
+.md-netmap__edge.is-lit { stroke: var(--mat-accent); stroke-width: 2.5; opacity: 1 !important; }

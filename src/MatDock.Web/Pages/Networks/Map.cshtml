@@ -7,8 +7,9 @@
 
 @if (Model.Environments.Count > 1)
 {
-    <div class="mat-mb-4">
-        <select class="mat-select fs-volswitch" aria-label="Environment" data-nav-select="/Networks/Map?envId={v}">
+    <div class="mat-field mat-w-fit">
+        <label class="mat-label" for="map-env">Environment</label>
+        <select id="map-env" class="mat-select" data-nav-select="/Networks/Map?envId={v}">
             @foreach (var env in Model.Environments)
             {
                 <option value="@env.Id" selected="@(env.Id == Model.Environment?.Id)">@env.Name</option>
@@ -19,48 +20,48 @@
 
 @if (Model.Environment is null)
 {
-    <div class="mat-card"><div class="mat-empty"><div class="mat-empty__icon"><icon name="server" /></div><p>No active environment.</p></div></div>
+    <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="server" /></div><p>No active environment.</p></div>
 }
 else if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (Model.Map is { } map)
 {
     if (map.Containers.Count == 0)
     {
-        <div class="mat-card"><div class="mat-empty"><div class="mat-empty__icon"><icon name="network" /></div><p>No container is attached to a network.</p></div></div>
+        <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="network" /></div><p>No container is attached to a network.</p></div>
     }
     else
     {
-        <div class="mat-card netmap">
-            <svg class="netmap__svg" viewBox="0 0 @map.Width @map.Height" role="img" aria-label="Networks and their containers on @Model.Environment.Name">
+        <div class="mat-card md-netmap">
+            <svg class="md-netmap__svg" viewBox="0 0 @map.Width @map.Height" role="img" aria-label="Networks and their containers on @Model.Environment.Name">
                 @foreach (var e in map.Edges)
                 {
-                    <path class="netmap__edge" d="@e.Path" data-net="@e.Network" data-con="@e.ContainerId" />
+                    <path class="md-netmap__edge" d="@e.Path" data-net="@e.Network" data-con="@e.ContainerId" />
                 }
                 @foreach (var n in map.Networks)
                 {
                     <a href="/Networks/Detail?envId=@Model.Environment.Id&network=@Uri.EscapeDataString(n.Key)">
-                        <g class="netmap__node netmap__node--net" data-net="@n.Key">
+                        <g class="md-netmap__node md-netmap__node--net" data-net="@n.Key">
                             <rect x="@n.X" y="@n.Y" width="@n.Width" height="@n.Height" rx="8" />
-                            <text x="@(n.X + 12)" y="@(n.Y + 17)" class="netmap__label">@n.Label</text>
-                            <text x="@(n.X + 12)" y="@(n.Y + 32)" class="netmap__sub">@n.Sub</text>
+                            <text x="@(n.X + 12)" y="@(n.Y + 17)" class="md-netmap__label">@n.Label</text>
+                            <text x="@(n.X + 12)" y="@(n.Y + 32)" class="md-netmap__sub">@n.Sub</text>
                         </g>
                     </a>
                 }
                 @foreach (var c in map.Containers)
                 {
                     <a href="/Containers/ContainerDetail?envId=@Model.Environment.Id&id=@Uri.EscapeDataString(c.Key)">
-                        <g class="netmap__node netmap__node--con @(c.State == "running" ? "" : "is-stopped") @(c.Links > 1 ? "is-bridge" : "")" data-con="@c.Key">
+                        <g class="md-netmap__node md-netmap__node--con @(c.State == "running" ? "" : "is-stopped") @(c.Links > 1 ? "is-bridge" : "")" data-con="@c.Key">
                             <rect x="@c.X" y="@c.Y" width="@c.Width" height="@c.Height" rx="8" />
-                            <text x="@(c.X + 12)" y="@(c.Y + 17)" class="netmap__label">@c.Label</text>
-                            <text x="@(c.X + 12)" y="@(c.Y + 32)" class="netmap__sub">@c.Sub</text>
+                            <text x="@(c.X + 12)" y="@(c.Y + 17)" class="md-netmap__label">@c.Label</text>
+                            <text x="@(c.X + 12)" y="@(c.Y + 32)" class="md-netmap__sub">@c.Sub</text>
                         </g>
                     </a>
                 }
             </svg>
         </div>
-        <p class="mat-muted netmap__legend">A thick border: the container is on several networks.</p>
+        <p class="mat-hint">A thick border: the container is on several networks.</p>
     }
 }

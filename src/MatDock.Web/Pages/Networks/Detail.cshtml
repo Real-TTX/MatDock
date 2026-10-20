@@ -8,14 +8,19 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 
 @if (Model.Detail is null)
@@ -26,97 +31,85 @@ else
 {
     var d = Model.Detail;
 
-    @if (isAdmin && !Model.IsPredefined)
-    {
-        var netInUse = d.Containers.Count > 0;
-        <div class="mat-mb-4 mat-btn-row">
-            <form method="post" asp-page-handler="Remove" data-confirm="Delete network &quot;@d.Name&quot;?">
-                <input type="hidden" name="envId" value="@Model.EnvId" />
-                <input type="hidden" name="network" value="@d.Name" />
-                <button type="submit" class="mat-btn mat-btn--danger" disabled="@netInUse"
-                        title="@(netInUse ? $"In use by {d.Containers.Count} container(s)" : "Delete network")">
-                    <icon name="trash" /><span>Delete network</span>
-                </button>
-            </form>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="network" /><h2 class="mat-card__title">Details</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Name</dt><dd class="mat-mono">@d.Name</dd>
+                <dt>ID</dt><dd class="mat-mono">@d.Id</dd>
+                <dt>Driver</dt><dd>@d.Driver</dd>
+                <dt>Scope</dt><dd>@(d.Scope ?? "–")</dd>
+                <dt>Internal</dt><dd>@(d.Internal ? "yes" : "no")</dd>
+                <dt>Attachable</dt><dd>@(d.Attachable ? "yes" : "no")</dd>
+                <dt>IPv6</dt><dd>@(d.EnableIPv6 ? "yes" : "no")</dd>
+                @if (d.Subnets.Count > 0)
+                {
+                    <dt>Subnets</dt><dd class="mat-mono">@string.Join(", ", d.Subnets)</dd>
+                }
+                <dt>Created</dt><dd>@(d.CreatedAt ?? "–")</dd>
+            </dl>
         </div>
-    }
+    </section>
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="network" /><span>Details</span></div>
-        <div class="mat-table-wrap">
-            <table class="mat-table">
-                <tbody>
-                    <tr><th style="width:180px;">Name</th><td class="mat-mono">@d.Name</td></tr>
-                    <tr><th>ID</th><td class="mat-mono">@d.Id</td></tr>
-                    <tr><th>Driver</th><td>@d.Driver</td></tr>
-                    <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
-                    <tr><th>Internal</th><td>@(d.Internal ? "yes" : "no")</td></tr>
-                    <tr><th>Attachable</th><td>@(d.Attachable ? "yes" : "no")</td></tr>
-                    <tr><th>IPv6</th><td>@(d.EnableIPv6 ? "yes" : "no")</td></tr>
-                    @if (d.Subnets.Count > 0)
+    if (d.Options.Count > 0)
+    {
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="settings" /><h2 class="mat-card__title">Options</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    @foreach (var kv in d.Options)
                     {
-                        <tr><th>Subnets</th><td class="mat-mono">@string.Join(", ", d.Subnets)</td></tr>
+                        <dt class="mat-mono">@kv.Key</dt><dd class="mat-mono">@kv.Value</dd>
                     }
-                    <tr><th>Created</th><td>@(d.CreatedAt ?? "–")</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    @if (d.Options.Count > 0)
-    {
-        <div class="mat-mb-4 mat-card">
-            <div class="mat-card__head"><icon name="settings" /><span>Options</span></div>
-            <div class="mat-table-wrap">
-                <table class="mat-table">
-                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
-                    <tbody>
-                        @foreach (var kv in d.Options)
-                        {
-                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@kv.Value</td></tr>
-                        }
-                    </tbody>
-                </table>
+                </dl>
             </div>
-        </div>
+        </section>
     }
 
-    @if (d.Labels.Count > 0)
+    if (d.Labels.Count > 0)
     {
-        <div class="mat-mb-4 mat-card">
-            <div class="mat-card__head"><icon name="filter" /><span>Labels</span></div>
-            <div class="mat-table-wrap">
-                <table class="mat-table">
-                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
-                    <tbody>
-                        @foreach (var kv in d.Labels)
-                        {
-                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@kv.Value</td></tr>
-                        }
-                    </tbody>
-                </table>
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="tag" /><h2 class="mat-card__title">Labels</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    @foreach (var kv in d.Labels)
+                    {
+                        <dt class="mat-mono">@kv.Key</dt><dd class="mat-mono">@kv.Value</dd>
+                    }
+                </dl>
             </div>
-        </div>
+        </section>
     }
 
-    <div class="mat-card">
-        <div class="mat-card__head"><icon name="box" /><span>Connected containers</span><span class="mat-tag">@d.Containers.Count</span></div>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="box" /><h2 class="mat-card__title">Connected containers</h2><span class="mat-badge">@d.Containers.Count</span></div>
         @if (d.Containers.Count == 0)
         {
             <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No container is connected to this network.</p></div>
         }
         else
         {
-            <div class="mat-table-wrap">
-                <table class="mat-table">
-                    <tbody>
-                        @foreach (var c in d.Containers)
-                        {
-                            <tr><td><a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><strong>@c.Name</strong></a></td></tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <ul class="md-plain-list">
+                @foreach (var c in d.Containers)
+                {
+                    <li><a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></li>
+                }
+            </ul>
         }
-    </div>
+    </section>
+
+    if (isAdmin && !Model.IsPredefined)
+    {
+        var netInUse = d.Containers.Count > 0;
+        <form method="post" asp-page-handler="Remove" data-confirm="Delete network &quot;@d.Name&quot;?" data-confirm-danger>
+            <input type="hidden" name="envId" value="@Model.EnvId" />
+            <input type="hidden" name="network" value="@d.Name" />
+            <div class="mat-actions">
+                <button type="submit" class="mat-btn mat-btn--danger" disabled="@netInUse"
+                        title="@(netInUse ? $"In use by {d.Containers.Count} container(s)" : "Delete network")">
+                    <icon name="trash" /><span>Delete network</span>
+                </button>
+            </div>
+        </form>
+    }
 }

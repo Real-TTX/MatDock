@@ -2,10 +2,11 @@
 @model MatDock.Web.Pages.Networks.PruneModel
 @{
     ViewData["Title"] = "Prune networks";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Networks", "/Networks") };
 }
 
-<div class="u-maxw-xs mat-mb-4 mat-form">
+<div class="mat-field">
     <label class="mat-label" for="prune-env">Environment</label>
     <select id="prune-env" class="mat-select" data-nav-select="/Networks/Prune?env={v}">
         <option value="0" selected="@(Model.EnvId == 0)">All environments</option>
@@ -20,74 +21,72 @@
 {
     var removed = Model.Results.Sum(r => r.Removed);
     var ok = Model.Results.All(r => r.Success);
-    <div class="result-banner @(ok ? "result-banner--ok" : "result-banner--fail")">
+    <div class="mat-alert @(ok ? "mat-alert--success" : "mat-alert--danger")" role="status">
         <icon name="@(ok ? "check-circle" : "alert")" />
-        <div>
-            <div class="result-banner__big">@removed network(s) removed</div>
-            <div class="result-banner__sub">Prune finished@(ok ? "" : " with errors")</div>
+        <div class="mat-alert__body">
+            <strong class="mat-alert__title">@removed network(s) removed</strong>
+            Prune finished@(ok ? "" : " with errors").
+            <ul class="mat-alert__list">
+                @foreach (var r in Model.Results)
+                {
+                    <li><strong>@r.Environment</strong> — @(r.Success ? $"{r.Removed} removed" : "failed")@(string.IsNullOrWhiteSpace(r.Detail) ? "" : $" · {r.Detail}")</li>
+                }
+            </ul>
         </div>
     </div>
-    <ul class="result-steps">
-        @foreach (var r in Model.Results)
-        {
-            <li>
-                <icon name="@(r.Success ? "check-circle" : "x-circle")" />
-                <span><strong>@r.Environment</strong> — @(r.Success ? $"{r.Removed} removed" : "failed")@(string.IsNullOrWhiteSpace(r.Detail) ? "" : $" · {r.Detail}")</span>
-            </li>
-        }
-    </ul>
-    <a href="/Networks" class="mat-btn mat-btn--primary"><icon name="network" /><span>Back to networks</span></a>
+    <div class="mat-actions">
+        <a href="/Networks" class="mat-btn mat-btn--primary"><icon name="network" /><span>Back to networks</span></a>
+    </div>
 }
 
 @if (Model.Errors.Count > 0)
 {
     <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
-        <span>Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</span>
+        <div class="mat-alert__body">Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</div>
     </div>
 }
 
 @if (Model.Results is null)
 {
-    @if (Model.TotalUnused == 0)
+    if (Model.TotalUnused == 0)
     {
         <div class="mat-alert mat-alert--success"><icon name="check-circle" /><div class="mat-alert__body">No unused networks — nothing to prune.</div></div>
-        <a href="/Networks" class="mat-btn mat-btn--secondary"><icon name="back" /><span>Back to networks</span></a>
+        <div class="mat-actions">
+            <a href="/Networks" class="mat-btn mat-btn--secondary"><icon name="back" /><span>Back to networks</span></a>
+        </div>
     }
     else
     {
         <div class="mat-alert mat-alert--warning">
             <icon name="alert" />
-            <span>The following <strong>@Model.TotalUnused</strong> unused network(s) will be <strong>permanently deleted</strong>. Predefined networks (bridge/host/none) are never touched.</span>
+            <div class="mat-alert__body">The following <strong>@Model.TotalUnused</strong> unused network(s) will be <strong>permanently deleted</strong>. Predefined networks (bridge/host/none) are never touched.</div>
         </div>
 
         @foreach (var g in Model.Groups)
         {
-            <div class="mat-mb-4 mat-card">
+            <section class="mat-card">
                 <div class="mat-card__head">
-                    <icon name="server" /><span>@g.Environment.Name</span>
-                    <span class="mat-tag">@g.Networks.Count</span>
+                    <icon name="server" /><h2 class="mat-card__title">@g.Environment.Name</h2>
+                    <span class="mat-badge">@g.Networks.Count</span>
                 </div>
-                <div class="mat-table-wrap" style="max-height:320px;">
-                    <table class="mat-table">
-                        <tbody>
-                            @foreach (var name in g.Networks)
-                            {
-                                <tr><td class="mat-mono">@name</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                <ul class="md-plain-list md-scroll-list">
+                    @foreach (var name in g.Networks)
+                    {
+                        <li class="mat-mono">@name</li>
+                    }
+                </ul>
+            </section>
         }
 
-        <form method="post" data-confirm="Permanently delete @Model.TotalUnused unused network(s)?">
+        <form method="post" data-confirm="Permanently delete @Model.TotalUnused unused network(s)?" data-confirm-danger>
             <input type="hidden" name="Env" value="@Model.EnvId" />
             <mat-form-buttons>
+                <a href="/Networks" class="mat-btn mat-btn--secondary">Cancel</a>
+                <span class="mat-btn-row__spacer"></span>
                 <button type="submit" class="mat-btn mat-btn--danger">
                     <icon name="broom" /><span>Prune @Model.TotalUnused network(s)</span>
                 </button>
-                <a href="/Networks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
             </mat-form-buttons>
         </form>
     }

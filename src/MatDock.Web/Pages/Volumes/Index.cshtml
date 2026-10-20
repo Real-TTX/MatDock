@@ -7,39 +7,38 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Errors.Count > 0)
 {
     <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
-        <span>
-            Unreachable:
-            @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))
-        </span>
+        <div class="mat-alert__body">Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</div>
     </div>
 }
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="u-contents js-autosubmit">
+        <form method="get" class="js-autosubmit md-contents">
             <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, mountpoint, environment)…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, mountpoint, environment)…" aria-label="Search volumes" />
             </div>
-            <div class="mat-row mat-row--nowrap">
-                <label for="filter-status"><icon name="filter" /></label>
-                <select id="filter-status" name="Status" class="mat-select">
-                    <option value="">All</option>
-                    <option value="used" selected="@(Model.Status == "used")">Used</option>
-                    <option value="unused" selected="@(Model.Status == "unused")">Unused</option>
-                </select>
-            </div>
+            <select id="filter-status" name="Status" class="mat-select mat-w-auto" aria-label="Status">
+                <option value="">All statuses</option>
+                <option value="used" selected="@(Model.Status == "used")">Used</option>
+                <option value="unused" selected="@(Model.Status == "unused")">Unused</option>
+            </select>
             <span class="mat-toolbar__spacer"></span>
-            <span class="mat-muted"><strong>@Model.Rows.Count</strong> Volumes</span>
+            <span class="mat-toolbar__info">@Model.Rows.Count volumes</span>
         </form>
     </mat-table-toolbar>
 
@@ -47,56 +46,63 @@
         @if (Model.Rows.Count == 0)
         {
             <div class="mat-empty">
-                <div><icon name="volume" /></div>
+                <div class="mat-empty__icon"><icon name="volume" /></div>
                 <p>No volumes found.@(Model.Environments.Count == 0 ? " Create an environment first." : "")</p>
             </div>
         }
         else
         {
-            <table class="mat-table">
-                <thead>
-                    <tr>
-                        <th>Environment</th>
-                        <th>Volume</th>
-                        <th>Status</th>
-                        <th class="mat-table__cell-actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.Rows)
-                    {
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead>
                         <tr>
-                            <td class="mat-nowrap">@row.Environment.Name</td>
-                            <td class="mat-text-wrap">
-                                <a href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)"><strong>@row.Volume.Name</strong></a>
-                                @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
-                                {
-                                    <div class="cell-sub">@row.Volume.Mountpoint</div>
-                                }
-                            </td>
-                            <td>
-                                @if (row.Unused)
-                                {
-                                    <span class="mat-pill mat-pill--plain" title="Not used by any container"><icon name="alert" /> Unused</span>
-                                }
-                                else
-                                {
-                                    <span class="mat-pill mat-pill--ok" title="Mounted by at least one container"><icon name="check-circle" /> Used</span>
-                                }
-                            </td>
-                            <td class="mat-table__cell-actions">
-                                <div class="mat-table__actions">
-                                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes/Detail?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="Open"><icon name="external" /></a>
-                                    @if (isAdmin)
-                                    {
-                                        <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes/Files?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="File explorer"><icon name="folder" /></a>
-                                    }
-                                </div>
-                            </td>
+                            <th>Environment</th>
+                            <th>Volume</th>
+                            <th>Status</th>
+                            <th><span class="mat-sr-only">Actions</span></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var detail = $"/Volumes/Detail?envId={row.Environment.Id}&volume={Uri.EscapeDataString(row.Volume.Name)}";
+                            <tr>
+                                <td class="mat-nowrap" data-label="Environment">@row.Environment.Name</td>
+                                <td class="mat-text-wrap" data-label="Volume">
+                                    <div class="mat-table__name">
+                                        <span>
+                                            <a href="@detail">@row.Volume.Name</a>
+                                            @if (!string.IsNullOrEmpty(row.Volume.Mountpoint))
+                                            {
+                                                <small class="mat-mono">@row.Volume.Mountpoint</small>
+                                            }
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-label="Status">
+                                    @if (row.Unused)
+                                    {
+                                        <span class="mat-pill mat-pill--plain" title="Not used by any container"><icon name="alert" /> Unused</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="mat-pill mat-pill--ok" title="Mounted by at least one container"><icon name="check-circle" /> Used</span>
+                                    }
+                                </td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="@detail" title="Open" aria-label="Open @row.Volume.Name"><icon name="external" /></a>
+                                        @if (isAdmin)
+                                        {
+                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes/Files?envId=@row.Environment.Id&volume=@Uri.EscapeDataString(row.Volume.Name)" title="File explorer" aria-label="Files of @row.Volume.Name"><icon name="folder" /></a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </mat-table-body>
 
@@ -105,9 +111,12 @@
         {
             <a href="/Volumes/Create" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New volume</span></a>
             <a href="/Environments/Migrate?sourceId=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="server" /><span>Migrate</span></a>
-            <a href="/Volumes/Prune?env=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="broom" /><span>Prune</span></a>
             <a href="/Backups" class="mat-btn mat-btn--secondary"><icon name="save" /><span>Backups</span></a>
         }
         <a href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
+        @if (isAdmin && Model.Environments.Count > 0)
+        {
+            <a href="/Volumes/Prune?env=@Model.EnvId" class="mat-btn mat-btn--secondary mat-btn--end"><icon name="broom" /><span>Prune</span></a>
+        }
     </mat-table-actions>
 </mat-table>

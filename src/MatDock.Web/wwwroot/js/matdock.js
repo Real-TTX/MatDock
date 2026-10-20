@@ -278,15 +278,15 @@
     })();
 
     /* ---------------- Network map: hovering a network or a container lights its lines ---------------- */
-    document.querySelectorAll(".netmap__svg").forEach(function (svg) {
+    document.querySelectorAll(".md-netmap__svg").forEach(function (svg) {
         function light(node, on) {
             var net = node.getAttribute("data-net"), con = node.getAttribute("data-con");
-            svg.querySelectorAll(".netmap__edge").forEach(function (edge) {
+            svg.querySelectorAll(".md-netmap__edge").forEach(function (edge) {
                 var hit = (net && edge.getAttribute("data-net") === net) || (con && edge.getAttribute("data-con") === con);
                 edge.classList.toggle("is-lit", on && !!hit);
             });
         }
-        svg.querySelectorAll(".netmap__node").forEach(function (node) {
+        svg.querySelectorAll(".md-netmap__node").forEach(function (node) {
             node.addEventListener("mouseenter", function () { light(node, true); });
             node.addEventListener("mouseleave", function () { light(node, false); });
             node.addEventListener("focusin", function () { light(node, true); });
@@ -332,15 +332,20 @@ document.addEventListener("click", function (e) {
 });
 
 function matdockPromptSubmit(btn, message, current) {
-    var value = window.prompt(message, current || "");
-    if (value === null) { return; }
-    value = value.trim();
-    if (value.length === 0) { return; }
     var form = btn.closest("form");
     if (!form) { return; }
-    var input = form.querySelector("[data-prompt-target]");
-    if (input) { input.value = value; }
-    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    // The toolkit's dialog (MatUi.prompt) resolves with the text, or null when cancelled.
+    var ask = window.MatUi && window.MatUi.prompt
+        ? window.MatUi.prompt(message, { value: current || "" })
+        : Promise.resolve(window.prompt(message, current || ""));
+    ask.then(function (value) {
+        if (value === null || value === undefined) { return; }
+        value = String(value).trim();
+        if (value.length === 0) { return; }
+        var input = form.querySelector("[data-prompt-target]");
+        if (input) { input.value = value; }
+        if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    });
 }
 
 /* Expandable table rows (Stacks list): toggle the detail row that immediately follows the

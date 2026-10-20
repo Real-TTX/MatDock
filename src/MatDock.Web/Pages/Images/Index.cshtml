@@ -9,28 +9,33 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Errors.Count > 0)
 {
     <div class="mat-alert mat-alert--warning">
         <icon name="alert" />
-        <span>Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</span>
+        <div class="mat-alert__body">Unreachable: @string.Join(" · ", Model.Errors.Select(e => $"{e.Environment} ({e.Message})"))</div>
     </div>
 }
 
 <mat-table>
     <mat-table-toolbar>
-        <form method="get" class="js-autosubmit" style="display:contents;">
+        <form method="get" class="js-autosubmit md-contents">
             <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
-                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (repository, tag, id, environment)…" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (repository, tag, id, environment)…" aria-label="Search images" />
             </div>
             <span class="mat-toolbar__spacer"></span>
-            <span class="mat-muted"><strong>@Model.Rows.Count</strong> Images</span>
+            <span class="mat-toolbar__info">@Model.Rows.Count images</span>
         </form>
     </mat-table-toolbar>
 
@@ -38,94 +43,97 @@
         @if (Model.Rows.Count == 0)
         {
             <div class="mat-empty">
-                <div><icon name="box" /></div>
+                <div class="mat-empty__icon"><icon name="image" /></div>
                 <p>No images found.@(Model.Environments.Count == 0 ? " Create an environment first." : "")</p>
             </div>
         }
         else
         {
-            <table class="mat-table">
-                <thead>
-                    <tr>
-                        <th>Environment</th>
-                        <th>Image</th>
-                        <th>Size</th>
-                        <th>Created</th>
-                        <th>Status</th>
-                        <th>Vulnerabilities</th>
-                        <th class="mat-table__cell-actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.Rows)
-                    {
-                        var img = row.Image;
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead>
                         <tr>
-                            <td class="mat-nowrap">@row.Environment.Name</td>
-                            <td class="mat-text-wrap">
-                                <a href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(img.Dangling ? img.Id : img.Reference)"><strong>@img.Reference</strong></a>
-                                @if (img.Dangling)
-                                {
-                                    <span class="tag-unused" title="Dangling image (untagged)">dangling</span>
-                                }
-                            </td>
-                            <td class="mat-nowrap">@(img.Size ?? "–")</td>
-                            <td class="cell-sub mat-nowrap">@(img.CreatedSince ?? "–")</td>
-                            <td>
-                                @if (row.InUse)
-                                {
-                                    <span class="mat-pill mat-pill--ok" title="Used by @string.Join(", ", row.UsedBy)"><icon name="check-circle" /> Used</span>
-                                }
-                                else
-                                {
-                                    <span class="mat-pill mat-pill--plain" title="No container uses this image"><icon name="alert" /> Unused</span>
-                                }
-                            </td>
-                            <td data-label="Vulnerabilities">
-                                @if (scans.TryGetValue((row.Environment.Id, img.Dangling ? img.Id : img.Reference), out var scan))
-                                {
-                                    <a class="mat-pill @(scan.Critical > 0 ? "mat-pill--error" : scan.High > 0 ? "mat-pill--warn" : "mat-pill--ok")"
-                                       href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(img.Dangling ? img.Id : img.Reference)"
-                                       title="Scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(scan.Critical + scan.High == 0 ? "none critical/high" : $"{scan.Critical} critical · {scan.High} high")</a>
-                                }
-                                else
-                                {
-                                    <span class="cell-sub">–</span>
-                                }
-                            </td>
-                            <td class="mat-table__cell-actions">
-                                <div class="mat-table__actions">
-                                    @if (isAdmin)
-                                    {
-                                        <form method="post" asp-page-handler="Remove" style="display:inline;"
-                                              data-confirm="Delete image &quot;@img.Reference&quot;? (fails if a container still uses it)">
-                                            <input type="hidden" name="envId" value="@row.Environment.Id" />
-                                            <input type="hidden" name="reference" value="@(img.Dangling ? img.Id : img.Reference)" />
-                                            <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Delete"><icon name="trash" /></button>
-                                        </form>
-                                    }
-                                </div>
-                            </td>
+                            <th>Environment</th>
+                            <th>Image</th>
+                            <th>Size</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Vulnerabilities</th>
+                            <th><span class="mat-sr-only">Actions</span></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var img = row.Image;
+                            var reference = img.Dangling ? img.Id : img.Reference;
+                            <tr>
+                                <td class="mat-nowrap" data-label="Environment">@row.Environment.Name</td>
+                                <td class="mat-text-wrap" data-label="Image">
+                                    <a href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(reference)"><strong>@img.Reference</strong></a>
+                                    @if (img.Dangling)
+                                    {
+                                        <span class="mat-pill mat-pill--warn" title="Dangling image (untagged)">dangling</span>
+                                    }
+                                </td>
+                                <td class="mat-nowrap" data-label="Size">@(img.Size ?? "–")</td>
+                                <td class="mat-nowrap mat-muted" data-label="Created">@(img.CreatedSince ?? "–")</td>
+                                <td data-label="Status">
+                                    @if (row.InUse)
+                                    {
+                                        <span class="mat-pill mat-pill--ok" title="Used by @string.Join(", ", row.UsedBy)"><icon name="check-circle" /> Used</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="mat-pill mat-pill--plain" title="No container uses this image"><icon name="alert" /> Unused</span>
+                                    }
+                                </td>
+                                <td data-label="Vulnerabilities">
+                                    @if (scans.TryGetValue((row.Environment.Id, reference), out var scan))
+                                    {
+                                        <a class="mat-pill @(scan.Critical > 0 ? "mat-pill--error" : scan.High > 0 ? "mat-pill--warn" : "mat-pill--ok")"
+                                           href="/Images/Detail?envId=@row.Environment.Id&reference=@Uri.EscapeDataString(reference)"
+                                           title="Scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(scan.Critical + scan.High == 0 ? "none critical/high" : $"{scan.Critical} critical · {scan.High} high")</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="mat-muted">–</span>
+                                    }
+                                </td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">
+                                        @if (isAdmin)
+                                        {
+                                            <form method="post" asp-page-handler="Remove"
+                                                  data-confirm="Delete image &quot;@img.Reference&quot;? (fails if a container still uses it)">
+                                                <input type="hidden" name="envId" value="@row.Environment.Id" />
+                                                <input type="hidden" name="reference" value="@reference" />
+                                                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Delete" aria-label="Delete @img.Reference"><icon name="trash" /></button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </mat-table-body>
 
     <mat-table-actions>
+        <a href="/Images?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
         @if (isAdmin)
         {
-            <form method="post" asp-page-handler="Prune" data-confirm="Delete all dangling (untagged) images in @(Model.EnvId > 0 ? "this environment" : "all environments")?" style="display:inline;">
+            <form method="post" asp-page-handler="Prune" data-confirm="Delete all dangling (untagged) images in @(Model.EnvId > 0 ? "this environment" : "all environments")?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <button type="submit" class="mat-btn mat-btn--secondary"><icon name="broom" /><span>Prune dangling</span></button>
             </form>
-            <form method="post" asp-page-handler="Prune" data-confirm="Remove every image no container uses in @(Model.EnvId > 0 ? "this environment" : "all environments")? They are pulled again when needed." style="display:inline;">
+            <form method="post" asp-page-handler="Prune" data-confirm="Remove every image no container uses in @(Model.EnvId > 0 ? "this environment" : "all environments")? They are pulled again when needed.">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="all" value="true" />
                 <button type="submit" class="mat-btn mat-btn--secondary"><icon name="broom" /><span>Prune unused</span></button>
             </form>
         }
-        <a href="/Images?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

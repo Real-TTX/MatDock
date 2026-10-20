@@ -2,10 +2,11 @@
 @model MatDock.Web.Pages.Volumes.CreateModel
 @{
     ViewData["Title"] = "New volume";
+    ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Volumes", "/Volumes") };
 }
 
-<div class="u-maxw mat-card">
+<div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <partial name="_ValidationSummary" />
@@ -76,7 +77,7 @@
 
             <mat-form-buttons>
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create volume</span></button>
-                <a href="/Volumes" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                <a href="/Volumes" class="mat-btn mat-btn--secondary">Cancel</a>
             </mat-form-buttons>
         </form>
     </div>

@@ -35,14 +35,19 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="mat-alert @(Model.IsError ? "mat-alert--danger" : "mat-alert--success")">
-        <icon name="@(Model.IsError ? "x-circle" : "check-circle")" /><div class="mat-alert__body">@Model.StatusMessage</div>
-    </div>
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
 }
 
 @if (Model.Error is not null)
 {
-    <div class="mat-alert mat-alert--danger"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
 }
 else if (Model.Detail is null)
 {
@@ -54,19 +59,19 @@ else
 
     var volInUse = Model.UsedBy.Count > 0;
 
-    <div class="mat-mb-4 mat-btn-row">
-        @if (User.IsAdmin())
-        {
-            <a class="mat-btn mat-btn--secondary" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
+    if (User.IsAdmin())
+    {
+        <div class="mat-row">
+            <a class="mat-btn mat-btn--secondary" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="folder" /><span>Files</span></a>
             <a class="mat-btn mat-btn--secondary" href="/Environments/Migrate?sourceId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="server" /><span>Migrate</span></a>
-            <form method="post" asp-page-handler="Backup" data-confirm="Back up volume &quot;@d.Name&quot; now (to the local backup store)?" class="mat-d-inline">
+            <form method="post" asp-page-handler="Backup" data-confirm="Back up volume &quot;@d.Name&quot; now (to the local backup store)?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="volume" value="@d.Name" />
                 <button type="submit" class="mat-btn mat-btn--secondary"><icon name="save" /><span>Back up now</span></button>
             </form>
             <a class="mat-btn mat-btn--secondary" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="clock" /><span>Backups</span></a>
-            <span class="mat-btn-row__spacer"></span>
-            <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." class="mat-d-inline">
+            <span class="mat-flex-grow"></span>
+            <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." data-confirm-danger>
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="volume" value="@d.Name" />
                 <button type="submit" class="mat-btn mat-btn--danger" disabled="@volInUse"
@@ -74,66 +79,58 @@ else
                     <icon name="trash" /><span>Delete</span>
                 </button>
             </form>
-        }
-    </div>
+        </div>
+    }
 
-    <div class="mat-mb-4 mat-card">
-        <div class="mat-card__head"><icon name="volume" /><span>Details</span></div>
-        <div class="mat-table-wrap">
-            <table class="mat-table">
-                <tbody>
-                    <tr><th style="width:180px;">Name</th><td class="mat-mono">@d.Name</td></tr>
-                    <tr><th>Driver</th><td>@d.Driver</td></tr>
-                    <tr><th>Scope</th><td>@(d.Scope ?? "–")</td></tr>
-                    <tr><th>Created</th><td>@(d.CreatedAt ?? "–")</td></tr>
-                    <tr><th>Mountpoint (local)</th><td class="mat-mono">@(d.Mountpoint ?? "–")</td></tr>
-                    @if (d.Device is not null)
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="volume" /><h2 class="mat-card__title">Details</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Name</dt><dd class="mat-mono">@d.Name</dd>
+                <dt>Driver</dt><dd>@d.Driver</dd>
+                <dt>Scope</dt><dd>@(d.Scope ?? "–")</dd>
+                <dt>Created</dt><dd>@(d.CreatedAt ?? "–")</dd>
+                <dt>Mountpoint (local)</dt><dd class="mat-mono">@(d.Mountpoint ?? "–")</dd>
+                @if (d.Device is not null)
+                {
+                    <dt>Remote share</dt><dd class="mat-mono">@d.Device</dd>
+                }
+            </dl>
+        </div>
+    </section>
+
+    if (d.Options.Count > 0)
+    {
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="settings" /><h2 class="mat-card__title">Driver options</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    @foreach (var kv in d.Options)
                     {
-                        <tr><th>Remote share</th><td class="mat-mono">@d.Device</td></tr>
+                        <dt class="mat-mono">@kv.Key</dt><dd class="mat-mono">@Redact(kv.Key, kv.Value)</dd>
                     }
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    @if (d.Options.Count > 0)
-    {
-        <div class="mat-mb-4 mat-card">
-            <div class="mat-card__head"><icon name="settings" /><span>Driver options</span></div>
-            <div class="mat-table-wrap">
-                <table class="mat-table">
-                    <thead><tr><th style="width:180px;">Key</th><th>Value</th></tr></thead>
-                    <tbody>
-                        @foreach (var kv in d.Options)
-                        {
-                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@Redact(kv.Key, kv.Value)</td></tr>
-                        }
-                    </tbody>
-                </table>
+                </dl>
             </div>
-        </div>
+        </section>
     }
 
-    @if (d.Labels.Count > 0)
+    if (d.Labels.Count > 0)
     {
-        <div class="mat-mb-4 mat-card">
-            <div class="mat-card__head"><icon name="filter" /><span>Labels</span></div>
-            <div class="mat-table-wrap">
-                <table class="mat-table">
-                    <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
-                    <tbody>
-                        @foreach (var kv in d.Labels)
-                        {
-                            <tr><td class="mat-mono">@kv.Key</td><td class="mat-mono">@Redact(kv.Key, kv.Value)</td></tr>
-                        }
-                    </tbody>
-                </table>
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="tag" /><h2 class="mat-card__title">Labels</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    @foreach (var kv in d.Labels)
+                    {
+                        <dt class="mat-mono">@kv.Key</dt><dd class="mat-mono">@Redact(kv.Key, kv.Value)</dd>
+                    }
+                </dl>
             </div>
-        </div>
+        </section>
     }
 
-    <div class="mat-card">
-        <div class="mat-card__head"><icon name="box" /><span>Used by</span><span class="mat-tag">@Model.UsedBy.Count</span></div>
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="box" /><h2 class="mat-card__title">Used by</h2><span class="mat-badge">@Model.UsedBy.Count</span></div>
         @if (Model.UsedBy.Count == 0)
         {
             <div class="mat-empty"><div class="mat-empty__icon"><icon name="box" /></div><p>No container uses this volume.</p></div>
@@ -142,14 +139,16 @@ else
         {
             <div class="mat-table-wrap">
                 <table class="mat-table">
-                    <thead><tr><th>Container</th><th>Stack</th><th>Status</th><th>Ports</th><th class="mat-table__cell-actions"></th></tr></thead>
+                    <thead><tr><th>Container</th><th>Stack</th><th>Status</th><th>Ports</th><th><span class="mat-sr-only">Actions</span></th></tr></thead>
                     <tbody>
                         @foreach (var c in Model.UsedBy)
                         {
                             <tr>
-                                <td><strong>@c.Name</strong>@if (!string.IsNullOrEmpty(c.Service)) {<div class="cell-sub">@c.Service</div>}</td>
-                                <td class="cell-sub">@(c.Project ?? "–")</td>
-                                <td>
+                                <td data-label="Container">
+                                    <div class="mat-table__name"><span>@c.Name@if (!string.IsNullOrEmpty(c.Service)) {<small>@c.Service</small>}</span></div>
+                                </td>
+                                <td class="mat-muted" data-label="Stack">@(c.Project ?? "–")</td>
+                                <td data-label="Status">
                                     @if (c.IsRunning)
                                     {
                                         <span class="mat-pill mat-pill--ok"><icon name="check-circle" /><span>@c.Status</span></span>
@@ -159,9 +158,11 @@ else
                                         <span class="mat-pill mat-pill--plain"><span>@c.Status</span></span>
                                     }
                                 </td>
-                                <td class="cell-sub">@c.Ports</td>
+                                <td class="mat-muted mat-mono mat-text-wrap" data-label="Ports">@c.Ports</td>
                                 <td class="mat-table__cell-actions">
-                                    <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs"><icon name="eye" /></a>
+                                    <div class="mat-table__actions">
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs of @c.Name"><icon name="eye" /></a>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -169,5 +170,5 @@ else
                 </table>
             </div>
         }
-    </div>
+    </section>
 }
