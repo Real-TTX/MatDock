@@ -149,6 +149,12 @@ public class EditModel : PageModel
         await LoadListsAsync();
         await RefreshWebhookAsync();
 
+        // A hidden field is not sent (the schedule is off): the job keeps the cron it had, ready for when it is switched on again.
+        if (!Input.ScheduleEnabled && string.IsNullOrWhiteSpace(Input.Cron) && Input.Id > 0)
+        {
+            Input.Cron = (await _syncJobs.GetAsync(Input.Id, HttpContext.RequestAborted))?.Cron;
+        }
+
         var input = new SyncJobInput
         {
             Id = Input.Id,

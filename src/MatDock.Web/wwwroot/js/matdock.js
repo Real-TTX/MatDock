@@ -297,10 +297,7 @@ function matdockPromptSubmit(btn, message, current) {
     var form = btn.closest("form");
     if (!form) { return; }
     // The toolkit's dialog (MatUi.prompt) resolves with the text, or null when cancelled.
-    var ask = window.MatUi && window.MatUi.prompt
-        ? window.MatUi.prompt(message, { value: current || "" })
-        : Promise.resolve(window.prompt(message, current || ""));
-    ask.then(function (value) {
+    window.MatUi.prompt(message, { value: current || "" }).then(function (value) {
         if (value === null || value === undefined) { return; }
         value = String(value).trim();
         if (value.length === 0) { return; }
