@@ -10,11 +10,13 @@
  *
  * Bump CACHE_VERSION to force old caches out on the next activation.
  */
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE = "matdock-" + CACHE_VERSION;
 
 const PRECACHE = [
     "/offline.html",
+    "/matui/matui.css",
+    "/matui/matui.boot.js",
     "/manifest.webmanifest",
     "/img/icon.svg",
     "/img/favicon.svg",
