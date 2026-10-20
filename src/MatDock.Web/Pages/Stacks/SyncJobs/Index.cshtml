@@ -4,12 +4,6 @@
     ViewData["Title"] = "Sync jobs";
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Sync jobs</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -28,7 +22,7 @@
         }
         else
         {
-            <table class="data">
+            <table class="mat-table">
                 <thead>
                     <tr>
                         <th>Name</th>

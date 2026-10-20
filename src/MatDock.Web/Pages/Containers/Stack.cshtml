@@ -2,20 +2,11 @@
 @using MatDock.Core.Containers
 @model MatDock.Web.Pages.Containers.StackModel
 @{
-    ViewData["Title"] = "Stack";
     var ci = System.Globalization.CultureInfo.InvariantCulture;
     string Pct(double? v) => Math.Clamp(v ?? 0, 0, 100).ToString(ci);
+    ViewData["Title"] = Model.Project;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", $"/Stacks?EnvId={Model.EnvId}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.Project</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Containers/Logs?EnvId=@Model.EnvId&stack=@Uri.EscapeDataString(Model.Project)" class="mat-btn"><icon name="eye" /><span>Logs</span></a>
-        <a href="/Stacks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -37,7 +28,7 @@ else
     </div>
 
     <div class="u-flush card">
-        <table class="data">
+        <table class="mat-table">
             <thead><tr><th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="actions">Actions</th></tr></thead>
             <tbody>
                 @foreach (var c in Model.Containers.OrderBy(x => x.Service ?? x.Name, StringComparer.OrdinalIgnoreCase))
@@ -105,3 +96,7 @@ else
     </div>
 }
 </div>
+
+@section Actions {
+    <a href="/Containers/Logs?EnvId=@Model.EnvId&stack=@Uri.EscapeDataString(Model.Project)" class="mat-btn mat-btn--secondary"><icon name="eye" /><span>Logs</span></a>
+}

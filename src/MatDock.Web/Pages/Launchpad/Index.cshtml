@@ -5,12 +5,6 @@
     var isAdmin = User.IsInRole("Admin");
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Apps</h1>
-    </div>
-</div>
-
 @if (Model.TotalApps == 0)
 {
     <div class="card">
@@ -37,7 +31,7 @@ else if (isAdmin)
 @if (Model.TotalApps > 0)
 {
     <div class="fs-toolbar">
-        <div class="search">
+        <div class="mat-input-icon mat-toolbar__search">
             <icon name="search" />
             <input type="search" class="mat-input" placeholder="Search apps…" data-filter-table="#apps-wrap" autocomplete="off" />
         </div>

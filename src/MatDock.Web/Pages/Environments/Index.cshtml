@@ -11,12 +11,6 @@
         + $"&SortKey={Uri.EscapeDataString(Model.SortKey)}";
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Environments</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -28,7 +22,7 @@
     <mat-table-toolbar>
         <form method="get" class="u-contents js-autosubmit">
             <input type="hidden" name="view" value="@Model.View" />
-            <div class="search">
+            <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (name, host, user)…" />
             </div>
@@ -120,7 +114,7 @@
                                 <span class="u-small text-muted">Docker @env.DockerVersion</span>
                             }
                             <span class="text-muted" style="font-size:.72rem;">checked @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "never")</span>
-                            <span class="mat-buttons__spacer"></span>
+                            <span class="mat-btn-row__spacer"></span>
                             @if (env.IsEnabled)
                             {
                                 @if (User.IsInRole("Admin"))
@@ -142,7 +136,7 @@
         }
         else
         {
-            <table class="data">
+            <table class="mat-table">
                 <thead>
                     <tr>
                         <th>Name</th>

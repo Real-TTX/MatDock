@@ -6,12 +6,6 @@
 
 <partial name="_SystemTabs" />
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Notifications</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -20,7 +14,7 @@
 }
 
 <form method="post">
-    <div asp-validation-summary="All" class="mat-validation"></div>
+    <partial name="_ValidationSummary" />
 
     <div class="u-mb u-maxw card">
         <div class="card__header"><icon name="alert" /><span>Triggers</span></div>

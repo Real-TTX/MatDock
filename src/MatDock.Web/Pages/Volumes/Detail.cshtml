@@ -1,7 +1,6 @@
 @page
 @model MatDock.Web.Pages.Volumes.DetailModel
 @{
-    ViewData["Title"] = "Volume details";
     var oic = StringComparison.OrdinalIgnoreCase;
     bool IsSecret(string k) => k.Contains("pass", oic) || k.Contains("secret", oic) || k.Contains("cred", oic) || k.Contains("token", oic);
     string Redact(string key, string value)
@@ -30,16 +29,9 @@
         }
         return IsSecret(key) ? "***" : value;
     }
+    ViewData["Title"] = Model.VolumeName;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Volumes", $"/Volumes?EnvId={Model.EnvId}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.VolumeName</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Volumes?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -62,7 +54,7 @@ else
 
     var volInUse = Model.UsedBy.Count > 0;
 
-    <div class="u-mb mat-buttons">
+    <div class="u-mb mat-btn-row">
         @if (User.IsAdmin())
         {
             <a class="mat-btn" href="/Volumes/Files?envId=@Model.EnvId&volume=@Uri.EscapeDataString(d.Name)"><icon name="edit" /><span>Files</span></a>
@@ -73,7 +65,7 @@ else
                 <button type="submit" class="mat-btn"><icon name="save" /><span>Back up now</span></button>
             </form>
             <a class="mat-btn" href="/Backups?Volume=@Uri.EscapeDataString(d.Name)"><icon name="clock" /><span>Backups</span></a>
-            <span class="mat-buttons__spacer"></span>
+            <span class="mat-btn-row__spacer"></span>
             <form method="post" asp-page-handler="Remove" data-confirm="Delete volume &quot;@d.Name&quot;? This cannot be undone." class="u-inline">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="volume" value="@d.Name" />
@@ -87,8 +79,8 @@ else
 
     <div class="u-mb card">
         <div class="card__header"><icon name="volume" /><span>Details</span></div>
-        <div class="mat-table__scroll">
-            <table class="data">
+        <div class="mat-table-wrap">
+            <table class="mat-table">
                 <tbody>
                     <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
                     <tr><th>Driver</th><td>@d.Driver</td></tr>
@@ -108,8 +100,8 @@ else
     {
         <div class="u-mb card">
             <div class="card__header"><icon name="settings" /><span>Driver options</span></div>
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th style="width:180px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Options)
@@ -126,8 +118,8 @@ else
     {
         <div class="u-mb card">
             <div class="card__header"><icon name="filter" /><span>Labels</span></div>
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Labels)
@@ -148,8 +140,8 @@ else
         }
         else
         {
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th>Container</th><th>Stack</th><th>Status</th><th>Ports</th><th class="actions"></th></tr></thead>
                     <tbody>
                         @foreach (var c in Model.UsedBy)

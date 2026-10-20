@@ -1,20 +1,11 @@
 @page
 @model MatDock.Web.Pages.Volumes.FileEditModel
 @{
-    ViewData["Title"] = "File";
     var backUrl = $"{Model.BasePath}?envId={Model.EnvId}&{Model.TargetQuery}&path={Uri.EscapeDataString(Model.ParentPath)}";
     var downloadUrl = $"{Model.BasePath}?handler=Download&envId={Model.EnvId}&{Model.TargetQuery}&target={Uri.EscapeDataString(Model.Path)}";
+    ViewData["Title"] = Model.FileName;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Files", backUrl) };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.FileName</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="@downloadUrl" class="mat-btn"><icon name="download" /><span>Download</span></a>
-        <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -69,4 +60,8 @@ else
             <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>@(editable ? "Cancel" : "Back")</span></a>
         </mat-form-buttons>
     </form>
+}
+
+@section Actions {
+    <a href="@downloadUrl" class="mat-btn mat-btn--secondary"><icon name="download" /><span>Download</span></a>
 }

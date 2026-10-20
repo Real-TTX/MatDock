@@ -1,18 +1,10 @@
 @page
 @model MatDock.Web.Pages.Networks.DetailModel
 @{
-    ViewData["Title"] = "Network details";
     var isAdmin = User.IsInRole("Admin");
+    ViewData["Title"] = Model.NetworkName;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Networks", $"/Networks?EnvId={Model.EnvId}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.NetworkName</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Networks?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -37,7 +29,7 @@ else
     @if (isAdmin && !Model.IsPredefined)
     {
         var netInUse = d.Containers.Count > 0;
-        <div class="u-mb mat-buttons">
+        <div class="u-mb mat-btn-row">
             <form method="post" asp-page-handler="Remove" data-confirm="Delete network &quot;@d.Name&quot;?">
                 <input type="hidden" name="envId" value="@Model.EnvId" />
                 <input type="hidden" name="network" value="@d.Name" />
@@ -51,8 +43,8 @@ else
 
     <div class="u-mb card">
         <div class="card__header"><icon name="network" /><span>Details</span></div>
-        <div class="mat-table__scroll">
-            <table class="data">
+        <div class="mat-table-wrap">
+            <table class="mat-table">
                 <tbody>
                     <tr><th style="width:180px;">Name</th><td class="mono">@d.Name</td></tr>
                     <tr><th>ID</th><td class="mono">@d.Id</td></tr>
@@ -75,8 +67,8 @@ else
     {
         <div class="u-mb card">
             <div class="card__header"><icon name="settings" /><span>Options</span></div>
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Options)
@@ -93,8 +85,8 @@ else
     {
         <div class="u-mb card">
             <div class="card__header"><icon name="filter" /><span>Labels</span></div>
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th style="width:280px;">Key</th><th>Value</th></tr></thead>
                     <tbody>
                         @foreach (var kv in d.Labels)
@@ -115,8 +107,8 @@ else
         }
         else
         {
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <tbody>
                         @foreach (var c in d.Containers)
                         {

@@ -1,0 +1,33 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@*
+    The summary of a form (rules FORM-03, A11Y-04): an alert at the top with a link to every field that has an error. It lists the messages the server found
+    (model validation) and it is the place where the script of the toolkit writes its own list (data-validation-summary); without errors it stays hidden.
+    A message that belongs to no field (the sign-in failed, the password is wrong) is listed without a link.
+*@
+@{
+    var errors = ViewData.ModelState
+        .Where(e => e.Value?.Errors.Count > 0)
+        .SelectMany(e => e.Value!.Errors.Where(error => !string.IsNullOrEmpty(error.ErrorMessage)).Select(error => (Field: e.Key, Message: error.ErrorMessage)))
+        .ToList();
+}
+<div class="mat-alert mat-alert--danger" role="alert" data-validation-summary hidden="@(errors.Count == 0)">
+    @Ui.Icon("x-circle")
+    <div class="mat-alert__body">
+        <strong>Please check the form.</strong>
+        <ul class="mat-alert__list">
+            @foreach (var error in errors)
+            {
+                <li>
+                    @if (string.IsNullOrEmpty(error.Field))
+                    {
+                        @error.Message
+                    }
+                    else
+                    {
+                        <a href="#@TagBuilder.CreateSanitizedId(error.Field, "_")">@error.Message</a>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+</div>

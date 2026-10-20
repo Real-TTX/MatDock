@@ -4,17 +4,9 @@
     ViewData["Title"] = "Updates";
     string Short(string? digest) => string.IsNullOrEmpty(digest) ? "–"
         : (digest.StartsWith("sha256:") ? digest[7..] : digest) is var h && h.Length > 12 ? h[..12] : h;
+    ViewData["Heading"] = Model.Stack is null ? "Updates" : $"Updates · {Model.Stack.Name}";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Updates @(Model.Stack is null ? "" : "· " + Model.Stack.Name)</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Stacks/Update?id=@Model.Id" class="mat-btn"><icon name="refresh" /><span>Re-check</span></a>
-        <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -45,7 +37,7 @@
     </div>
 
     <div class="u-flush u-mb card">
-        <table class="data">
+        <table class="mat-table">
             <thead>
                 <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
             </thead>
@@ -98,4 +90,8 @@
             </form>
         </div>
     </div>
+}
+
+@section Actions {
+    <a href="/Stacks/Update?id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Re-check</span></a>
 }

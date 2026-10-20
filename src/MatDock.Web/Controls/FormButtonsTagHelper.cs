@@ -3,9 +3,8 @@ using Microsoft.AspNetCore.Razor.TagHelpers;
 namespace MatDock.Web.Controls;
 
 /// <summary>
-/// The standard button row for forms and lists. Renders its children in one line. Following the
-/// project guideline (positive → negative: Save, Back, &lt;space&gt; Delete), place a
-/// <c>&lt;span class="mat-buttons__spacer"&gt;&lt;/span&gt;</c> before destructive buttons to push them apart.
+/// The button row at the end of a form (MatUi <c>mat-btn-row</c>): positive to negative, the primary action first; a
+/// <c>&lt;span class="mat-btn-row__spacer"&gt;&lt;/span&gt;</c> pushes destructive buttons to the end.
 /// </summary>
 [HtmlTargetElement("mat-form-buttons")]
 public sealed class FormButtonsTagHelper : TagHelper
@@ -16,7 +15,7 @@ public sealed class FormButtonsTagHelper : TagHelper
 
         output.TagName = "div";
         var existingClass = output.Attributes["class"]?.Value?.ToString();
-        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existingClass) ? "mat-buttons" : $"mat-buttons {existingClass}");
+        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existingClass) ? "mat-btn-row" : $"mat-btn-row {existingClass}");
         output.Content.SetHtmlContent(child);
     }
 }

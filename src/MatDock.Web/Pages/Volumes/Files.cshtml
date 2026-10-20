@@ -14,16 +14,8 @@
         while (v >= 1024 && i < u.Length - 1) { v /= 1024; i++; }
         return $"{v:0.#} {u[i]}";
     }
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { (Model.Target.IsContainer ? Model.Container : Model.Volume, backUrl) };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@ViewData["Title"]</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="@backUrl" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -63,7 +55,7 @@
         }
     </nav>
 
-    <span class="toolbar-spacer"></span>
+    <span class="mat-toolbar__spacer"></span>
 
     <div class="fs-ops">
         <form method="post" asp-page-handler="NewFolder">
@@ -91,7 +83,7 @@
 else
 {
     <div class="u-flush card">
-        <table class="data">
+        <table class="mat-table">
             <thead><tr><th>Name</th><th>Size</th><th class="actions">Actions</th></tr></thead>
             <tbody>
                 @if (Model.Entries.Count == 0)

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
+using MatDock.Web.Support;
 
 namespace MatDock.Web.Controls;
 
@@ -38,22 +39,22 @@ public sealed class PaginationTagHelper : TagHelper
         }
 
         output.TagName = "nav";
-        output.Attributes.SetAttribute("class", "mat-pagination");
+        output.Attributes.SetAttribute("class", "mat-pager");
         output.Attributes.SetAttribute("aria-label", "Pagination");
 
         var builder = new HtmlContentBuilder();
-        builder.AppendHtml($"<span class=\"mat-pagination__summary\">{Model.FirstItemIndex}–{Model.LastItemIndex} von {Model.TotalItems}</span>");
+        builder.AppendHtml($"<span class=\"mat-pager__info\">{Model.FirstItemIndex} to {Model.LastItemIndex} of {Model.TotalItems}</span>");
 
         if (Model.TotalPages > 1)
         {
-            builder.AppendHtml("<ul class=\"mat-pagination__pages\">");
-            builder.AppendHtml(PageLink(Model.Page - 1, "‹", Model.HasPrevious, "Previous page"));
+            builder.AppendHtml("<div class=\"mat-pager__pages\">");
+            builder.AppendHtml(PageLink(Model.Page - 1, Ui.Icon("chevron-left").ToString()!, Model.HasPrevious, "Previous page"));
 
             foreach (var page in PageNumbers(Model.Page, Model.TotalPages))
             {
                 if (page < 0)
                 {
-                    builder.AppendHtml("<li class=\"mat-pagination__gap\">…</li>");
+                    builder.AppendHtml("<span class=\"mat-pager__gap\" aria-hidden=\"true\">…</span>");
                 }
                 else
                 {
@@ -61,8 +62,8 @@ public sealed class PaginationTagHelper : TagHelper
                 }
             }
 
-            builder.AppendHtml(PageLink(Model.Page + 1, "›", Model.HasNext, "Next page"));
-            builder.AppendHtml("</ul>");
+            builder.AppendHtml(PageLink(Model.Page + 1, Ui.Icon("chevron-right").ToString()!, Model.HasNext, "Next page"));
+            builder.AppendHtml("</div>");
         }
 
         output.Content.SetHtmlContent(builder);
@@ -98,7 +99,7 @@ public sealed class PaginationTagHelper : TagHelper
 
     private IHtmlContent PageLink(int page, string label, bool enabled, string ariaLabel, bool isCurrent = false)
     {
-        var css = "mat-pagination__page";
+        var css = "mat-pager__btn";
         if (isCurrent)
         {
             css += " is-current";
@@ -106,12 +107,14 @@ public sealed class PaginationTagHelper : TagHelper
 
         if (!enabled)
         {
-            return new HtmlString($"<li class=\"{css} is-disabled\"><span aria-hidden=\"true\">{label}</span></li>");
+            return new HtmlString($"<span class=\"{css} is-disabled\" aria-hidden=\"true\">{label}</span>");
         }
 
         var href = BuildUrl(page);
         var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-        return new HtmlString($"<li class=\"{css}\"><a href=\"{href}\" aria-label=\"{ariaLabel}\"{current}>{label}</a></li>");
+        return isCurrent
+            ? new HtmlString($"<span class=\"{css}\"{current}>{label}</span>")
+            : new HtmlString($"<a class=\"{css}\" href=\"{href}\" aria-label=\"{ariaLabel}\">{label}</a>");
     }
 
     private string BuildUrl(int page)

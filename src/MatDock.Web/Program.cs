@@ -65,6 +65,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
+builder.Services.AddSingleton<MatDock.Web.Support.Toolkit>();
 // Every timed task (backups, bundles, sync jobs, prune, reports) runs through the Schedules; webhooks start syncs directly.
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
@@ -176,6 +177,8 @@ builder.Services.AddRazorPages(options =>
     .AddMvcOptions(o => o.Filters.Add<ActivityPageFilter>());
 
 var app = builder.Build();
+// The toolkit is read once at start: AppView needs the icon names before the first layout asks for the sprite.
+app.Services.GetRequiredService<MatDock.Web.Support.Toolkit>();
 
 // ---------------------------------------------------------------------------
 // HTTP pipeline

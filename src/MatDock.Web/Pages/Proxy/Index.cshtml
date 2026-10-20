@@ -2,16 +2,8 @@
 @model MatDock.Web.Pages.Proxy.IndexModel
 @{
     ViewData["Title"] = "Proxy";
+    ViewData["Heading"] = "Proxy routes";
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Proxy routes</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Settings/Proxies" class="mat-btn"><icon name="settings" /><span>Proxies</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -74,7 +66,7 @@
     }
 
     <div class="u-flush card">
-        <table class="data">
+        <table class="mat-table">
             <thead>
                 <tr><th>Hostname</th><th>Upstream</th><th>TLS</th><th class="actions">Actions</th></tr>
             </thead>
@@ -103,4 +95,8 @@
             </tbody>
         </table>
     </div>
+}
+
+@section Actions {
+    <a href="/Settings/Proxies" class="mat-btn mat-btn--secondary"><icon name="settings" /><span>Proxies</span></a>
 }

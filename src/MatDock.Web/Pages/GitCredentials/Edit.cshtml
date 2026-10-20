@@ -2,21 +2,16 @@
 @model MatDock.Web.Pages.GitCredentials.EditModel
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit git credential" : "New git credential";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Git credentials", "/GitCredentials") };
 }
 
 <partial name="_SystemTabs" />
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@ViewData["Title"]</h1>
-    </div>
-</div>
 
 <div class="u-maxw card">
     <div class="card__body">
         <form method="post" class="mat-form">
             <input type="hidden" asp-for="Input.Id" />
-            <div asp-validation-summary="ModelOnly"></div>
+            <partial name="_ValidationSummary" />
 
             <div class="form-grid">
                 <mat-field label="Name" asp-for="Input.Name" class="span-2" hint="Display name, e.g. GitHub – Deploy.">
@@ -66,7 +61,7 @@
                 <a href="/GitCredentials" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
                 @if (Model.IsEdit)
                 {
-                    <span class="mat-buttons__spacer"></span>
+                    <span class="mat-btn-row__spacer"></span>
                     <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Delete git credential '@Model.Input.Name'?"><icon name="trash" /><span>Delete</span></button>
                 }
             </mat-form-buttons>

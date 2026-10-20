@@ -1,0 +1,23 @@
+@model string
+@*
+    The <head> of every page: the toolkit (matui.boot.js applies the saved theme before the first paint, so the page does not flash in the
+    wrong colours), the few styles only MatDock has (matdock.css) and what an installable app needs (manifest, icons, colour of the browser bar).
+*@
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="@Ui.App.Accent" />
+    <title>@Model</title>
+    <link rel="icon" href="~/img/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="~/img/apple-touch-icon.png" />
+    <link rel="manifest" href="~/manifest.webmanifest" />
+    <meta name="application-name" content="@Ui.App.Name" />
+    <meta name="apple-mobile-web-app-title" content="@Ui.App.Name" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script src="~/matui/matui.boot.js" asp-append-version="true"></script>
+    <link rel="stylesheet" href="~/matui/matui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/matdock.css" asp-append-version="true" />
+</head>

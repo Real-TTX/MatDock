@@ -97,12 +97,6 @@
     }
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Containers</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -116,7 +110,7 @@
 
 <mat-table>
     <mat-table-toolbar>
-        <div class="search">
+        <div class="mat-input-icon mat-toolbar__search">
             <icon name="search" />
             <input type="search" id="container-filter" class="mat-input" placeholder="Filter (name, image, stack, env, port)…" autocomplete="off" />
         </div>
@@ -180,7 +174,7 @@
                             {
                                 <span class="mat-badge"><icon name="layers" /> @c.Project</span>
                             }
-                            <span class="mat-buttons__spacer"></span>
+                            <span class="mat-btn-row__spacer"></span>
                             @{ await Actions(r); }
                         </div>
                     </div>
@@ -189,7 +183,7 @@
         }
         else
         {
-            <table class="data ctable" id="container-table">
+            <table class="mat-table ctable" id="container-table">
                 <thead>
                     <tr>
                         <th>Environment</th>

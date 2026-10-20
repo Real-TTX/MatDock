@@ -2,18 +2,10 @@
 @using MatDock.Core.Containers
 @model MatDock.Web.Pages.Containers.ContainerDetailModel
 @{
-    ViewData["Title"] = "Container";
     var c = Model.Container;
+    ViewData["Title"] = c?.Name ?? Model.Id;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Containers", $"/Containers?EnvId={Model.EnvId}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@(c?.Name ?? Model.Id)</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Containers?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -27,7 +19,7 @@
 else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
-    <div class="u-mb mat-buttons">
+    <div class="u-mb mat-btn-row">
         @if (openUrl is not null)
         {
             <a class="mat-btn" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
@@ -60,8 +52,8 @@ else if (c is not null)
 
     <div class="u-mb card">
         <div class="card__header"><icon name="box" /><span>Details</span></div>
-        <div class="mat-table__scroll">
-            <table class="data">
+        <div class="mat-table-wrap">
+            <table class="mat-table">
                 <tbody>
                     <tr><th style="width:160px;">Status</th><td>@if (c.IsRunning) {<span class="pill pill--online"><icon name="check-circle" /><span>@c.Status</span></span>} else {<span class="pill pill--unknown">@c.Status</span>}</td></tr>
                     <tr><th>Image</th><td class="mono">@c.Image</td></tr>
@@ -83,8 +75,8 @@ else if (c is not null)
         }
         else
         {
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th>Type</th><th>Source</th><th>Target (in container)</th><th>Mode</th></tr></thead>
                     <tbody>
                         @foreach (var m in Model.Mounts)

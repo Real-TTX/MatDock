@@ -3,16 +3,8 @@
 @{
     ViewData["Title"] = Model.Reference;
     string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Images", $"/Images?EnvId={Model.EnvId}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.Reference</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Images?EnvId=@Model.EnvId" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (Model.Error is not null)
 {
@@ -22,8 +14,8 @@ else if (Model.Detail is { } d)
 {
     <div class="card card--spaced">
         <div class="card__header"><icon name="image" /><span>Details</span></div>
-        <div class="mat-table__scroll">
-            <table class="data data--keyvalue">
+        <div class="mat-table-wrap">
+            <table class="mat-table data--keyvalue">
                 <tbody>
                     <tr><th>Environment</th><td>@Model.Environment!.Name</td></tr>
                     <tr><th>ID</th><td class="mono">@d.Id</td></tr>
@@ -46,8 +38,8 @@ else if (Model.Detail is { } d)
     {
         <div class="card card--spaced">
             <div class="card__header"><icon name="template" /><span>Labels</span></div>
-            <div class="mat-table__scroll">
-                <table class="data data--keyvalue">
+            <div class="mat-table-wrap">
+                <table class="mat-table data--keyvalue">
                     <tbody>
                         @foreach (var (key, value) in d.Labels)
                         {
@@ -88,8 +80,8 @@ else if (Model.Detail is { } d)
                 }
                 @if (findings.Count > 0)
                 {
-                    <div class="mat-table__scroll">
-                        <table class="data">
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
                             <thead><tr><th>Severity</th><th>Vulnerability</th><th>Package</th><th>Installed</th><th>Fixed in</th></tr></thead>
                             <tbody>
                                 @foreach (var f in findings)
@@ -136,8 +128,8 @@ else if (Model.Detail is { } d)
         }
         else
         {
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead><tr><th>Instruction</th><th>Size</th><th>Created</th></tr></thead>
                     <tbody>
                         @foreach (var layer in d.Layers)

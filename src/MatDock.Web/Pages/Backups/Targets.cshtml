@@ -14,18 +14,6 @@
 
 <partial name="_BackupTabs" />
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Backup targets</h1>
-    </div>
-    @if (isAdmin)
-    {
-        <div class="mat-buttons">
-            <a href="/Settings?tab=backup" class="mat-btn"><icon name="settings" /><span>Manage targets</span></a>
-        </div>
-    }
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -47,9 +35,9 @@
 }
 
 <div class="u-flush card">
-    <div class="card__header"><icon name="save" /><span>@Model.SelectedName</span><span class="mat-buttons__spacer"></span><span class="text-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
-    <div class="mat-table__scroll">
-        <table class="data">
+    <div class="card__header"><icon name="save" /><span>@Model.SelectedName</span><span class="mat-btn-row__spacer"></span><span class="text-muted" style="font-size:.85rem;">@Model.Archives.Count archive(s)</span></div>
+    <div class="mat-table-wrap">
+        <table class="mat-table">
             <thead>
                 <tr><th>Archive</th><th>Type</th><th>Size</th><th>Modified</th><th class="actions">Actions</th></tr>
             </thead>
@@ -144,3 +132,10 @@
         </table>
     </div>
 </div>
+
+@section Actions {
+    @if (User.IsInRole("Admin"))
+    {
+        <a href="/Settings?tab=backup" class="mat-btn mat-btn--secondary"><icon name="settings" /><span>Manage targets</span></a>
+    }
+}

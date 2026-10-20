@@ -6,12 +6,6 @@
 
 <partial name="_SystemTabs" />
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Git credentials</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -27,7 +21,7 @@
     }
     else
     {
-    <table class="data">
+    <table class="mat-table">
         <thead>
             <tr><th>Name</th><th>Type</th><th>User</th></tr>
         </thead>

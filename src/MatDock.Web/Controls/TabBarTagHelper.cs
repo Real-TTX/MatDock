@@ -27,7 +27,7 @@ public sealed class TabBarTagHelper : TagHelper
         var sb = new StringBuilder();
         foreach (var tab in Model.Tabs)
         {
-            sb.Append("<a class=\"mat-tabs__tab");
+            sb.Append("<a class=\"mat-tab");
             if (tab.Active)
             {
                 sb.Append(" is-active");
@@ -43,7 +43,7 @@ public sealed class TabBarTagHelper : TagHelper
 
             if (!string.IsNullOrEmpty(tab.Icon))
             {
-                sb.Append(Icons.Svg(tab.Icon));
+                sb.Append(MatDock.Web.Support.Ui.Icon(tab.Icon));
             }
 
             sb.Append("<span>").Append(WebUtility.HtmlEncode(tab.Title)).Append("</span>");

@@ -5,12 +5,6 @@
     var isAdmin = User.IsInRole("Admin");
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Volumes</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -32,7 +26,7 @@
 <mat-table>
     <mat-table-toolbar>
         <form method="get" class="u-contents js-autosubmit">
-            <div class="search">
+            <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (volume, mountpoint, environment)…" />
             </div>
@@ -44,7 +38,7 @@
                     <option value="unused" selected="@(Model.Status == "unused")">Unused</option>
                 </select>
             </div>
-            <span class="toolbar-spacer"></span>
+            <span class="mat-toolbar__spacer"></span>
             <span class="text-muted"><strong>@Model.Rows.Count</strong> Volumes</span>
         </form>
     </mat-table-toolbar>
@@ -59,7 +53,7 @@
         }
         else
         {
-            <table class="data">
+            <table class="mat-table">
                 <thead>
                     <tr>
                         <th>Environment</th>

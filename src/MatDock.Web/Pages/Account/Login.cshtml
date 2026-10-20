@@ -2,85 +2,81 @@
 @model MatDock.Web.Pages.Account.LoginModel
 @{
     ViewData["Title"] = "Sign in";
+    Layout = "_Bare";
 }
 
-<div class="login">
-    <div class="login__brand">
-        <img src="~/img/logo.svg" alt="MatDock" />
-        <span class="name">MatDock</span>
-        <span class="tagline">Docker manager</span>
+<div class="mat-auth__card">
+    <div class="mat-auth__brand">
+        @Ui.Logo("lg")
+        <h1>@Ui.App.Name</h1>
+        <p class="mat-muted">@Ui.App.Tagline</p>
     </div>
 
     @if (Model.SsoError)
     {
-        <div id="login-sso-error" class="alert alert--error"><icon name="x-circle" /><span>MatIdentity did not confirm the sign-in or cannot be reached right now. Try again, or sign in here with your local account.</span></div>
+        <div id="login-sso-error" class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">MatIdentity did not confirm the sign-in or cannot be reached right now. Try again, or sign in here with your local account.</div></div>
     }
 
     @if (Model.PendingLink is not null)
     {
-        <div id="login-link" class="card">
-            <div class="card__header"><icon name="key" /><span>Link your account to MatIdentity</span></div>
-            <div class="card__body">
-                <p>An account named <strong>@(Model.PendingLink.PreferredUserName ?? Model.PendingLink.Email)</strong> already exists. Sign in with its password to link it to MatIdentity.</p>
-                <form method="post" asp-page-handler="CancelLink" id="link-cancel-form">
+        <div id="login-link" class="mat-alert mat-alert--info">
+            <icon name="key" />
+            <div class="mat-alert__body">
+                <strong class="mat-alert__title">Link your account to MatIdentity</strong>
+                An account named <strong>@(Model.PendingLink.PreferredUserName ?? Model.PendingLink.Email)</strong> already exists. Sign in with its password to link it to MatIdentity.
+                <form method="post" asp-page-handler="CancelLink" id="link-cancel-form" class="mat-alert__actions">
                     <input type="hidden" asp-for="ReturnUrl" />
-                    <button type="submit" id="lc-cancel" class="mat-btn mat-btn--ghost"><icon name="x-circle" /><span>Cancel</span></button>
+                    <button type="submit" id="lc-cancel" class="mat-btn mat-btn--secondary mat-btn--sm"><icon name="x" /><span>Cancel</span></button>
                 </form>
             </div>
         </div>
     }
     else if (Model.LinkExpired)
     {
-        <div id="login-link-expired" class="alert alert--info"><icon name="alert" /><span>Link request expired. Sign in with MatIdentity again.</span></div>
+        <div id="login-link-expired" class="mat-alert mat-alert--info"><icon name="info" /><div class="mat-alert__body">Link request expired. Sign in with MatIdentity again.</div></div>
     }
 
     @if (Model.IdentityEnabled)
     {
-        <div id="login-sso" class="card">
-            <div class="card__body">
-                @if (Model.SignedOut)
-                {
-                    <p class="text-muted">You are signed out, here and at MatIdentity.</p>
-                }
-                <a id="login-sso-button" class="mat-btn mat-btn--primary" href="@Model.IdentitySignInUrl"><icon name="key" /><span>Sign in with MatIdentity</span></a>
-                @if (!Model.Local)
-                {
-                    <p><a id="login-local-link" href="@Model.LocalSignInUrl">Sign in with a local account</a></p>
-                }
-            </div>
+        <div id="login-sso" class="mat-stack">
+            @if (Model.SignedOut)
+            {
+                <p class="mat-muted">You are signed out, here and at MatIdentity.</p>
+            }
+            <a id="login-sso-button" class="mat-btn mat-btn--primary mat-btn--block" href="@Model.IdentitySignInUrl"><icon name="key" /><span>Sign in with MatIdentity</span></a>
+            @if (!Model.Local)
+            {
+                <p class="mat-text-center"><a id="login-local-link" href="@Model.LocalSignInUrl">Sign in with a local account</a></p>
+            }
         </div>
     }
 
     @if (!Model.IdentityEnabled || Model.Local)
     {
-        <div class="card">
-            <div class="card__body">
-                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-                {
-                    <div class="alert alert--error"><icon name="x-circle" /><span>@Model.ErrorMessage</span></div>
-                }
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.ErrorMessage</div></div>
+        }
 
-                <form method="post" class="mat-form" id="login-form">
-                    <input type="hidden" asp-for="ReturnUrl" />
+        <form method="post" class="mat-form" id="login-form">
+            <input type="hidden" asp-for="ReturnUrl" />
 
-                    <mat-field label="Username" asp-for="Input.Username">
-                        <input asp-for="Input.Username" class="mat-input" autocomplete="username" autofocus />
-                    </mat-field>
+            <mat-field label="Username" asp-for="Input.Username">
+                <input asp-for="Input.Username" class="mat-input" autocomplete="username" autofocus />
+            </mat-field>
 
-                    <mat-field label="Password" asp-for="Input.Password">
-                        <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="current-password" />
-                    </mat-field>
+            <mat-field label="Password" asp-for="Input.Password">
+                <input asp-for="Input.Password" type="password" class="mat-input" autocomplete="current-password" />
+            </mat-field>
 
-                    <label class="mat-check">
-                        <input asp-for="Input.RememberMe" type="checkbox" />
-                        <span>Stay signed in</span>
-                    </label>
+            <label class="mat-check">
+                <input asp-for="Input.RememberMe" type="checkbox" />
+                <span>Stay signed in</span>
+            </label>
 
-                    <button type="submit" class="mat-btn mat-btn--primary">
-                        <icon name="login" /><span>Sign in</span>
-                    </button>
-                </form>
-            </div>
-        </div>
+            <button type="submit" class="mat-btn mat-btn--primary mat-btn--block">
+                <icon name="login" /><span>Sign in</span>
+            </button>
+        </form>
     }
 </div>

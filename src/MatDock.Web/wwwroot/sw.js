@@ -44,7 +44,7 @@ self.addEventListener("activate", (event) => {
 
 function isStaticAsset(url) {
     return url.origin === self.location.origin &&
-        (/^\/(css|js|img|lib)\//.test(url.pathname) || url.pathname === "/manifest.webmanifest");
+        (/^\/(css|js|img|lib|matui)\//.test(url.pathname) || url.pathname === "/manifest.webmanifest");
 }
 
 self.addEventListener("fetch", (event) => {

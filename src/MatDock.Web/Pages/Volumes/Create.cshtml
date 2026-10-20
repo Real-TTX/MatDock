@@ -2,18 +2,13 @@
 @model MatDock.Web.Pages.Volumes.CreateModel
 @{
     ViewData["Title"] = "New volume";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Volumes", "/Volumes") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>New volume</h1>
-    </div>
-</div>
 
 <div class="u-maxw card">
     <div class="card__body">
         <form method="post" class="mat-form">
-            <div asp-validation-summary="ModelOnly"></div>
+            <partial name="_ValidationSummary" />
 
             <div class="form-grid">
                 <mat-field label="Environment" asp-for="Input.EnvironmentId">

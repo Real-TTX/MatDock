@@ -6,16 +6,10 @@
 
 <partial name="_SystemTabs" />
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Activity</h1>
-    </div>
-</div>
-
 <mat-table>
     <mat-table-toolbar>
         <form method="get" class="u-contents js-autosubmit">
-            <div class="search">
+            <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (user, action, target, environment)…" />
             </div>
@@ -37,7 +31,7 @@
         }
         else
         {
-            <table class="data">
+            <table class="mat-table">
                 <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Environment</th><th>Result</th></tr></thead>
                 <tbody>
                     @foreach (var e in Model.Items)

@@ -4,16 +4,8 @@
     var target = string.IsNullOrEmpty(Model.Stack) ? Model.Id : Model.Stack;
     ViewData["Title"] = $"Logs · {target}";
     var tail = Model.Tail <= 0 ? 200 : Model.Tail;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { (string.IsNullOrEmpty(Model.Stack) ? "Containers" : Model.Stack, string.IsNullOrEmpty(Model.Stack) ? $"/Containers?EnvId={Model.EnvId}" : $"/Containers/Stack?envId={Model.EnvId}&project={Uri.EscapeDataString(Model.Stack)}") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Logs · @target</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="@(string.IsNullOrEmpty(Model.Stack) ? $"/Containers?EnvId={Model.EnvId}" : $"/Containers/Stack?envId={Model.EnvId}&project={Uri.EscapeDataString(Model.Stack)}")" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 <div class="logview" id="logview"
      data-envid="@Model.EnvId"
@@ -34,7 +26,7 @@
             }
         </span>
 
-        <span class="toolbar-spacer"></span>
+        <span class="mat-toolbar__spacer"></span>
 
         <span class="search logview__search">
             <icon name="filter" />

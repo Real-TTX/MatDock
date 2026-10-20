@@ -1,13 +1,14 @@
 @page
 @{
     ViewData["Title"] = "Access denied";
+    Layout = "_Bare";
 }
 
-<div class="status-card card">
-    <div class="u-center card__body">
-        <div class="status-icon"><icon name="lock" /></div>
-        <h1>Access denied</h1>
-        <p class="text-muted">You don't have permission to view this page.</p>
+<div class="mat-auth__card">
+    <div class="mat-empty">
+        <div class="mat-empty__icon"><icon name="lock" /></div>
+        <h1 class="mat-empty__title">Access denied</h1>
+        <p>You don't have permission to view this page.</p>
         <a href="/" class="mat-btn mat-btn--primary"><icon name="dashboard" /><span>Go to dashboard</span></a>
     </div>
 </div>

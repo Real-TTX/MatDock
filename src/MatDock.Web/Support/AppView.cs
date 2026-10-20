@@ -24,7 +24,7 @@ public static class AppView
         {
             return IconKind.Image;
         }
-        return Icons.TryGet(icon, out _) ? IconKind.Lucide : IconKind.Glyph;
+        return Toolkit.Names.Contains(icon) ? IconKind.Lucide : IconKind.Glyph;
     }
 
     /// <summary>

@@ -1,186 +1,224 @@
-@using System.Security.Claims
+@inject Toolkit Toolkit
 @inject MatDock.Core.Environments.EnvironmentService EnvSvc
 @inject MatDock.Core.Proxies.ProxyConnectionService ProxySvc
 @inject MatDock.Core.Registries.RegistryService RegistrySvc
+@*
+    The shell of every signed-in page (MatUi): the menu on the left, the bar with the breadcrumb on top, the page with its heading.
+    A page fills in: Title (also the heading), Heading (a heading other than the title), Sub (a line under the heading), Crumbs (the way back,
+    a list of (Text, Url)), Width ("narrow" or "wide") and the section Actions (buttons in the top bar).
+    A page without the menu (sign-in, setup, error) uses _Bare.
+*@
 @{
-    var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
-    bool IsActive(string prefix) => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
-        || (prefix != "/" && path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var path = Context.Request.Path.Value ?? "/";
+    bool IsActive(string prefix) => prefix == "/"
+        ? path == "/"
+        : path.Equals(prefix, StringComparison.OrdinalIgnoreCase) || path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsAdmin();
+
+    var name = Ui.App.Name;
+    var title = ViewData["Title"] as string ?? name;
+    var heading = ViewData["Heading"] as string ?? title;
+    var sub = ViewData["Sub"] as string;
+    var width = ViewData["Width"] as string;
+    var crumbs = ViewData["Crumbs"] as IReadOnlyList<(string Text, string? Url)> ?? [];
+    var userName = User.GetDisplayName();
+    var role = User.GetRole();
+
+    var environments = await EnvSvc.GetEnabledAsync(Context.RequestAborted);
+    var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
+    var currentEnvName = environments.FirstOrDefault(e => e.Id == currentEnv)?.Name ?? "All environments";
+    // Proxy and Registry only appear once one is configured (admins only).
+    var hasProxy = isAdmin && await ProxySvc.AnyAsync(Context.RequestAborted);
+    var hasRegistry = isAdmin && await RegistrySvc.AnyAsync(Context.RequestAborted);
+
+    var menu = new List<(string? Group, List<(string Href, string Icon, string Text, bool Active)> Items)>
+    {
+        (null, [
+            ("/", "dashboard", "Dashboard", IsActive("/")),
+            ("/Environments", "server", "Environments", IsActive("/Environments")),
+            ("/Launchpad", "apps", "Apps", IsActive("/Launchpad")),
+        ]),
+    };
+    var docker = new List<(string Href, string Icon, string Text, bool Active)>();
+    if (isAdmin)
+    {
+        docker.Add(("/Stacks", "layers", "Stacks", IsActive("/Stacks") && !IsActive("/Stacks/SyncJobs")));
+    }
+    docker.Add(("/Containers", "box", "Containers", IsActive("/Containers")));
+    docker.Add(("/Images", "image", "Images", IsActive("/Images")));
+    docker.Add(("/Volumes", "volume", "Volumes", IsActive("/Volumes")));
+    docker.Add(("/Networks", "network", "Networks", IsActive("/Networks")));
+    menu.Add(("Docker", docker));
+    if (isAdmin)
+    {
+        var operations = new List<(string Href, string Icon, string Text, bool Active)>
+        {
+            ("/Stacks/SyncJobs", "refresh", "Sync", IsActive("/Stacks/SyncJobs")),
+            ("/Schedules", "clock", "Schedules", IsActive("/Schedules")),
+            ("/Backups", "save", "Backups", IsActive("/Backups")),
+        };
+        if (hasProxy)
+        {
+            operations.Add(("/Proxy", "route", "Proxy", IsActive("/Proxy")));
+        }
+        if (hasRegistry)
+        {
+            operations.Add(("/Registry", "registry", "Registry", IsActive("/Registry")));
+        }
+        menu.Add(("Operations", operations));
+        menu.Add(("Administration", [
+            ("/Settings", "settings", "System", IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") || IsActive("/GitRepos")),
+        ]));
+    }
 }
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <title>@ViewData["Title"] · MatDock</title>
-    <link rel="icon" href="~/img/favicon.svg" type="image/svg+xml" />
-    <link rel="mask-icon" href="~/img/logo.svg" color="#2496ed" />
-    <link rel="apple-touch-icon" href="~/img/apple-touch-icon.png" />
-    <link rel="manifest" href="~/manifest.webmanifest" />
-    <meta name="theme-color" id="meta-theme-color" content="#0d1520" />
-    <meta name="application-name" content="MatDock" />
-    <meta name="apple-mobile-web-app-title" content="MatDock" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="stylesheet" href="~/css/matdock.css" asp-append-version="true" />
-    <script>
-        // Apply the saved theme before first paint to avoid a flash, and match the
-        // browser chrome (address/status bar) to the active surface colour.
-        (function () {
-            try {
-                var t = localStorage.getItem('matdock-theme') || 'system';
-                var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-                document.documentElement.setAttribute('data-theme-pref', t);
-                var m = document.getElementById('meta-theme-color');
-                if (m) { m.setAttribute('content', dark ? '#15202e' : '#ffffff'); }
-            } catch (e) { }
-        })();
-    </script>
-</head>
-<body class="@(isAuthenticated ? "is-app" : "is-plain")">
-    @if (isAuthenticated)
-    {
-        <div class="app">
-            <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden />
-            <aside class="sidebar">
-                <div class="sidebar__brand">
-                    <a class="brand" href="/" aria-label="MatDock home">
-                        <img class="brand__logo" src="~/img/logo.svg" alt="" width="34" height="34" />
-                        <span class="brand__text">
-                            <span class="brand__name">MatDock</span>
-                            <span class="brand__version">@AppVersion.Informational</span>
-                        </span>
-                    </a>
-                </div>
+<html lang="en" data-app="@Ui.App.Id">
+<partial name="_Head" model="@(title == name ? name : $"{title} · {name}")" />
+<body>
+    <a class="mat-skip" href="#main">Skip to the content</a>
+    @Html.Raw(Toolkit.Sprite)
 
-                @{
-                    var globalEnvs = await EnvSvc.GetEnabledAsync(Context.RequestAborted);
-                    var currentEnv = MatDock.Web.Support.EnvSelection.Current(Context);
-                    // The "Proxy" menu item only appears once a reverse proxy is configured (admins only).
-                    var hasProxy = isAdmin && await ProxySvc.AnyAsync(Context.RequestAborted);
-                    // The "Registry" menu item only appears once a registry is configured (admins only).
-                    var hasRegistry = isAdmin && await RegistrySvc.AnyAsync(Context.RequestAborted);
-                }
-                <div class="sidebar__env">
-                    <select id="global-env" class="mat-select" aria-label="Select environment"
-                            data-env-select>
-                        <option value="0" selected="@(currentEnv is null)">All environments</option>
-                        @foreach (var env in globalEnvs)
-                        {
-                            <option value="@env.Id" selected="@(currentEnv == env.Id)">@env.Name</option>
-                        }
-                    </select>
-                </div>
-
-                <nav class="sidebar__nav" aria-label="Main navigation">
-                    <a class="nav-link @(IsActive("/") && path == "/" ? "is-active" : "")" href="/">
-                        <icon name="dashboard" /><span>Dashboard</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Environments") ? "is-active" : "")" href="/Environments">
-                        <icon name="server" /><span>Environments</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Launchpad") ? "is-active" : "")" href="/Launchpad">
-                        <icon name="apps" /><span>Apps</span>
-                    </a>
-                    @if (isAdmin)
-                    {
-                        <a class="nav-link @(IsActive("/Stacks") && !IsActive("/Stacks/SyncJobs") ? "is-active" : "")" href="/Stacks">
-                            <icon name="layers" /><span>Stacks</span>
-                        </a>
-                        <a class="nav-link @(IsActive("/Stacks/SyncJobs") ? "is-active" : "")" href="/Stacks/SyncJobs">
-                            <icon name="refresh" /><span>Sync</span>
-                        </a>
-                        <a class="nav-link @(IsActive("/Schedules") ? "is-active" : "")" href="/Schedules">
-                            <icon name="clock" /><span>Schedules</span>
-                        </a>
-                    }
-                    <a class="nav-link @(IsActive("/Containers") ? "is-active" : "")" href="/Containers">
-                        <icon name="box" /><span>Containers</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Images") ? "is-active" : "")" href="/Images">
-                        <icon name="image" /><span>Images</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Volumes") ? "is-active" : "")" href="/Volumes">
-                        <icon name="volume" /><span>Volumes</span>
-                    </a>
-                    <a class="nav-link @(IsActive("/Networks") ? "is-active" : "")" href="/Networks">
-                        <icon name="network" /><span>Networks</span>
-                    </a>
-                    @if (isAdmin)
-                    {
-                        <a class="nav-link @(IsActive("/Backups") ? "is-active" : "")" href="/Backups">
-                            <icon name="save" /><span>Backups</span>
-                        </a>
-                    }
-                    @if (hasProxy)
-                    {
-                        <a class="nav-link @(IsActive("/Proxy") ? "is-active" : "")" href="/Proxy">
-                            <icon name="route" /><span>Proxy</span>
-                        </a>
-                    }
-                    @if (hasRegistry)
-                    {
-                        <a class="nav-link @(IsActive("/Registry") ? "is-active" : "")" href="/Registry">
-                            <icon name="registry" /><span>Registry</span>
-                        </a>
-                    }
-                    @if (isAdmin)
-                    {
-                        <a class="nav-link @(IsActive("/Settings") || IsActive("/Users") || IsActive("/GitCredentials") || IsActive("/GitRepos") ? "is-active" : "")" href="/Settings">
-                            <icon name="settings" /><span>System</span>
-                        </a>
-                    }
-                </nav>
-
-                <div class="sidebar__footer">
-                    <a class="account" href="/Account/Profile" title="Profile">
-                        <span class="account__avatar"><icon name="user" /></span>
-                        <span class="account__meta">
-                            <span class="account__name">@User.GetDisplayName()</span>
-                            <span class="account__role">@User.GetRole()</span>
-                        </span>
-                    </a>
-
-                    <div class="theme-switch" role="group" aria-label="Theme">
-                        <button type="button" class="theme-switch__btn" data-theme-set="system" title="System"><icon name="monitor" /></button>
-                        <button type="button" class="theme-switch__btn" data-theme-set="light" title="Light"><icon name="sun" /></button>
-                        <button type="button" class="theme-switch__btn" data-theme-set="dark" title="Dark"><icon name="moon" /></button>
-                    </div>
-
-                    <form method="post" asp-page="/Account/Logout" class="logout-form">
-                        <button type="submit" class="nav-link nav-link--logout">
-                            <icon name="logout" /><span>Sign out</span>
-                        </button>
-                    </form>
-                </div>
-            </aside>
-
-            <div class="content">
-                <header class="topbar">
-                    <label for="nav-toggle" class="topbar__menu" aria-label="Menu">
-                        <icon name="menu" />
-                    </label>
-                    <span class="topbar__title">@ViewData["Title"]</span>
-                </header>
-                <main class="main">
-                    @RenderBody()
-                </main>
+    <div class="mat-app">
+        <aside class="mat-nav" id="mat-nav">
+            <div class="mat-nav__brand">
+                <a href="/" aria-label="@name, dashboard">
+                    @Ui.Logo()
+                    <span>
+                        <span class="mat-nav__name">@name</span>
+                        <span class="mat-nav__tagline">@Ui.App.Tagline</span>
+                    </span>
+                </a>
+                <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-nav__close" data-nav-close aria-label="Close the menu">@Ui.Icon("x")</button>
             </div>
-            <label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
-        </div>
-    }
-    else
-    {
-        <main class="plain-main">
-            @RenderBody()
-        </main>
-    }
 
+            <div class="mat-nav__switch">
+                <button type="button" class="mat-switcher" id="env-switch" data-menu-toggle="env-menu" aria-haspopup="menu" aria-expanded="false">
+                    <span class="mat-switcher__icon">@Ui.Icon("server")</span>
+                    <span class="mat-switcher__text">
+                        <small>Environment</small>
+                        <span class="mat-switcher__name">@currentEnvName</span>
+                    </span>
+                    @Ui.Icon("chevron-down", "mat-switcher__chev")
+                </button>
+            </div>
+
+            <nav class="mat-nav__scroll" aria-label="Main">
+                <ul class="mat-nav__list">
+                    @foreach (var group in menu)
+                    {
+                        if (group.Group is not null)
+                        {
+                            <li class="mat-nav__group" role="presentation">@group.Group</li>
+                        }
+
+                        foreach (var item in group.Items)
+                        {
+                            <li>
+                                <a class="mat-nav__item @(item.Active ? "is-active" : "")" href="@item.Href" aria-current="@(item.Active ? "page" : null)">
+                                    @Ui.Icon(item.Icon)<span>@item.Text</span>
+                                </a>
+                            </li>
+                        }
+                    }
+                </ul>
+            </nav>
+
+            <div class="mat-nav__foot">
+                <div class="mat-nav__account">
+                    <button type="button" class="mat-user" data-menu-toggle="user-menu" aria-haspopup="menu" aria-expanded="false">
+                        <span class="mat-avatar" aria-hidden="true">@Ui.Initials(userName)</span>
+                        <span class="mat-user__text">
+                            <span class="mat-user__name">@userName</span>
+                            <span class="mat-user__role">@role</span>
+                        </span>
+                        @Ui.Icon("chevron-up", "mat-user__chev")
+                    </button>
+                    <button type="button" class="mat-theme" data-theme-toggle data-theme-state="system" aria-label="Theme: System. Click for Light." title="Theme: System. Click for Light.">
+                        <svg class="mat-icon" data-theme-icon="system" aria-hidden="true" focusable="false"><use href="#mat-i-monitor"></use></svg>
+                        <svg class="mat-icon" data-theme-icon="light" aria-hidden="true" focusable="false"><use href="#mat-i-sun"></use></svg>
+                        <svg class="mat-icon" data-theme-icon="dark" aria-hidden="true" focusable="false"><use href="#mat-i-moon"></use></svg>
+                    </button>
+                </div>
+                <div class="mat-nav__version" title="@AppVersion.Informational">@name @AppVersion.Informational</div>
+            </div>
+        </aside>
+
+        <div class="mat-main">
+            <header class="mat-topbar">
+                <button type="button" class="mat-burger" data-nav-toggle aria-label="Open the menu" aria-controls="mat-nav" aria-expanded="false">@Ui.Icon("menu")</button>
+                <nav class="mat-crumbs" aria-label="Breadcrumb">
+                    <ol>
+                        @if (crumbs.Count == 0)
+                        {
+                            <li aria-current="page">@title</li>
+                        }
+                        else
+                        {
+                            @for (var i = 0; i < crumbs.Count; i++)
+                            {
+                                var c = crumbs[i];
+                                if (c.Url is null)
+                                {
+                                    <li>@c.Text</li>
+                                }
+                                else
+                                {
+                                    <li><a href="@c.Url">@c.Text</a></li>
+                                }
+                            }
+                            <li aria-current="page">@title</li>
+                        }
+                    </ol>
+                </nav>
+                @if (IsSectionDefined("Actions"))
+                {
+                    <div class="mat-topbar__actions">
+                        @await RenderSectionAsync("Actions")
+                    </div>
+                }
+            </header>
+
+            <main class="mat-page @(width == "narrow" ? "mat-page--narrow" : width == "wide" ? "mat-page--wide" : "")" id="main">
+                <div class="mat-page__head">
+                    <div class="mat-page__title">
+                        <h1>@heading</h1>
+                        @if (!string.IsNullOrEmpty(sub))
+                        {
+                            <p class="mat-page__sub">@sub</p>
+                        }
+                    </div>
+                </div>
+
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <div class="mat-menu" id="env-menu" role="menu" aria-label="Environment" hidden>
+        <button type="button" class="mat-menu__item" role="menuitemradio" aria-checked="@(currentEnv is null ? "true" : "false")" data-env-set="0">@Ui.Icon("layers")<span>All environments</span>@Ui.Icon("check", "mat-menu__check")</button>
+        @if (environments.Count > 0)
+        {
+            <div class="mat-menu__sep" role="separator"></div>
+        }
+        @foreach (var env in environments)
+        {
+            <button type="button" class="mat-menu__item" role="menuitemradio" aria-checked="@(currentEnv == env.Id ? "true" : "false")" data-env-set="@env.Id">@Ui.Icon("server")<span>@env.Name</span>@Ui.Icon("check", "mat-menu__check")</button>
+        }
+    </div>
+
+    <div class="mat-menu" id="user-menu" role="menu" aria-label="@userName" hidden>
+        <div class="mat-menu__head">
+            <span class="mat-avatar" aria-hidden="true">@Ui.Initials(userName)</span>
+            <div><strong>@userName</strong><small>@role</small></div>
+        </div>
+        <a class="mat-menu__item" role="menuitem" href="/Account/Profile">@Ui.Icon("user")<span>Profile</span></a>
+        <div class="mat-menu__sep" role="separator"></div>
+        <form method="post" asp-page="/Account/Logout">
+            <button type="submit" class="mat-menu__item" role="menuitem">@Ui.Icon("logout")<span>Sign out</span></button>
+        </form>
+    </div>
+
+    <script src="~/matui/matui.js" asp-append-version="true"></script>
     <script src="~/js/matdock.js" asp-append-version="true"></script>
     <script src="~/js/pwa.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)

@@ -2,16 +2,8 @@
 @model MatDock.Web.Pages.Networks.MapModel
 @{
     ViewData["Title"] = "Network map";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Networks", "/Networks") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Network map</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Networks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (Model.Environments.Count > 1)
 {

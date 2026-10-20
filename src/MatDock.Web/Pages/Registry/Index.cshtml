@@ -2,16 +2,8 @@
 @model MatDock.Web.Pages.Registry.IndexModel
 @{
     ViewData["Title"] = "Registry";
+    ViewData["Heading"] = "Registry browser";
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Registry browser</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Settings/Registries" class="mat-btn"><icon name="settings" /><span>Registries</span></a>
-    </div>
-</div>
 
 @if (Model.Registries.Count == 0)
 {
@@ -95,8 +87,8 @@
                 }
                 else
                 {
-                    <div class="mat-table__scroll">
-                        <table class="data">
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
                             <thead><tr><th>Tag</th><th>Pull reference</th></tr></thead>
                             <tbody>
                                 @foreach (var tag in Model.Tags.Tags)
@@ -113,4 +105,8 @@
             </div>
         </div>
     }
+}
+
+@section Actions {
+    <a href="/Settings/Registries" class="mat-btn mat-btn--secondary"><icon name="settings" /><span>Registries</span></a>
 }

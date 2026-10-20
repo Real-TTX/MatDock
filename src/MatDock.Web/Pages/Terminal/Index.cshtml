@@ -3,18 +3,10 @@
 @{
     ViewData["Title"] = Model.Title;
     var backHref = Model.Container is null ? "/Environments" : $"/Containers?EnvId={Model.EnvId}";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { (Model.Container is null ? "Environments" : "Containers", backHref) };
 }
 
 <link rel="stylesheet" href="~/lib/xterm/xterm.css" />
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@Model.Title</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="@backHref" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 <div class="card" style="padding:10px;background:#0b0f14;border-color:#0b0f14;">
     <div id="terminal"

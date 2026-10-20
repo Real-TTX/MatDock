@@ -2,15 +2,10 @@
 @model MatDock.Web.Pages.Settings.IndexModel
 @{
     ViewData["Title"] = "System";
+    ViewData["Heading"] = Model.IsBackupTab ? "Backup targets" : "System";
 }
 
 <partial name="_SystemTabs" />
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>@(Model.IsBackupTab ? "Backup targets" : "System")</h1>
-    </div>
-</div>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
@@ -23,8 +18,8 @@
 {
     <div class="u-mb u-maxw card">
         <div class="card__header"><icon name="whale" /><span>MatDock</span></div>
-        <div class="mat-table__scroll">
-            <table class="data">
+        <div class="mat-table-wrap">
+            <table class="mat-table">
                 <tbody>
                     <tr><th style="width:200px;">Version</th><td class="mono">@AppVersion.Informational</td></tr>
                     <tr><th>Local backup path</th><td class="mono">@Model.LocalPath</td></tr>
@@ -42,7 +37,7 @@ else
         </mat-table-toolbar>
 
         <mat-table-body>
-            <table class="data">
+            <table class="mat-table">
                 <thead>
                     <tr><th>Name</th><th>Type</th><th>Details</th><th>Default</th><th class="actions">Actions</th></tr>
                 </thead>

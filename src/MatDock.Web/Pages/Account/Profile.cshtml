@@ -6,12 +6,6 @@
     var pwActive = Model.MustChange || !ViewData.ModelState.IsValid;
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Profile</h1>
-    </div>
-</div>
-
 @if (Model.MustChange)
 {
     <div class="alert alert--warning">
@@ -28,8 +22,8 @@
 
 <div data-tabs>
     <nav class="mat-tabs">
-        <button type="button" class="mat-tabs__tab @(pwActive ? "" : "is-active")" data-tab="general"><icon name="user" /><span>General</span></button>
-        <button type="button" class="mat-tabs__tab @(pwActive ? "is-active" : "")" data-tab="password"><icon name="key" /><span>Password</span></button>
+        <button type="button" class="mat-tab @(pwActive ? "" : "is-active")" data-tab="general"><icon name="user" /><span>General</span></button>
+        <button type="button" class="mat-tab @(pwActive ? "is-active" : "")" data-tab="password"><icon name="key" /><span>Password</span></button>
     </nav>
 
     <div data-tab-panel="general" hidden="@(pwActive ? "hidden" : null)">
@@ -50,7 +44,7 @@
             <div class="card__header"><icon name="key" /><span>Change password</span></div>
             <div class="card__body">
                 <form method="post" class="mat-form">
-                    <div asp-validation-summary="ModelOnly"></div>
+                    <partial name="_ValidationSummary" />
 
                     <mat-field label="Current password" asp-for="Input.CurrentPassword">
                         <input asp-for="Input.CurrentPassword" type="password" class="mat-input" autocomplete="current-password" />

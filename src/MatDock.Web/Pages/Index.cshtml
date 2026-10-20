@@ -39,15 +39,6 @@
     };
 }
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Dashboard</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/" class="mat-btn"><icon name="refresh" /><span>Refresh</span></a>
-    </div>
-</div>
-
 @* Everything below the head is read again every 30 s while the page is visible (data-live, matdock.js). *@
 <div id="live-dashboard" data-live="30">
 @* ---- Key figures (clickable) ---- *@
@@ -195,8 +186,8 @@ else
         }
         else
         {
-            <div class="mat-table__scroll">
-                <table class="data">
+            <div class="mat-table-wrap">
+                <table class="mat-table">
                     <thead>
                         <tr><th>Container</th>@if (Model.IsAll) { <th>Environment</th> }<th class="num">CPU</th><th class="num">RAM</th></tr>
                     </thead>
@@ -317,3 +308,7 @@ else
     </div>
 </div>
 </div>
+
+@section Actions {
+    <a href="/" class="mat-btn mat-btn--ghost mat-btn--icon" data-tip="Refresh" aria-label="Refresh"><icon name="refresh" /></a>
+}

@@ -3,16 +3,8 @@
 @model MatDock.Web.Pages.Backups.RestoreModel
 @{
     ViewData["Title"] = "Restore";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Backups", "/Backups") };
 }
-
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Restore</h1>
-    </div>
-    <div class="mat-buttons">
-        <a href="/Backups" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
-    </div>
-</div>
 
 @if (Model.Result is not null)
 {
@@ -37,7 +29,7 @@ else
 {
     <form method="post" data-confirm="Start restore now?">
         <input type="hidden" asp-for="Input.BackupId" />
-        <div asp-validation-summary="ModelOnly"></div>
+        <partial name="_ValidationSummary" />
 
         <div class="migrate">
             <div class="migrate__side migrate__side--source">

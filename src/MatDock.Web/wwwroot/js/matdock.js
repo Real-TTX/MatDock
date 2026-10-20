@@ -2,38 +2,6 @@
 (function () {
     "use strict";
 
-    var root = document.documentElement;
-
-    /* ---------------- Theme ---------------- */
-    var media = window.matchMedia("(prefers-color-scheme: dark)");
-
-    function currentPref() {
-        return root.getAttribute("data-theme-pref") || localStorage.getItem("matdock-theme") || "system";
-    }
-
-    function applyTheme(pref) {
-        var dark = pref === "dark" || (pref === "system" && media.matches);
-        root.setAttribute("data-theme", dark ? "dark" : "light");
-        root.setAttribute("data-theme-pref", pref);
-        try { localStorage.setItem("matdock-theme", pref); } catch (e) { }
-        document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
-            btn.classList.toggle("is-active", btn.getAttribute("data-theme-set") === pref);
-        });
-        // Keep the PWA / browser chrome colour in sync with the active surface.
-        var meta = document.getElementById("meta-theme-color");
-        if (meta) { meta.setAttribute("content", dark ? "#15202e" : "#ffffff"); }
-    }
-
-    document.querySelectorAll("[data-theme-set]").forEach(function (btn) {
-        btn.addEventListener("click", function () { applyTheme(btn.getAttribute("data-theme-set")); });
-    });
-
-    media.addEventListener("change", function () {
-        if (currentPref() === "system") { applyTheme("system"); }
-    });
-
-    applyTheme(currentPref());
-
     /* ---------------- Dependent fields ----------------
        Markup: <div data-show-when="AuthType=1"> ... </div>
        Shows the block only when control #AuthType has value 1 (comma = OR).      */
@@ -95,7 +63,7 @@
             rows.forEach(function (row) {
                 if (row.hasAttribute("data-no-filter")) { return; }
                 var match = row.textContent.toLowerCase().indexOf(term) !== -1;
-                row.style.display = match ? "" : "none";
+                row.hidden = !match;
                 if (match) { shown++; }
             });
             if (counter) { counter.textContent = shown; }
@@ -287,7 +255,7 @@
         var seconds = Math.max(10, parseInt(regions[0].getAttribute("data-live"), 10) || 20);
         var busy = false;
         function refresh() {
-            if (busy || document.hidden || document.querySelector(".is-busy")) { return; }
+            if (busy || document.hidden || document.querySelector(".is-loading")) { return; }
             var focused = document.activeElement;
             if (focused && focused !== document.body && regions.some(function (r) { return r.contains(focused); })) { return; }
             busy = true;
@@ -326,43 +294,22 @@
         });
     });
 
-    /* ---------------- Confirm destructive actions ---------------- */
-    document.addEventListener("submit", function (e) {
-        // The question sits on the form, or on the button that sent it (a form with several actions).
-        var form = e.target;
-        var button = e.submitter && e.submitter.matches("[data-confirm]") ? e.submitter : null;
-        var question = button ? button.getAttribute("data-confirm")
-            : form.matches("[data-confirm]") ? form.getAttribute("data-confirm") : null;
-        if (question && !window.confirm(question)) {
-            e.preventDefault();
-        }
-    });
-
-    /* ---------------- Progress indicator for long POST actions ----------------
-       A top bar + a button spinner while a (non-toolbar) form POST is in flight — e.g.
-       prune, migrate, backup, deploy. Registered AFTER the confirm handler so a declined
-       confirm (defaultPrevented) never shows it. */
-    var progress = document.createElement("div");
-    progress.className = "mat-progress";
-    progress.innerHTML = '<div class="mat-progress__bar"></div>';
-    (document.body || document.documentElement).appendChild(progress);
-
+    /* ---------------- A POST that takes a while (prune, migrate, backup, deploy) ----------------
+       The button that sent the form turns into a spinner (MatUi .is-loading). Registered after the toolkit's confirm, so a
+       declined question (defaultPrevented) shows nothing. Visual only: no disabled, which would drop the button's name/value. */
     document.addEventListener("submit", function (e) {
         if (e.defaultPrevented) { return; }
         var form = e.target;
         if (!(form instanceof HTMLFormElement)) { return; }
         if ((form.method || "get").toLowerCase() !== "post") { return; }
-        if (form.classList.contains("js-autosubmit")) { return; } // toolbar filters reload immediately
-        progress.classList.add("is-active");
+        if (form.classList.contains("js-autosubmit")) { return; }
         var btn = e.submitter || form.querySelector('button[type="submit"], button:not([type])');
-        // Visual only (no `disabled`, which could drop the submitter's name/value from the POST).
-        if (btn) { btn.classList.add("is-busy"); }
+        if (btn) { btn.classList.add("is-loading"); }
     });
 
-    // A back/forward cache restore can re-show the page mid-request — reset the indicators.
+    // A back/forward cache restore can show the page mid-request again.
     window.addEventListener("pageshow", function () {
-        progress.classList.remove("is-active");
-        document.querySelectorAll(".is-busy").forEach(function (b) { b.classList.remove("is-busy"); });
+        document.querySelectorAll(".is-loading").forEach(function (b) { b.classList.remove("is-loading"); });
     });
 })();
 
@@ -378,9 +325,10 @@ document.addEventListener("click", function (e) {
     if (toggle) { matdockToggleRow(toggle); }
 });
 
-/* The environment switch in the menu (select[data-env-select]). */
-document.addEventListener("change", function (e) {
-    if (e.target.matches && e.target.matches("select[data-env-select]")) { matdockSetEnv(e.target.value); }
+/* The environment switch in the menu: a menu item [data-env-set="id"] (0 = all). */
+document.addEventListener("click", function (e) {
+    var item = e.target.closest ? e.target.closest("[data-env-set]") : null;
+    if (item) { matdockSetEnv(item.getAttribute("data-env-set")); }
 });
 
 function matdockPromptSubmit(btn, message, current) {

@@ -2,15 +2,16 @@
 @model ErrorModel
 @{
     ViewData["Title"] = "Error";
+    Layout = "_Bare";
 }
 
-<div class="status-card card">
-    <div class="u-center card__body">
-        <div class="status-icon"><icon name="alert" /></div>
-        <h1>Something went wrong</h1>
+<div class="mat-auth__card">
+    <div class="mat-empty">
+        <div class="mat-empty__icon"><icon name="alert" /></div>
+        <h1 class="mat-empty__title">Something went wrong</h1>
         @if (Model.ShowRequestId)
         {
-            <p class="mono text-muted">Request-ID: @Model.RequestId</p>
+            <p class="mat-mono">Request-ID: @Model.RequestId</p>
         }
         <a href="/" class="mat-btn mat-btn--primary"><icon name="dashboard" /><span>Go to dashboard</span></a>
     </div>

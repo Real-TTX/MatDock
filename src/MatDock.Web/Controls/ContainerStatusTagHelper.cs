@@ -20,7 +20,7 @@ public sealed partial class ContainerStatusTagHelper : TagHelper
 
         output.TagName = "span";
         output.TagMode = TagMode.StartTagAndEndTag;
-        output.Attributes.SetAttribute("class", $"pill {cls}");
+        output.Attributes.SetAttribute("class", $"mat-pill {cls}");
         if (!string.IsNullOrWhiteSpace(Status))
         {
             output.Attributes.SetAttribute("title", Status);
@@ -37,31 +37,20 @@ public sealed partial class ContainerStatusTagHelper : TagHelper
         return s switch
         {
             "running" => Contains(status, "unhealthy")
-                ? ("Unhealthy", "pill--offline", "alert")
-                : ("Up", "pill--online", "play"),
-            "restarting" => ("Restarting", "pill--offline", "alert"),
-            "paused" => ("Paused", "pill--offline", "pause"),
-            "created" => ("Created", "pill--unknown", "pause"),
-            "removing" => ("Removing", "pill--offline", "alert"),
-            "dead" => ("Dead", "pill--error", "alert"),
-            "exited" => ExitCode(status) == 0 ? ("Down", "pill--unknown", "pause") : ("Error", "pill--error", "alert"),
-            "" => ("?", "pill--unknown", ""),
-            _ => (char.ToUpperInvariant(s[0]) + s[1..], "pill--unknown", ""),
+                ? ("Unhealthy", "mat-pill--warn", "alert")
+                : ("Up", "mat-pill--ok", "play"),
+            "restarting" => ("Restarting", "mat-pill--warn", "alert"),
+            "paused" => ("Paused", "mat-pill--warn", "pause"),
+            "created" => ("Created", "mat-pill--plain", "pause"),
+            "removing" => ("Removing", "mat-pill--warn", "alert"),
+            "dead" => ("Dead", "mat-pill--error", "alert"),
+            "exited" => ExitCode(status) == 0 ? ("Down", "mat-pill--plain", "pause") : ("Error", "mat-pill--error", "alert"),
+            "" => ("?", "mat-pill--plain", ""),
+            _ => (char.ToUpperInvariant(s[0]) + s[1..], "mat-pill--plain", ""),
         };
     }
 
-    // Inline SVG matching <icon>: 1em, currentColor stroke — so the pill icon inherits the badge colour.
-    private static string IconSvg(string name)
-    {
-        if (!Icons.TryGet(name, out var inner))
-        {
-            return string.Empty;
-        }
-
-        return "<svg class=\"mat-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" " +
-               "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" width=\"1em\" height=\"1em\" " +
-               $"aria-hidden=\"true\" focusable=\"false\">{inner}</svg>";
-    }
+    private static string IconSvg(string name) => MatDock.Web.Support.Ui.Icon(name).ToString() ?? string.Empty;
 
     private static bool Contains(string? text, string token)
         => text is not null && text.Contains(token, StringComparison.OrdinalIgnoreCase);

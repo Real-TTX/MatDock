@@ -6,12 +6,6 @@
 
 <partial name="_SystemTabs" />
 
-<div class="page-head">
-    <div class="page-head__title">
-        <h1>Users</h1>
-    </div>
-</div>
-
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     <div class="alert @(Model.IsError ? "alert--error" : "alert--success")">
@@ -22,7 +16,7 @@
 <mat-table>
     <mat-table-toolbar>
         <form method="get" class="u-contents js-autosubmit">
-            <div class="search">
+            <div class="mat-input-icon mat-toolbar__search">
                 <icon name="search" />
                 <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search…" />
             </div>
@@ -49,7 +43,7 @@
         }
         else
         {
-            <table class="data">
+            <table class="mat-table">
                 <thead>
                     <tr><th>Username</th><th>Display name</th><th>Role</th><th>Status</th><th>Last login</th></tr>
                 </thead>

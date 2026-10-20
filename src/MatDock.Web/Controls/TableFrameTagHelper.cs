@@ -39,36 +39,34 @@ public sealed class TableFrameTagHelper : TagHelper
 
         output.TagName = "div";
         var existingClass = output.Attributes["class"]?.Value?.ToString();
-        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existingClass) ? "mat-table" : $"mat-table {existingClass}");
+        output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existingClass) ? "mat-list" : $"mat-list {existingClass}");
 
         var builder = new HtmlContentBuilder();
 
         if (frame.Toolbar is not null)
         {
-            builder.AppendHtml("<div class=\"mat-table__toolbar\">").AppendHtml(frame.Toolbar).AppendHtml("</div>");
+            builder.AppendHtml("<div class=\"mat-toolbar\" role=\"toolbar\">").AppendHtml(frame.Toolbar).AppendHtml("</div>");
         }
 
-        builder.AppendHtml("<div class=\"mat-table__scroll\">");
+        // The body brings its own frame: a table in .mat-table-wrap, a gallery, or an empty state.
         if (frame.Body is not null)
         {
             builder.AppendHtml(frame.Body);
         }
-        builder.AppendHtml("</div>");
 
-        // Only render the pagination band when it actually has content — a suppressed pagination control
-        // (single page) leaves just whitespace, which must not show as an empty padded row before the footer.
+        // The pager renders nothing for a single page.
         if (frame.Pagination is not null)
         {
             var paginationHtml = Render(frame.Pagination);
             if (!string.IsNullOrWhiteSpace(paginationHtml))
             {
-                builder.AppendHtml("<div class=\"mat-table__pagination\">").AppendHtml(new HtmlString(paginationHtml)).AppendHtml("</div>");
+                builder.AppendHtml(new HtmlString(paginationHtml));
             }
         }
 
         if (frame.Actions is not null)
         {
-            builder.AppendHtml("<div class=\"mat-table__actions\">").AppendHtml(frame.Actions).AppendHtml("</div>");
+            builder.AppendHtml("<div class=\"mat-actions\">").AppendHtml(frame.Actions).AppendHtml("</div>");
         }
 
         output.Content.SetHtmlContent(builder);
