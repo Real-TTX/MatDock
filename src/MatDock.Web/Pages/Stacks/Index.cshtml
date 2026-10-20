@@ -349,8 +349,8 @@
                                 <td class="mat-num" data-label="Containers"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Containers.Count</a></td>
                                 <td class="mat-num" data-label="Volumes"><a href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack">@r.VolumeCount</a></td>
                                 <td data-label="Resources"><usage mem="@agg.Mem" cpu="@agg.Cpu" mem-title="Aggregated RAM across the stack (% of host)" cpu-title="Aggregated CPU across the stack (% of host)" /></td>
-                                <td class="mat-table__cell-actions">
-                                    <div class="mat-table__actions">
+                                <td class="mat-table__cell-actions md-cell-wrap">
+                                    <div class="mat-table__actions md-actions-wrap">
                                         @if (r.Managed && r.ManagedId is { } id)
                                         {
                                             <form method="post" asp-page-handler="Deploy" data-confirm="@(r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">

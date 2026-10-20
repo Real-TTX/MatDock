@@ -226,3 +226,8 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-actions > form > .mat-btn { order: 1; }
 .md-actions > form > .mat-btn--primary { order: 0; }
 .md-actions > form > .mat-btn--danger { order: 3; }
+
+/* The many actions of a stack row wrap onto a second line instead of pushing the table wider than the page. */
+.mat-table td.md-cell-wrap { white-space: normal; }
+.md-actions-wrap { flex-wrap: wrap; width: calc(5 * (var(--mat-control-h-sm) + var(--mat-space-1))); }
+@media (max-width: 720px) { .md-actions-wrap { width: auto; justify-content: flex-start; } }
