@@ -14,7 +14,7 @@
         while (v >= 1024 && i < u.Length - 1) { v /= 1024; i++; }
         return $"{v:0.#} {u[i]}";
     }
-    ViewData["Crumbs"] = new List<(string Text, string? Url)> { (Model.Target.IsContainer ? Model.Container : Model.Volume, backUrl) };
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { Model.Target.IsContainer ? ("Containers", $"/Containers?EnvId={Model.EnvId}") : ("Volumes", $"/Volumes?EnvId={Model.EnvId}"), (Model.Target.IsContainer ? Model.Container : Model.Volume, backUrl) };
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
