@@ -87,6 +87,7 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 | 3 | Update history and pinning: keep the update runs (old/new digest, result, rollback) and let a service be pinned to a digest so automatic updates leave it alone; newer version tags (semver) next to moving tags | `UpdateService`, a table `StackUpdateRun`, Stacks/Update | M | Semver of tags is guesswork for many images (`latest`, `16-alpine`) |
 | 4 | Per-environment rights (a user sees and controls only some environments) | `User` ↔ `DockerEnvironment`, `EnvSelection`, every list | M | Every page and the API filter by it; only worth it beyond a small team |
 | 5 | The CIFS password of a new volume is still on the `docker volume create` command line (Docker takes it only as an `--opt`; it is in the volume's options anyway) | – | – | Not fixable in MatDock; documented |
+| 6 | Ad-hoc container `run` from a form (image, name, ports, env, volumes, restart, network), the Portainer flow for a one-off container without writing compose | new `ContainerCommands.Run`, `ContainerService`, `Containers/Create` | M | Quoting/validating ports, env and volumes; it is not managed (no stack record), so a convenience only |
 
 ## 4. Implemented
 
@@ -135,3 +136,38 @@ build without warnings. Migrations: `AddActivityLog`, `AddEnvironmentHostKey`, `
 
 Behaviour notes: “done” messages are toasts now; hidden dependent fields are not posted (a sync job keeps its cron when its schedule is switched
 off); the offline page uses the toolkit too. `/api/v1` and `/api` are unchanged.
+
+## 6. Against Portainer
+
+The second benchmark: Portainer, the best-known Docker UI. MatDock aims at the same single-host, agentless,
+compose-first use (homelab or small business), not at Portainer's orchestration/enterprise breadth.
+
+✅ has it · ◐ partly · ✖ missing · — not wanted (why)
+
+| Portainer | MatDock | |
+|---|---|---|
+| Hosts over socket, SSH, Docker API (TCP/TLS) | ✅ | agentless SSH is the point; host keys verified |
+| Edge agents / an agent per host | — | not wanted — MatDock needs nothing on the hosts |
+| Kubernetes management | — | not wanted — MatDock is the Docker engine |
+| Swarm services, scaling, secrets, configs | — | not wanted — single engine, compose |
+| Containers: list, status, logs, exec, stats, inspect | ✅ | logs with search/timestamps, terminal, file browser, 24 h resources |
+| Container pause/unpause and kill | ✅ | next to start/stop/restart, by state |
+| Container create/run from a form | ◐ | compose-first (a stack of one service); an ad-hoc `run` form is planned (below) |
+| Compose stacks, editor, env, git deploy, webhooks | ✅ | beats Portainer: highlighted YAML + `.env`, `compose config` check, SSH git |
+| App templates / one-click apps | ✅ | the Store, plus *Adopt* for a discovered stack |
+| Images: list, prune, layers | ✅ | + update tracking, rollback, Trivy CVE scan |
+| Image pull | ✅ | *Pull* onto the selected environment |
+| Image build / import-export | ✖ | build belongs in CI (git-deployed stacks build on the host); not planned |
+| Volumes: list, create, remove, browse, backup | ✅ | browser + migration + backup — beyond Portainer |
+| Networks: list, detail, remove, prune, map | ✅ | + a network map per environment |
+| Network create, connect/disconnect a container | ✅ | create (bridge/macvlan/ipvlan, internal); connect/disconnect on the detail page |
+| Registries: credentials + browse | ✅ | |
+| Users/roles | ◐ | Admin/User, enforced; teams and per-object RBAC not wanted (homelab/small team) |
+| Per-environment rights | ✖ | planned (section 3.4) |
+| Auth: internal, LDAP, OAuth/OIDC | ◐ | local + MatIdentity OIDC; generic LDAP/OIDC not wanted |
+| REST API / automation | ✅ | `/api/v1` (stacks, backups, operations), `X-Api-Key` |
+| Dashboard, events, alerts, audit log | ✅ | |
+
+Shipped this round: MatUi 0.2.0 → 0.3.2 (toolkit copy, no app changes); container pause/unpause/kill; image pull;
+network create and connect/disconnect. Still open to match Portainer where it is wanted: the ad-hoc container `run`
+form (section 3), everything else above is ✅ or deliberately —.
