@@ -94,4 +94,32 @@ public class DetailModel : PageModel
 
         return Page();
     }
+
+    public Task<IActionResult> OnPostConnectAsync(long envId, string network, string container)
+        => AttachAsync(envId, network, container, connect: true);
+
+    public Task<IActionResult> OnPostDisconnectAsync(long envId, string network, string container)
+        => AttachAsync(envId, network, container, connect: false);
+
+    private async Task<IActionResult> AttachAsync(long envId, string network, string container, bool connect)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage(new { envId, network });
+        }
+
+        var (ok, message) = await _connectionService.ConnectContainerToNetworkAsync(
+            _environmentService.BuildSettings(env), network ?? string.Empty, container ?? string.Empty, connect, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(new { envId, network });
+    }
 }

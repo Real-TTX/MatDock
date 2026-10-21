@@ -78,6 +78,9 @@ public static partial class ContainerCommands
             ContainerAction.Start => "start",
             ContainerAction.Stop => "stop",
             ContainerAction.Restart => "restart",
+            ContainerAction.Pause => "pause",
+            ContainerAction.Unpause => "unpause",
+            ContainerAction.Kill => "kill",
             _ => throw new ArgumentOutOfRangeException(nameof(action))
         };
 

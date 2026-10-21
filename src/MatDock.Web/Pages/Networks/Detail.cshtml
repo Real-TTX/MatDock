@@ -92,9 +92,34 @@ else
             <ul class="md-plain-list">
                 @foreach (var c in d.Containers)
                 {
-                    <li><a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></li>
+                    <li class="md-inline-form">
+                        <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
+                        @if (isAdmin && !Model.IsPredefined)
+                        {
+                            <form method="post" asp-page-handler="Disconnect" data-confirm="Disconnect '@c.Name' from '@d.Name'?">
+                                <input type="hidden" name="envId" value="@Model.EnvId" />
+                                <input type="hidden" name="network" value="@d.Name" />
+                                <input type="hidden" name="container" value="@c.Name" />
+                                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Disconnect" aria-label="Disconnect @c.Name"><icon name="x-circle" /></button>
+                            </form>
+                        }
+                    </li>
                 }
             </ul>
+        }
+        @if (isAdmin && !Model.IsPredefined)
+        {
+            <div class="mat-card__body">
+                <form method="post" asp-page-handler="Connect" class="md-inline-form">
+                    <input type="hidden" name="envId" value="@Model.EnvId" />
+                    <input type="hidden" name="network" value="@d.Name" />
+                    <div class="mat-input-icon">
+                        <icon name="box" />
+                        <input type="text" name="container" class="mat-input" placeholder="container name or id…" aria-label="Container to connect" required />
+                    </div>
+                    <button type="submit" class="mat-btn mat-btn--secondary"><icon name="plus" /><span>Connect</span></button>
+                </form>
+            </div>
         }
     </section>
 

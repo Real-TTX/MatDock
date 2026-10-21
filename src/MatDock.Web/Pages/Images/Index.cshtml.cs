@@ -65,6 +65,29 @@ public class IndexModel : PageModel
         return RedirectToPage(new { EnvId, Q, Refresh = true });
     }
 
+    /// <summary>Pulls an image by reference onto the selected environment.</summary>
+    public async Task<IActionResult> OnPostPullAsync(long envId, string reference)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Select a specific environment to pull an image.";
+            IsError = true;
+            return RedirectToPage(new { EnvId, Q });
+        }
+
+        var (ok, message) = await _connectionService.PullImageAsync(
+            _environmentService.BuildSettings(env), reference ?? string.Empty, HttpContext.RequestAborted);
+        StatusMessage = ok ? $"Pulled \"{reference}\" onto {env.Name}." : message;
+        IsError = !ok;
+        return RedirectToPage(new { EnvId = envId, Q, Refresh = true });
+    }
+
     /// <summary>Prunes the dangling images, or with <paramref name="all"/> every image no container uses.</summary>
     public async Task<IActionResult> OnPostPruneAsync(long envId, bool all = false)
     {

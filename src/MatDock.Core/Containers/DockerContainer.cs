@@ -34,7 +34,10 @@ public enum ContainerAction
 {
     Start,
     Stop,
-    Restart
+    Restart,
+    Pause,
+    Unpause,
+    Kill
 }
 
 /// <summary>A mount of a container (from <c>docker inspect .Mounts</c>): a named volume or a bind.</summary>

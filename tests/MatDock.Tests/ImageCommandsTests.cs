@@ -28,6 +28,15 @@ public class ImageCommandsTests
         => Assert.False(ImageCommands.IsValidImageRef(reference));
 
     [Fact]
+    public void Pull_builds_expected_and_validates()
+    {
+        var cmd = ImageCommands.Pull("nginx:alpine");
+        Assert.Contains("docker pull 'nginx:alpine'", cmd);
+        Assert.EndsWith("2>&1", cmd);
+        Assert.Throws<System.ArgumentException>(() => ImageCommands.Pull("$(evil)"));
+    }
+
+    [Fact]
     public void List_builds_json_format_command()
     {
         var cmd = ImageCommands.List("docker");

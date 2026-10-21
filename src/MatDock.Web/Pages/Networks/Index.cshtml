@@ -108,6 +108,10 @@
     </mat-table-body>
 
     <mat-table-actions>
+        @if (isAdmin && Model.Environments.Count > 0)
+        {
+            <a href="/Networks/Create?env=@Model.EnvId" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New network</span></a>
+        }
         <a href="/Networks/Map?envId=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="network" /><span>Map</span></a>
         <a href="/Networks?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
         @if (isAdmin && Model.Environments.Count > 0)

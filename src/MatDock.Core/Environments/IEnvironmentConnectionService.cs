@@ -52,6 +52,12 @@ public interface IEnvironmentConnectionService
     /// <summary>Removes a single network by name or id. Returns an actionable message on failure.</summary>
     Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a network (optional driver, internal flag). Returns an actionable message on failure.</summary>
+    Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default);
+
+    /// <summary>Attaches (<paramref name="connect"/> = true) or detaches a container to/from a network.</summary>
+    Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default);
+
     /// <summary>Removes all unused (custom) networks on the host — <c>docker network prune</c>.</summary>
     Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);
 
@@ -60,6 +66,9 @@ public interface IEnvironmentConnectionService
 
     /// <summary>Removes a single image by reference or id. <paramref name="force"/> maps to <c>docker image rm -f</c>.</summary>
     Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default);
+
+    /// <summary>Pulls an image by reference (<c>docker pull</c>). Returns the merged output / an actionable message.</summary>
+    Task<(bool Ok, string Message)> PullImageAsync(SshConnectionSettings settings, string reference, CancellationToken cancellationToken = default);
 
     /// <summary>Prunes dangling images, or all unused images when <paramref name="all"/> is set.</summary>
     Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default);

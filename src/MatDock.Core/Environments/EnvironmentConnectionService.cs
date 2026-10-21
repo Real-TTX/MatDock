@@ -479,6 +479,59 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
+    public async Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default)
+    {
+        if (!NetworkCommands.IsValidNetworkRef(name))
+        {
+            return (false, "Invalid network name.");
+        }
+        if (!string.IsNullOrEmpty(driver) && !NetworkCommands.IsValidDriver(driver))
+        {
+            return (false, "Invalid network driver.");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, NetworkCommands.Create(name, driver, @internal, head), settings);
+        return result.ExitStatus == 0
+            ? (true, $"Network \"{name}\" created.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    public async Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default)
+    {
+        if (!NetworkCommands.IsValidNetworkRef(network) || !NetworkCommands.IsValidNetworkRef(container))
+        {
+            return (false, "Invalid network or container reference.");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var command = connect ? NetworkCommands.Connect(network, container, head) : NetworkCommands.Disconnect(network, container, head);
+        var result = RunCommand(client, command, settings);
+        return result.ExitStatus == 0
+            ? (true, connect ? $"Connected to \"{network}\"." : $"Disconnected from \"{network}\".")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
     public async Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         using var client = _hostSessionFactory.Create(settings);
@@ -541,6 +594,30 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         var result = RunCommand(client, ImageCommands.Remove(reference, force, head), settings);
         return result.ExitStatus == 0
             ? (true, $"Image \"{reference}\" removed.")
+            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+    }
+
+    public async Task<(bool Ok, string Message)> PullImageAsync(SshConnectionSettings settings, string reference, CancellationToken cancellationToken = default)
+    {
+        if (!ImageCommands.IsValidImageRef(reference))
+        {
+            return (false, "Invalid image reference.");
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        try
+        {
+            await ConnectAsync(client, settings, cancellationToken);
+        }
+        catch (Exception ex) when (DockerErrorMessages.IsSshError(ex))
+        {
+            return (false, DockerErrorMessages.DescribeSshError(ex));
+        }
+
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var result = RunCommand(client, ImageCommands.Pull(reference, head), settings);
+        return result.ExitStatus == 0
+            ? (true, $"Pulled \"{reference}\".")
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 

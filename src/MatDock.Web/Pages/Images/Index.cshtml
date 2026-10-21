@@ -122,6 +122,17 @@
     </mat-table-body>
 
     <mat-table-actions>
+        @if (isAdmin && Model.EnvId > 0)
+        {
+            <form method="post" asp-page-handler="Pull" class="md-inline-form">
+                <input type="hidden" name="envId" value="@Model.EnvId" />
+                <div class="mat-input-icon">
+                    <icon name="download" />
+                    <input type="text" name="reference" class="mat-input" placeholder="repo:tag to pull…" aria-label="Image reference to pull" required />
+                </div>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="download" /><span>Pull</span></button>
+            </form>
+        }
         <a href="/Images?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
         @if (isAdmin)
         {

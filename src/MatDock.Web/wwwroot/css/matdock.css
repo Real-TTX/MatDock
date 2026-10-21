@@ -231,3 +231,6 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .mat-table td.md-cell-wrap { white-space: normal; }
 .md-actions-wrap { flex-wrap: wrap; width: calc(5 * (var(--mat-control-h-sm) + var(--mat-space-1))); }
 @media (max-width: 720px) { .md-actions-wrap { width: auto; justify-content: flex-start; } }
+
+/* A small inline add/pull form in a toolbar or actions row (image pull). */
+.md-inline-form { display: flex; align-items: center; gap: var(--mat-space-2); }

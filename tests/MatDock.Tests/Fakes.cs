@@ -141,6 +141,24 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
         return Task.FromResult((true, "ok"));
     }
 
+    public Task<(bool Ok, string Message)> PullImageAsync(SshConnectionSettings settings, string reference, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult((true, "ok"));
+    }
+
+    public Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult((true, "ok"));
+    }
+
+    public Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default)
+    {
+        LastSettings = settings;
+        return Task.FromResult((true, "ok"));
+    }
+
     public Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;

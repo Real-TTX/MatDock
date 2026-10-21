@@ -69,4 +69,22 @@ public class NetworkCommandsTests
         var head = MatDock.Core.Volumes.VolumeCommands.DockerHead(sudo, host);
         Assert.Contains(expectedTail, NetworkCommands.Prune(head));
     }
+
+    [Fact]
+    public void Create_builds_with_driver_and_internal_and_validates()
+    {
+        Assert.Contains("docker network create 'my-net'", NetworkCommands.Create("my-net", null, false));
+        Assert.Contains("docker network create --driver macvlan --internal 'seg'", NetworkCommands.Create("seg", "macvlan", true));
+        Assert.Throws<ArgumentException>(() => NetworkCommands.Create("$(evil)", null, false));
+        Assert.Throws<ArgumentException>(() => NetworkCommands.Create("ok", "overlay; rm -rf /", false));
+    }
+
+    [Fact]
+    public void Connect_and_disconnect_build_and_validate()
+    {
+        Assert.Contains("docker network connect 'my-net' 'web'", NetworkCommands.Connect("my-net", "web"));
+        Assert.Contains("docker network disconnect 'my-net' 'web'", NetworkCommands.Disconnect("my-net", "web"));
+        Assert.Throws<ArgumentException>(() => NetworkCommands.Connect("my-net", "a b"));
+        Assert.Throws<ArgumentException>(() => NetworkCommands.Disconnect("a;b", "web"));
+    }
 }

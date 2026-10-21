@@ -51,4 +51,48 @@ public static partial class NetworkCommands
     /// <summary>Removes all unused (custom) networks. Predefined bridge/host/none are never touched.</summary>
     public static string Prune(string dockerHead = "docker")
         => VolumeCommands.PathPrefix + dockerHead + " network prune -f";
+
+    /// <summary>Drivers a user may create a network with (overlay needs Swarm; host/none can't be created).</summary>
+    private static readonly HashSet<string> CreatableDrivers = new(StringComparer.Ordinal) { "bridge", "macvlan", "ipvlan" };
+
+    public static bool IsValidDriver(string? driver) => driver is not null && CreatableDrivers.Contains(driver);
+
+    /// <summary>Creates a network: <c>network create [--driver X] [--internal] name</c>. Name and driver are validated.</summary>
+    public static string Create(string name, string? driver, bool @internal, string dockerHead = "docker")
+    {
+        if (!IsValidNetworkRef(name))
+        {
+            throw new ArgumentException($"Invalid network name: '{name}'.", nameof(name));
+        }
+        if (!string.IsNullOrEmpty(driver) && !IsValidDriver(driver))
+        {
+            throw new ArgumentException($"Invalid network driver: '{driver}'.", nameof(driver));
+        }
+
+        var d = string.IsNullOrEmpty(driver) ? string.Empty : " --driver " + driver;
+        var intern = @internal ? " --internal" : string.Empty;
+        return VolumeCommands.PathPrefix + dockerHead + " network create" + d + intern + " '" + name + "'";
+    }
+
+    /// <summary>Attaches a container to a network (<c>network connect</c>). Both refs are validated.</summary>
+    public static string Connect(string network, string container, string dockerHead = "docker")
+        => ConnectVerb("connect", network, container, dockerHead);
+
+    /// <summary>Detaches a container from a network (<c>network disconnect</c>). Both refs are validated.</summary>
+    public static string Disconnect(string network, string container, string dockerHead = "docker")
+        => ConnectVerb("disconnect", network, container, dockerHead);
+
+    private static string ConnectVerb(string verb, string network, string container, string dockerHead)
+    {
+        if (!IsValidNetworkRef(network))
+        {
+            throw new ArgumentException($"Invalid network name/id: '{network}'.", nameof(network));
+        }
+        if (!IsValidNetworkRef(container)) // container id/name shares the network ref charset
+        {
+            throw new ArgumentException($"Invalid container id/name: '{container}'.", nameof(container));
+        }
+
+        return VolumeCommands.PathPrefix + $"{dockerHead} network {verb} '{network}' '{container}'";
+    }
 }

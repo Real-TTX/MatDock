@@ -1,0 +1,48 @@
+@page
+@model MatDock.Web.Pages.Networks.CreateModel
+@{
+    ViewData["Title"] = "New network";
+    ViewData["Width"] = "narrow";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Networks", $"/Networks?EnvId={Model.Input.EnvironmentId}") };
+}
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" class="mat-form">
+            <partial name="_ValidationSummary" />
+
+            <div class="mat-form__grid">
+                <mat-field label="Environment" asp-for="Input.EnvironmentId">
+                    <select asp-for="Input.EnvironmentId" class="mat-select">
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Name" asp-for="Input.Name" hint="Letters, digits, . _ - (must start alphanumeric).">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="e.g. app-net" />
+                </mat-field>
+
+                <mat-field label="Driver" asp-for="Input.Driver">
+                    <select asp-for="Input.Driver" class="mat-select">
+                        <option value="bridge">bridge</option>
+                        <option value="macvlan">macvlan</option>
+                        <option value="ipvlan">ipvlan</option>
+                    </select>
+                </mat-field>
+            </div>
+
+            <label class="mat-check">
+                <input asp-for="Input.Internal" type="checkbox" />
+                <span>Internal (no external connectivity)</span>
+            </label>
+
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create network</span></button>
+                <a href="/Networks?EnvId=@Model.Input.EnvironmentId" class="mat-btn mat-btn--secondary">Cancel</a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

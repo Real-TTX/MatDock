@@ -26,12 +26,36 @@
         }
         <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
         <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack" aria-label="Volumes"><icon name="volume" /></a>
+        var paused = string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
                 <input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
+            </form>
+            <form method="post" asp-page-handler="Action">
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <input type="hidden" name="action" value="Pause" />
+                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Pause" aria-label="Pause"><icon name="pause" /></button>
+            </form>
+            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <input type="hidden" name="action" value="Stop" />
+                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
+            </form>
+            <form method="post" asp-page-handler="Action" data-confirm="Kill container '@c.Name'? (SIGKILL, no graceful shutdown)">
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <input type="hidden" name="action" value="Kill" />
+                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Kill" aria-label="Kill"><icon name="x-circle" /></button>
+            </form>
+        }
+        else if (paused)
+        {
+            <form method="post" asp-page-handler="Action">
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <input type="hidden" name="action" value="Unpause" />
+                <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Unpause" aria-label="Unpause"><icon name="play" /></button>
             </form>
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />

@@ -20,6 +20,9 @@ public class ContainerTests
     public void Action_and_Logs_build_and_reject_injection()
     {
         Assert.Contains("docker restart 'abc123'", ContainerCommands.Action("docker", ContainerAction.Restart, "abc123"));
+        Assert.Contains("docker pause 'abc123'", ContainerCommands.Action("docker", ContainerAction.Pause, "abc123"));
+        Assert.Contains("docker unpause 'abc123'", ContainerCommands.Action("docker", ContainerAction.Unpause, "abc123"));
+        Assert.Contains("docker kill 'abc123'", ContainerCommands.Action("docker", ContainerAction.Kill, "abc123"));
         Assert.Contains("docker logs --tail 50 'abc123' 2>&1", ContainerCommands.Logs("docker", "abc123", 50));
         Assert.Throws<ArgumentException>(() => ContainerCommands.Action("docker", ContainerAction.Stop, "a; rm -rf /"));
     }

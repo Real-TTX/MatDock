@@ -39,6 +39,10 @@ public static partial class ImageCommands
     public static string Prune(bool all, string dockerHead = "docker")
         => VolumeCommands.PathPrefix + dockerHead + " image prune -f" + (all ? " -a" : string.Empty);
 
+    /// <summary>Pulls an image by reference (<c>docker pull</c>); output merged so progress/errors are captured.</summary>
+    public static string Pull(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " pull " + QuotedRef(reference) + " 2>&1";
+
     /// <summary>
     /// The tag that keeps the image of <paramref name="reference"/> during an update (<c>repo:matdock-rollback-latest</c>): with the containerd image
     /// store an image that loses its last name is gone, so the old one gets this name before the pull and its tag back from it on a rollback.
