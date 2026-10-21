@@ -23,8 +23,12 @@ public sealed class SessionService
         _options = options.Value;
     }
 
-    /// <summary>Opens a session; <paramref name="idToken"/> is the ID token of MatIdentity when the sign-in came through it (for the sign-out there).</summary>
-    public async Task<UserSession> CreateAsync(long userId, string? userAgent, string? ipAddress, CancellationToken ct = default, string? idToken = null)
+    /// <summary>
+    /// Opens a session; <paramref name="idToken"/> is the ID token of MatIdentity when the sign-in came through it (for the sign-out there),
+    /// <paramref name="externalSessionId"/> its session there (the claim <c>sid</c>, for the back-channel logout).
+    /// </summary>
+    public async Task<UserSession> CreateAsync(long userId, string? userAgent, string? ipAddress, CancellationToken ct = default, string? idToken = null,
+        string? externalSessionId = null)
     {
         var session = new UserSession
         {
@@ -35,6 +39,7 @@ public sealed class SessionService
             UserAgent = Truncate(userAgent, 512),
             IpAddress = Truncate(ipAddress, 64),
             IdToken = string.IsNullOrEmpty(idToken) || idToken.Length > 8000 ? null : idToken,
+            ExternalSessionId = string.IsNullOrEmpty(externalSessionId) || externalSessionId.Length > 256 ? null : externalSessionId,
         };
 
         _db.UserSessions.Add(session);
@@ -89,6 +94,41 @@ public sealed class SessionService
             _db.UserSessions.Remove(session); // soft delete
             await _db.SaveChangesAsync(ct);
         }
+    }
+
+    /// <summary>
+    /// The back-channel logout of MatIdentity: ends the sessions it names. <paramref name="externalSessionId"/> set: the sessions opened with that
+    /// <c>sid</c> (of the user linked to <paramref name="subject"/> when that is given too); <paramref name="subject"/> alone: every session of the
+    /// user linked to it (the person was signed out everywhere). The next request of an ended session is signed out (<see cref="ValidateAsync"/>).
+    /// Unknown subject or sid: nothing ended. Returns the user names and how many sessions of each were ended.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Username, int Count)>> EndExternalAsync(string? subject, string? externalSessionId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(subject) && string.IsNullOrEmpty(externalSessionId))
+        {
+            return [];
+        }
+
+        var query = _db.UserSessions.Include(s => s.User).Where(s => s.User != null);
+        if (!string.IsNullOrEmpty(subject))
+        {
+            query = query.Where(s => s.User!.ExternalSubject == subject);
+        }
+
+        if (!string.IsNullOrEmpty(externalSessionId))
+        {
+            query = query.Where(s => s.ExternalSessionId == externalSessionId);
+        }
+
+        var ended = await query.ToListAsync(ct);
+        if (ended.Count == 0)
+        {
+            return [];
+        }
+
+        _db.UserSessions.RemoveRange(ended); // soft delete
+        await _db.SaveChangesAsync(ct);
+        return ended.GroupBy(s => s.User!.Username).Select(g => (g.Key, g.Count())).ToList();
     }
 
     private static string? Truncate(string? value, int maxLength)

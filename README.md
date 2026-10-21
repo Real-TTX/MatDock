@@ -355,7 +355,9 @@ without knowing it beforehand. It lives next to `/api/v1` and never under it; `/
 
 **Sign-in through MatIdentity** (only with `MATIDENTITY_AUTHORITY`; without it nothing changes): the sign-in page goes
 straight to MatIdentity (authorization code with PKCE). Redirect address `/signin-oidc`, signed-out address
-`/signout-callback-oidc`. The local sign-in stays at `/Account/Login?local=1` (a way in when MatIdentity is down).
+`/signout-callback-oidc`, back-channel logout `/signout-backchannel` (`POST`, a logout token signed by MatIdentity: the
+MatDock session opened with that MatIdentity session (`sid`) ends, or every session of the person for `sub` alone; the next
+request of it lands on the sign-in page; written to the activity log as `MatIdentity`). The local sign-in stays at `/Account/Login?local=1` (a way in when MatIdentity is down).
 The person is matched by `sub`; the first sign-in creates the user (no password). An existing account whose user name
 equals the person's `preferred_username` or e-mail is **not** linked by the name alone: the sign-in page asks to sign in
 once with that account's password (`?local=1&link=1`, or cancel), then it is linked. Several matches, or a match linked to

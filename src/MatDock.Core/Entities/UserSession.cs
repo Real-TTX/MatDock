@@ -24,4 +24,10 @@ public class UserSession : AuditableEntity
 
     /// <summary>The ID token of MatIdentity when the session was opened through it (the <c>id_token_hint</c> of the sign-out there), else null.</summary>
     public string? IdToken { get; set; }
+
+    /// <summary>
+    /// The session at MatIdentity (the claim <c>sid</c>) when the session was opened through it, else null: a back-channel logout that names it
+    /// ends this session (<see cref="Auth.SessionService.EndExternalAsync"/>).
+    /// </summary>
+    public string? ExternalSessionId { get; set; }
 }

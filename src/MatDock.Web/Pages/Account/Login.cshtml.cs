@@ -157,6 +157,7 @@ public class LoginModel : PageModel
 
         // A pending link of MatIdentity is only ever for the account that matched; it is deleted either way.
         string? idToken = null;
+        string? sessionId = null;
         if (MatIdentityPendingLink.TakeFor(HttpContext, user.Id.ToString(CultureInfo.InvariantCulture)) is { } pending)
         {
             var linked = await _users.LinkExternalAsync(
@@ -167,6 +168,7 @@ public class LoginModel : PageModel
             {
                 user = linked;
                 idToken = pending.IdToken;
+                sessionId = pending.SessionId;
             }
             else
             {
@@ -174,7 +176,7 @@ public class LoginModel : PageModel
             }
         }
 
-        await DockIdentityUsers.SignInLocallyAsync(HttpContext, _sessionService, user, Input.RememberMe, idToken, HttpContext.RequestAborted);
+        await DockIdentityUsers.SignInLocallyAsync(HttpContext, _sessionService, user, Input.RememberMe, idToken, HttpContext.RequestAborted, sessionId);
 
         // Forced password change lands on the profile page via the guard middleware.
         return LocalRedirect(SafeReturnUrl());

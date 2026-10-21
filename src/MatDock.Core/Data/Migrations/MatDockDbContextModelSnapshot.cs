@@ -1143,6 +1143,10 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ExternalSessionId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("IdToken")
                         .HasMaxLength(8000)
                         .HasColumnType("TEXT");
@@ -1174,6 +1178,8 @@ namespace MatDock.Core.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExternalSessionId");
 
                     b.HasIndex("Token")
                         .IsUnique();

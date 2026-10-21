@@ -62,6 +62,7 @@ public sealed class PendingLinkTests
         Assert.Equal("sub-victim", linked.ExternalSubject);
         Assert.Equal(UserRole.Admin, linked.Role);
         Assert.Equal("id-token-victim", site.Db(db => db.UserSessions.Single(s => s.UserId == claimedId).IdToken));
+        Assert.Equal("sid-victim", site.Db(db => db.UserSessions.Single(s => s.UserId == claimedId).ExternalSessionId));
 
         // From now on MatIdentity finds the account by its subject and signs in directly.
         var (next, cookie, _) = await SignIn.MatIdentitySignInAsync(site, Person());
@@ -174,7 +175,7 @@ public sealed class PendingLinkTests
         return site;
     }
 
-    private static MatIdentityPerson Person() => new("sub-victim", "victim@example.com", "Victim", ClaimedName, "admin", "id-token-victim", new());
+    private static MatIdentityPerson Person() => new("sub-victim", "victim@example.com", "Victim", ClaimedName, "admin", "id-token-victim", new()) { SessionId = "sid-victim" };
 
     private static async Task AssertIgnoredAsync(IdentityFactory site, long claimedId, string cookieValue)
     {

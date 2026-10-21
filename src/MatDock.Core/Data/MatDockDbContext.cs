@@ -65,6 +65,8 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Token).HasMaxLength(64).IsRequired();
             e.HasIndex(x => x.Token).IsUnique();
             e.Property(x => x.IdToken).HasMaxLength(8000);
+            e.Property(x => x.ExternalSessionId).HasMaxLength(256);
+            e.HasIndex(x => x.ExternalSessionId);
             e.HasIndex(x => x.UserId);
             e.HasOne(x => x.User)
                 .WithMany(u => u.Sessions)

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 
@@ -35,6 +37,13 @@ public class MatDockFactory : WebApplicationFactory<Program>
     public const string EngineKey = "engine-key-0123456789";
     public const string Admin = "tester";
     public const string AdminPassword = "Tester123!";
+
+    /// <summary>The key MatIdentity signs with in the tests (made here, no network); it is in the fixed OpenID configuration's keys.</summary>
+    public static readonly SigningCredentials SigningCredentials = NewCredentials("test-key");
+
+    /// <summary>An RSA key of its own (another identity provider, or a forger).</summary>
+    public static SigningCredentials NewCredentials(string keyId)
+        => new(new RsaSecurityKey(RSA.Create(2048)) { KeyId = keyId }, SecurityAlgorithms.RsaSha256);
 
     private static readonly string[] Variables =
     [
@@ -98,6 +107,7 @@ public class MatDockFactory : WebApplicationFactory<Program>
                     TokenEndpoint = _authority + "/connect/token",
                     EndSessionEndpoint = _authority + "/connect/logout",
                 };
+                configuration.SigningKeys.Add(SigningCredentials.Key);
 
                 services.PostConfigure<OpenIdConnectOptions>(MatIdentitySignIn.Scheme, options =>
                 {
