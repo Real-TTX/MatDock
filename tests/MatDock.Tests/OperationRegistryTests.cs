@@ -128,6 +128,28 @@ public class OperationRegistryTests
     }
 
     [Fact]
+    public async Task Work_with_the_same_lock_key_runs_in_the_order_it_was_started()
+    {
+        // The thread pool may start the background tasks in any order; the place in the queue is taken when the work is started.
+        using var registry = NewRegistry();
+        var order = new System.Collections.Concurrent.ConcurrentQueue<int>();
+        var operations = Enumerable.Range(0, 200)
+            .Select(i => registry.Start("step", "app", "stack:1:app", _ =>
+            {
+                order.Enqueue(i);
+                return Task.FromResult(OperationOutcome.Success());
+            }))
+            .ToList();
+
+        foreach (var operation in operations)
+        {
+            await registry.WaitAsync(operation.Id);
+        }
+
+        Assert.Equal(Enumerable.Range(0, 200), order);
+    }
+
+    [Fact]
     public async Task Finished_operations_are_forgotten_after_the_retention()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero));

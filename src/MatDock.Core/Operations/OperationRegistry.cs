@@ -36,7 +36,10 @@ public sealed class OperationRegistry : IDisposable
     public static readonly TimeSpan DefaultRetention = TimeSpan.FromHours(1);
 
     private readonly ConcurrentDictionary<string, Operation> _operations = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new(StringComparer.Ordinal);
+    // Work with the same lock key runs in the order it was started: each start takes its place behind the last one of its key (taken in Start,
+    // not in the background task, which the thread pool may start in any order: a delete started after a deploy could otherwise run first).
+    private readonly object _queueGate = new();
+    private readonly Dictionary<string, Task> _tails = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task> _running = new(StringComparer.Ordinal);
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OperationRegistry> _logger;
@@ -66,10 +69,22 @@ public sealed class OperationRegistry : IDisposable
         _operations[operation.Id] = operation;
 
         // Do not let the request's execution context (HttpContext, user) flow into the background work.
+        var previous = Task.CompletedTask;
+        TaskCompletionSource? done = null;
+        if (lockKey is not null)
+        {
+            done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_queueGate)
+            {
+                previous = _tails.GetValueOrDefault(lockKey) ?? Task.CompletedTask;
+                _tails[lockKey] = done.Task;
+            }
+        }
+
         Task task;
         using (ExecutionContext.SuppressFlow())
         {
-            task = Task.Run(() => RunAsync(operation, lockKey, work));
+            task = Task.Run(() => RunAsync(operation, lockKey, previous, done, work));
         }
 
         _running[operation.Id] = task;
@@ -101,32 +116,27 @@ public sealed class OperationRegistry : IDisposable
         }
     }
 
-    private async Task RunAsync(Operation operation, string? lockKey, Func<OperationContext, Task<OperationOutcome>> work)
+    private async Task RunAsync(Operation operation, string? lockKey, Task previous, TaskCompletionSource? done, Func<OperationContext, Task<OperationOutcome>> work)
     {
         var token = _shutdown.Token;
-        SemaphoreSlim? gate = null;
         OperationOutcome outcome;
         try
         {
-            if (lockKey is not null)
-            {
-                gate = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-                if (!await gate.WaitAsync(0, token))
-                {
-                    operation.Log("Waiting for another operation on the same object to finish …");
-                    await gate.WaitAsync(token);
-                }
-            }
-
             try
             {
+                if (!previous.IsCompleted)
+                {
+                    operation.Log("Waiting for another operation on the same object to finish …");
+                    await previous.WaitAsync(token);
+                }
+
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 using var output = CommandOutput.Redirect(operation.Append);
                 outcome = await work(new OperationContext(operation, scope.ServiceProvider, token));
             }
             finally
             {
-                gate?.Release();
+                Release(lockKey, done);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -145,6 +155,25 @@ public sealed class OperationRegistry : IDisposable
         }
 
         operation.Complete(outcome, _time.GetUtcNow().UtcDateTime);
+    }
+
+    /// <summary>Lets the next work of the key run, and forgets the key when nothing waits behind this one.</summary>
+    private void Release(string? lockKey, TaskCompletionSource? done)
+    {
+        if (lockKey is null || done is null)
+        {
+            return;
+        }
+
+        lock (_queueGate)
+        {
+            if (_tails.TryGetValue(lockKey, out var tail) && tail == done.Task)
+            {
+                _tails.Remove(lockKey);
+            }
+        }
+
+        done.TrySetResult();
     }
 
     // Only cancelled, never disposed: work that is still winding down may observe the token.
