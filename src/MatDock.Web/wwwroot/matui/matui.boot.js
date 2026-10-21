@@ -1,4 +1,4 @@
-/* MatUi boot 0.2.0: include it in <head> as a plain (blocking) script, before the stylesheet is painted.
+/* MatUi boot 0.3.2: include it in <head> as a plain (blocking) script, before the stylesheet is painted.
    It applies the saved theme ("system" = no attribute), the saved colour scheme and the saved accent preset, so the page does not flash in the wrong colours.
    A server-side preference (the user's account) can write data-theme / data-scheme / data-accent on <html> itself; this only fills in what is missing. */
 (function () {

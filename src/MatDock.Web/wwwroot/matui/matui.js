@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Version 0.2.0 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
+   Version 0.3.2 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
    `node tools/bump.js` writes the version here, in matui.boot.js and in MatUiVersion (Directory.Build.props); window.MatUi.version has it.
    MatUi · behaviour
    Dependency-free. Everything is wired by delegated listeners and data-attributes, so server-rendered and dynamically added
@@ -93,6 +93,8 @@
      data-show-if="#id | name" data-show-value="a,b | * | true"   show a dependent field only when it is needed
      data-copy="text | #id"                 copy to the clipboard
      data-tabs                              a tab group (role=tablist buttons + role=tabpanel panels)
+     data-table-scroll                      on a .mat-table-wrap: the table keeps every column and scrolls sideways (TABLE-04). Without it a table that is wider than
+                                            its frame above 720 px leaves out its mat-hide-sm columns, the last one first, until it fits (is-col-hidden on their cells)
      data-groups="key"                      a table whose groups (<tbody class="mat-group" data-group="name">) open and close (LIST-16): the toggle in the heading row
                                             (data-group-toggle, aria-expanded) opens or closes its group, and the choice is remembered per table key and group; a group with
                                             data-group-fixed stays as the server drew it (the one with a search hit). data-groups-set="open|closed|toggle" on a button does it
@@ -118,6 +120,42 @@
                                             1 KB is 1024 bytes), data-max-files="5" (with multiple), data-paste (images from the clipboard, while the focus is in the control), data-preview="none" (no
                                             thumbnails). Without multiple a new file replaces the old one. Events: mat:upload-change (detail.files, added, removed, source), mat:upload-refused
                                             (detail.refused). API: MatUi.upload.init / files / add / remove / clear / setProgress / setError. The texts: data-up-<name> on <html>
+     data-autocomplete                      a search field with suggestions (FORM-23): .mat-search around a real input type=search (.mat-search__input, in a <form role="search"> it
+                                            is a plain search without the script); the script draws the magnifier, a clear button and the popup of a WAI-ARIA combobox with a listbox.
+                                            data-search-url="/api/search" (GET ?q=text&limit=8, the answer { groups: [ { name, items: [ { title, text, href, icon, kind, id } ] } ] }) or
+                                            data-items='[...]' (the same as local data), data-min (the least number of characters, 1), data-delay (ms before a question is sent, 120),
+                                            data-limit (8), data-results-url="/Search" (the last row "All results for ..." goes to <url>?q=text), data-recent="key" (the last five choices are
+                                            remembered per app and key and shown while the field is empty and focused), data-key="/,mod+k" (keys that focus the field; mod is Ctrl or Cmd; a plain key
+                                            that another element has as data-shortcut stays that element's). In the header bar (.mat-topbar__search, SHELL-20) a phone gets an icon button; on a phone
+                                            the focused field is a full-screen panel with an X. Events: mat:search-select (cancelable), mat:search-results. API: MatUi.search.init / setItems /
+                                            open / close / clear / focus / value. The texts: data-sr-<name> on <html>
+
+   Events (CustomEvents named after the control and what happened; this is all of them, docs/ADOPTING.md section 3b has the same list as a table and a test holds both to the code).
+   Each is sent on the element it is about and bubbles, so one listener on document hears them all, except the first four: they are sent on <html> and do not bubble
+   (listen on document.documentElement). None can be cancelled except where it says so; a cancelled one (preventDefault) stops what the script would do next.
+     mat:theme            <html>           { theme: 'system' | 'light' | 'dark' }: the theme was applied (a click, MatUi.theme.set) and once when the script starts
+     mat:accent           <html>           { accent: name | null } or { accent: 'custom', color: '#rrggbb' }: MatUi.accent.set / .custom, and once at the start for data-custom-accent
+     mat:scheme           <html>           { scheme: 'standard' | 'paper' | 'contrast' | 'oled' }: the colour scheme was chosen (data-scheme-set, MatUi.scheme.set)
+     mat:navset           <html>           { set: id }: the menu switcher shows another menu (an entry that is a button, MatUi.nav.set)
+     mat:dialog-open      the dialog       no detail: a dialog.mat-dialog was opened (data-dialog-open, data-autoopen, MatUi.dialog.open, MatUi.confirm / alert / prompt)
+     mat:group-toggle     tbody.mat-group  { group, open }: a group of a table opened or closed
+     mat:item-action      li.mat-item      { item, action, list }: a sliding option was pressed (action is its data-item-action or its text in lower case)
+     mat:reorder          li.mat-item      { list, item, from, to, order }: a row was dropped in a new place (order = the keys of the rows now)
+     mat:item-filter      the list         { list, text, shown, total }: the filter field of a list changed which rows are shown
+     mat:slots-needed     .mat-picker      { month, from, to, picker }: the appointment picker shows a month it has no times for; answer with MatUi.picker.setSlots
+     mat:otp-complete     .mat-otp         { value }: every box has a character; cancelable: preventDefault keeps data-submit from sending the form
+     mat:rating-change    .mat-rating      { value, rating }: the user chose a value
+     mat:schedule-select  .mat-schedule    the event as the app gave it: an event was chosen; cancelable: preventDefault keeps a link (url) from being followed
+     mat:schedule-range   .mat-schedule    { from, to, view, date }: the range that is shown changed (and once when it is drawn first): load its events
+     mat:schedule-day     .mat-schedule    { date, view }: the user chose a day
+     mat:tree-select      li.mat-tree__item  { tree, item, selected, values }: an item was selected or ticked
+     mat:tree-toggle      li.mat-tree__item  { tree, item, open }: a parent opened or closed (not when the remembered state is restored)
+     mat:tree-load        li.mat-tree__item  { tree, item, id, value }: a lazy parent opens for the first time; answer with MatUi.tree.setChildren
+     mat:tree-filter      ul.mat-tree      { tree, text, shown, total }: the filter field changed which items are shown
+     mat:upload-change    .mat-upload      { files, added, removed, source }: the list of files changed (source: picker, drop, paste, remove, reset or api)
+     mat:upload-refused   .mat-upload      { refused, source }: files that were not taken, each with its reason
+     mat:search-results   .mat-search      { query, count, source }: suggestions were drawn (source: local, server or error)
+     mat:search-select    .mat-search      { item, group, query, source }: an option was chosen (source: result, recent or all); cancelable: preventDefault means the app takes over, nothing is followed
    ========================================================================== */
 (function () {
   'use strict';
@@ -943,7 +981,7 @@
 
   function dialogEl(ref) { return typeof ref === 'string' ? doc.getElementById(ref) : ref; }
 
-  function syncLock() { root.classList.toggle('mat-lock', dialogStack.length > 0 || !!(app() && app().classList.contains('is-nav-open')) || !!(pickerOpen && pickerOpen.full)); }
+  function syncLock() { root.classList.toggle('mat-lock', dialogStack.length > 0 || !!(app() && app().classList.contains('is-nav-open')) || !!(pickerOpen && pickerOpen.full) || !!searchFull); }
 
   function openDialog(ref, opener) {
     var d = dialogEl(ref);
@@ -1096,7 +1134,45 @@
     if (host.parentNode !== home) { home.appendChild(host); }
     return host;
   }
-  function placeToasts() { if ($('.mat-toasts')) { toastHost(); } }
+  function placeToasts() { if ($('.mat-toasts')) { toastHost(); toasts.slice().forEach(toastSettle); } }
+
+  // A toast goes after 6 s, but never while it is being read or used: the timer waits while the pointer is over the toast or the focus is inside it (its X, a link), and when both have
+  // gone it runs the time that was left, 1.5 s at least. A toast lets taps through (CSS: pointer-events: none, only its X takes one), so it never receives a pointer event of its own:
+  // the pointer is looked for by its position, by one listener on the document that works only while a toast is there, and a touch is never "over" (it has no hover).
+  var TOAST_TIME = 6000, TOAST_LEAST = 1500;
+  var toasts = [];
+  function toastHeld(s) { return s.over || s.el.contains(doc.activeElement); }
+  // is the timer to run or to wait? Called whenever the pointer or the focus may have changed; the focus is read from the document, never from a focus event (moving the host
+  // into a dialog takes the focus off a toast without one).
+  function toastSettle(s) {
+    if (!s.el.parentNode) { toastEnd(s); return; }
+    if (toastHeld(s)) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = 0; s.left = Math.max(s.left - (Date.now() - s.since), TOAST_LEAST); }
+    } else if (!s.timer) {
+      s.since = Date.now();
+      s.timer = setTimeout(function () { s.timer = 0; if (toastHeld(s)) { s.left = Math.max(s.left, TOAST_LEAST); } else { toastEnd(s); } }, s.left);
+    }
+  }
+  function toastEnd(s) {
+    clearTimeout(s.timer);
+    s.timer = 0;
+    var at = toasts.indexOf(s);
+    if (at >= 0) { toasts.splice(at, 1); }
+    var focused = s.el.contains(doc.activeElement);
+    if (s.el.parentNode) { s.el.parentNode.removeChild(s.el); }
+    // a toast that had the focus gives it back to what had it before (A11Y-09)
+    if (focused && s.back && s.back.focus && doc.contains(s.back)) { s.back.focus({ preventScroll: true }); }
+  }
+  doc.addEventListener('pointermove', function (e) {
+    if (!toasts.length || e.pointerType === 'touch') { return; }
+    toasts.slice().forEach(function (s) {
+      var r = s.el.getBoundingClientRect();
+      var over = r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (over !== s.over) { s.over = over; toastSettle(s); }
+    });
+  }, { passive: true });
+  // the pointer that leaves the window from the toast sends no more moves
+  root.addEventListener('pointerleave', function () { toasts.slice().forEach(function (s) { if (s.over) { s.over = false; toastSettle(s); } }); });
 
   function toast(message, options) {
     var o = options || {};
@@ -1107,9 +1183,14 @@
       '<div class="mat-alert__body">' + esc(message) + '</div>' +
       '<button type="button" class="mat-alert__close" aria-label="' + esc(label('data-dlg-close', 'Close')) + '">' + icon('x') + '</button>';
     host.appendChild(t);
-    function remove() { if (t.parentNode) { t.parentNode.removeChild(t); } }
-    $('.mat-alert__close', t).addEventListener('click', remove);
-    setTimeout(remove, o.timeout || 6000);
+    var s = { el: t, left: o.timeout || TOAST_TIME, since: 0, timer: 0, over: false, back: null };
+    toasts.push(s);
+    $('.mat-alert__close', t).addEventListener('click', function () { toastEnd(s); });
+    t.addEventListener('focusin', function (e) { if (e.relatedTarget && !t.contains(e.relatedTarget)) { s.back = e.relatedTarget; } toastSettle(s); });
+    t.addEventListener('focusout', function () { toastSettle(s); });
+    // Escape closes the toast that has the focus, and only it (not the dialog it is shown in)
+    t.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); toastEnd(s); } });
+    toastSettle(s);
   }
 
   // ----------------------------------------------------------------------------------------- dependent form fields
@@ -1579,6 +1660,32 @@
       setAllGroups(scope, mode === 'open' ? true : mode === 'closed' ? false : groups.length > 0 && groups.every(function (g) { return g.classList.contains('is-collapsed'); }));
     }
   });
+
+  // ------------------------------------------------------------------------------------------------- tables that fit
+  // Under 720 px the rows of a table are cards (TABLE-02). Above, a table that is wider than its frame does not scroll sideways either: the columns that the phone
+  // leaves out (mat-hide-sm on the heading) go, the last one first, until it fits, and come back when there is room (a ResizeObserver on the frame). Only the rows
+  // with as many cells as the heading are touched (a group heading spans the row). data-table-scroll on the frame keeps every column and lets it scroll (TABLE-04).
+  function fitTable(wrap) {
+    var table = $('table.mat-table', wrap);
+    if (!table || !table.tHead || !table.tHead.rows.length) { return; }
+    var heads = Array.prototype.slice.call(table.tHead.rows[0].cells);
+    var optional = heads.map(function (th, i) { return th.classList.contains('mat-hide-sm') ? i : -1; }).filter(function (i) { return i >= 0; }).reverse();
+    if (!optional.length) { return; }
+    $$('.is-col-hidden', table).forEach(function (cell) { cell.classList.remove('is-col-hidden'); });
+    for (var k = 0; k < optional.length && wrap.scrollWidth > wrap.clientWidth; k += 1) {
+      Array.prototype.forEach.call(table.rows, function (row) {
+        if (row.cells.length === heads.length) { row.cells[optional[k]].classList.add('is-col-hidden'); }
+      });
+    }
+  }
+  function initTables(scope) {
+    $$('.mat-table-wrap', scope).forEach(function (wrap) {
+      if (wrap._matFit || wrap.hasAttribute('data-table-scroll')) { return; }
+      wrap._matFit = true;
+      fitTable(wrap);
+      if (typeof ResizeObserver === 'function') { new ResizeObserver(function () { fitTable(wrap); }).observe(wrap); }
+    });
+  }
 
   // ------------------------------------------------------------------------------------------------------- tabs
   function selectTab(tab, focus) {
@@ -7186,6 +7293,688 @@
     return true;
   }
 
+  // ------------------------------------------------------------------------------------------------ search with suggestions (FORM-23, SHELL-20, matui.pickers.css)
+  // <div class="mat-search" data-autocomplete data-search-url="/api/search"><input class="mat-search__input" type="search" id="" name="q"></div> is a search field that works without the
+  // script: put it in a <form role="search" action="/Search"> and Enter sends it. The script draws a magnifier, a clear button and a popup that follows the WAI-ARIA 1.2 combobox with a
+  // listbox: the input gets role combobox, aria-expanded, aria-controls, aria-autocomplete="list" and aria-activedescendant, the options (links) are role option with an id, the groups role group
+  // named by their heading. ArrowDown and ArrowUp move the active option (they wrap), Home and End go to the first and the last while one is active, Enter follows the active option and
+  // otherwise sends the form, Escape closes the popup and a second Escape clears the text, Tab closes it. What was typed is never replaced while the arrow keys walk. A polite live region says
+  // the number of suggestions, that there are none, or that it is loading. The suggestions come from data-search-url (GET ?q=text&limit=8, the answer is { groups: [ { name, items: [ { title,
+  // text, href, icon, kind, id } ] } ] }) or from local data (data-items, MatUi.search.setItems): an answer that arrives late is dropped (a counter and an AbortController), a failed request shows
+  // a row and typing goes on, a slow one shows a loading row after 200 ms. The part of a title that matches the text is wrapped in mark.mat-search__hit made of DOM text nodes, never markup, and a
+  // link is only followed when it is an http or https address. data-recent="key" keeps the last five choices in localStorage (per app and key) and shows them while the field is focused and empty.
+  // data-key="/,mod+k" focuses the field: a plain key that another element of the page has as data-shortcut stays that element's, mod is Ctrl or Cmd. On a phone the focused field is a
+  // full-screen panel with the field on top and an X at the top right; in the header bar (.mat-topbar__search) it is an icon button there. Events on the wrapper: mat:search-select (cancelable;
+  // detail.item, group, query, source) and mat:search-results (detail.query, count, source). API: MatUi.search.init / setItems / open / close / clear / focus / value.
+  var SRCH_TEXT = {
+    en: {
+      label: 'Search', clear: 'Clear the search', close: 'Close the search', open: 'Search',
+      suggestions: 'Suggestions', recentList: 'Recent searches', recent: 'Recent searches', clearRecent: 'Clear recent', recentCleared: 'Recent searches cleared',
+      count: '{0} suggestions', countOne: '1 suggestion', none: 'No results for “{0}”', noneShort: 'No results', loading: 'Searching …',
+      error: 'Search is not available', errorHint: 'You can still press Enter to search.', all: 'All results for “{0}”', hintKey: 'Press {0} to search'
+    },
+    de: {
+      label: 'Suchen', clear: 'Suche leeren', close: 'Suche schließen', open: 'Suchen',
+      suggestions: 'Vorschläge', recentList: 'Letzte Suchen', recent: 'Letzte Suchen', clearRecent: 'Verlauf löschen', recentCleared: 'Letzte Suchen gelöscht',
+      count: '{0} Vorschläge', countOne: '1 Vorschlag', none: 'Keine Treffer für „{0}“', noneShort: 'Keine Treffer', loading: 'Suche läuft …',
+      error: 'Die Suche ist nicht verfügbar', errorHint: 'Mit der Eingabetaste lässt sich trotzdem suchen.', all: 'Alle Treffer für „{0}“', hintKey: '{0} drücken, um zu suchen'
+    }
+  };
+
+  var SR_RECENT = 'mat-search-recent';
+  var SR_RECENT_MAX = 5;
+  var searchOpen = null;
+  var searchFull = null;
+
+  function srText(key, a) {
+    var table = SRCH_TEXT[(root.lang || 'en').slice(0, 2).toLowerCase()] || SRCH_TEXT.en;
+    var s = root.getAttribute('data-sr-' + key.toLowerCase()) || table[key] || SRCH_TEXT.en[key] || key;
+    // a function as the replacement: what a person typed may hold a "$&"
+    return s.replace('{0}', function () { return a === undefined ? '' : a; });
+  }
+  function srEl(tag, cls) { var el = doc.createElement(tag); el.className = cls; return el; }
+  function srOf(ref) {
+    var el = typeof ref === 'string' ? (doc.getElementById(ref) || $(ref)) : ref;
+    var wrap = el && el.closest ? el.closest('.mat-search') : null;
+    return wrap && wrap._matSearch ? wrap._matSearch : null;
+  }
+  function srOfInput(t) { return t && t.classList && t.classList.contains('mat-search__input') ? srOf(t) : null; }
+
+  // ---- the text: without case and accents (also the ß), so that "Häkchen" and "hakchen" are one word; a map says where each folded character came from
+  function srFold(text, map) {
+    var out = '';
+    for (var i = 0; i < text.length; i += 1) {
+      var f = text.charAt(i).toLowerCase();
+      if (f === 'ß') { f = 'ss'; } else if (f.normalize) { f = f.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+      out += f;
+      if (map) { for (var k = 0; k < f.length; k += 1) { map.push(i); } }
+    }
+    return out;
+  }
+  function srTerms(q) { return srFold(q).split(/[^a-z0-9À-￿]+/).filter(Boolean); }
+
+  // the pieces of a title that the terms of the query match, as [from, to) of the title, merged where they touch
+  function srRanges(title, terms) {
+    var map = [], folded = srFold(title, map), marks = [], out = [];
+    terms.forEach(function (term) {
+      for (var at = folded.indexOf(term); at >= 0; at = folded.indexOf(term, at + term.length)) { marks.push([map[at], map[at + term.length - 1] + 1]); }
+    });
+    marks.sort(function (a, b) { return a[0] - b[0]; });
+    marks.forEach(function (m) {
+      var last = out[out.length - 1];
+      if (last && m[0] <= last[1]) { last[1] = Math.max(last[1], m[1]); } else { out.push(m); }
+    });
+    return out;
+  }
+  // the title as text nodes and marks: what a title says is never taken for markup
+  function srFill(el, text, terms) {
+    var at = 0;
+    el.textContent = '';
+    srRanges(text, terms).forEach(function (r) {
+      if (r[0] > at) { el.appendChild(doc.createTextNode(text.slice(at, r[0]))); }
+      var mark = srEl('mark', 'mat-search__hit');
+      mark.textContent = text.slice(r[0], r[1]);
+      el.appendChild(mark);
+      at = r[1];
+    });
+    if (at < text.length) { el.appendChild(doc.createTextNode(text.slice(at))); }
+  }
+
+  // ---- the data: groups of items, from the server or from the page
+  function srHref(h) {
+    if (typeof h !== 'string' || h === '') { return ''; }
+    try { return /^https?:$/.test(new URL(h, location.href).protocol) ? h : ''; } catch (err) { return ''; }
+  }
+  function srItem(it) {
+    return {
+      title: it.title, text: typeof it.text === 'string' ? it.text : '', href: srHref(it.href),
+      icon: typeof it.icon === 'string' && /^[a-z0-9-]+$/.test(it.icon) ? it.icon : '',
+      kind: typeof it.kind === 'string' ? it.kind : '', id: it.id === undefined || it.id === null ? '' : String(it.id),
+      keywords: typeof it.keywords === 'string' ? it.keywords : ''
+    };
+  }
+  function srNormalise(data) {
+    var list = data && Array.isArray(data.groups) ? data.groups : Array.isArray(data) ? data : data && Array.isArray(data.items) ? [{ name: '', items: data.items }] : [], groups = [];
+    // an array of items (with a title and no items of their own) is one group without a name
+    if (list.length && list[0] && typeof list[0].title === 'string' && !Array.isArray(list[0].items)) { list = [{ name: '', items: list }]; }
+    list.forEach(function (g) {
+      if (!g || !Array.isArray(g.items)) { return; }
+      var items = g.items.filter(function (it) { return it && typeof it.title === 'string' && it.title !== ''; }).map(srItem);
+      if (items.length) { groups.push({ name: typeof g.name === 'string' ? g.name : '', items: items }); }
+    });
+    return groups;
+  }
+  function srCount(groups) { return groups.reduce(function (n, g) { return n + g.items.length; }, 0); }
+
+  // local data: every term has to be found (a title that starts with it is worth most), the best items of all groups are kept and stay in their group
+  function srFilter(groups, q, limit) {
+    var terms = srTerms(q), hits = [];
+    groups.forEach(function (g, gi) {
+      g.items.forEach(function (item, ii) {
+        var title = item._t || (item._t = srFold(item.title)), words = title.split(/[^a-z0-9À-￿]+/), hay = item._h || (item._h = title + ' ' + srFold(item.text + ' ' + item.keywords)), score = 0;
+        var all = terms.every(function (t) {
+          var s = title === t ? 100 : title.indexOf(t) === 0 ? 60 : words.some(function (w) { return w.indexOf(t) === 0; }) ? 40 : title.indexOf(t) >= 0 ? 20 : hay.indexOf(t) >= 0 ? 8 : 0;
+          score += s;
+          return s > 0;
+        });
+        if (all && terms.length) { hits.push({ g: gi, i: ii, score: score, item: item }); }
+      });
+    });
+    hits.sort(function (a, b) { return b.score - a.score || a.g - b.g || a.i - b.i; });
+    var keep = hits.slice(0, limit), out = [];
+    groups.forEach(function (g, gi) {
+      var mine = keep.filter(function (h) { return h.g === gi; }).sort(function (a, b) { return a.i - b.i; }).map(function (h) { return h.item; });
+      if (mine.length) { out.push({ name: g.name, items: mine }); }
+    });
+    return out;
+  }
+  // local data: from MatUi.search.setItems, else from data-items (read again when the attribute changes)
+  function srLocalOf(s) {
+    if (s.api) { return s.api; }
+    var raw = s.wrap.getAttribute('data-items');
+    if (raw === null) { return null; }
+    if (raw !== s.raw) {
+      s.raw = raw;
+      try { s.local = srNormalise(JSON.parse(raw)); } catch (err) { s.local = []; }
+    }
+    return s.local;
+  }
+
+  function srMin(s) { var n = parseInt(s.wrap.getAttribute('data-min'), 10); return n >= 1 ? n : 1; }
+  function srLimit(s) { var n = parseInt(s.wrap.getAttribute('data-limit'), 10); return n >= 1 ? Math.min(n, 50) : 8; }
+  function srDelay(s) { var n = parseInt(s.wrap.getAttribute('data-delay'), 10); return n >= 0 ? n : 120; }
+  function srQuery(s) { return s.input.value.trim(); }
+  function srResultsUrl(s, q) {
+    var url = s.wrap.getAttribute('data-results-url');
+    return url && srHref(url) ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'q=' + encodeURIComponent(q) : '';
+  }
+  function srSay(s, text) { s.live.textContent = ''; if (text) { s.live.textContent = text; } }
+  function srCountText(n) { return n === 1 ? srText('countOne') : srText('count', n); }
+
+  // ---- recent choices: the last five, per app and key (data-recent="key")
+  function srRecentKey(s) { return (root.getAttribute('data-app') || '') + ':' + (s.wrap.getAttribute('data-recent') || ''); }
+  function srRecentAll() {
+    try { return JSON.parse(localStorage.getItem(SR_RECENT) || '{}') || {}; } catch (err) { return {}; }
+  }
+  function srRecentRead(s) {
+    if (!s.wrap.hasAttribute('data-recent')) { return []; }
+    var list = srRecentAll()[srRecentKey(s)];
+    return Array.isArray(list) ? list.filter(function (r) { return r && (typeof r.q === 'string' || typeof r.title === 'string'); }).slice(0, SR_RECENT_MAX) : [];
+  }
+  function srRecentWrite(s, list) {
+    var all = srRecentAll();
+    if (list.length) { all[srRecentKey(s)] = list; } else { delete all[srRecentKey(s)]; }
+    try { localStorage.setItem(SR_RECENT, JSON.stringify(all)); } catch (err) { return; }
+  }
+  function srRecentAdd(s, entry) {
+    if (!s.wrap.hasAttribute('data-recent')) { return; }
+    var same = function (r) { return entry.q !== undefined ? typeof r.q === 'string' && r.q.toLowerCase() === entry.q.toLowerCase() : r.href === entry.href && r.title === entry.title; };
+    srRecentWrite(s, [entry].concat(srRecentRead(s).filter(function (r) { return !same(r); })).slice(0, SR_RECENT_MAX));
+  }
+
+  // ---- the popup: groups with a heading, options that are links, a row at the end
+  function srClearList(s) {
+    s.list.textContent = '';
+    s.opts = [];
+    srActivate(s, -1);
+  }
+  function srOption(s, model, terms) {
+    var item = model.item, a = srEl(item.href ? 'a' : 'button', model.cls || 'mat-search__option');
+    a.id = s.id + '-o' + (s.opts.length + 1);
+    a.setAttribute('role', 'option');
+    a.setAttribute('aria-selected', 'false');
+    a.tabIndex = -1;
+    if (item.href) { a.href = item.href; } else { a.type = 'button'; }
+    if (item.id) { a.setAttribute('data-id', item.id); }
+    if (item.icon) {
+      var ic = srEl('span', 'mat-search__icon');
+      ic.setAttribute('aria-hidden', 'true');
+      ic.innerHTML = icon(item.icon);
+      a.appendChild(ic);
+    }
+    var text = srEl('span', 'mat-search__text'), title = srEl('span', 'mat-search__title');
+    srFill(title, item.title, terms);
+    text.appendChild(title);
+    if (item.text) {
+      var desc = srEl('span', 'mat-search__desc');
+      desc.textContent = item.text;
+      text.appendChild(desc);
+    }
+    a.appendChild(text);
+    if (item.kind) {
+      var kind = srEl('span', 'mat-search__kind');
+      kind.textContent = item.kind.charAt(0).toUpperCase() + item.kind.slice(1);
+      a.appendChild(kind);
+    }
+    a._matModel = model;
+    s.opts.push(a);
+    return a;
+  }
+  function srBuild(s, groups, terms, last) {
+    srClearList(s);
+    groups.forEach(function (g, n) {
+      var box = s.list;
+      if (g.name) {
+        box = srEl('div', 'mat-search__group');
+        box.setAttribute('role', 'group');
+        var head = srEl('div', 'mat-search__heading');
+        head.id = s.id + '-g' + (n + 1);
+        head.textContent = g.name;
+        box.setAttribute('aria-labelledby', head.id);
+        box.appendChild(head);
+        s.list.appendChild(box);
+      }
+      g.items.forEach(function (item) { box.appendChild(srOption(s, { item: item, group: g.name, source: g.source || 'result' }, terms)); });
+    });
+    if (last) { s.list.appendChild(srOption(s, last, [])); }
+  }
+  function srNote(s, kind, text, hint) {
+    s.note.hidden = !text;
+    s.note.className = 'mat-search__note' + (kind ? ' is-' + kind : '');
+    s.note.textContent = '';
+    if (!text) { return; }
+    var line = srEl('span', 'mat-search__note-text');
+    line.textContent = text;
+    if (kind === 'busy') { s.note.appendChild(srEl('span', 'mat-spinner mat-spinner--sm')); } else if (kind === 'error') { var ic = srEl('span', 'mat-search__icon'); ic.innerHTML = icon('alert'); s.note.appendChild(ic); }
+    s.note.appendChild(line);
+    if (hint) { var more = srEl('span', 'mat-search__desc'); more.textContent = hint; line.appendChild(more); }
+  }
+
+  function srPlace(s) {
+    var p = s.panel;
+    p.style.left = ''; p.style.top = ''; p.style.width = ''; p.style.maxHeight = '';
+    if (s.wrap.classList.contains('is-full')) { return; }
+    var r = s.bar.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
+    var rem = parseFloat(getComputedStyle(root).fontSize) || 16;
+    var width = Math.min(vw - 16, Math.max(r.width, 24 * rem));
+    var below = vh - r.bottom - 12, above = r.top - 12, up = below < 14 * rem && above > below;
+    var room = Math.max(120, Math.min(up ? above : below, 28 * rem));
+    p.style.width = width + 'px';
+    p.style.maxHeight = room + 'px';
+    p.style.left = Math.max(8, Math.min(r.left, vw - width - 8)) + 'px';
+    p.style.top = Math.max(8, up ? r.top - 4 - Math.min(p.offsetHeight, room) : r.bottom + 4) + 'px';
+  }
+  function srShow(s) {
+    if (s.panel.hidden) {
+      if (searchOpen && searchOpen !== s) { srClose(searchOpen); }
+      closeMenu();
+      s.panel.style.visibility = 'hidden';
+      s.panel.hidden = false;
+    }
+    s.input.setAttribute('aria-expanded', 'true');
+    s.wrap.classList.add('is-open');
+    searchOpen = s;
+    srPlace(s);
+    s.panel.style.visibility = '';
+  }
+  function srClose(s) {
+    srStop(s);
+    s.panel.hidden = true;
+    s.input.setAttribute('aria-expanded', 'false');
+    s.wrap.classList.remove('is-open');
+    srActivate(s, -1);
+    if (searchOpen === s) { searchOpen = null; }
+  }
+  function srActivate(s, i) {
+    var was = s.opts[s.active];
+    if (was) { was.classList.remove('is-active'); was.setAttribute('aria-selected', 'false'); }
+    s.active = i;
+    var now = s.opts[i];
+    if (now) {
+      now.classList.add('is-active');
+      now.setAttribute('aria-selected', 'true');
+      s.input.setAttribute('aria-activedescendant', now.id);
+      keepInView(s.panel, now);
+    } else {
+      s.active = -1;
+      s.input.removeAttribute('aria-activedescendant');
+    }
+  }
+  function srMove(s, step) {
+    var n = s.opts.length;
+    if (n) { srActivate(s, s.active < 0 ? (step > 0 ? 0 : n - 1) : (s.active + step + n) % n); }
+  }
+  function srInside(s) { return s.wrap.contains(doc.activeElement); }
+
+  // ---- asking, and what is shown
+  function srStop(s) {
+    clearTimeout(s.timer);
+    clearTimeout(s.busy);
+    // an answer that is still on its way is not wanted any more
+    s.seq += 1;
+    if (s.ctl) { s.ctl.abort(); s.ctl = null; }
+    s.panel.removeAttribute('aria-busy');
+  }
+  function srResults(s, groups, q, source) {
+    var total = srCount(groups), url = srResultsUrl(s, q);
+    s.q = q;
+    s.mode = 'results';
+    s.panel.removeAttribute('aria-busy');
+    srBuild(s, groups, srTerms(q), url && total ? { item: { title: srText('all', q), text: '', href: url, icon: 'search', kind: '', id: '' }, group: '', source: 'all', cls: 'mat-search__option mat-search__option--all' } : null);
+    s.list.setAttribute('aria-label', srText('suggestions'));
+    srNote(s, total ? '' : 'none', total ? '' : srText('none', q), '');
+    if (srInside(s) && srQuery(s) === q) { srShow(s); }
+    srSay(s, total ? srCountText(total) : srText('noneShort'));
+    s.wrap.dispatchEvent(new CustomEvent('mat:search-results', { bubbles: true, detail: { query: q, count: total, source: source } }));
+  }
+  function srLoading(s) {
+    s.panel.setAttribute('aria-busy', 'true');
+    srNote(s, 'busy', srText('loading'), '');
+    if (srInside(s)) { srShow(s); }
+    srSay(s, srText('loading'));
+  }
+  function srFailed(s, q) {
+    var url = srResultsUrl(s, q);
+    s.q = q;
+    s.mode = 'error';
+    s.panel.removeAttribute('aria-busy');
+    srBuild(s, [], [], url ? { item: { title: srText('all', q), text: '', href: url, icon: 'search', kind: '', id: '' }, group: '', source: 'all', cls: 'mat-search__option mat-search__option--all' } : null);
+    srNote(s, 'error', srText('error'), url || s.input.form ? srText('errorHint') : '');
+    if (srInside(s)) { srShow(s); }
+    srSay(s, srText('error'));
+    s.wrap.dispatchEvent(new CustomEvent('mat:search-results', { bubbles: true, detail: { query: q, count: 0, source: 'error' } }));
+  }
+  function srRun(s, q) {
+    var local = srLocalOf(s), url = s.wrap.getAttribute('data-search-url');
+    if (local) { s.seq += 1; srResults(s, srFilter(local, q, srLimit(s)), q, 'local'); return; }
+    if (!url) { srClose(s); return; }
+    srStop(s);
+    var mine = (s.seq += 1);
+    s.busy = setTimeout(function () { if (mine === s.seq) { srLoading(s); } }, 200);
+    s.ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 'q=' + encodeURIComponent(q) + '&limit=' + srLimit(s), { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: s.ctl ? s.ctl.signal : undefined })
+      .then(function (r) { if (!r.ok) { throw new Error('status ' + r.status); } return r.json(); })
+      .then(function (data) { if (mine === s.seq) { clearTimeout(s.busy); srResults(s, srNormalise(data), q, 'server'); } })
+      .catch(function (err) { if (mine === s.seq && !(err && err.name === 'AbortError')) { clearTimeout(s.busy); srFailed(s, q); } });
+  }
+  // the choices that were made before, while the field is empty: queries and items, and the row that forgets them
+  function srRecent(s) {
+    var list = srRecentRead(s);
+    if (!list.length) { return false; }
+    var groups = [{ name: srText('recent'), source: 'recent', items: list.map(function (r) {
+      return r.q !== undefined ? srItem({ title: r.q, href: srResultsUrl(s, r.q), icon: 'clock' }) : srItem(r);
+    }) }];
+    s.q = '';
+    s.mode = 'recent';
+    s.seq += 1;
+    srBuild(s, groups, [], { item: { title: srText('clearRecent'), text: '', href: '', icon: 'trash', kind: '', id: '' }, group: '', source: 'clear', cls: 'mat-search__option mat-search__option--clear' });
+    s.opts.forEach(function (o, n) { if (n < list.length && list[n].q !== undefined) { o._matModel.query = list[n].q; } });
+    s.list.setAttribute('aria-label', srText('recentList'));
+    srNote(s, '', '', '');
+    srShow(s);
+    srSay(s, srCountText(list.length));
+    return true;
+  }
+  // the text changed: ask, after the delay for a server (local data answers at once), or show what was chosen before when there is no text
+  function srChanged(s) {
+    var q = srQuery(s);
+    srState(s);
+    srStop(s);
+    if (q.length < srMin(s)) {
+      s.seq += 1;
+      s.q = '';
+      if (s.input.value === '' && srInside(s) && srRecent(s)) { return; }
+      srClose(s);
+      return;
+    }
+    s.timer = setTimeout(function () { srRun(s, q); }, srLocalOf(s) ? 0 : srDelay(s));
+  }
+  // the panel with what is there: the last results of this text, else the recent choices or a new question; true when options are shown now
+  function srReopen(s) {
+    var q = srQuery(s);
+    if (!s.panel.hidden) { return s.opts.length > 0; }
+    if (q === '' ) { return srRecent(s); }
+    if (s.mode === 'results' && s.q === q && s.opts.length) { srShow(s); return true; }
+    if (q.length >= srMin(s)) { srRun(s, q); }
+    return false;
+  }
+
+  // ---- the full-screen panel of a phone, and the icon button that opens it in the header bar
+  function srEnterFull(s) {
+    if (s.wrap.classList.contains('is-full')) { return; }
+    s.wrap.classList.add('is-full');
+    searchFull = s;
+    syncLock();
+    if (!s.panel.hidden) { srPlace(s); }
+  }
+  function srLeaveFull(s, restore) {
+    if (!s.wrap.classList.contains('is-full')) { return; }
+    srClose(s);
+    s.wrap.classList.remove('is-full');
+    if (searchFull === s) { searchFull = null; }
+    syncLock();
+    if (!restore) { return; }
+    if (s.open && s.open.getClientRects().length) { s.open.focus({ preventScroll: true }); return; }
+    // the field is there again: a keyboard user gets the focus back (without opening the sheet again), a finger does not get the keyboard
+    s.noFull = true;
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) { s.input.blur(); } else { s.input.focus({ preventScroll: true }); }
+    s.noFull = false;
+  }
+  function srFocus(s) {
+    if (s.hdr && isPhone()) { srEnterFull(s); }
+    s.input.focus();
+    if (s.input.select) { s.input.select(); }
+  }
+
+  // ---- the keys that focus a field (data-key="/,mod+k") and the hint that says which one works here
+  function srKeyList(s) {
+    return (s.wrap.getAttribute('data-key') || '').split(',').map(function (part) {
+      var p = part.trim().toLowerCase(), mod = /^(mod|ctrl|cmd)\+/.test(p);
+      return { mod: mod, key: mod ? p.replace(/^[a-z]+\+/, '') : p };
+    }).filter(function (k) { return k.key.length > 0; });
+  }
+  function srKeyTaken(s, key) {
+    return $$('[data-shortcut]').some(function (el) { return el.getAttribute('data-shortcut') === key && !s.wrap.contains(el); });
+  }
+  function srKeysSync(s) {
+    var mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+    var keys = srKeyList(s).filter(function (k) { return k.mod || !srKeyTaken(s, k.key); });
+    s.hint.hidden = !keys.length;
+    s.hint.textContent = keys.length ? (keys[0].mod ? (mac ? '⌘' : 'Ctrl ') + keys[0].key.toUpperCase() : keys[0].key) : '';
+    var shortcuts = keys.map(function (k) { return k.mod ? 'Control+' + k.key.toUpperCase() + ' Meta+' + k.key.toUpperCase() : k.key; });
+    if (shortcuts.length) { s.input.setAttribute('aria-keyshortcuts', shortcuts.join(' ')); } else { s.input.removeAttribute('aria-keyshortcuts'); }
+  }
+  function srShortcut(e) {
+    if (e.defaultPrevented || e.repeat || !e.key) { return; }
+    var t = e.target, tag = (t && t.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) { return; }
+    var key = e.key.toLowerCase();
+    var found = $$('.mat-search[data-key]').filter(function (w) {
+      var s = w._matSearch;
+      return s && !s.input.disabled && w.getClientRects().length > 0 && srKeyList(s).some(function (k) {
+        return k.key === key && (k.mod ? (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey : !e.ctrlKey && !e.metaKey && !e.altKey && !srKeyTaken(s, k.key));
+      });
+    })[0];
+    if (found) { e.preventDefault(); srFocus(found._matSearch); }
+  }
+
+  // ---- state of the control: the clear button, what the real input says about itself
+  function srState(s) {
+    var off = s.input.disabled || s.input.readOnly;
+    s.wrap.classList.toggle('is-disabled', s.input.disabled);
+    s.wrap.classList.toggle('is-filled', s.input.value !== '');
+    s.clear.hidden = s.input.value === '' || off;
+    if (s.open) { s.open.disabled = s.input.disabled; }
+  }
+
+  function srInit(wrap) {
+    var old = wrap._matSearch;
+    if (old) { srState(old); srKeysSync(old); return; }
+    var input = $('.mat-search__input', wrap);
+    if (!input) { return; }
+    var s = { wrap: wrap, input: input, id: nextId('mat-sr'), opts: [], active: -1, seq: 0, ctl: null, timer: 0, busy: 0, q: '', mode: '', noFull: false, raw: null, local: null, api: null, hdr: !!wrap.closest('.mat-topbar__search') };
+    wrap._matSearch = s;
+    if (!input.id) { input.id = s.id + '-in'; }
+
+    s.bar = srEl('div', 'mat-search__bar');
+    s.field = srEl('div', 'mat-search__field');
+    s.lens = srEl('span', 'mat-search__lens');
+    s.lens.setAttribute('aria-hidden', 'true');
+    s.lens.innerHTML = icon('search');
+    s.clear = srEl('button', 'mat-search__clear');
+    s.clear.type = 'button';
+    s.clear.setAttribute('aria-label', srText('clear'));
+    s.clear.title = srText('clear');
+    s.clear.innerHTML = icon('x');
+    s.clear.hidden = true;
+    s.hint = srEl('kbd', 'mat-search__key');
+    s.hint.setAttribute('aria-hidden', 'true');
+    s.hint.hidden = true;
+    s.close = srEl('button', 'mat-btn mat-btn--ghost mat-btn--icon mat-search__close');
+    s.close.type = 'button';
+    s.close.setAttribute('aria-label', srText('close'));
+    s.close.title = srText('close');
+    s.close.innerHTML = icon('x');
+    wrap.insertBefore(s.bar, input);
+    s.bar.appendChild(s.field);
+    s.field.appendChild(s.lens);
+    s.field.appendChild(input);
+    s.field.appendChild(s.clear);
+    s.field.appendChild(s.hint);
+    s.bar.appendChild(s.close);
+    // in the header bar a phone gets an icon button instead of the field
+    if (s.hdr) {
+      s.open = srEl('button', 'mat-btn mat-btn--ghost mat-btn--icon mat-search__open');
+      s.open.type = 'button';
+      s.open.setAttribute('aria-label', srText('open'));
+      s.open.setAttribute('aria-haspopup', 'dialog');
+      s.open.title = srText('open');
+      s.open.innerHTML = icon('search');
+      wrap.insertBefore(s.open, s.bar);
+    }
+
+    s.panel = srEl('div', 'mat-search__panel');
+    s.panel.id = s.id + '-panel';
+    s.panel.hidden = true;
+    s.note = srEl('div', 'mat-search__note');
+    s.note.hidden = true;
+    s.list = srEl('div', 'mat-search__list');
+    s.list.id = s.id + '-list';
+    s.list.setAttribute('role', 'listbox');
+    s.list.setAttribute('aria-label', srText('suggestions'));
+    s.panel.appendChild(s.note);
+    s.panel.appendChild(s.list);
+    s.live = srEl('span', 'mat-sr-only');
+    s.live.setAttribute('role', 'status');
+    s.live.setAttribute('aria-live', 'polite');
+    wrap.appendChild(s.panel);
+    wrap.appendChild(s.live);
+
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-haspopup', 'listbox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-controls', s.list.id);
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('spellcheck', 'false');
+    if (input.type !== 'search') { input.type = 'search'; }
+    if (!input.getAttribute('enterkeyhint')) { input.setAttribute('enterkeyhint', 'search'); }
+    if (!input.hasAttribute('placeholder')) { input.setAttribute('placeholder', srText('label')); }
+    if (!input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby') && !$('label[for="' + input.id.replace(/"/g, '\\"') + '"]')) { input.setAttribute('aria-label', srText('label')); }
+
+    wrap.classList.add('is-ready');
+    srState(s);
+    srKeysSync(s);
+    if (typeof MutationObserver === 'function') { new MutationObserver(function () { srState(s); }).observe(input, { attributes: true, attributeFilter: ['disabled', 'readonly'] }); }
+  }
+  function initSearches(scope) { $$('.mat-search[data-autocomplete]', scope).forEach(srInit); }
+
+  // ---- what happens when an option is chosen: the app may take over (mat:search-select), else the link is followed by the browser
+  function srChoose(s, opt, e) {
+    opt.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey }));
+  }
+  function srPick(s, opt, e) {
+    var model = opt._matModel;
+    if (!model) { return; }
+    if (model.source === 'clear') {
+      e.preventDefault();
+      srRecentWrite(s, []);
+      srClose(s);
+      srSay(s, srText('recentCleared'));
+      s.input.focus();
+      return;
+    }
+    var picked = new CustomEvent('mat:search-select', { bubbles: true, cancelable: true, detail: { item: model.source === 'all' || model.query !== undefined ? null : model.item, group: model.group, query: model.query !== undefined ? model.query : srQuery(s), source: model.source } });
+    s.wrap.dispatchEvent(picked);
+    if (picked.defaultPrevented) { e.preventDefault(); srClose(s); return; }
+    if (model.source === 'all') { srRecentAdd(s, { q: srQuery(s) }); }
+    else if (model.query !== undefined) { srRecentAdd(s, { q: model.query }); }
+    else { srRecentAdd(s, { title: model.item.title, text: model.item.text, href: model.item.href, icon: model.item.icon, kind: model.item.kind }); }
+    if (!opt.href) {
+      // a recent query without a page of results is asked again; an item without an address is only chosen
+      e.preventDefault();
+      if (model.query !== undefined) { s.input.value = model.query; srChanged(s); s.input.focus(); } else { srClose(s); }
+      return;
+    }
+    // a choice with a modifier key opens a new tab and the panel stays; otherwise the browser follows the link
+    if (!(e.ctrlKey || e.metaKey || e.shiftKey)) { srClose(s); }
+  }
+
+  // ---- the events of the search
+  doc.addEventListener('input', function (e) { var s = srOfInput(e.target); if (s) { srChanged(s); } });
+  doc.addEventListener('focusin', function (e) {
+    var s = srOfInput(e.target);
+    if (!s || s.input.disabled) { return; }
+    if (isPhone() && !s.noFull) { srEnterFull(s); }
+    if (srQuery(s) === '') { srRecent(s); } else if (s.panel.hidden) { srReopen(s); }
+  });
+  doc.addEventListener('focusout', function (e) {
+    var wrap = e.target.closest ? e.target.closest('.mat-search') : null, s = wrap && wrap._matSearch;
+    // leaving the control closes the popup; the full-screen panel stays until its X is pressed
+    if (!s || (e.relatedTarget && wrap.contains(e.relatedTarget)) || wrap.classList.contains('is-full')) { return; }
+    srClose(s);
+  });
+  // a press on the popup does not take the focus from the field, so that the click that follows still finds what it pressed
+  doc.addEventListener('mousedown', function (e) { if (e.target.closest && e.target.closest('.mat-search__panel')) { e.preventDefault(); } });
+  doc.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t.closest) { return; }
+    var opt = t.closest('.mat-search__option'), s = opt && srOf(opt);
+    if (s) { srPick(s, opt, e); return; }
+    var clear = t.closest('.mat-search__clear'), c = clear && srOf(clear);
+    if (c) { c.input.value = ''; c.input.dispatchEvent(new Event('input', { bubbles: true })); c.input.focus(); return; }
+    var open = t.closest('.mat-search__open'), o = open && srOf(open);
+    if (o) { srFocus(o); return; }
+    var close = t.closest('.mat-search__close'), x = close && srOf(close);
+    if (x) { srLeaveFull(x, true); return; }
+    if (searchOpen && !t.closest('.mat-search')) { srClose(searchOpen); }
+  });
+  doc.addEventListener('keydown', function (e) {
+    if (e.isComposing || e.keyCode === 229) { return; }
+    var s = srOfInput(e.target), k = e.key;
+    if (!s) {
+      // inside the full-screen panel the Tab key stays: from the X to the field and back
+      var holder = e.target.closest && e.target.closest('.mat-search.is-full'), inner = holder && holder._matSearch;
+      if (inner && k === 'Tab' && !e.shiftKey && e.target === inner.close) { e.preventDefault(); inner.input.focus(); }
+      else if (inner && k === 'Escape' && inner.wrap.contains(e.target)) { e.preventDefault(); e.stopPropagation(); srLeaveFull(inner, true); }
+      else if (!inner) { srShortcut(e); }
+      return;
+    }
+    var open = !s.panel.hidden, full = s.wrap.classList.contains('is-full');
+    if (k === 'ArrowDown' || k === 'ArrowUp') {
+      if (e.altKey || e.ctrlKey || e.metaKey) { return; }
+      e.preventDefault();
+      if (open || srReopen(s)) { srMove(s, k === 'ArrowDown' ? 1 : -1); }
+    } else if ((k === 'Home' || k === 'End') && open && s.active >= 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      srActivate(s, k === 'Home' ? 0 : s.opts.length - 1);
+    } else if (k === 'Enter') {
+      if (open && s.active >= 0) { e.preventDefault(); srChoose(s, s.opts[s.active], e); }
+      else if (!s.input.form && srQuery(s) && srResultsUrl(s, srQuery(s))) { e.preventDefault(); srRecentAdd(s, { q: srQuery(s) }); window.location.href = srResultsUrl(s, srQuery(s)); }
+    } else if (k === 'Escape') {
+      if (full) { e.preventDefault(); e.stopPropagation(); srLeaveFull(s, true); }
+      else if (open) { e.preventDefault(); e.stopPropagation(); srClose(s); }
+      else if (s.input.value !== '') { e.preventDefault(); e.stopPropagation(); s.input.value = ''; s.input.dispatchEvent(new Event('input', { bubbles: true })); srClose(s); }
+    } else if (k === 'Tab') {
+      if (full && e.shiftKey) { e.preventDefault(); s.close.focus(); } else if (open && !full) { srClose(s); }
+    }
+  }, true);
+  // a form that holds a search remembers what was searched when it is sent
+  doc.addEventListener('submit', function (e) {
+    $$('.mat-search[data-recent]', e.target).forEach(function (w) { var s = w._matSearch; if (s && srQuery(s)) { srRecentAdd(s, { q: srQuery(s) }); } });
+  }, true);
+  doc.addEventListener('reset', function (e) {
+    setTimeout(function () { $$('.mat-search', e.target).forEach(function (w) { if (w._matSearch) { srState(w._matSearch); srClose(w._matSearch); } }); }, 0);
+  }, true);
+  // a dialog around the search is closed by Escape only after the popup
+  doc.addEventListener('cancel', function (e) { if (searchOpen && e.target.classList && e.target.classList.contains('mat-dialog')) { e.preventDefault(); srClose(searchOpen); } }, true);
+  window.addEventListener('resize', function () {
+    if (searchOpen && !searchOpen.wrap.classList.contains('is-full')) { srPlace(searchOpen); }
+    if (searchFull && !isPhone()) { srLeaveFull(searchFull, false); }
+  });
+  doc.addEventListener('scroll', function (e) { if (searchOpen && !searchOpen.wrap.classList.contains('is-full') && !searchOpen.panel.contains(e.target)) { srPlace(searchOpen); } }, true);
+  // coming back to the page (the back button restores it as it was): nothing stays open
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) { return; }
+    $$('.mat-search').forEach(function (w) { var s = w._matSearch; if (s) { srLeaveFull(s, false); srClose(s); srState(s); } });
+  });
+
+  // ---- for an app: the data, and the control from code
+  function srSetItems(ref, groups) {
+    var s = srOf(ref);
+    if (!s) { return false; }
+    s.api = groups === null || groups === undefined ? null : srNormalise(groups);
+    if (srInside(s) && srQuery(s).length >= srMin(s)) { srChanged(s); }
+    return true;
+  }
+  function srApiOpen(ref) { var s = srOf(ref); if (s) { srFocus(s); srReopen(s); } }
+  function srApiClose(ref) { var s = srOf(ref); if (s) { srLeaveFull(s, false); srClose(s); } }
+  function srApiClear(ref) {
+    var s = srOf(ref);
+    if (!s) { return; }
+    s.input.value = '';
+    srChanged(s);
+    srClose(s);
+  }
+  function srApiValue(ref, text) {
+    var s = srOf(ref);
+    if (!s) { return ''; }
+    if (text !== undefined) { s.input.value = String(text); srState(s); }
+    return s.input.value;
+  }
+  var search = { init: initSearches, setItems: srSetItems, open: srApiOpen, close: srApiClose, clear: srApiClear, focus: function (ref) { var s = srOf(ref); if (s) { srFocus(s); } }, value: srApiValue };
+
   // ------------------------------------------------------------------------------------------------------- init
   // a meter is filled by data: <div class="mat-meter__fill" data-value="63"> (no inline style in the markup)
   function fillMeters(scope) {
@@ -7221,8 +8010,10 @@
     initSchedules();
     initItemLists();
     initRatings();
+    initTables();
     initTrees();
     initUploads();
+    initSearches();
     // the saved state of the submenus is applied without animating them
     root.classList.add('mat-nav-init');
     restoreBranches();
@@ -7249,7 +8040,7 @@
   if (doc.readyState === 'loading') { doc.addEventListener('DOMContentLoaded', init); } else { init(); }
 
   window.MatUi = {
-    version: '0.2.0',
+    version: '0.3.2',
     dialog: { open: openDialog, close: closeDialog },
     confirm: confirmDialog,
     alert: alertDialog,
@@ -7271,6 +8062,7 @@
     rating: { init: initRatings, get: ratGet, set: ratSet },
     tree: tree,
     upload: { init: initUploads, files: upFiles, add: upAddFiles, remove: upRemoveFile, clear: upClearFiles, setProgress: upSetProgress, setError: upSetError },
-    refresh: function (scope) { refreshDependents(scope); fillMeters(scope); initForms(scope); applyColours(scope); initPickers(scope); initOtps(scope); initCalendars(scope); initCarousels(scope); initSchedules(scope); initItemLists(scope); initRatings(scope); initTrees(scope); initUploads(scope); restoreGroups(scope); }
+    search: search,
+    refresh: function (scope) { refreshDependents(scope); fillMeters(scope); initForms(scope); applyColours(scope); initPickers(scope); initOtps(scope); initCalendars(scope); initCarousels(scope); initSchedules(scope); initItemLists(scope); initRatings(scope); initTables(scope); initTrees(scope); initUploads(scope); initSearches(scope); restoreGroups(scope); }
   };
 })();

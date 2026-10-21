@@ -1,4 +1,4 @@
-/* MatUi 0.2.0 (3cb8c9ad5d) - build local-20261019 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
+/* MatUi 0.3.2 (ab59caa58d) - build local-20261020 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
 /* ==========================================================================
    MatUi · tokens
    The single source of the look of every Mat app. Components use only these custom properties, never a raw colour.
@@ -970,6 +970,19 @@ button.mat-nav__item:hover { background: var(--mat-surface-3); }
 .mat-topbar__badge--dot { top: 9px; right: 9px; min-width: 0; width: 8px; height: 8px; padding: 0; }
 .mat-topbar__badge--dot.mat-topbar__badge--warn { background: var(--mat-warning); }
 
+/* Search in the header bar (SHELL-20): an inline field after the breadcrumb and before the icons, whatever the order of the markup (the order is enforced here: the breadcrumb and the burger keep
+   the order 0 they always had, the search is 1, the icons 2). It is a search with suggestions (FORM-23, matui.pickers.css). Below 640 px it is one icon button that opens the full-screen
+   panel, so the breadcrumb and the icons keep their room. */
+.mat-topbar > .mat-topbar__actions { order: 2; }
+/* @prop search | --mat-search-width | length | 18rem | Width of the search field in the header bar; it gets narrower when the bar has no room for it. */
+.mat-topbar > .mat-topbar__search { order: 1; flex: 0 1 var(--mat-search-width, 18rem); min-width: 0; }
+@media (max-width: 640px) {
+  .mat-topbar > .mat-topbar__search { flex: none; margin-right: calc(var(--mat-space-2) * -1); }
+  .mat-topbar__search .mat-search { width: auto; }
+  .mat-topbar__search .mat-search:not(.is-full) .mat-search__bar { display: none; }
+  .mat-topbar__search .mat-search:not(.is-full) .mat-search__open { display: inline-flex; }
+}
+
 .mat-page {
   width: 100%;
   max-width: var(--mat-content-max);
@@ -1297,8 +1310,9 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
   width: min(var(--mat-toast-width, 380px), calc(100vw - 2 * var(--mat-space-4)));
   pointer-events: none;
 }
+/* A toast only tells: a tap on it goes to what lies under it (the next Delete of a list is never blocked); only its X takes the tap. */
 .mat-toast {
-  pointer-events: auto;
+  pointer-events: none;
   display: flex; align-items: flex-start; gap: var(--mat-toast-gap, var(--mat-space-3));
   padding: var(--mat-toast-pad-y, var(--mat-space-3)) var(--mat-toast-pad-x, var(--mat-space-4));
   background: var(--mat-surface); color: var(--mat-text);
@@ -1311,8 +1325,16 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
 .mat-toast--success > .mat-icon { color: var(--mat-success-text); }
 .mat-toast--warning > .mat-icon { color: var(--mat-warning-text); }
 .mat-toast--danger > .mat-icon { color: var(--mat-danger-text); }
+.mat-toast .mat-alert__close { pointer-events: auto; }
 @keyframes mat-toast-in { from { opacity: 0; transform: translateY(10px); } }
-@media (max-width: 600px) { .mat-toasts { left: var(--mat-space-4); right: var(--mat-space-4); width: auto; } }
+@keyframes mat-toast-in-top { from { opacity: 0; transform: translateY(-10px); } }
+/* On a phone the bottom is where the thumb works (the actions of a list, the sheets, the main button): the toasts stand at the top, under the header bar. */
+@media (max-width: 600px) {
+  .mat-toasts { left: calc(var(--mat-space-4) + var(--mat-safe-left)); right: calc(var(--mat-space-4) + var(--mat-safe-right)); width: auto; top: calc(var(--mat-topbar-h) + var(--mat-space-2) + var(--mat-safe-top)); bottom: auto; }
+  .mat-toast { animation-name: mat-toast-in-top; }
+  /* one at a time, like a snackbar: the newest takes the place of the one before */
+  .mat-toasts > .mat-toast:not(:last-child) { display: none; }
+}
 
 /* ---- Small blocks -------------------------------------------------------------------------------------------------- */
 .mat-empty { display: flex; flex-direction: column; align-items: center; gap: var(--mat-space-3); padding: var(--mat-space-12) var(--mat-space-6); text-align: center; color: var(--mat-text-muted); }
@@ -1360,20 +1382,29 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
 .mat-steps li.is-done { background: color-mix(in srgb, var(--mat-accent) 55%, transparent); }
 .mat-steps li.is-active { background: var(--mat-accent); }
 
-/* Tooltip for icon buttons: [data-tip="Edit"]. Real information never lives only in a tooltip. */
+/* Tooltip for icon buttons: [data-tip="Edit"]. Real information never lives only in a tooltip.
+   A tip that is not shown takes no room (display: none, not only transparent): a button at the end of a table row or of the header bar would otherwise let
+   its scrolling box scroll sideways by the width of a tip nobody sees. It fades in from @starting-style.
+   Where it opens: centred above the element; at the end of a row of a table (mat-table__actions) and in the actions of the header bar it opens towards the
+   start, in the header bar below (above it there is no room). data-tip-align="start|end" and data-tip-place="below" do the same anywhere else. */
 [data-tip] { position: relative; }
 [data-tip]::after {
   content: attr(data-tip);
-  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%) translateY(2px);
+  display: none;
+  position: absolute; left: 50%; bottom: calc(100% + 6px); translate: -50% 0;
   padding: 4px 8px; border-radius: var(--mat-radius-xs);
   background: var(--mat-text); color: var(--mat-bg);
   font-size: var(--mat-fs-xs); font-weight: 600; white-space: nowrap;
-  opacity: 0; pointer-events: none;
-  transition: opacity var(--mat-dur-fast) var(--mat-ease), transform var(--mat-dur-fast) var(--mat-ease);
+  opacity: 1; pointer-events: none;
+  transition: opacity var(--mat-dur-fast) var(--mat-ease);
   z-index: var(--mat-z-menu);
 }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%); }
-@media (hover: none) { [data-tip]::after { display: none; } }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { display: block; }
+@starting-style { [data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 0; } }
+.mat-table__actions [data-tip]::after, .mat-topbar__actions [data-tip]::after, [data-tip-align="end"]::after { left: auto; right: 0; translate: none; }
+[data-tip-align="start"]::after { left: 0; translate: none; }
+.mat-topbar [data-tip]::after, [data-tip-place="below"]::after { bottom: auto; top: calc(100% + 6px); }
+@media (hover: none) { [data-tip]::after { display: none; } [data-tip]:hover::after, [data-tip]:focus-visible::after { display: none; } }
 
 /* ==========================================================================
    More building blocks: button groups, spinners, progress, accordions, list groups, avatars, indicators, stats, timelines, text, pictures.
@@ -1530,7 +1561,7 @@ a.mat-listgroup__item:hover, button.mat-listgroup__item:hover { background: var(
 @media (pointer: coarse) {
   /* a link in a list of keys and values: the row is 44 px (half of what the line lacks above and below it), the link has the padding of that room */
   .mat-kv > dd:has(a:not(.mat-btn)), .mat-kv > dt:has(+ dd a:not(.mat-btn)) { padding-block: max(0px, calc((44px - 1lh) / 2)); }
-  .mat-kv dd a:not(.mat-btn) { padding-block: 12px; margin-block: -12px; }
+  .mat-kv dd a:not(.mat-btn) { padding: 12px 4px; margin: -12px -4px; }
   .mat-chip__x, .mat-alert__close { position: relative; }
   .mat-chip__x::before, .mat-alert__close::before { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
 }
@@ -1852,6 +1883,20 @@ input[type="file"].mat-input { padding: 6px; }
 .mat-input-group > .mat-btn:last-child, .mat-input-group > .mat-select:last-child { border-top-right-radius: var(--mat-radius); border-bottom-right-radius: var(--mat-radius); }
 .mat-input-group--sm .mat-input, .mat-input-group--sm .mat-select, .mat-input-group--sm .mat-btn, .mat-input-group--sm .mat-input-addon { min-height: var(--mat-control-h-sm); font-size: var(--mat-fs-sm); }
 .mat-input-group--lg .mat-input, .mat-input-group--lg .mat-select, .mat-input-group--lg .mat-btn, .mat-input-group--lg .mat-input-addon { min-height: var(--mat-control-h-lg); font-size: var(--mat-fs-lg); }
+
+/* ---- The type of a field on a touch screen (MOBILE-06) ----
+   iOS Safari zooms into a field whose type is under 16 px when it takes the focus, and the page stays zoomed. So on a touch screen every field has 16 px type or more; with a mouse nothing changes.
+   A field takes the size of what it stands in (15 px in the body), so max(1rem, 1em) never makes one smaller than its context gave it. The small size is raised to 16 px as well (its 36 px height
+   stays), the large one keeps 17 px. This block stands after the sizes of the field, of the input group and of the stepper, whose rules have the same weight. The fields that the script draws have
+   their rules next to them: the search field and the tags in matui.pickers.css, the field of a row in matui.lists.css. */
+@media (pointer: coarse) {
+  .mat-input, .mat-select, .mat-textarea { font-size: max(1rem, 1em); }
+  .mat-input--sm, .mat-select--sm, .mat-input-group--sm .mat-input, .mat-input-group--sm .mat-select { font-size: 1rem; }
+  .mat-input--lg, .mat-select--lg, .mat-input-group--lg .mat-input, .mat-input-group--lg .mat-select { font-size: max(1rem, var(--mat-fs-lg)); }
+  /* the buttons and the unit of a number stepper are in the size of its field */
+  .mat-stepper:has(> .mat-input--sm) { font-size: 1rem; }
+  .mat-stepper:has(> .mat-input--lg) { font-size: max(1rem, var(--mat-fs-lg)); }
+}
 
 /* ---- An icon in the field (search), a button in the field (show the password), a counter ---- */
 .mat-input-icon { position: relative; display: flex; align-items: center; }
@@ -2393,6 +2438,122 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 .mat-picker__chips .mat-btn.is-active { background: var(--mat-accent-soft-strong); border-color: var(--mat-accent); color: var(--mat-accent-text); }
 .mat-time__entry[aria-invalid="true"], .mat-colour__hex[aria-invalid="true"] { border-color: var(--mat-danger); }
 
+/* ---- Search with suggestions (FORM-23, SHELL-20) ----
+   A search field with a magnifier at its left and a clear button at its right, and a popup under it: the list of a combobox, drawn like the panels of the pickers (fixed, a line, a shadow).
+   The input is a real one: without the script it is a plain search field in a form. The active option is a tint behind the whole row (COLOR-08), the part of a title that matches is
+   bold and in the colour of a link, never a colour alone (COLOR-04). On a phone the focused field is a full-screen panel: the field and the X on top, the suggestions below. */
+/* @prop search | --mat-search-radius | length | var(--mat-radius) | Corner radius of a search field. */
+/* @prop search | --mat-search-height | length | var(--mat-control-h) | Least height of a search field. A floor: on a touch screen keep it at 44 px or more (MOBILE-04). */
+.mat-search { position: relative; display: block; min-width: 0; width: 100%; }
+.mat-search__bar { display: flex; align-items: center; gap: var(--mat-space-2); min-width: 0; }
+.mat-search__field { position: relative; flex: 1 1 auto; display: flex; align-items: center; min-width: 0; }
+.mat-search__input {
+  width: 100%; min-width: 0;
+  min-height: var(--mat-search-height, var(--mat-control-h));
+  padding: 0 var(--mat-input-pad-x, var(--mat-space-3));
+  background: var(--mat-surface); color: var(--mat-text);
+  border: var(--mat-input-border-width, 1px) solid var(--mat-border-strong);
+  border-radius: var(--mat-search-radius, var(--mat-radius));
+  font: inherit;
+  appearance: none; -webkit-appearance: none;
+  transition: border-color var(--mat-dur-fast) var(--mat-ease), box-shadow var(--mat-dur-fast) var(--mat-ease);
+}
+.mat-search__input::placeholder { color: var(--mat-text-faint); }
+.mat-search__input:hover { border-color: color-mix(in srgb, var(--mat-accent) 40%, var(--mat-border-strong)); }
+.mat-search__input:focus { border-color: var(--mat-accent); box-shadow: var(--mat-focus-ring); outline: none; }
+.mat-search__input:disabled { background: var(--mat-surface-3); color: var(--mat-text-muted); cursor: not-allowed; }
+.mat-search__input::-webkit-search-decoration, .mat-search__input::-webkit-search-cancel-button { appearance: none; -webkit-appearance: none; display: none; }
+.mat-field.is-invalid .mat-search__input { border-color: var(--mat-danger); }
+/* with the script the field has room for the magnifier at its left and the clear button and the hint of the key at its right */
+.mat-search.is-ready .mat-search__input { padding-left: calc(var(--mat-space-3) + 1.6rem); padding-right: 2.5rem; }
+.mat-search.is-ready:has(.mat-search__key:not([hidden])) .mat-search__input { padding-right: 5rem; }
+.mat-search__lens { position: absolute; left: var(--mat-space-3); top: 50%; transform: translateY(-50%); display: grid; color: var(--mat-text-muted); pointer-events: none; }
+.mat-search__lens > .mat-icon { font-size: 1.1rem; }
+.mat-search__clear {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border: 0; border-radius: 50%; background: transparent; color: var(--mat-text-muted); cursor: pointer;
+}
+.mat-search__clear:hover { background: var(--mat-surface-3); color: var(--mat-text); }
+.mat-search__clear:focus-visible { outline: none; box-shadow: var(--mat-focus-ring); }
+.mat-search__clear[hidden] { display: none; }
+.mat-search__key { position: absolute; top: 50%; right: var(--mat-space-3); transform: translateY(-50%); pointer-events: none; white-space: nowrap; }
+.mat-search__key[hidden] { display: none; }
+.mat-search.is-filled .mat-search__key, .mat-search:focus-within .mat-search__key { display: none; }
+@media (max-width: 900px) { .mat-search__key { display: none; } }
+/* the X of the full-screen panel and the button that opens it in the header bar exist on a phone only */
+.mat-search__close, .mat-search__open { display: none; }
+
+/* ---- The popup ---- */
+.mat-search__panel {
+  position: fixed; z-index: var(--mat-z-menu);
+  display: flex; flex-direction: column;
+  max-width: calc(100vw - 16px); max-height: min(28rem, calc(100dvh - 16px));
+  overflow: auto; overscroll-behavior: contain;
+  background: var(--mat-surface); color: var(--mat-text);
+  border: 1px solid var(--mat-border-strong); border-radius: var(--mat-radius-lg); box-shadow: var(--mat-shadow-3);
+  animation: mat-picker-in var(--mat-dur-fast) var(--mat-ease);
+}
+.mat-search__panel[hidden] { display: none; }
+.mat-search__list { display: flex; flex-direction: column; gap: 2px; padding: var(--mat-space-2); }
+.mat-search__list:empty { display: none; }
+.mat-search__group { display: flex; flex-direction: column; gap: 2px; }
+.mat-search__group + .mat-search__group { margin-top: var(--mat-space-1); }
+.mat-search__heading { padding: var(--mat-space-2) var(--mat-space-3) var(--mat-space-1); font-size: var(--mat-fs-sm); font-weight: 650; color: var(--mat-text-muted); }
+.mat-search__option {
+  position: relative; display: flex; align-items: center; gap: var(--mat-space-3);
+  width: 100%; padding: var(--mat-space-2) var(--mat-space-3);
+  border: 0; border-radius: var(--mat-radius-sm); background: transparent; color: var(--mat-text);
+  font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+}
+.mat-search__option:hover { background: var(--mat-surface-3); text-decoration: none; }
+.mat-search__option.is-active, .mat-search__option.is-active:hover { background: var(--mat-accent-soft-strong); text-decoration: none; }
+.mat-search__icon { flex: none; display: grid; place-items: center; width: 1.5rem; color: var(--mat-text-muted); }
+.mat-search__icon > .mat-icon { font-size: 1.15rem; }
+.mat-search__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mat-search__title { font-weight: 600; overflow-wrap: anywhere; }
+.mat-search__desc { font-size: var(--mat-fs-sm); line-height: 1.4; color: var(--mat-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mat-search__kind { flex: none; padding: 0 var(--mat-space-2); border: 1px solid var(--mat-border); border-radius: var(--mat-radius-xs); font-size: var(--mat-fs-xs); line-height: 1.6; color: var(--mat-text-muted); }
+.mat-search__hit { background: transparent; color: var(--mat-accent-text); font-weight: 750; }
+.mat-search__option--all { margin-top: var(--mat-space-1); border-top: 1px solid var(--mat-border); border-radius: 0 0 var(--mat-radius-sm) var(--mat-radius-sm); color: var(--mat-accent-text); font-weight: 650; }
+.mat-search__option--clear { color: var(--mat-text-muted); }
+.mat-search__note { display: flex; align-items: center; gap: var(--mat-space-3); padding: var(--mat-space-3) var(--mat-space-4); color: var(--mat-text-muted); }
+.mat-search__note[hidden] { display: none; }
+.mat-search__note-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mat-search__note.is-error { color: var(--mat-danger-text); }
+.mat-search__note.is-error .mat-search__icon { color: inherit; }
+.mat-search.is-disabled .mat-search__key { opacity: .5; }
+
+/* ---- A phone: the focused field is the whole screen, the field and the X on top ---- */
+@media (max-width: 640px) {
+  .mat-search__input { font-size: 1rem; }
+  .mat-search.is-full {
+    position: fixed; inset: 0; z-index: var(--mat-z-menu);
+    display: flex; flex-direction: column; width: auto;
+    background: var(--mat-surface);
+    padding-top: var(--mat-safe-top); padding-bottom: var(--mat-safe-bottom);
+  }
+  .mat-search.is-full .mat-search__bar { flex: none; padding: var(--mat-space-2) var(--mat-space-2) var(--mat-space-2) var(--mat-space-3); border-bottom: 1px solid var(--mat-border); }
+  .mat-search.is-full .mat-search__close { display: inline-flex; flex: none; }
+  .mat-search.is-full .mat-search__panel {
+    position: static; flex: 1 1 auto; min-height: 0; width: auto; max-width: none; max-height: none;
+    border: 0; border-radius: 0; box-shadow: none; animation: none;
+  }
+  .mat-search.is-full .mat-search__list { padding: var(--mat-space-3); }
+  .mat-search.is-full .mat-search__option { padding: var(--mat-space-3); }
+}
+
+/* ---- Touch targets (MOBILE-04): a row is 44 px high, and the small clear button keeps its look and has a centred target of 44 px ---- */
+@media (pointer: coarse) {
+  .mat-search__option { min-height: 44px; }
+  .mat-search__clear::before { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+}
+
+@media (forced-colors: active) {
+  .mat-search__option.is-active { outline: 2px solid Highlight; outline-offset: -2px; }
+  .mat-search__hit { text-decoration: underline; }
+}
+
 /* ---- Tags: a field of chips that the user types into (data-picker="tags") ----
    The field is drawn like every field (mat-input) but grows with its chips; the text field inside has no border of its own. The suggestions are the list of a
    select, as a dropdown under the field on every screen size (it is not a full-screen sheet: the keyboard stays in the field). */
@@ -2522,6 +2683,12 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 }
 @media (pointer: coarse) and (min-width: 641px) { .mat-cal__month { min-width: 308px; } }
 
+/* ---- The type of a field on a touch screen (MOBILE-06): the search field and the text field of the tags have `font: inherit`, so they are raised to 16 px here, after their own rules
+   (the rest is in matui.forms.css). max(1rem, 1em) never makes one smaller than the size of what it stands in. ---- */
+@media (pointer: coarse) {
+  .mat-search__input, .mat-tagfield__input { font-size: max(1rem, 1em); }
+}
+
 /* ==========================================================================
    MatUi · lists
    The list block (toolbar -> applied filters -> table or gallery -> empty state -> pagination -> actions), tabs and the
@@ -2533,7 +2700,7 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 .mat-list { display: flex; flex-direction: column; gap: var(--mat-space-4); min-width: 0; }
 .mat-list > .mat-toolbar { order: 0; }
 .mat-list > .mat-chips { order: 1; }
-.mat-list > .mat-table-wrap, .mat-list > .mat-gallery { order: 2; }
+.mat-list > .mat-table-wrap, .mat-list > .mat-gallery, .mat-list > .mat-itemlist { order: 2; }
 .mat-list > .mat-empty { order: 3; }
 .mat-list > .mat-pager { order: 4; }
 .mat-list > .mat-actions { order: 5; }
@@ -2565,7 +2732,15 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 @media (max-width: 480px) {
   .mat-toolbar__btn small { display: none; }
   .mat-toolbar__info { width: 100%; padding: 0 var(--mat-space-2); order: 9; }
-  .mat-toolbar__search { flex-basis: 100%; max-width: none; }
+  /* On a phone a toolbar with a search field is one row, like the search bar of a phone app: the field takes the room and the buttons at its right end
+     are icons only (their name stays for screen readers, the number of filters is a badge on the icon); the count goes under the row. */
+  .mat-toolbar__search { flex: 1 1 0; max-width: none; }
+  .mat-toolbar__search ~ .mat-toolbar__spacer { display: none; }
+  .mat-toolbar:has(> .mat-toolbar__search) .mat-toolbar__btn:has(> .mat-icon) { position: relative; padding: 0; width: var(--mat-btn-height, var(--mat-control-h)); }
+  .mat-toolbar:has(> .mat-toolbar__search) .mat-toolbar__btn:has(> .mat-icon) > span:not(.mat-badge) {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .mat-toolbar:has(> .mat-toolbar__search) .mat-toolbar__btn > .mat-badge { position: absolute; top: -4px; right: -4px; box-shadow: 0 0 0 2px var(--mat-surface); }
 }
 
 /* ---- Table ---- */
@@ -2617,6 +2792,9 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 .mat-table__name .mat-muted { font-weight: 400; } /* a part of the name that the group already says: .example.org after app */
 .mat-table__actions { display: flex; justify-content: flex-end; gap: var(--mat-space-1); }
 .mat-table td.mat-table__cell-actions { width: 1%; white-space: nowrap; }
+/* A table that is wider than its frame above 720 px leaves out the columns the phone leaves out (mat-hide-sm), the last one first, until it fits (TABLE-02,
+   the script marks their cells is-col-hidden); it scrolls sideways only with data-table-scroll on the frame (TABLE-04: a table that cannot become cards). */
+.mat-table .is-col-hidden { display: none; }
 
 /* Under 720 px a row becomes a card; every <td> needs data-label for that (RULE TABLE-02). */
 @media (max-width: 720px) {
@@ -2625,13 +2803,24 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
   .mat-table tr { padding: var(--mat-table-pad-y, var(--mat-space-3)) var(--mat-table-pad-x, var(--mat-space-4)); border-top: 1px solid var(--mat-border); }
   .mat-table tbody tr:first-child { border-top: 0; }
   .mat-table td { display: flex; align-items: baseline; justify-content: space-between; gap: var(--mat-space-4); padding: var(--mat-space-1) 0; border: 0; text-align: right; }
-  .mat-table td::before { content: attr(data-label); flex: none; color: var(--mat-text-muted); font-size: var(--mat-fs-sm); font-weight: 500; text-align: left; }
+  .mat-table td::before { content: attr(data-label); flex: none; color: var(--mat-text-muted); font-family: var(--mat-font); font-size: var(--mat-fs-sm); font-weight: 500; text-align: left; }
   .mat-table td:not([data-label])::before, .mat-table td[data-label=""]::before { content: none; }
   .mat-table td.mat-table__cell-actions { width: 100%; }
   .mat-table td .mat-table__name { text-align: left; }
   /* The check of a selectable row is the first thing of its card, without a label (it has an accessible name of its own). */
   .mat-table td.mat-table__select { width: 100%; justify-content: flex-start; }
   .mat-table td.mat-table__select::before { content: none; }
+  /* The card of a row with actions reads like a phone list: its first cell (the name) is the title, without its label, and the actions stand at its right
+     end in the same line; the other cells follow under it with their labels. A grouped table and a selectable row keep the plain card. */
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--mat-space-3); align-items: center;
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td { grid-column: 1 / -1; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td:first-child {
+    grid-column: 1; grid-row: 1; justify-content: flex-start; font-weight: 600; text-align: left;
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td:first-child::before { content: none; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td.mat-table__cell-actions { grid-column: 2; grid-row: 1; width: auto; padding: 0; }
 }
 
 /* ---- Groups in a table (LIST-16): rows under a heading that opens and closes. The items hang on a line below the heading, and the action that adds one
@@ -2965,6 +3154,8 @@ a.mat-item__main:active, button.mat-item__main:active, label.mat-item__main:acti
 .mat-item__input::placeholder { color: var(--mat-text-faint); }
 select.mat-item__input { width: calc(100% + 4px); margin-left: -4px; cursor: pointer; }
 .mat-item__input:focus-visible { box-shadow: none; }
+/* the type of a field on a touch screen is 16 px or more (MOBILE-06, matui.forms.css); this one has `font: inherit` and so its own rule */
+@media (pointer: coarse) { .mat-item__input { font-size: max(1rem, 1em); } }
 @media (min-width: 480px) {
   .mat-item--inline .mat-item__body { flex-direction: row; align-items: center; gap: var(--mat-item-gap); }
   .mat-item--inline .mat-item__label { flex: 0 0 7rem; color: var(--mat-text); font-size: var(--mat-fs-md); }
