@@ -391,6 +391,13 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | MatUi | The UI on the MatUi toolkit like the other engines (shell, components, dialogs, accent of the registry) | ✅ |
 | Review 3 | restic targets, update history and pinning, container run, rights per environment, network create/connect, pause/kill, image pull, MatUi 0.3 | ✅ |
 
+## Trying a change locally
+
+`./scripts/localtest.ps1` builds the current source and starts a **separate** test instance (`matdock-localtest`, own data volume, never the
+live one) on `http://127.0.0.1:4470`, signed in with `tester` / `Tester123!` (Development mode seeds it). It mounts the Docker socket, so its
+*local* environment is this machine's Docker and what you click is real; because of that it listens on `127.0.0.1` only. `-Fresh` starts with
+empty data, `-Stop` removes it, `-Port` changes the port.
+
 ## Branches & versioning
 
 | Branch | Purpose | Version |

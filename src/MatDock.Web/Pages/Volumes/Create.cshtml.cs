@@ -74,14 +74,16 @@ public class CreateModel : PageModel
         var (ok, message) = await _connectionService.CreateVolumeAsync(
             _environmentService.BuildSettings(env), Input.Name.Trim(), driver, options, HttpContext.RequestAborted);
 
-        StatusMessage = message;
-        IsError = !ok;
-        if (ok)
+        if (!ok)
         {
-            return RedirectToPage("/Volumes/Index", new { EnvId = env.Id, Refresh = true });
+            // Shown on this form (the next page is this one again; a TempData message would never be rendered here).
+            ModelState.AddModelError(string.Empty, message);
+            return Page();
         }
 
-        return Page();
+        StatusMessage = message;
+        IsError = false;
+        return RedirectToPage("/Volumes/Index", new { EnvId = env.Id, Refresh = true });
     }
 
     /// <summary>Turns the form into a docker (driver, --opt list) spec. Returns an error message if invalid.</summary>

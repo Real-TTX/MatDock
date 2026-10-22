@@ -248,5 +248,12 @@ bound `View` as a non-nullable string; the action forms post no view, which made
 buttons per state (running: pause/restart/stop/kill, paused: unpause/stop, stopped: start), an unknown action and an id with shell characters.
 With the old declaration put back, 7 of those tests fail.
 
-Not tried for real: *New network* and connect/disconnect. Docker Desktop on this machine has no free address pool left ("all predefined address
-pools have been fully subnetted"), so no network can be created here; those two are covered by the tests of the commands only.
+Networks were tried afterwards. Docker Desktop on this machine had run out of address pools ("all predefined address pools have been fully
+subnetted": 56 networks, 22 of them unused leftovers of stopped projects); `docker network prune` freed them. Then, through the forms against real
+Docker: *New network* (bridge, with its subnet; and `internal`, which Docker reports as internal), connect a container on the detail page (Docker
+shows it on both networks), the delete button disabled while it is connected and a forced delete refused with Docker's own reason ("has active
+endpoints"), disconnect, and delete once it is free.
+
+That found a second defect, in the volume form as well as the new network form: when Docker refused (a name that already exists), the form came
+back **without a word**. The message went into a TempData that the form never renders. Both forms now show Docker's reason in the form
+(`CreateFormTests`; with the old code put back, the two refusal tests fail).

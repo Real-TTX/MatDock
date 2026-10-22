@@ -87,10 +87,13 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
         return Task.FromResult((true, "ok"));
     }
 
+    /// <summary>What the create calls of volumes and networks answer (default: success).</summary>
+    public (bool Ok, string Message) CreateResult { get; set; } = (true, "ok");
+
     public Task<(bool Ok, string Message)> CreateVolumeAsync(SshConnectionSettings settings, string name, string? driver, IReadOnlyList<(string Key, string Value)> options, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult((true, "ok"));
+        return Task.FromResult(CreateResult);
     }
 
     public Task<IReadOnlyList<DockerUnusedVolume>> ListUnusedVolumesDetailedAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
@@ -150,7 +153,7 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult((true, "ok"));
+        return Task.FromResult(CreateResult);
     }
 
     public Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default)
