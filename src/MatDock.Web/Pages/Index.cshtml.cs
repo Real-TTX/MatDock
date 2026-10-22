@@ -224,6 +224,14 @@ public class IndexModel : PageModel
             backups = backups.Where(b => b.SourceEnvironmentId == envId).ToList();
         }
 
+        // A user limited to some environments gets the figures of those only (a schedule for "all environments" is not theirs to see).
+        if (await _environmentService.AllowedEnvironmentIdsAsync(ct) is { } allowed)
+        {
+            schedules = schedules.Where(s => s.EnvironmentId is { } e && allowed.Contains(e)).ToList();
+            backups = backups.Where(b => b.SourceEnvironmentId is { } e && allowed.Contains(e)).ToList();
+            bundles = bundles.Where(b => allowed.Contains(b.EnvironmentId)).ToList();
+        }
+
         // A bundle stores its volumes as volume backups too, so the archives are the count and size.
         BackupCount = backups.Count;
         BackupBytes = backups.Sum(b => b.SizeBytes);

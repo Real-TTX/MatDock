@@ -19,28 +19,92 @@ public sealed class EnvironmentService
     private readonly ISecretProtector _secrets;
     private readonly IEnvironmentConnectionService _connection;
     private readonly MatDockOptions _options;
+    private readonly ICurrentUserAccessor _currentUser;
+    private bool _accessLoaded;
+    private HashSet<long>? _allowedIds;
 
     public EnvironmentService(
         MatDockDbContext db,
         ISecretProtector secrets,
         IEnvironmentConnectionService connection,
-        IOptions<MatDockOptions> options)
+        IOptions<MatDockOptions> options,
+        ICurrentUserAccessor? currentUser = null)
     {
         _db = db;
         _secrets = secrets;
         _connection = connection;
         _options = options.Value;
+        _currentUser = currentUser ?? new SystemCurrentUserAccessor();
     }
 
-    public Task<List<DockerEnvironment>> GetAllAsync(CancellationToken ct = default)
-        => _db.Environments.AsNoTracking().OrderBy(e => e.Name).ToListAsync(ct);
+    /// <summary>
+    /// The environments the current user may see and control, or <c>null</c> when nothing restricts them: administrators, a user without
+    /// the restriction, and system work (background jobs, the API with its key) which has no current user. A restricted user gets the
+    /// ids granted to them (an empty set when none); an unknown user gets nothing. Read once per request.
+    /// </summary>
+    public async Task<IReadOnlySet<long>?> AllowedEnvironmentIdsAsync(CancellationToken ct = default)
+    {
+        if (_accessLoaded)
+        {
+            return _allowedIds;
+        }
+
+        if (_currentUser.UserId is not { } userId)
+        {
+            _allowedIds = null;
+        }
+        else
+        {
+            var user = await _db.Users.AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Role, u.RestrictEnvironments })
+                .FirstOrDefaultAsync(ct);
+            _allowedIds = user is { Role: UserRole.Admin } or { RestrictEnvironments: false }
+                ? null
+                : user is null
+                    ? new HashSet<long>() // not found: fail closed
+                    : (await _db.UserEnvironments.AsNoTracking().Where(x => x.UserId == userId).Select(x => x.EnvironmentId).ToListAsync(ct)).ToHashSet();
+        }
+
+        _accessLoaded = true;
+        return _allowedIds;
+    }
+
+    public async Task<List<DockerEnvironment>> GetAllAsync(CancellationToken ct = default)
+    {
+        var allowed = await AllowedEnvironmentIdsAsync(ct);
+        var query = _db.Environments.AsNoTracking();
+        if (allowed is not null)
+        {
+            var ids = allowed.ToList();
+            query = query.Where(e => ids.Contains(e.Id));
+        }
+
+        return await query.OrderBy(e => e.Name).ToListAsync(ct);
+    }
 
     /// <summary>Only active environments — for operational lists (migration/restore targets, pickers, schedules).</summary>
-    public Task<List<DockerEnvironment>> GetEnabledAsync(CancellationToken ct = default)
-        => _db.Environments.AsNoTracking().Where(e => e.IsEnabled).OrderBy(e => e.Name).ToListAsync(ct);
+    public async Task<List<DockerEnvironment>> GetEnabledAsync(CancellationToken ct = default)
+    {
+        var allowed = await AllowedEnvironmentIdsAsync(ct);
+        var query = _db.Environments.AsNoTracking().Where(e => e.IsEnabled);
+        if (allowed is not null)
+        {
+            var ids = allowed.ToList();
+            query = query.Where(e => ids.Contains(e.Id));
+        }
 
-    public Task<DockerEnvironment?> GetAsync(long id, CancellationToken ct = default)
-        => _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        return await query.OrderBy(e => e.Name).ToListAsync(ct);
+    }
+
+    /// <summary>One environment by id; <c>null</c> when it does not exist <em>or the current user may not see it</em> (a restricted user cannot reach one by its id).</summary>
+    public async Task<DockerEnvironment?> GetAsync(long id, CancellationToken ct = default)
+    {
+        var allowed = await AllowedEnvironmentIdsAsync(ct);
+        return allowed is not null && !allowed.Contains(id)
+            ? null
+            : await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+    }
 
     /// <summary>Activates or deactivates an environment. Returns false if it does not exist.</summary>
     public async Task<bool> SetEnabledAsync(long id, bool enabled, CancellationToken ct = default)

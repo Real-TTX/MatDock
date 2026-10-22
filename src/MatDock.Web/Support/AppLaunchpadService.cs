@@ -41,8 +41,9 @@ public sealed class AppLaunchpadService
         var envById = allEnvs.ToDictionary(e => e.Id);
 
         var scope = envId is > 0 ? envId.Value : 0;
+        // allEnvs holds only what the current user may see, so stacks of other environments drop out here.
         var managed = (await _stacks.GetAllAsync(ct))
-            .Where(s => !string.IsNullOrWhiteSpace(s.AppMetaJson) && (scope <= 0 || s.EnvironmentId == scope))
+            .Where(s => !string.IsNullOrWhiteSpace(s.AppMetaJson) && (scope <= 0 || s.EnvironmentId == scope) && envById.ContainsKey(s.EnvironmentId))
             .ToList();
         if (managed.Count == 0)
         {

@@ -14,6 +14,12 @@ public class User : AuditableEntity
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// A user of the role <see cref="UserRole.User"/> with this set sees and controls only the environments listed as
+    /// <see cref="UserEnvironment"/> (none when the list is empty); without it a user sees all of them. Administrators are never restricted.
+    /// </summary>
+    public bool RestrictEnvironments { get; set; }
+
     /// <summary>Forces a password change on next login (e.g. for the seeded admin).</summary>
     public bool MustChangePassword { get; set; }
 

@@ -20,6 +20,7 @@ public class MatDockDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserEnvironment> UserEnvironments => Set<UserEnvironment>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DockerEnvironment> Environments => Set<DockerEnvironment>();
     public DbSet<VolumeBackup> VolumeBackups => Set<VolumeBackup>();
@@ -286,6 +287,16 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Environment).HasMaxLength(128);
             e.Property(x => x.Message).HasMaxLength(500);
             e.HasIndex(x => x.CreateDate);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<UserEnvironment>(e =>
+        {
+            e.ToTable("UserEnvironment");
+            e.HasKey(x => x.Id);
+            // One row per user and environment among the non-deleted ones (a soft-deleted row does not block granting it again).
+            e.HasIndex(x => new { x.UserId, x.EnvironmentId }).IsUnique().HasFilter("\"UpdateState\" <> 0");
+            e.HasIndex(x => x.EnvironmentId);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

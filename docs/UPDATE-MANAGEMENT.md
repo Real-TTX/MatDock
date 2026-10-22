@@ -16,7 +16,10 @@ Baut auf vorhandenen Bausteinen auf: Registry-v2-API (`RegistryApiClient`), Stac
 | Badge „Update“ in der Stacks-Liste | umgesetzt (letzte Prüfung im Speicher, `UpdateCheckCache`) |
 | Zeitgesteuert: nur prüfen und melden, oder anwenden | umgesetzt (Schedule-Aktion *Update stacks*) |
 | Health-Gate (90 s, laufend und gesund) und Rollback: das alte Image bekommt vor dem Pull einen eigenen Tag (`:matdock-rollback-<tag>`) und bei einem Fehler seinen Tag zurück, dann neu deployen | umgesetzt (Update-Seite, Schedule-Aktion; die API wie bisher ohne) |
-| Pinning/Override, neuere Versions-Tags (Semver), Update-Historie | offen |
+| Update-Historie je Stack (wer, wann, Ergebnis, welche Services mit welchem Image; die letzten 50) | umgesetzt (`StackUpdateRun`, Update-Seite) |
+| Pinning je Service: ein gepinnter Service wird beim `compose pull` ausgelassen (manuell, Schedule, API) und nie als Update gemeldet | umgesetzt (`Stack.PinnedServices`) |
+| Hinweis auf eine neuere Versions-Tag (`1.2.3` → `1.3.0`, nur reine Versionen, nur Information) | umgesetzt (`TagVersion`) |
+| Override-Compose für Git-Stacks, Springen auf eine neuere Version per Knopfdruck | offen (nicht geplant: das Tag in der Compose ändern) |
 
 ## 1. Was heißt „Update"?
 - **Bewegtes Tag** (`:latest`, `:stable`): gleicher Tag, **neuer Digest** in der Registry → Image geändert.

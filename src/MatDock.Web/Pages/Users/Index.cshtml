@@ -2,6 +2,12 @@
 @model MatDock.Web.Pages.Users.IndexModel
 @{
     ViewData["Title"] = "Users";
+
+    // An admin always sees every environment; a user either all of them or only the granted ones.
+    string RestrictionText(MatDock.Core.Entities.User u)
+        => u.Role == MatDock.Core.Entities.UserRole.Admin || !u.RestrictEnvironments
+            ? "All"
+            : Model.RestrictedCounts.TryGetValue(u.Id, out var n) && n > 0 ? $"{n} selected" : "None";
 }
 
 <partial name="_SystemTabs" />
@@ -38,7 +44,7 @@
             <div class="mat-table-wrap">
             <table class="mat-table">
                 <thead>
-                    <tr><th>Username</th><th>Display name</th><th>Role</th><th>Status</th><th>Last login</th></tr>
+                    <tr><th>Username</th><th>Display name</th><th>Role</th><th>Environments</th><th>Status</th><th>Last login</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var u in Model.Items)
@@ -47,6 +53,7 @@
                             <td data-label="Username"><a href="/Users/Edit?id=@u.Id"><strong>@u.Username</strong></a></td>
                             <td data-label="Display name">@u.DisplayName</td>
                             <td data-label="Role"><span class="mat-tag">@u.Role</span></td>
+                            <td data-label="Environments">@(RestrictionText(u))</td>
                             <td data-label="Status">
                                 @if (u.IsActive)
                                 {

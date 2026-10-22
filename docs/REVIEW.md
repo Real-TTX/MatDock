@@ -73,7 +73,7 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
 | restic backups (backup, restore, check, prune) | ✅ | A backup target kind: every backup file is a snapshot (S3, B2, Azure, GCS, REST server, path); retention forgets, the schedule *Maintain restic repositories* prunes and checks |
 | Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |
-| Local users, roles | ◐ | Two fixed roles (Admin, User), enforced; per-environment rights not planned (homelab/small team) |
+| Local users, roles | ✅ | Two roles (Admin, User), enforced; a user can be limited to some environments (section 8) |
 | OIDC | ✅ | Through MatIdentity; any other OIDC provider is not wanted — MatIdentity is the family's identity |
 | 2FA | — | Not in MatDock: MatIdentity does it for every Mat app; the local sign-in is the fallback (throttled) |
 | Activity/audit log across environments | ✅ | System → Activity |
@@ -84,10 +84,10 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 |---|---|---|---|---|
 | 1 | ~~restic as a backup target kind~~ – done, see section 7 | `ResticBackupStorage`, `ScheduleAction.ResticMaintenance` | L | – |
 | 2 | ~~Move the UI onto MatUi~~ – done, see section 5 | all pages | L | – |
-| 3 | Update history and pinning: keep the update runs (old/new digest, result, rollback) and let a service be pinned to a digest so automatic updates leave it alone; newer version tags (semver) next to moving tags | `UpdateService`, a table `StackUpdateRun`, Stacks/Update | M | Semver of tags is guesswork for many images (`latest`, `16-alpine`) |
-| 4 | Per-environment rights (a user sees and controls only some environments) | `User` ↔ `DockerEnvironment`, `EnvSelection`, every list | M | Every page and the API filter by it; only worth it beyond a small team |
+| 3 | ~~Update history and pinning~~ – done, see section 8 | `StackUpdateRun`, `Stack.PinnedServices`, `TagVersion` | M | – |
+| 4 | ~~Per-environment rights~~ – done, see section 8 | `User.RestrictEnvironments`, `UserEnvironment`, `EnvironmentService` | M | – |
 | 5 | The CIFS password of a new volume is still on the `docker volume create` command line (Docker takes it only as an `--opt`; it is in the volume's options anyway) | – | – | Not fixable in MatDock; documented |
-| 6 | Ad-hoc container `run` from a form (image, name, ports, env, volumes, restart, network), the Portainer flow for a one-off container without writing compose | new `ContainerCommands.Run`, `ContainerService`, `Containers/Create` | M | Quoting/validating ports, env and volumes; it is not managed (no stack record), so a convenience only |
+| 6 | ~~Ad-hoc container `run` from a form~~ – done, see section 8 | `ContainerRunCommands`, `Containers/Create` | M | – |
 
 ## 4. Implemented
 
@@ -152,7 +152,7 @@ compose-first use (homelab or small business), not at Portainer's orchestration/
 | Swarm services, scaling, secrets, configs | — | not wanted — single engine, compose |
 | Containers: list, status, logs, exec, stats, inspect | ✅ | logs with search/timestamps, terminal, file browser, 24 h resources |
 | Container pause/unpause and kill | ✅ | next to start/stop/restart, by state |
-| Container create/run from a form | ◐ | compose-first (a stack of one service); an ad-hoc `run` form is planned (below) |
+| Container create/run from a form | ✅ | *New container* (image, name, ports, env, volumes, restart policy, network); a one-off, not managed: a stack is the way for anything that should stay |
 | Compose stacks, editor, env, git deploy, webhooks | ✅ | beats Portainer: highlighted YAML + `.env`, `compose config` check, SSH git |
 | App templates / one-click apps | ✅ | the Store, plus *Adopt* for a discovered stack |
 | Images: list, prune, layers | ✅ | + update tracking, rollback, Trivy CVE scan |
@@ -163,7 +163,7 @@ compose-first use (homelab or small business), not at Portainer's orchestration/
 | Network create, connect/disconnect a container | ✅ | create (bridge/macvlan/ipvlan, internal); connect/disconnect on the detail page |
 | Registries: credentials + browse | ✅ | |
 | Users/roles | ◐ | Admin/User, enforced; teams and per-object RBAC not wanted (homelab/small team) |
-| Per-environment rights | ✖ | planned (section 3.4) |
+| Per-environment rights | ✅ | a user is limited to chosen environments, enforced in one place (section 8) |
 | Auth: internal, LDAP, OAuth/OIDC | ◐ | local + MatIdentity OIDC; generic LDAP/OIDC not wanted |
 | REST API / automation | ✅ | `/api/v1` (stacks, backups, operations), `X-Api-Key` |
 | Dashboard, events, alerts, audit log | ✅ | |
@@ -207,3 +207,32 @@ with the binary from the restic image: 72 restic-related tests pass, none skippe
 socket: a stack with a volume was backed up as a bundle to a restic target (two snapshots in the repository), a file that only the backup
 contained was deleted and the restore brought it back, deleting a backup forgot exactly its two snapshots, and the maintenance schedule pruned
 the repository (1112 → 1084 KiB). (On this machine Docker Desktop had no free address pool left, so the test stack runs with `network_mode: none`.)
+
+## 8. The rest of the plan
+
+**Container run.** *New container* on the Containers page (admin): image, name, published ports, environment, volumes, restart policy, network.
+`ContainerRunCommands` validates each value on its own (image reference, name, `host:container[/proto]` with 1–65535, `KEY=value`, a volume
+name or absolute path mapped to an absolute path, `:ro`) and single-quotes each one; an env value with a quote cannot break out (tested). The
+container is not managed (no stack record): a stack remains the way for anything that should stay. Admin only, since a mount of `/` is root on
+the host. Also pause/unpause, kill, image pull, network create and connect/disconnect (the earlier Portainer round).
+
+**Update history and pinning.**
+- *History:* every update run (manual, schedule, API) is a `StackUpdateRun`: when, who started it, the result (updated, no change, failed, rolled
+  back), the services whose image changed (image id before → after) and the end of the compose output. The newest 50 per stack are kept; a failing
+  write of the history never fails an update. The Update page shows the last 10.
+- *Pinning:* `Stack.PinnedServices`. A pinned service is left out of the `compose pull` (a manual update, a schedule, the API), the check shows it
+  as pinned and never as an update. The pull step takes the services from `compose config --services` and leaves the pinned out (all pinned =
+  no pull); the shell fragment was run in a real `sh` for four cases, among them that a pin `we` does not match the service `web`.
+- *Newer version:* for a plain version tag (`1.2.3`, `v1.2`, `2024.10.1`) a hint when the registry has a newer tag written the same way. Only
+  information: tags with a suffix (`16-alpine`, `1.2.3-rc1`) and `latest` get none, since their order would be guessed.
+
+**Rights per environment.** A user of the role *User* can be limited to chosen environments (*Users → Edit → Only these environments*); without it
+they see all, as before (existing users are unchanged). Administrators are never limited (the flag is cleared for them).
+- *One place:* `EnvironmentService.GetAllAsync/GetEnabledAsync/GetAsync` filter by the current user, so the pages, the environment switcher, a URL
+  with `envId=…`, the forged cookie of the selector and the log WebSocket all follow without each page knowing. System work (the monitors, the
+  schedule runner) and the API with its key have no current user and see everything. An unknown user sees nothing (fail closed).
+- *The two places that did not go through it:* the Launchpad (stacks of every environment) and the backup figures on the dashboard now drop what is
+  not theirs.
+- *Tested at the page level* with a real sign-in as a restricted user (every overview, a parameter, nine detail pages by id, the forged cookie, a
+  user without environments, the user editor). Run with the restriction switched off on purpose, 20 of those tests fail: they do test it.
+- Not in the scope: rights *per object* (a single stack or volume) and teams; the user list shows the limit (*All*, *n selected*, *None*).

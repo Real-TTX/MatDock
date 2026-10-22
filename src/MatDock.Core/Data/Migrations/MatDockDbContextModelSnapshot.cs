@@ -1166,6 +1166,9 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("RestrictEnvironments")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");
 
@@ -1194,6 +1197,44 @@ namespace MatDock.Core.Data.Migrations
                         .HasFilter("\"UpdateState\" <> 0");
 
                     b.ToTable("User", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.UserEnvironment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnvironmentId");
+
+                    b.HasIndex("UserId", "EnvironmentId")
+                        .IsUnique()
+                        .HasFilter("\"UpdateState\" <> 0");
+
+                    b.ToTable("UserEnvironment", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.UserSession", b =>

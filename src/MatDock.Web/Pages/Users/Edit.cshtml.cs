@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Entities;
+using MatDock.Core.Environments;
 using MatDock.Core.Users;
 using MatDock.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,12 @@ namespace MatDock.Web.Pages.Users;
 public class EditModel : PageModel
 {
     private readonly UserService _userService;
+    private readonly EnvironmentService _environments;
 
-    public EditModel(UserService userService)
+    public EditModel(UserService userService, EnvironmentService environments)
     {
         _userService = userService;
+        _environments = environments;
     }
 
     [BindProperty]
@@ -26,6 +29,9 @@ public class EditModel : PageModel
 
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
+
+    /// <summary>Every environment, for the choice of what a restricted user may use.</summary>
+    public IReadOnlyList<DockerEnvironment> Environments { get; private set; } = Array.Empty<DockerEnvironment>();
 
     public class InputModel
     {
@@ -47,6 +53,11 @@ public class EditModel : PageModel
         [Display(Name = "Active")]
         public bool IsActive { get; set; } = true;
 
+        /// <summary>A user (not an admin) may use only the <see cref="EnvironmentIds"/>.</summary>
+        public bool RestrictEnvironments { get; set; }
+
+        public List<long> EnvironmentIds { get; set; } = new();
+
         [MinLength(8, ErrorMessage = "The password must be at least 8 characters.")]
         [DataType(DataType.Password)]
         [Display(Name = "Password")]
@@ -60,6 +71,7 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(long? id)
     {
+        Environments = await _environments.GetAllAsync(HttpContext.RequestAborted);
         if (id is > 0)
         {
             var user = await _userService.GetAsync(id.Value, HttpContext.RequestAborted);
@@ -74,7 +86,9 @@ public class EditModel : PageModel
                 Username = user.Username,
                 DisplayName = user.DisplayName,
                 Role = user.Role,
-                IsActive = user.IsActive
+                IsActive = user.IsActive,
+                RestrictEnvironments = user.RestrictEnvironments,
+                EnvironmentIds = (await _userService.GetEnvironmentIdsAsync(user.Id, HttpContext.RequestAborted)).ToList(),
             };
         }
 
@@ -83,6 +97,7 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        Environments = await _environments.GetAllAsync(HttpContext.RequestAborted);
         if (!IsEdit && string.IsNullOrEmpty(Input.Password))
         {
             ModelState.AddModelError("Input.Password", "Please set a password.");
@@ -99,6 +114,7 @@ public class EditModel : PageModel
         }
 
         var displayName = Input.DisplayName ?? string.Empty;
+        long userId;
 
         if (IsEdit)
         {
@@ -109,6 +125,7 @@ public class EditModel : PageModel
                 return NotFound();
             }
 
+            userId = Input.Id.Value;
             StatusMessage = "User saved.";
         }
         else
@@ -119,9 +136,12 @@ public class EditModel : PageModel
                 return Page();
             }
 
-            await _userService.CreateAsync(Input.Username, displayName, Input.Password!, Input.Role, mustChangePassword: false, HttpContext.RequestAborted);
+            userId = (await _userService.CreateAsync(Input.Username, displayName, Input.Password!, Input.Role, mustChangePassword: false, HttpContext.RequestAborted)).Id;
             StatusMessage = "User created.";
         }
+
+        // Which environments the user may use (only a user of the role User can be limited; an admin never is).
+        await _userService.SetEnvironmentAccessAsync(userId, Input.RestrictEnvironments && Input.Role == UserRole.User, Input.EnvironmentIds, HttpContext.RequestAborted);
 
         IsError = false;
         return RedirectToPage("/Users/Index");

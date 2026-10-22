@@ -24,7 +24,7 @@
                 </mat-field>
 
                 <mat-field label="Role" asp-for="Input.Role">
-                    <select asp-for="Input.Role" class="mat-select">
+                    <select asp-for="Input.Role" id="Input_Role" class="mat-select">
                         <option value="Admin">Admin</option>
                         <option value="User">User</option>
                     </select>
@@ -44,6 +44,27 @@
                 <mat-field label="Confirm password" asp-for="Input.ConfirmPassword">
                     <input asp-for="Input.ConfirmPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
+            </div>
+
+            @* An admin always sees every environment; a user can be limited to some. *@
+            <div class="mat-stack" data-show-if="#Input_Role" data-show-value="User">
+                <label class="mat-check">
+                    <input asp-for="Input.RestrictEnvironments" type="checkbox" />
+                    <span>Only these environments</span>
+                </label>
+                <div class="mat-stack" data-show-if="#Input_RestrictEnvironments" data-show-value="true">
+                    @if (Model.Environments.Count == 0)
+                    {
+                        <p class="mat-hint">There are no environments yet: until you add some this user sees nothing.</p>
+                    }
+                    @foreach (var env in Model.Environments)
+                    {
+                        <label class="mat-check">
+                            <input type="checkbox" name="Input.EnvironmentIds" value="@env.Id" checked="@Model.Input.EnvironmentIds.Contains(env.Id)" />
+                            <span>@env.Name</span>
+                        </label>
+                    }
+                </div>
             </div>
 
             <mat-form-buttons>

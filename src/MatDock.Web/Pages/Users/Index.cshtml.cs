@@ -29,6 +29,9 @@ public class IndexModel : PageModel
     public int PageNumber { get; set; } = 1;
 
     public List<User> Items { get; private set; } = new();
+
+    /// <summary>How many environments each restricted user may use (users not in it see all).</summary>
+    public IReadOnlyDictionary<long, int> RestrictedCounts { get; private set; } = new Dictionary<long, int>();
     public PaginationModel Pagination { get; private set; } = new();
 
     [TempData] public string? StatusMessage { get; set; }
@@ -37,6 +40,7 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         var all = await _userService.GetAllAsync(HttpContext.RequestAborted);
+        RestrictedCounts = await _userService.GetRestrictedCountsAsync(HttpContext.RequestAborted);
         IEnumerable<User> query = all;
 
         if (!string.IsNullOrWhiteSpace(Q))

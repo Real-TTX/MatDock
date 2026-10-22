@@ -389,8 +389,7 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Review | Security fixes, alerts, scheduled updates, activity log, network map, container files – see [docs/REVIEW.md](docs/REVIEW.md) | ✅ |
 | Review 2 | MatSMTP, update rollback, CVE scans, Docker API hosts, Git over SSH, files without a shell | ✅ |
 | MatUi | The UI on the MatUi toolkit like the other engines (shell, components, dialogs, accent of the registry) | ✅ |
-| Review 3 | restic targets, update history and pinning, container run, network create/connect, pause/kill, image pull, MatUi 0.3 | ✅ |
-| Next | Per-environment rights – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
+| Review 3 | restic targets, update history and pinning, container run, rights per environment, network create/connect, pause/kill, image pull, MatUi 0.3 | ✅ |
 
 ## Branches & versioning
 

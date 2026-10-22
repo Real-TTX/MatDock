@@ -29,6 +29,54 @@ public sealed class UserService
     public Task<User?> GetAsync(long id, CancellationToken ct = default)
         => _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
 
+    /// <summary>The environments granted to a restricted user (what the form shows; ignored for administrators and unrestricted users).</summary>
+    public async Task<IReadOnlyList<long>> GetEnvironmentIdsAsync(long userId, CancellationToken ct = default)
+        => await _db.UserEnvironments.AsNoTracking().Where(x => x.UserId == userId).Select(x => x.EnvironmentId).ToListAsync(ct);
+
+    /// <summary>For the user list: how many environments each <em>restricted</em> user may use (unrestricted users are not in the result).</summary>
+    public async Task<IReadOnlyDictionary<long, int>> GetRestrictedCountsAsync(CancellationToken ct = default)
+    {
+        var restricted = await _db.Users.AsNoTracking().Where(u => u.RestrictEnvironments).Select(u => u.Id).ToListAsync(ct);
+        var counts = await _db.UserEnvironments.AsNoTracking()
+            .Where(x => restricted.Contains(x.UserId))
+            .GroupBy(x => x.UserId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        return restricted.ToDictionary(id => id, id => counts.FirstOrDefault(c => c.Key == id)?.Count ?? 0);
+    }
+
+    /// <summary>
+    /// Limits a user to the given environments (<paramref name="restrict"/>) or lifts the limit. The list is replaced as a whole; ids of environments
+    /// that do not exist are dropped. Returns false for an unknown user. Only users of the role <see cref="UserRole.User"/> can be limited:
+    /// an administrator is never restricted, so the flag is cleared for them.
+    /// </summary>
+    public async Task<bool> SetEnvironmentAccessAsync(long userId, bool restrict, IEnumerable<long> environmentIds, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.RestrictEnvironments = restrict && user.Role == UserRole.User;
+
+        var requested = environmentIds.Distinct().ToList();
+        var wanted = user.RestrictEnvironments
+            ? (await _db.Environments.AsNoTracking().Where(e => requested.Contains(e.Id)).Select(e => e.Id).ToListAsync(ct)).ToHashSet()
+            : new HashSet<long>();
+
+        var existing = await _db.UserEnvironments.Where(x => x.UserId == userId).ToListAsync(ct);
+        _db.UserEnvironments.RemoveRange(existing.Where(x => !wanted.Contains(x.EnvironmentId)));
+        var have = existing.Select(x => x.EnvironmentId).ToHashSet();
+        foreach (var id in wanted.Where(id => !have.Contains(id)))
+        {
+            _db.UserEnvironments.Add(new UserEnvironment { UserId = userId, EnvironmentId = id });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default)
         => _db.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
 
