@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Version 0.3.2 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
+   Version 0.8.0 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
    `node tools/bump.js` writes the version here, in matui.boot.js and in MatUiVersion (Directory.Build.props); window.MatUi.version has it.
    MatUi · behaviour
    Dependency-free. Everything is wired by delegated listeners and data-attributes, so server-rendered and dynamically added
@@ -52,7 +52,8 @@
                                             data-placeholder, data-clearable (a button that clears the value), data-min / data-max / data-week-start / data-flex (dates),
                                             data-step / data-hour12 (times), data-swatches (colours), data-search / data-multiple / data-sep (select; the options are
                                             .mat-picker__option with data-value), data-select-all (select with data-multiple: a first row "Select all" with a box in three
-                                            states for the options that are shown). The texts change with data-pk-<name> on <html>, the format of dates with data-locale.
+                                            states for the options that are shown). The texts change with data-pk-<name> on <html>, the format of dates with data-locale (on <html>; a date field in an element with lang, or with its own
+                                            data-locale, writes its value in that language: a German document in an English page)
                                             tags is a field of chips and has no panel: data-sep, data-max (number of tags), data-max-length (of one tag),
                                             data-duplicates (allow a tag twice), data-strict (only the options, which are the suggestions, can be added)
                                             slot books an appointment (FORM-18): a month with the days that have a free time, then the times of the chosen day. It posts
@@ -314,6 +315,47 @@
       drawerOpener = null;
     }
   }
+
+  // The drawer follows the finger like a phone app (MOBILE-02): a swipe to the right that starts at the left edge of the screen (the first 32 px) opens it, a swipe to
+  // the left closes it. The very edges of a touch screen (20 px) are the app's while the drawer is closed: there a swipe would be the browser's back (on the left) or
+  // forward (on the right), so the touch is taken; a tap there is given to what lies under the finger. (The back gesture of the system on Android is not the page's:
+  // a swipe that starts a little further in opens the drawer there.)
+  var EDGE_OPEN = 32, EDGE_BLOCK = 20, EDGE_DISTANCE = 48;
+  var edgeSwipe = null;
+  function drawerMode() { return !!app() && !!$('.mat-nav', app()) && window.matchMedia('(max-width: 900px)').matches; }
+  function nearEdge(x) { return drawerMode() && !app().classList.contains('is-nav-open') && x <= EDGE_OPEN; }
+  doc.addEventListener('touchstart', function (e) {
+    edgeSwipe = null;
+    if (e.touches.length !== 1 || dialogStack.length > 0 || !drawerMode()) { return; }
+    var t = e.touches[0], x = t.clientX, open = app().classList.contains('is-nav-open');
+    var atLeft = x <= EDGE_OPEN, atRight = x >= window.innerWidth - EDGE_BLOCK;
+    if (!open && !atLeft && !atRight) { return; }
+    edgeSwipe = { x0: x, y0: t.clientY, side: open ? 'close' : atLeft ? 'open' : 'edge', moved: false, taken: false };
+    if (!open && (x <= EDGE_BLOCK || atRight)) { e.preventDefault(); edgeSwipe.taken = true; }
+  }, { passive: false });
+  doc.addEventListener('touchmove', function (e) {
+    var s = edgeSwipe;
+    if (!s) { return; }
+    var t = e.touches[0], dx = t.clientX - s.x0, dy = t.clientY - s.y0;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) { s.moved = true; }
+    // a sideways move from the edge is the drawer's, not a scroll of the page
+    if (s.side === 'open' && Math.abs(dx) > Math.abs(dy) && e.cancelable) { e.preventDefault(); }
+  }, { passive: false });
+  doc.addEventListener('touchend', function (e) {
+    var s = edgeSwipe;
+    edgeSwipe = null;
+    if (!s) { return; }
+    var t = e.changedTouches[0], dx = t.clientX - s.x0, dy = t.clientY - s.y0;
+    var sideways = Math.abs(dx) >= EDGE_DISTANCE && Math.abs(dx) > Math.abs(dy) * 1.5;
+    if (s.side === 'open' && sideways && dx > 0) { setNav(true); return; }
+    if (s.side === 'close' && sideways && dx < 0) { setNav(false); return; }
+    // a tap at the edge: the touch was taken with its click, so the click goes to what lies there
+    if (s.taken && !s.moved) {
+      var el = doc.elementFromPoint(t.clientX, t.clientY);
+      if (el) { var target = el.closest('a, button, input, select, textarea, label, summary, [tabindex]') || el; if (target.focus) { target.focus({ preventScroll: true }); } target.click(); }
+    }
+  });
+  doc.addEventListener('touchcancel', function () { edgeSwipe = null; });
 
   // ------------------------------------------------------------------------------ menu: submenus and menu sets (SHELL-13, SHELL-15)
   // A parent item is a button (data-nav-branch="key", aria-expanded) that opens its children. The branch with the current page is open
@@ -675,7 +717,7 @@
     }
     var row = t.closest('.mat-item__row');
     var item = row && row.closest('.mat-item--sliding');
-    if (item && item._matSlide && !t.closest('input, textarea, select, .mat-item__options, .mat-item__more')) {
+    if (item && item._matSlide && !t.closest('input, textarea, select, .mat-item__options, .mat-item__more') && !(e.pointerType === 'touch' && nearEdge(e.clientX))) {
       ilGesture = { kind: 'swipe', id: e.pointerId, item: item, row: row, x0: e.clientX, y0: e.clientY, lastX: e.clientX, lastT: e.timeStamp, vx: 0, x: 0, active: false,
                     startW: ilWidth(item, 'start'), endW: ilWidth(item, 'end'),
                     base: item._matSide === 'end' ? -ilWidth(item, 'end') : item._matSide === 'start' ? ilWidth(item, 'start') : 0 };
@@ -1960,6 +2002,23 @@
     }
     return pkFormats;
   }
+  // The language of the value of one date field: its own data-locale, else the lang of the nearest element inside the page that has one (a German document in an
+  // English page writes its dates the German way), else the page's. Only the value in the field: the panel and its texts stay in the language of the page.
+  var pkDayFormats = {};
+  function valueLocale(el) {
+    var holder = el && el.closest ? el.closest('[lang]') : null;
+    var l = (el && el.getAttribute('data-locale')) || (holder && holder !== root ? holder.getAttribute('lang') : null);
+    if (!l) { return pkLocale(); }
+    if (/^en$/i.test(l)) { l = 'en-GB'; }
+    try { Intl.DateTimeFormat(l); } catch (e) { return pkLocale(); }
+    return l;
+  }
+  function dayFormat(el) {
+    var l = valueLocale(el);
+    if (l === pkLocale()) { return formats().day; }
+    if (!pkDayFormats[l]) { pkDayFormats[l] = new Intl.DateTimeFormat(l, { dateStyle: 'medium' }); }
+    return pkDayFormats[l];
+  }
   function isPhone() { return window.matchMedia('(max-width: 640px)').matches; }
   function clamp(n, lo, hi) { return Math.min(hi, Math.max(lo, n)); }
   function p2(n) { return (n < 10 ? '0' : '') + n; }
@@ -2983,7 +3042,7 @@
   var CAL_FOCUS = '.mat-cal__day[tabindex="0"]';
 
   function calDisplay(p, out) {
-    var v = dateValue(p), f = formats().day;
+    var v = dateValue(p), f = dayFormat(p.wrap);
     if (!p.input.value) { out.textContent = placeholderOf(p); return; }
     if (!v.start) { out.textContent = p.input.value; return; }
     var text = f.format(v.start);
@@ -8040,7 +8099,7 @@
   if (doc.readyState === 'loading') { doc.addEventListener('DOMContentLoaded', init); } else { init(); }
 
   window.MatUi = {
-    version: '0.3.2',
+    version: '0.8.0',
     dialog: { open: openDialog, close: closeDialog },
     confirm: confirmDialog,
     alert: alertDialog,

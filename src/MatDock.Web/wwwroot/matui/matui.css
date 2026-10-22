@@ -1,4 +1,4 @@
-/* MatUi 0.3.2 (ab59caa58d) - build local-20261020 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
+/* MatUi 0.8.0 (6d245be3ea) - build local-20261022 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
 /* ==========================================================================
    MatUi · tokens
    The single source of the look of every Mat app. Components use only these custom properties, never a raw colour.
@@ -1054,6 +1054,8 @@ button.mat-nav__item:hover { background: var(--mat-surface-3); }
   .mat-app.is-nav-open .mat-nav { transform: none; visibility: visible; transition-delay: 0s; }
   .mat-app.is-nav-open .mat-backdrop { opacity: 1; pointer-events: auto; }
   .mat-burger { display: inline-grid; }
+  /* on a touch screen a sideways swipe at the edge is the app's (the drawer), not the browser's back and forward (a trackpad on a wide screen keeps them) */
+  html { overscroll-behavior-x: none; }
   .mat-topbar { padding-top: var(--mat-safe-top); padding-left: calc(var(--mat-topbar-pad-x, var(--mat-content-pad)) + var(--mat-safe-left)); padding-right: calc(var(--mat-topbar-pad-x, var(--mat-content-pad)) + var(--mat-safe-right)); }
 }
 
@@ -1341,10 +1343,10 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
 .mat-empty__icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--mat-accent-soft); color: var(--mat-accent-text); font-size: 1.8rem; }
 .mat-empty__title { font-size: var(--mat-fs-lg); font-weight: 650; color: var(--mat-text); }
 
-.mat-kv { display: grid; grid-template-columns: minmax(110px, 200px) minmax(0, 1fr); gap: var(--mat-space-3) var(--mat-space-5); margin: 0; }
-.mat-kv dt { color: var(--mat-text-muted); }
+.mat-kv { display: grid; grid-template-columns: fit-content(60%) minmax(0, 1fr); gap: var(--mat-space-3) var(--mat-space-5); margin: 0; }
+.mat-kv dt { color: var(--mat-text-muted); min-width: 200px; overflow-wrap: anywhere; }
 .mat-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-@media (max-width: 600px) { .mat-kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } .mat-kv dd { margin-bottom: var(--mat-space-3); } }
+@media (max-width: 600px) { .mat-kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } .mat-kv dt { min-width: 0; } .mat-kv dd { margin-bottom: var(--mat-space-3); } }
 
 .mat-code {
   position: relative;
@@ -2812,15 +2814,57 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
   .mat-table td.mat-table__select::before { content: none; }
   /* The card of a row with actions reads like a phone list: its first cell (the name) is the title, without its label, and the actions stand at its right
      end in the same line; the other cells follow under it with their labels. A grouped table and a selectable row keep the plain card. */
-  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) {
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select, > td.mat-table__primary)) {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--mat-space-3); align-items: center;
   }
-  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td { grid-column: 1 / -1; }
-  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td:first-child {
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select, > td.mat-table__primary)) > td { grid-column: 1 / -1; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select, > td.mat-table__primary)) > td:first-child {
     grid-column: 1; grid-row: 1; justify-content: flex-start; font-weight: 600; text-align: left;
   }
-  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td:first-child::before { content: none; }
-  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select)) > td.mat-table__cell-actions { grid-column: 2; grid-row: 1; width: auto; padding: 0; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select, > td.mat-table__primary)) > td:first-child::before { content: none; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__cell-actions):not(:has(> td.mat-table__select, > td.mat-table__primary)) > td.mat-table__cell-actions { grid-column: 2; grid-row: 1; width: auto; padding: 0; }
+  /* A record card (TABLE-02): a row whose primary cell (mat-table__primary, the name that opens the record) is marked. The primary cell is the title with a
+     chevron, and its link covers the whole card, so a tap anywhere opens the record. The other cells follow in one flowing line, without their labels on the
+     screen (a screen reader still reads them); the actions stand in a row of their own below, each with its text (the data-tip of an icon button).
+     Links and buttons in the other cells stay above the covering link. A grouped table and a selectable row keep the plain card. */
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) {
+    position: relative; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--mat-space-3); row-gap: var(--mat-space-1);
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td {
+    display: block; width: auto; min-width: 0; padding: 0; text-align: left; color: var(--mat-text-muted);
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td:empty { display: none; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td::before {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  /* a value that says nothing without its column (an open sum, the next date) keeps its label in front of it: mat-table__keep-label */
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__keep-label::before {
+    position: static; width: auto; height: auto; overflow: visible; clip-path: none; margin-right: var(--mat-space-1);
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__primary {
+    order: -1; flex: 1 1 100%; color: var(--mat-text); font-size: var(--mat-fs-md); font-weight: 600;
+  }
+  /* the chevron has a column of its own on the right: no cell of the card runs into it */
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary a[href]):not(:has(> td.mat-table__select)) { padding-right: calc(var(--mat-table-pad-x, var(--mat-space-4)) + var(--mat-space-6)); }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__primary::before { content: none; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary a[href]):not(:has(> td.mat-table__select)) > td.mat-table__primary::after {
+    content: ""; position: absolute; top: 50%; right: var(--mat-table-pad-x, var(--mat-space-4)); width: .5rem; height: .5rem;
+    border-right: 2px solid var(--mat-text-faint); border-bottom: 2px solid var(--mat-text-faint); translate: 0 -50%; rotate: -45deg; pointer-events: none;
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__primary a[href] { color: inherit; text-decoration: none; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__primary a[href]::after { content: ""; position: absolute; inset: 0; }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td:not(.mat-table__primary) :is(a[href], button, input, select, textarea, label, summary) {
+    position: relative; z-index: 1;
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) > td.mat-table__cell-actions { order: 1; flex: 1 1 100%; padding-top: var(--mat-space-1); }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) .mat-table__actions { justify-content: flex-start; flex-wrap: wrap; gap: var(--mat-space-2); margin-left: calc(var(--mat-space-3) * -1); }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) .mat-table__actions .mat-btn--icon[data-tip] {
+    width: auto; padding: 0 var(--mat-space-3); gap: var(--mat-space-2);
+  }
+  .mat-table > tbody:not(.mat-group) > tr:has(> td.mat-table__primary):not(:has(> td.mat-table__select)) .mat-table__actions .mat-btn--icon[data-tip]::after {
+    content: attr(data-tip); display: inline; position: static; translate: none; padding: 0; border-radius: 0;
+    background: none; color: inherit; font-size: var(--mat-fs-sm); font-weight: 600; opacity: 1; z-index: auto;
+  }
 }
 
 /* ---- Groups in a table (LIST-16): rows under a heading that opens and closes. The items hang on a line below the heading, and the action that adds one
@@ -2908,11 +2952,12 @@ a.mat-tile:hover { border-color: var(--mat-text-faint); background: var(--mat-su
 /* @prop tabs | --mat-tabs-gap | length | var(--mat-space-1) | Space between two tabs. */
 /* @prop tabs | --mat-tabs-indicator-width | length | 2px | Thickness of the line under the current tab. */
 /* @prop tabs | --mat-tabs-font-weight | number | 600 | Weight of the letters of a tab. */
-.mat-tabs { display: flex; gap: var(--mat-tabs-gap, var(--mat-space-1)); border-bottom: 1px solid var(--mat-border); overflow-x: auto; }
+/* The line under the tabs is an inset shadow inside the bar, not a border below it: the line under the current tab lies on it without a negative margin, so the bar,
+   which scrolls sideways on a narrow screen (overflow-x), has nothing that stands out of it below and never scrolls up and down (overflow-y: hidden). */
+.mat-tabs { display: flex; gap: var(--mat-tabs-gap, var(--mat-space-1)); box-shadow: inset 0 -1px 0 var(--mat-border); overflow-x: auto; overflow-y: hidden; }
 .mat-tab {
   display: inline-flex; align-items: center; gap: var(--mat-space-2);
   min-height: var(--mat-tabs-height, var(--mat-control-h)); padding: 0 var(--mat-tabs-pad-x, var(--mat-space-4));
-  margin-bottom: -1px;
   border: 0; border-bottom: var(--mat-tabs-indicator-width, 2px) solid transparent; border-radius: 0;
   background: transparent; color: var(--mat-text-muted);
   font-weight: var(--mat-tabs-font-weight, 600); white-space: nowrap; cursor: pointer; text-decoration: none;
@@ -3023,11 +3068,11 @@ th[aria-sort="descending"] .mat-icon { transform: rotate(180deg); }
 [data-select-item].is-selected { background: var(--mat-accent-soft); border-color: var(--mat-accent); }
 
 /* ---- Pills and vertical tabs; tabs that fill the width ---- */
-.mat-tabs--pills { gap: var(--mat-space-2); border-bottom: 0; }
+.mat-tabs--pills { gap: var(--mat-space-2); box-shadow: none; }
 .mat-tabs--pills .mat-tab { margin-bottom: 0; border-bottom: 0; border-radius: var(--mat-radius-pill); min-height: var(--mat-control-h-sm); padding-inline: var(--mat-space-4); }
 .mat-tabs--pills .mat-tab:hover { background: var(--mat-accent-soft); }
 .mat-tabs--pills .mat-tab[aria-selected="true"], .mat-tabs--pills .mat-tab.is-active { background: var(--mat-accent-soft-strong); }
-.mat-tabs--vertical { flex-direction: column; gap: 2px; border-bottom: 0; border-right: 1px solid var(--mat-border); padding-right: var(--mat-space-3); overflow: visible; }
+.mat-tabs--vertical { flex-direction: column; gap: 2px; box-shadow: none; border-right: 1px solid var(--mat-border); padding-right: var(--mat-space-3); overflow: visible; }
 .mat-tabs--vertical .mat-tab { margin-bottom: 0; justify-content: flex-start; border-bottom: 0; border-radius: var(--mat-radius-sm); }
 .mat-tabs--vertical .mat-tab:hover { background: var(--mat-surface-3); }
 .mat-tabs--vertical .mat-tab[aria-selected="true"], .mat-tabs--vertical .mat-tab.is-active { background: var(--mat-accent-soft-strong); }
