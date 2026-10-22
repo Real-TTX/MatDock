@@ -54,6 +54,7 @@
         var operations = new List<(string Href, string Icon, string Text, bool Active)>
         {
             ("/Stacks/SyncJobs", "refresh", "Sync", IsActive("/Stacks/SyncJobs")),
+            ("/Updates", "arrow-up", "Updates", IsActive("/Updates")),
             ("/Schedules", "clock", "Schedules", IsActive("/Schedules")),
             ("/Backups", "save", "Backups", IsActive("/Backups")),
         };

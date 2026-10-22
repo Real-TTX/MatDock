@@ -93,6 +93,11 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   or pulls and redeploys (optionally after a stack backup); with the health gate the containers must be up and healthy
   within 90 s, otherwise the images from before the update get their tags back and the stack is deployed again; the
   Stacks list marks stacks with updates
+- **Update rules**: MatDock keeps its own version per service and ignores the tag of the compose file after the start (the file
+  stays as it is; an image override runs another image). A rule per scope (default, environment, stack) sets the mode (off, notify,
+  automatic), the strategy (the same tag with a new digest, the newest minor or latest version of the series, or pinned; per service
+  too), a time window, how often to look, a backup before, rollback and notifications. A new version is announced once; in automatic
+  mode it is applied within the window and a failed update is not tried again. **Updates** lists all stacks with Check all and Update all
 - **Alerts**: event schedules for *container died* (an error exit or out of memory, not a stop), *container unhealthy*,
   environment offline and failed deploys, backups and syncs – with *Send a notification* the event itself is the message
 - Two roles: **User** sees everything and starts/stops/restarts containers and reads their logs; **Admin** does the rest

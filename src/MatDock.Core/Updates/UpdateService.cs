@@ -200,7 +200,9 @@ public sealed class UpdateService
             }
         }
 
-        return new StackUpdatePlan(items, null);
+        var plan = new StackUpdatePlan(items, null);
+        _cache.SetPlan(env.Id, stack.Name, plan);
+        return plan;
     }
 
     private static string ShortDigest(string? digest)

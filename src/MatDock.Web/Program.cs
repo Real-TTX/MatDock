@@ -139,6 +139,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/Logout");
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AuthorizeFolder("/Users", "AdminOnly");
+    options.Conventions.AuthorizeFolder("/Updates", "AdminOnly");
     options.Conventions.AuthorizeFolder("/Settings", "AdminOnly");
     // The role "User" looks at everything and starts/stops/restarts containers; everything that reaches the hosts beyond
     // that is for admins. Environments hold the SSH secrets and decide which hosts MatDock drives (a Local environment is

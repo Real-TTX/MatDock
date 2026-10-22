@@ -26,6 +26,8 @@ public sealed class RoleAccessTests(MatDockFactory site) : IClassFixture<MatDock
     [InlineData("/Backups/Targets")]
     [InlineData("/Backups/Restore?id=1")]
     [InlineData("/Stacks")]
+    [InlineData("/Updates")]
+    [InlineData("/Updates/Rules?scope=Global")]
     [InlineData("/Schedules")]
     [InlineData("/Terminal")]
     [InlineData("/Containers/Files?envId=1&container=web")]

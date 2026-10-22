@@ -27,6 +27,7 @@ public class IndexModel : PageModel
     private readonly AppLaunchpadService _launchpad;
     private readonly IMemoryCache _cache;
     private readonly HostMetricsHistory _history;
+    private readonly MatDock.Core.Updates.UpdateCheckCache _updates;
 
     public IndexModel(
         EnvironmentService environmentService,
@@ -37,9 +38,11 @@ public class IndexModel : PageModel
         VolumeBackupService volumeBackupService,
         AppLaunchpadService launchpad,
         IMemoryCache cache,
-        HostMetricsHistory history)
+        HostMetricsHistory history,
+        MatDock.Core.Updates.UpdateCheckCache updates)
     {
         _history = history;
+        _updates = updates;
         _environmentService = environmentService;
         _connectionService = connectionService;
         _containerService = containerService;
@@ -60,6 +63,10 @@ public class IndexModel : PageModel
     public int DisabledCount { get; private set; }
     public int RunningContainersTotal { get; private set; }
     public int StacksCount { get; private set; }
+
+    /// <summary>Stacks that had something to update at the last look, and how many stacks were looked at (a look is made by the Updates page, an update rule or a schedule).</summary>
+    public int UpdatesAvailable { get; private set; }
+    public int UpdatesChecked { get; private set; }
 
     // Per-environment usage tiles
     public List<DockerEnvironment> Environments { get; private set; } = new();
@@ -198,6 +205,14 @@ public class IndexModel : PageModel
         }
 
         StacksCount = stackKeys.Count;
+        foreach (var (envId, project) in stackKeys)
+        {
+            if (_updates.Plan(envId, project) is { } looked)
+            {
+                UpdatesChecked++;
+                UpdatesAvailable += looked.Plan.Items.Count > 0 ? 1 : 0;
+            }
+        }
 
         TopContainers = topAll
             .OrderByDescending(t => t.Container.CpuPercent ?? -1)

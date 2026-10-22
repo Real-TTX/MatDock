@@ -1,0 +1,133 @@
+@page
+@model MatDock.Web.Pages.Updates.RulesModel
+@using MatDock.Core.Entities
+@{
+    ViewData["Title"] = Model.Title;
+    ViewData["Heading"] = Model.Title;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Updates", "/Updates") };
+
+    // The first option of every field: the value is not set here, the wider rule decides.
+    string Wider(string value) => Model.Scope == UpdatePolicyScope.Global ? $"Not set ({value})" : $"As the wider rule ({value})";
+    string YesNo(bool value) => value ? "yes" : "no";
+    var inherited = Model.Inherited;
+    var window = inherited.WindowStartHour is { } s && inherited.WindowEndHour is { } e && s != e ? $"{s:00}:00–{e:00}:00" : "any time";
+    var strategies = new[] { UpdateStrategy.Tag, UpdateStrategy.Minor, UpdateStrategy.Latest, UpdateStrategy.Pinned };
+    string StrategyText(UpdateStrategy st) => st switch
+    {
+        UpdateStrategy.Tag => "Tag: what the registry moved under the tag",
+        UpdateStrategy.Minor => "Minor: newest version with the same major number",
+        UpdateStrategy.Latest => "Latest: newest version of the same series",
+        _ => "Pinned: never",
+    };
+}
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" class="mat-form">
+            <partial name="_ValidationSummary" />
+
+            <div class="mat-form__grid">
+                <mat-field label="Mode" asp-for="Input.Mode" hint="Off: by hand. Notify: MatDock says when a new version is there. Automatic: it updates by itself.">
+                    <select asp-for="Input.Mode" class="mat-select">
+                        <option value="">@Wider(inherited.Mode.ToString())</option>
+                        <option value="Off">Off</option>
+                        <option value="Notify">Notify</option>
+                        <option value="Auto">Automatic</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Strategy" asp-for="Input.Strategy" hint="Which newer image counts. A version has numbers and dots; 16.4-alpine is its own series.">
+                    <select asp-for="Input.Strategy" class="mat-select">
+                        <option value="">@Wider(inherited.Strategy.ToString())</option>
+                        @foreach (var st in strategies)
+                        {
+                            <option value="@st">@StrategyText(st)</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Update only from (server time)" asp-for="Input.WindowStartHour" hint="With the end hour: when MatDock may update by itself. Now: @window.">
+                    <select asp-for="Input.WindowStartHour" class="mat-select">
+                        <option value="">Any time</option>
+                        @for (var h = 0; h < 24; h++)
+                        {
+                            <option value="@h">@h.ToString("00"):00</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Until" asp-for="Input.WindowEndHour">
+                    <select asp-for="Input.WindowEndHour" class="mat-select">
+                        <option value="">Any time</option>
+                        @for (var h = 0; h < 24; h++)
+                        {
+                            <option value="@h">@h.ToString("00"):00</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Look for updates every (hours)" asp-for="Input.CheckEveryHours" hint="@Wider(inherited.CheckEveryHours.ToString())">
+                    <input asp-for="Input.CheckEveryHours" type="number" min="1" max="168" class="mat-input" />
+                </mat-field>
+
+                <mat-field label="Back up the stack first" asp-for="Input.PreBackup">
+                    <select asp-for="Input.PreBackup" class="mat-select">
+                        <option value="">@Wider(YesNo(inherited.PreBackup))</option>
+                        <option value="true">Yes: no update when the backup fails</option>
+                        <option value="false">No</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Roll back when it does not come up healthy" asp-for="Input.Rollback">
+                    <select asp-for="Input.Rollback" class="mat-select">
+                        <option value="">@Wider(YesNo(inherited.Rollback))</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Tell me when a new version is there" asp-for="Input.NotifyAvailable">
+                    <select asp-for="Input.NotifyAvailable" class="mat-select">
+                        <option value="">@Wider(YesNo(inherited.NotifyAvailable))</option>
+                        <option value="true">Yes, once per version</option>
+                        <option value="false">No</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Tell me how an automatic update ended" asp-for="Input.NotifyResult">
+                    <select asp-for="Input.NotifyResult" class="mat-select">
+                        <option value="">@Wider(YesNo(inherited.NotifyResult))</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </mat-field>
+            </div>
+
+            @if (Model.Scope == UpdatePolicyScope.Stack && Model.Services.Count > 0)
+            {
+                <h3 class="md-section-title">Services</h3>
+                <div class="mat-form__grid">
+                    @foreach (var (service, image) in Model.Services)
+                    {
+                        <div class="mat-field">
+                            <label class="mat-label" for="svc-@service">@service</label>
+                            <select id="svc-@service" name="Input.ServiceStrategies[@service]" class="mat-select" title="@image">
+                                <option value="">Strategy of the stack</option>
+                                @foreach (var st in strategies)
+                                {
+                                    <option value="@st" selected="@(Model.Input.ServiceStrategies.TryGetValue(service, out var chosen) && chosen == st.ToString() ? "selected" : null)">@StrategyText(st)</option>
+                                }
+                            </select>
+                            <small class="mat-hint mat-mono">@image</small>
+                        </div>
+                    }
+                </div>
+            }
+
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                <a href="/Updates" class="mat-btn mat-btn--secondary">Cancel</a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

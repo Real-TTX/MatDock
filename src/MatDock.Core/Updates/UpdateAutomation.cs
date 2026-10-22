@@ -202,7 +202,7 @@ public sealed class UpdateAutomation
 
     /// <summary>Applies the planned updates: the versions by an image override, then the update itself (pull and redeploy, with the backup and the gate of the rule).
     /// An update that did not happen (the backup or the pull failed) or was rolled back also takes the overrides back; one that brought up unhealthy containers without a rollback keeps them (the stack runs what they say).</summary>
-    private async Task<StackUpdateOutcome> ApplyAsync(Stack stack, IReadOnlyList<PlannedUpdate> items, EffectiveUpdatePolicy policy, CancellationToken ct)
+    public async Task<StackUpdateOutcome> ApplyAsync(Stack stack, IReadOnlyList<PlannedUpdate> items, EffectiveUpdatePolicy policy, CancellationToken ct, string trigger = "auto")
     {
         var before = stack.ImageOverridesJson;
         foreach (var item in items.Where(i => i.Kind == PlannedKind.Version))
@@ -215,13 +215,98 @@ public sealed class UpdateAutomation
             }
         }
 
-        var outcome = await _updates.RunUpdateAsync(stack.Id, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, trigger: "auto");
+        var outcome = await _updates.RunUpdateAsync(stack.Id, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, trigger: trigger);
         if (!outcome.Ok && (outcome.RolledBack || !outcome.Deployed))
         {
             await _stacks.RestoreImageOverridesAsync(stack.Id, before, ct);
         }
 
         return outcome;
+    }
+
+    /// <summary>Looks for updates in the given stacks now (what their rules would update), whatever their mode, and keeps the result for the overview. Answers how many have some.</summary>
+    public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default)
+    {
+        var policies = await _policies.LoadAsync(ct);
+        var pending = 0;
+        foreach (var listed in stacks)
+        {
+            ct.ThrowIfCancellationRequested();
+            var env = await _environments.GetAsync(listed.EnvironmentId, ct);
+            if (env is null || !env.IsEnabled)
+            {
+                log($"{listed.Name}: environment not available.");
+                continue;
+            }
+
+            var plan = await _updates.PlanStackAsync(env, listed, policies.For(listed), ct);
+            if (plan.Error is not null)
+            {
+                log($"{listed.Name} on {env.Name}: {plan.Error}");
+            }
+            else if (plan.Items.Count == 0)
+            {
+                log($"{listed.Name} on {env.Name}: up to date.");
+            }
+            else
+            {
+                pending++;
+                log($"{listed.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
+            }
+        }
+
+        return pending;
+    }
+
+    /// <summary>
+    /// Updates the given stacks now, one after the other, whatever their mode: each is looked at again and gets what its rule makes of it, with the backup and the
+    /// health gate of that rule. A stack with nothing to update is skipped.
+    /// </summary>
+    public async Task<(int Updated, int Failed)> UpdateStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default)
+    {
+        var policies = await _policies.LoadAsync(ct);
+        int updated = 0, failed = 0;
+        foreach (var listed in stacks)
+        {
+            ct.ThrowIfCancellationRequested();
+            var env = await _environments.GetAsync(listed.EnvironmentId, ct);
+            var stack = await _stacks.GetAsync(listed.Id, ct);
+            if (env is null || !env.IsEnabled || stack is null)
+            {
+                log($"{listed.Name}: environment not available.");
+                continue;
+            }
+
+            var policy = policies.For(stack);
+            var plan = await _updates.PlanStackAsync(env, stack, policy, ct);
+            if (plan.Error is not null)
+            {
+                failed++;
+                log($"{stack.Name} on {env.Name}: {plan.Error}");
+                continue;
+            }
+
+            if (plan.Items.Count == 0)
+            {
+                log($"{stack.Name} on {env.Name}: up to date.");
+                continue;
+            }
+
+            log($"==> {stack.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
+            var outcome = await ApplyAsync(stack, plan.Items, policy, ct, trigger: "manual");
+            if (outcome.Ok)
+            {
+                updated++;
+                log($"{stack.Name}: updated.");
+            }
+            else
+            {
+                failed++;
+                log($"{stack.Name}: failed{(outcome.RolledBack ? " and rolled back" : string.Empty)}: {LastLines(outcome.Message)}");
+            }
+        }
+
+        return (updated, failed);
     }
 
     private void AddNotice(long stackId, PlannedUpdate item, bool failed, DateTime utcNow, bool notified)

@@ -20,7 +20,9 @@ Baut auf vorhandenen Bausteinen auf: Registry-v2-API (`RegistryApiClient`), Stac
 | Pinning je Service: ein gepinnter Service wird beim `compose pull` ausgelassen (manuell, Schedule, API) und nie als Update gemeldet | umgesetzt (`Stack.PinnedServices`) |
 | Hinweis auf eine neuere Versions-Tag (`1.2.3` → `1.3.0`, nur reine Versionen, nur Information) | umgesetzt (`TagVersion`) |
 | Eigene Version pro Service (Image-Override): MatDock läuft ein anderes Image als die Compose nennt, die Datei (Git oder Editor) bleibt unverändert; Basis-Prüfung, Backup/Restore | umgesetzt (`Stack.ImageOverridesJson`, `matdock-override.yml`, Update-Seite, `PUT /api/v1/stacks/{name}/images/{service}`) |
-| Eigene Update-Regeln pro Stack/Service (Modus, Strategie, Zeitfenster), Update-Übersicht mit Update-All, Benachrichtigung je neuer Version | offen (nächster Schritt) |
+| Eigene Update-Regeln (global, je Environment, je Stack; Strategie auch je Service): Modus Aus/Melden/Automatisch, Strategie Tag/Minor/Latest/Pinned, Zeitfenster, Intervall, Backup, Rollback, Meldungen | umgesetzt (`UpdatePolicy`, `/Updates/Rules`) |
+| Automatik: prüft je Stack nach seiner Regel, meldet eine neue Version einmal, wendet sie im Automatik-Modus im Zeitfenster an | umgesetzt (`UpdateAutomation`, alle 15 Minuten, `UpdateNotice`) |
+| Update-Übersicht über alle Environments mit Prüfen und Update-All, Kennzahl im Dashboard | umgesetzt (`/Updates`) |
 
 ## 1. Was heißt „Update"?
 - **Bewegtes Tag** (`:latest`, `:stable`): gleicher Tag, **neuer Digest** in der Registry → Image geändert.
@@ -93,3 +95,12 @@ MatDock kann pro Service ein anderes Image laufen lassen, als die Compose nennt,
 - **Backup/Restore:** Das Bundle-Manifest enthält die Overrides (`ImageOverrides`; null = ältere Bundles, ein Restore lässt dann die aktuellen). Ein Restore stellt nur die wieder her, die zur wiederhergestellten Compose passen.
 - **Bedienung:** Stacks → Update (Feld je Service, Zurück-Knopf), Hinweis im Compose-Editor, API `PUT /api/v1/stacks/{name}/images/{service}` (`{image}`, leer = zurück), `imageOverrides` im Stack-Detail.
 - **Grenze:** Wer auf dem Host direkt `docker compose up` ohne MatDock ausführt, bekommt den Compose-Stand ohne Override.
+
+## 12. Update-Regeln und Automatik
+
+- **Regeln:** `UpdatePolicy` je Geltungsbereich (global, Environment, Stack). Jeder Wert darf leer sein ("wie die weitere Regel"); für einen Stack gewinnt je Wert die engste Regel, dahinter kommt der eingebaute Standard (Modus Aus, Strategie Tag, alle 6 Stunden, Backup und Rollback an, Meldungen an). Das Zeitfenster (Serverzeit, Start/Ende, über Mitternacht möglich, gleich = ganztägig) gilt als Paar.
+- **Strategien:** *Tag* (neuer Digest unter demselben Tag), *Minor* (neueste Version mit derselben ersten Zahl), *Latest* (neueste Version), *Pinned* (nie). Je Service in der Regel des Stacks überschreibbar. Versionen sind Tags aus Zahlen und Punkten (mindestens zwei Zahlen); ein Suffix wie `-alpine` ist eine eigene Reihe: `16.4-alpine` zieht nur zu `16.9-alpine`, nie zu `16.9`.
+- **Ablauf der Automatik** (`UpdateAutomation`, Hintergrunddienst alle 15 Minuten): je Stack mit Modus Melden oder Automatisch, höchstens so oft wie das Intervall der Regel, wird geplant (`UpdateService.PlanStackAsync`). Neue Images werden einmal gemeldet (`UpdateNotice`, je Stack, Service und Ziel). Im Automatik-Modus innerhalb des Fensters setzt MatDock für Versionen einen Image-Override (Abschnitt 11) und führt das Update mit Backup und Health-Gate der Regel aus (Verlauf: Auslöser `auto`). Dann wird das Ergebnis gemeldet.
+- **Fehlschlag:** Ein Update, das nicht zustande kam (Backup oder Pull fehlgeschlagen) oder zurückgerollt wurde, nimmt seinen Override zurück und wird nicht erneut versucht, bis ein neueres Ziel da ist. Bringt es unhealthy Container ohne Rollback hoch, bleibt der Override (der Stack läuft, was er sagt).
+- **Rollback und Override:** Ein Rollback deployt den Stack erneut; damit er das alte Image wirklich bringt, setzt er vorher die Overrides der Services zurück, deren Image-Referenz das Update geändert hat.
+- **Bedienung:** `/Updates` (Übersicht, Prüfen, Update-All, Regel je Stack), `/Updates/Rules?scope=Global|Environment|Stack` (nur Administratoren), Kennzahl "Updates available" im Dashboard. Der Stand der letzten Prüfung liegt nur im Speicher (`UpdateCheckCache`).

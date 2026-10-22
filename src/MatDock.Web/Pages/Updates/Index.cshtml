@@ -1,0 +1,133 @@
+@page
+@model MatDock.Web.Pages.Updates.IndexModel
+@using MatDock.Core.Entities
+@using MatDock.Core.Updates
+@{
+    ViewData["Title"] = "Updates";
+    ViewData["Heading"] = "Updates";
+    string ModePill(UpdateMode m) => m switch { UpdateMode.Auto => "mat-pill--ok", UpdateMode.Notify => "mat-pill--info", _ => "mat-pill--plain" };
+    string Window(EffectiveUpdatePolicy p) => p.WindowStartHour is { } s && p.WindowEndHour is { } e && s != e ? $" · {s:00}–{e:00} h" : string.Empty;
+}
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    if (Model.IsError)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.StatusMessage</div></div>
+    }
+    else
+    {
+        <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
+    }
+}
+
+@* The background run (checking or updating many stacks) refreshes itself every 5 s while it runs. *@
+<section id="live-run" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "5" : null)" hidden="@(Model.Running is null ? "hidden" : null)">
+    @if (Model.Running is { } op)
+    {
+        var (text, _) = op.Read(0);
+        <div class="mat-card__head">
+            <icon name="@(op.IsFinished ? (op.Error is null ? "check-circle" : "alert") : "refresh")" />
+            <h2 class="mat-card__title">@(op.Kind == "updates-check" ? "Checking" : "Updating")@(op.IsFinished ? string.Empty : "…")</h2>
+        </div>
+        <div class="mat-card__body mat-stack">
+            @if (op.Error is not null)
+            {
+                <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
+            }
+            <pre class="mat-code md-output">@text</pre>
+        </div>
+    }
+</section>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="layers" /></div><p>No stack is managed by MatDock yet.</p></div>
+}
+else
+{
+    <div class="mat-table-wrap">
+        <table class="mat-table">
+            <thead>
+                <tr><th>Environment</th><th>Stack</th><th>Rule</th><th>Updates</th><th>Checked</th><th><span class="mat-sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td data-label="Environment">@row.EnvName</td>
+                        <td data-label="Stack"><a href="/Stacks/Update?id=@row.Stack.Id">@row.Stack.Name</a></td>
+                        <td data-label="Rule">
+                            <span class="mat-pill @ModePill(row.Policy.Mode)">@row.Policy.Mode</span>
+                            @if (row.Policy.Mode != UpdateMode.Off)
+                            {
+                                <span class="mat-muted">@row.Policy.Strategy@Window(row.Policy)</span>
+                            }
+                        </td>
+                        <td data-label="Updates" class="mat-mono">
+                            @if (row.Plan is null)
+                            {
+                                <span class="mat-muted">–</span>
+                            }
+                            else if (row.Plan.Items.Count == 0)
+                            {
+                                <span class="mat-pill mat-pill--ok">Up to date</span>
+                            }
+                            else
+                            {
+                                @foreach (var item in row.Plan.Items)
+                                {
+                                    <div title="@item.Current">
+                                        @item.Service:
+                                        @if (item.Kind == PlannedKind.Version)
+                                        {
+                                            <span>@item.Current → @item.Target</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@item.Current <span class="mat-muted">(new digest)</span></span>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </td>
+                        <td data-label="Checked" class="mat-nowrap mat-muted">@(row.CheckedUtc is { } at ? at.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
+                        <td class="mat-table__cell-actions">
+                            <div class="mat-table__actions">
+                                <form method="post" asp-page-handler="CheckOne">
+                                    <input type="hidden" name="id" value="@row.Stack.Id" />
+                                    <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Look for updates" aria-label="Look for updates in @row.Stack.Name"><icon name="search" /></button>
+                                </form>
+                                @if (row.Pending > 0)
+                                {
+                                    <form method="post" asp-page-handler="UpdateOne" data-confirm="Update stack '@row.Stack.Name' now?">
+                                        <input type="hidden" name="id" value="@row.Stack.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Update now" aria-label="Update @row.Stack.Name"><icon name="arrow-up" /></button>
+                                    </form>
+                                }
+                                <a href="/Updates/Rules?scope=Stack&id=@row.Stack.Id" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Rule of this stack" aria-label="Rule of @row.Stack.Name"><icon name="sliders" /></a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Actions {
+    <a href="/Updates/Rules?scope=Global" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Default rule</span></a>
+    @if (Model.EnvId > 0)
+    {
+        <a href="/Updates/Rules?scope=Environment&id=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="server" /><span>Rule of @Model.EnvName</span></a>
+    }
+    <form method="post" asp-page-handler="Check" class="md-inline-form">
+        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="search" /><span>Check all</span></button>
+    </form>
+    @if (Model.PendingStacks > 0)
+    {
+        <form method="post" asp-page-handler="UpdateAll" class="md-inline-form" data-confirm="Update @Model.PendingStacks stack(s) now? Each gets the backup and the health check of its rule.">
+            <button type="submit" class="mat-btn mat-btn--primary"><icon name="arrow-up" /><span>Update all (@Model.PendingStacks)</span></button>
+        </form>
+    }
+}

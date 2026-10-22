@@ -58,6 +58,17 @@
                 <span class="mat-stat__label">Stacks</span>
             </span>
         </a>
+        @if (User.IsInRole(nameof(MatDock.Core.Entities.UserRole.Admin)))
+        {
+            <a class="mat-card md-stat" href="/Updates">
+                <span class="md-stat__icon @(Model.UpdatesAvailable > 0 ? "md-stat__icon--warn" : "")"><icon name="arrow-up" /></span>
+                <span class="mat-stat">
+                    <span class="mat-stat__value">@Model.UpdatesAvailable</span>
+                    <span class="mat-stat__label">Updates available</span>
+                    <span class="mat-stat__delta">@(Model.UpdatesChecked == 0 ? "not looked at yet" : $"{Model.UpdatesChecked} stacks looked at")</span>
+                </span>
+            </a>
+        }
         <a class="mat-card md-stat" href="/Containers">
             <span class="md-stat__icon"><icon name="box" /></span>
             <span class="mat-stat">
