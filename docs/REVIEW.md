@@ -236,3 +236,17 @@ they see all, as before (existing users are unchanged). Administrators are never
 - *Tested at the page level* with a real sign-in as a restricted user (every overview, a parameter, nine detail pages by id, the forged cookie, a
   user without environments, the user editor). Run with the restriction switched off on purpose, 20 of those tests fail: they do test it.
 - Not in the scope: rights *per object* (a single stack or volume) and teams; the user list shows the limit (*All*, *n selected*, *None*).
+
+**Tried against real Docker (and what that found).** The built image with the Docker socket, driven through the forms: *Pull* (`hello-world`, and a
+reference with `;touch …` which ran nothing), *New container* (Docker showed the restart policy, the port bound to `127.0.0.1` only, an environment
+value with a space in one piece, the volume, HTTP 200 on the published port), then Pause (paused, the port stopped answering), Unpause (running
+again) and Kill (exit code 137).
+
+This found a bug that was already there: **every Start/Stop/Restart button of the Containers page was answered with "Invalid action."** The page
+bound `View` as a non-nullable string; the action forms post no view, which made the model state invalid, and the handler refused. It is fixed
+(`View` may be absent), and `ContainerActionTests` post exactly what the page renders and check the docker command that reaches the host, the
+buttons per state (running: pause/restart/stop/kill, paused: unpause/stop, stopped: start), an unknown action and an id with shell characters.
+With the old declaration put back, 7 of those tests fail.
+
+Not tried for real: *New network* and connect/disconnect. Docker Desktop on this machine has no free address pool left ("all predefined address
+pools have been fully subnetted"), so no network can be created here; those two are covered by the tests of the commands only.

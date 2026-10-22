@@ -229,6 +229,9 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
     /// <summary>The lines of <c>docker ps -a --format '{{json .}}'</c>.</summary>
     public List<string> Containers { get; } = [];
 
+    /// <summary>Every command that was run on a host, in order (what the app really asked Docker to do).</summary>
+    public List<string> Commands { get; } = [];
+
     public IHostSession Create(SshConnectionSettings settings) => new Session(this);
 
     private sealed class Session(FakeHostSessionFactory hosts) : IHostSession
@@ -236,7 +239,14 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
         public Task ConnectAsync(CancellationToken ct) => Task.CompletedTask;
 
         public IHostCommand CreateCommand(string command)
-            => new Command(command.Contains(" ps -a", StringComparison.Ordinal) ? string.Join("\n", hosts.Containers) : string.Empty);
+        {
+            lock (hosts.Commands)
+            {
+                hosts.Commands.Add(command);
+            }
+
+            return new Command(command.Contains(" ps -a", StringComparison.Ordinal) ? string.Join("\n", hosts.Containers) : string.Empty);
+        }
 
         public void Dispose()
         {

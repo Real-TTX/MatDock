@@ -199,6 +199,6 @@
         {
             <a href="/Containers/Create" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New container</span></a>
         }
-        <a href="@ViewUrl(Model.View)" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
+        <a href="@ViewUrl(Model.View ?? "list")" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>
