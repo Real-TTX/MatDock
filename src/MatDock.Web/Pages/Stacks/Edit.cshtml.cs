@@ -43,6 +43,9 @@ public class EditModel : PageModel
     /// <summary>Owner of an externally managed stack (shown as a hint; a save here keeps it).</summary>
     public string? ManagedBy { get; private set; }
 
+    /// <summary>The images MatDock runs instead of the ones in the compose file (shown as a hint; the file is not changed).</summary>
+    public IReadOnlyDictionary<string, MatDock.Core.Stacks.ImageOverride> Overrides { get; private set; } = new Dictionary<string, MatDock.Core.Stacks.ImageOverride>();
+
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
     public string? DeployOutput { get; private set; }
@@ -88,6 +91,7 @@ public class EditModel : PageModel
             }
 
             ManagedBy = stack.ManagedBy;
+            Overrides = MatDock.Core.Stacks.ImageOverrides.Of(stack);
             Input = new InputModel
             {
                 Id = stack.Id,
@@ -164,10 +168,13 @@ public class EditModel : PageModel
 
         var (ok, output) = await _stackService.DeployAsync(result.Id, HttpContext.RequestAborted);
         Input.Id = result.Id;
+        Overrides = MatDock.Core.Stacks.ImageOverrides.Of((await _stackService.GetAsync(result.Id, HttpContext.RequestAborted))!);
         // Tag helpers render posted ModelState values over model values; clear it so the (now saved)
         // hidden Id and readonly name reflect the new state instead of the original create-POST values.
         ModelState.Clear();
-        DeployOutput = output;
+        // What the save said about an image override that the edit made obsolete comes first.
+        const string saved = "Stack saved. ";
+        DeployOutput = result.Message.StartsWith(saved, StringComparison.Ordinal) ? result.Message[saved.Length..] + "\n" + output : output;
         StatusMessage = ok ? "Stack saved & deployed." : "Saved, but deploy failed.";
         IsError = !ok;
         return Page();

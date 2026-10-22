@@ -311,6 +311,7 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 | `GET /api/v1/stacks/{name}` | the same plus `composeYaml` and `envContent` |
 | `PUT /api/v1/stacks/{name}` | upsert `{composeYaml, envContent, managedBy, deploy, pull}`; `200 {stack}` or with `deploy` `202 {stack, operationId}` |
 | `POST /api/v1/stacks/{name}/actions/{action}` | `start`, `stop`, `restart`, `pull`, `redeploy`, `update` (`{backupFirst}`; result `{changed}`) → `202` |
+| `PUT /api/v1/stacks/{name}/images/{service}` | run another image than the compose file names `{image}` (empty = the compose file's again), applied by the next deploy or update; `imageOverrides` in the stack detail |
 | `DELETE /api/v1/stacks/{name}?volumes=false` | `compose down` (`--volumes`), then the stack is removed from MatDock → `202` |
 | `GET /api/v1/stacks/{name}/logs?service=&tail=300` | `{text}` |
 | `POST /api/v1/stacks/{name}/backups` | bundle backup `{stopContainers, note, targetId}` → `202`, result `{backupId}` |

@@ -24,6 +24,13 @@ public sealed class UpsertStackBody
     public bool Pull { get; set; }
 }
 
+/// <summary>Body of <c>PUT /api/v1/stacks/{name}/images/{service}</c>.</summary>
+public sealed class ImageOverrideBody
+{
+    /// <summary>The image MatDock runs for the service instead of the one in the compose file; empty or null = the compose file's again.</summary>
+    public string? Image { get; set; }
+}
+
 /// <summary>Body of <c>POST /api/v1/stacks/{name}/actions/update</c>.</summary>
 public sealed class UpdateActionBody
 {
@@ -45,6 +52,7 @@ public static class StacksApi
         api.MapGet("/stacks/{name}", GetAsync);
         api.MapPut("/stacks/{name}", UpsertAsync);
         api.MapPost("/stacks/{name}/actions/{action}", ActionAsync);
+        api.MapPut("/stacks/{name}/images/{service}", SetImageAsync);
         api.MapDelete("/stacks/{name}", DeleteAsync);
         api.MapGet("/stacks/{name}/logs", LogsAsync);
     }
@@ -203,6 +211,37 @@ public static class StacksApi
                 : await stacks.DeployAsync(stackId, ctx.CancellationToken);
             return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"Deploy failed: {LastLine(output)}");
         });
+
+    /// <summary>Makes MatDock run another image for a service than the compose file names (the file stays as it is); takes effect with the next deploy or update.</summary>
+    private static async Task<IResult> SetImageAsync(HttpContext http, string name, string service,
+        EnvironmentService environments, StackService stacks)
+    {
+        if (!StackCommands.IsValidName(name))
+        {
+            return ApiResults.BadRequest(InvalidName);
+        }
+
+        var (body, bodyError) = await ApiResults.ReadBodyAsync<ImageOverrideBody>(http.Request);
+        if (bodyError is not null)
+        {
+            return bodyError;
+        }
+
+        var (env, error) = await MatDockApi.ResolveEnvironmentAsync(http, environments);
+        if (env is null)
+        {
+            return error!;
+        }
+
+        var stack = await stacks.GetByNameAsync(env.Id, name, http.RequestAborted);
+        if (stack is null)
+        {
+            return ApiResults.NotFound($"Stack '{name}' is not managed by MatDock.");
+        }
+
+        var (ok, message) = await stacks.SetImageOverrideAsync(stack.Id, service, body?.Image, http.RequestAborted);
+        return ok ? ApiResults.Ok(new { service, image = body?.Image?.Trim() is { Length: > 0 } image ? image : null, message }) : ApiResults.BadRequest(message);
+    }
 
     private static async Task<IResult> ActionAsync(HttpContext http, string name, string action,
         EnvironmentService environments, StackService stacks, ContainerService containers, OperationRegistry operations)

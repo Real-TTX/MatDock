@@ -45,7 +45,7 @@ public class UpdatePinningTests
     public void Update_without_pins_pulls_everything()
     {
         var cmd = StackCommands.Update("docker", "media");
-        Assert.Contains("docker compose -p \"$name\" pull;", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf pull;", cmd);
         Assert.DoesNotContain("config --services", cmd);
     }
 
@@ -54,9 +54,9 @@ public class UpdatePinningTests
     {
         var cmd = StackCommands.Update("docker", "media", new[] { "db", "cache" });
         Assert.Contains("pins=\" db cache \"", cmd);
-        Assert.Contains("docker compose -p \"$name\" config --services", cmd);
-        Assert.Contains("docker compose -p \"$name\" pull $svcs", cmd);
-        Assert.Contains("docker compose -p \"$name\" up -d", cmd); // the stack is still brought up
+        Assert.Contains("docker compose -p \"$name\" $cf config --services", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf pull $svcs", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf up -d", cmd); // the stack is still brought up
 
         // The body sits in sh -c '…': a single quote would end it.
         var start = cmd.IndexOf("sh -c '", StringComparison.Ordinal) + "sh -c '".Length;
@@ -68,8 +68,8 @@ public class UpdatePinningTests
     public void GitSync_with_pins_uses_the_compose_file_argument()
     {
         var cmd = StackCommands.GitSync("docker", "media", "deploy/compose.yml", pull: true, pinned: new[] { "db" });
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" config --services", cmd);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" pull $svcs", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov config --services", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov pull $svcs", cmd);
         // No pull requested: pins change nothing.
         Assert.DoesNotContain("config --services", StackCommands.GitSync("docker", "media", "c.yml", pull: false, pinned: new[] { "db" }));
     }

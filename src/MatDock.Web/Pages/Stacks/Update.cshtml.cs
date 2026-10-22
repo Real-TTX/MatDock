@@ -34,6 +34,10 @@ public class UpdateModel : PageModel
     public StackUpdateReport? Report { get; private set; }
     public IReadOnlyList<StackUpdateRun> History { get; private set; } = Array.Empty<StackUpdateRun>();
 
+    /// <summary>The image each service has in the compose file, and the ones MatDock runs instead.</summary>
+    public IReadOnlyDictionary<string, string> ComposeImages { get; private set; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, ImageOverride> Overrides { get; private set; } = new Dictionary<string, ImageOverride>();
+
     public async Task<IActionResult> OnGetAsync()
     {
         var ct = HttpContext.RequestAborted;
@@ -51,6 +55,8 @@ public class UpdateModel : PageModel
         }
 
         EnvName = env.Name;
+        ComposeImages = ImageOverrides.ComposeImages(Stack.ComposeYaml);
+        Overrides = ImageOverrides.Of(Stack);
         Report = await _updates.CheckStackAsync(env, Stack.Name, ct, newerTags: true);
         History = await _updates.GetHistoryAsync(Stack.Id, 10, ct);
         return Page();
@@ -60,6 +66,15 @@ public class UpdateModel : PageModel
     public async Task<IActionResult> OnPostPinAsync(string service, bool pin)
     {
         var (ok, message) = await _stacks.SetPinnedAsync(Id, service, pin, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(new { Id });
+    }
+
+    /// <summary>Makes MatDock run another image for a service than the compose file names (empty = the compose file's again). Applied by the next update.</summary>
+    public async Task<IActionResult> OnPostImageAsync(string service, string? image, bool reset)
+    {
+        var (ok, message) = await _stacks.SetImageOverrideAsync(Id, service, reset ? null : image, HttpContext.RequestAborted);
         StatusMessage = message;
         IsError = !ok;
         return RedirectToPage(new { Id });

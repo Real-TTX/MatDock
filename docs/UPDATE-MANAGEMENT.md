@@ -19,7 +19,8 @@ Baut auf vorhandenen Bausteinen auf: Registry-v2-API (`RegistryApiClient`), Stac
 | Update-Historie je Stack (wer, wann, Ergebnis, welche Services mit welchem Image; die letzten 50) | umgesetzt (`StackUpdateRun`, Update-Seite) |
 | Pinning je Service: ein gepinnter Service wird beim `compose pull` ausgelassen (manuell, Schedule, API) und nie als Update gemeldet | umgesetzt (`Stack.PinnedServices`) |
 | Hinweis auf eine neuere Versions-Tag (`1.2.3` → `1.3.0`, nur reine Versionen, nur Information) | umgesetzt (`TagVersion`) |
-| Override-Compose für Git-Stacks, Springen auf eine neuere Version per Knopfdruck | offen (nicht geplant: das Tag in der Compose ändern) |
+| Eigene Version pro Service (Image-Override): MatDock läuft ein anderes Image als die Compose nennt, die Datei (Git oder Editor) bleibt unverändert; Basis-Prüfung, Backup/Restore | umgesetzt (`Stack.ImageOverridesJson`, `matdock-override.yml`, Update-Seite, `PUT /api/v1/stacks/{name}/images/{service}`) |
+| Eigene Update-Regeln pro Stack/Service (Modus, Strategie, Zeitfenster), Update-Übersicht mit Update-All, Benachrichtigung je neuer Version | offen (nächster Schritt) |
 
 ## 1. Was heißt „Update"?
 - **Bewegtes Tag** (`:latest`, `:stable`): gleicher Tag, **neuer Digest** in der Registry → Image geändert.
@@ -81,3 +82,14 @@ Multi-Arch (Manifest-Listen-Digest), `build:`-Services (übersprungen), Standalo
 2. **Health-Gate + Rollback** (alte Digests) + Backup-Aufbewahrung.
 3. **Auto-Update via Schedules** (anwenden / nur-melden).
 4. **Pinning & Override** (Semver für gepinnte Services, Override-Compose für Git-Stacks).
+
+## 11. Image-Override: das Tag der Compose ist nur der Startwert
+
+MatDock kann pro Service ein anderes Image laufen lassen, als die Compose nennt, ohne die Compose zu ändern (weder im Git noch im Editor).
+
+- **Speicherort:** `Stack.ImageOverridesJson`, je Service `{base, image}`. `base` ist das Image, das die Compose beim Setzen nannte (so geschrieben, mit Variablen), `image` das, das MatDock laufen lässt.
+- **Wirkung:** Beim Deploy schreibt MatDock `matdock-override.yml` neben die Compose (nur `services.<name>.image`), alle Compose-Befehle (deploy, update, pull, up, down, start, stop, restart, Git-Sync) nennen sie als zweite `-f`-Datei, wenn sie existiert. Ohne Override wird die Datei entfernt und compose läuft wie früher.
+- **Compose wird bearbeitet:** Eine Änderung an anderer Stelle lässt den Override in Ruhe. Ändert sich die Image-Zeile des Services (Basis stimmt nicht mehr) oder verschwindet der Service, gewinnt die Compose: der Override wird verworfen und das gemeldet (Meldung beim Speichern, im Deploy-Ausgang). Halb getippte Dateien (kein gültiges YAML, nur `include:`) kosten keinen Override.
+- **Backup/Restore:** Das Bundle-Manifest enthält die Overrides (`ImageOverrides`; null = ältere Bundles, ein Restore lässt dann die aktuellen). Ein Restore stellt nur die wieder her, die zur wiederhergestellten Compose passen.
+- **Bedienung:** Stacks → Update (Feld je Service, Zurück-Knopf), Hinweis im Compose-Editor, API `PUT /api/v1/stacks/{name}/images/{service}` (`{image}`, leer = zurück), `imageOverrides` im Stack-Detail.
+- **Grenze:** Wer auf dem Host direkt `docker compose up` ohne MatDock ausführt, bekommt den Compose-Stand ohne Override.

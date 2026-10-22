@@ -31,6 +31,10 @@ public sealed class BundleManifest
     /// Git stack, or a bundle from an older MatDock) — a restore then keeps the stack's current <c>.env</c>.</summary>
     public string? EnvContent { get; set; }
 
+    /// <summary>The image overrides of a managed inline stack as JSON ("" = none); null when unknown (generated compose, Git stack, or a bundle from an
+    /// older MatDock) - a restore then keeps what the stack has now.</summary>
+    public string? ImageOverrides { get; set; }
+
     /// <summary>Owner of the managed stack (e.g. <c>mattiverse</c>), restored with a re-created stack.</summary>
     public string? ManagedBy { get; set; }
 
@@ -229,6 +233,7 @@ public sealed class BundleBackupService
             ComposeSource = composeSource,
             Compose = compose,
             EnvContent = managed is null ? null : managed.EnvContent ?? string.Empty,
+            ImageOverrides = managed is null ? null : managed.ImageOverridesJson ?? string.Empty,
             ManagedBy = stack?.ManagedBy,
             Services = services,
             Volumes = volumes
@@ -333,6 +338,12 @@ public sealed class BundleBackupService
             {
                 await _stackService.UpdateAsync(existing.Id, input, ct);
                 stackId = existing.Id;
+            }
+
+            // The images MatDock ran for the services come back with the compose they were made against.
+            if (manifest.ImageOverrides is not null)
+            {
+                await _stackService.RestoreImageOverridesAsync(stackId, manifest.ImageOverrides, ct);
             }
 
             var (dok, dout) = await _stackService.DeployAsync(stackId, ct);

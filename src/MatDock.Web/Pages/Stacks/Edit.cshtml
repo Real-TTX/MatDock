@@ -17,6 +17,20 @@
         <icon name="plug" /><div class="mat-alert__body"><managed-badge value="@Model.ManagedBy" /> This stack was created by @owner. Manual changes may be overwritten the next time @owner updates it.</div>
     </div>
 }
+@if (Model.IsEdit && Model.Overrides.Count > 0)
+{
+    <div class="mat-alert mat-alert--info">
+        <icon name="refresh" />
+        <div class="mat-alert__body">
+            MatDock runs other images than this file names:
+            @foreach (var (service, over) in Model.Overrides)
+            {
+                <span class="mat-mono">@service: @over.Image</span><span class="mat-muted"> (file: @over.Base)</span>@(service == Model.Overrides.Keys.Last() ? "." : ";")
+            }
+            <a href="/Stacks/Update?id=@Model.Input.Id">Change</a>
+        </div>
+    </div>
+}
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     if (Model.IsError)

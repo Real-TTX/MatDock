@@ -91,7 +91,7 @@ public static partial class StackCommands
         // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
         // single quotes, so it reaches the remote sh verbatim. The files arrive on stdin.
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
-                   + WriteFiles + "cd \"$dir\"; " + dockerHead + " compose -p \"$name\" up -d";
+                   + WriteFiles + "cd \"$dir\"; " + InlineFiles + dockerHead + " compose -p \"$name\" $cf up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
@@ -103,8 +103,8 @@ public static partial class StackCommands
     {
         Require(name);
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
-                   + WriteFiles + "cd \"$dir\"; "
-                   + PullStep(dockerHead, "-p \"$name\"", pinned) + dockerHead + " compose -p \"$name\" up -d";
+                   + WriteFiles + "cd \"$dir\"; " + InlineFiles
+                   + PullStep(dockerHead, "-p \"$name\" $cf", pinned) + dockerHead + " compose -p \"$name\" $cf up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
@@ -143,9 +143,14 @@ public static partial class StackCommands
     /// the command line (where <c>ps</c> on the host would show it) and is readable by its owner only.
     /// </summary>
     private const string WriteFiles =
-        "IFS= read -r envb64 || true; "
+        "IFS= read -r envb64 || true; IFS= read -r ovb64 || true; "
         + "if [ -n \"$envb64\" ]; then (umask 077; printf %s \"$envb64\" | base64 -d > \"$dir/.env\"); else rm -f \"$dir/.env\"; fi; "
+        + "if [ -n \"$ovb64\" ]; then printf %s \"$ovb64\" | base64 -d > \"$dir/" + ImageOverrides.FileName + "\"; else rm -f \"$dir/" + ImageOverrides.FileName + "\"; fi; "
         + "cat > \"$dir/docker-compose.yml\"; ";
+
+    /// <summary>After <see cref="WriteFiles"/> and <c>cd</c>: the compose files to name when MatDock overrides images (<c>$cf</c>), nothing otherwise.</summary>
+    private const string InlineFiles =
+        "cf=\"\"; if [ -f \"" + ImageOverrides.FileName + "\" ]; then cf=\"-f docker-compose.yml -f " + ImageOverrides.FileName + "\"; fi; ";
 
     /// <summary>
     /// <c>docker compose config</c> of the files on stdin (<see cref="FilesOnStdin"/>) in a temporary directory on the host, which is
@@ -158,13 +163,14 @@ public static partial class StackCommands
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script) + " 2>&1";
     }
 
-    /// <summary>What <see cref="Deploy"/> and <see cref="Update"/> read from stdin: the <c>.env</c> as one base64 line, then the compose file.</summary>
-    public static byte[] FilesOnStdin(string composeYaml, string? envContent)
+    /// <summary>What <see cref="Deploy"/> and <see cref="Update"/> read from stdin: the <c>.env</c> as one base64 line, the image overrides
+    /// (<see cref="ImageOverrides.Render"/>) as another (empty = none, a stale file is removed), then the compose file.</summary>
+    public static byte[] FilesOnStdin(string composeYaml, string? envContent, string? overrideYaml = null)
     {
         var env = string.IsNullOrEmpty(envContent)
             ? string.Empty
             : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(envContent.Replace("\r\n", "\n")));
-        return System.Text.Encoding.UTF8.GetBytes(env + "\n" + composeYaml.Replace("\r\n", "\n"));
+        return System.Text.Encoding.UTF8.GetBytes(env + "\n" + ImageOverrides.Base64Of(overrideYaml) + "\n" + composeYaml.Replace("\r\n", "\n"));
     }
 
     /// <summary><c>compose down</c> for the stack (stops and removes containers, with <c>--volumes</c> also its
@@ -245,27 +251,36 @@ public static partial class StackCommands
         // individually shell-quoted args so no user value is embedded in the single-quoted script body.
         // Without the files on the host (never deployed from here, or a lost directory) compose still finds
         // the project's containers by its label, so stop/start/down keep working.
+        // MatDock's image overrides (a file next to the compose file) are part of the project whenever they exist.
         var script = "set -e; dir=\"" + StacksDir + "/$1\"; "
-                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + dockerHead + " compose -p \"$1\" -f \"$2\" " + verb + "; "
+                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + dockerHead + " compose -p \"$1\" -f \"$2\" $ov " + verb + "; "
                    + "else " + dockerHead + " compose -p \"$1\" " + verb + "; fi";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
     }
 
+    /// <summary>After <c>cd</c> into the stack dir: <c>$ov</c> names the image overrides when that file exists, else it is empty.</summary>
+    private const string OverrideFile =
+        "ov=\"\"; if [ -f \"" + ImageOverrides.FileName + "\" ]; then ov=\"-f " + ImageOverrides.FileName + "\"; fi; ";
+
     /// <summary>
     /// Extracts a repo tarball (from stdin) into the stack dir and runs <c>compose up -d</c> with the given
     /// compose file. Files are overlaid (never wiped) so bind-mounted runtime data survives a redeploy.
-    /// $1 = stack name, $2 = compose path (both shell-quoted args, not embedded).
+    /// $1 = stack name, $2 = compose path, $3 = the image overrides (<see cref="ImageOverrides.Base64Of"/>, empty = none; a stale file is removed),
+    /// all shell-quoted args, not embedded.
     /// </summary>
-    public static string GitSync(string dockerHead, string name, string composePath, bool pull = false, IReadOnlyCollection<string>? pinned = null)
+    public static string GitSync(string dockerHead, string name, string composePath, bool pull = false, IReadOnlyCollection<string>? pinned = null, string? overrideYaml = null)
     {
         Require(name);
         // Optionally pull first so :latest images are refreshed before the (idempotent) up -d; pinned services are not pulled.
-        var pullStep = pull ? PullStep(dockerHead, "-p \"$1\" -f \"$2\"", pinned) : string.Empty;
+        var pullStep = pull ? PullStep(dockerHead, "-p \"$1\" -f \"$2\" $ov", pinned) : string.Empty;
         var script = "set -e; dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
-                   + "tar -C \"$dir\" -xf -; cd \"$dir\"; " + pullStep
-                   + dockerHead + " compose -p \"$1\" -f \"$2\" up -d";
+                   + "tar -C \"$dir\" -xf -; cd \"$dir\"; "
+                   + "if [ -n \"$3\" ]; then printf %s \"$3\" | base64 -d > \"" + ImageOverrides.FileName + "\"; else rm -f \"" + ImageOverrides.FileName + "\"; fi; "
+                   + OverrideFile + pullStep
+                   + dockerHead + " compose -p \"$1\" -f \"$2\" $ov up -d";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
-             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
+             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
+             + " " + VolumeFileCommands.ShellQuote(ImageOverrides.Base64Of(overrideYaml)) + " 2>&1";
     }
 }

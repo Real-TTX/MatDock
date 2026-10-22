@@ -51,7 +51,7 @@ public class StackCommandsTests
         Assert.Contains("name=media;", cmd);
         Assert.Contains("mkdir -p", cmd);
         Assert.Contains("cat > \"$dir/docker-compose.yml\"", cmd);  // YAML arrives on stdin, never interpolated
-        Assert.Contains("docker compose -p \"$name\" up -d", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf up -d", cmd);
         Assert.EndsWith("2>&1", cmd);                               // output merged for the UI
     }
 
@@ -60,8 +60,8 @@ public class StackCommandsTests
     {
         var cmd = StackCommands.Update("docker", "media");
         Assert.Contains("cat > \"$dir/docker-compose.yml\"", cmd);
-        Assert.Contains("docker compose -p \"$name\" pull;", cmd);
-        Assert.Contains("docker compose -p \"$name\" up -d", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf pull;", cmd);
+        Assert.Contains("docker compose -p \"$name\" $cf up -d", cmd);
         Assert.EndsWith("2>&1", cmd);
     }
 
@@ -76,8 +76,8 @@ public class StackCommandsTests
 
         var stdin = System.Text.Encoding.UTF8.GetString(StackCommands.FilesOnStdin("services: {}\r\n", env));
         var b64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("SECRET=hunter2\nBAZ=qux"));
-        Assert.Equal(b64 + "\nservices: {}\n", stdin);
-        Assert.Equal("\nservices: {}", System.Text.Encoding.UTF8.GetString(StackCommands.FilesOnStdin("services: {}", null)));
+        Assert.Equal(b64 + "\n\nservices: {}\n", stdin); // the .env line, the (empty) override line, the compose file
+        Assert.Equal("\n\nservices: {}", System.Text.Encoding.UTF8.GetString(StackCommands.FilesOnStdin("services: {}", null)));
 
         // The single-quoted sh -c body has no single quote of its own.
         var start = cmd.IndexOf("sh -c '", System.StringComparison.Ordinal) + "sh -c '".Length;
@@ -137,7 +137,7 @@ public class StackCommandsTests
     {
         var cmd = StackCommands.Down("sudo -n docker", "media", "docker-compose.yml");
         Assert.Contains("set -e;", cmd);   // abort early if the stack dir is missing
-        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" down", cmd);
+        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" $ov down", cmd);
         Assert.Contains("sh 'media' 'docker-compose.yml'", cmd); // name + path passed as quoted args
     }
 
@@ -145,11 +145,11 @@ public class StackCommandsTests
     public void Stop_and_Start_build_expected_commands()
     {
         var stop = StackCommands.Stop("docker", "media", "docker-compose.yml");
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" stop", stop);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov stop", stop);
         Assert.Contains("sh 'media' 'docker-compose.yml'", stop);
 
         var start = StackCommands.Start("sudo -n docker", "media", "compose.yml");
-        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" start", start);
+        Assert.Contains("sudo -n docker compose -p \"$1\" -f \"$2\" $ov start", start);
         Assert.EndsWith("2>&1", start);
     }
 
@@ -189,7 +189,7 @@ public class StackCommandsTests
         var cmd = StackCommands.GitSync("docker", "media", "stacks/app/compose.yml");
         Assert.Contains("tar -C \"$dir\" -xf -", cmd);                 // extract repo tarball from stdin
         Assert.DoesNotContain("-delete", cmd);                         // never wipe (preserve runtime data)
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" up -d", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov up -d", cmd);
         Assert.Contains("sh 'media' 'stacks/app/compose.yml'", cmd);
     }
 
@@ -197,8 +197,8 @@ public class StackCommandsTests
     public void GitSync_with_pull_pulls_before_up()
     {
         var cmd = StackCommands.GitSync("docker", "media", "compose.yml", pull: true);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" pull;", cmd);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" up -d", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov pull;", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov up -d", cmd);
     }
 
     [Fact]
@@ -284,17 +284,17 @@ public class StackCommandsTests
     public void Lifecycle_falls_back_to_the_project_label_without_files()
     {
         var down = StackCommands.Down("docker", "media", "docker-compose.yml");
-        Assert.Contains("if [ -f \"$dir/$2\" ]; then cd \"$dir\"; docker compose -p \"$1\" -f \"$2\" down;", down);
+        Assert.Contains("if [ -f \"$dir/$2\" ]; then cd \"$dir\"; ov=\"\"; if [ -f \"matdock-override.yml\" ]; then ov=\"-f matdock-override.yml\"; fi; docker compose -p \"$1\" -f \"$2\" $ov down;", down);
         Assert.Contains("else docker compose -p \"$1\" down; fi", down);
     }
 
     [Fact]
     public void Restart_pull_and_down_with_volumes_build_expected_commands()
     {
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" restart", StackCommands.Restart("docker", "media", "docker-compose.yml"));
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" pull", StackCommands.Pull("docker", "media", "docker-compose.yml"));
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov restart", StackCommands.Restart("docker", "media", "docker-compose.yml"));
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov pull", StackCommands.Pull("docker", "media", "docker-compose.yml"));
         var down = StackCommands.Down("docker", "media", "docker-compose.yml", removeVolumes: true);
-        Assert.Contains("-f \"$2\" down --volumes;", down);
+        Assert.Contains("-f \"$2\" $ov down --volumes;", down);
         Assert.Contains("else docker compose -p \"$1\" down --volumes; fi", down);
         Assert.Throws<System.ArgumentException>(() => StackCommands.Restart("docker", "a;b", "docker-compose.yml"));
     }

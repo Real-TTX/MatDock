@@ -36,6 +36,10 @@ public class Stack : AuditableEntity
     /// Null/empty = nothing pinned.</summary>
     public string? PinnedServices { get; set; }
 
+    /// <summary>The images MatDock runs instead of the ones in the compose file, per service, as JSON (see <see cref="Stacks.ImageOverrides"/>).
+    /// The compose file itself is never changed. Null/empty = none.</summary>
+    public string? ImageOverridesJson { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }

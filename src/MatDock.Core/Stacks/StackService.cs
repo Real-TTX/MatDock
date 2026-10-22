@@ -91,6 +91,88 @@ public sealed class StackService
         return (true, pinned ? $"{service} is pinned: updates skip it." : $"{service} is no longer pinned.");
     }
 
+    /// <summary>
+    /// Makes MatDock run <paramref name="image"/> for a service instead of the image in the compose file (which stays as it is); null or the compose's own image
+    /// takes the override away again. It takes effect with the next deploy or update.
+    /// </summary>
+    public async Task<(bool Ok, string Message)> SetImageOverrideAsync(long id, string service, string? image, CancellationToken ct = default)
+    {
+        if (!StackCommands.IsValidServiceName(service))
+        {
+            return (false, "Invalid service name.");
+        }
+
+        image = image?.Trim();
+        if (!string.IsNullOrEmpty(image) && !Images.ImageCommands.IsValidImageRef(image))
+        {
+            return (false, "Invalid image reference.");
+        }
+
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        var overrides = ImageOverrides.Of(stack).ToDictionary(o => o.Key, o => o.Value, StringComparer.Ordinal);
+        if (!ImageOverrides.TryComposeImages(stack.ComposeYaml, out var composeImages) || !composeImages.TryGetValue(service, out var composeImage))
+        {
+            return (false, $"The compose file of this stack has no image for '{service}'." + (stack.IsGitBacked ? " Deploy it once so its compose file is known." : string.Empty));
+        }
+
+        if (string.IsNullOrEmpty(image) || string.Equals(image, composeImage, StringComparison.Ordinal))
+        {
+            if (!overrides.Remove(service))
+            {
+                return (true, $"{service} runs the image of the compose file already ({composeImage}).");
+            }
+
+            stack.ImageOverridesJson = ImageOverrides.Serialize(overrides);
+            await _db.SaveChangesAsync(ct);
+            return (true, $"{service} follows the compose file again ({composeImage}). Deploy to apply it.");
+        }
+
+        overrides[service] = new ImageOverride(composeImage, image);
+        stack.ImageOverridesJson = ImageOverrides.Serialize(overrides);
+        await _db.SaveChangesAsync(ct);
+        return (true, $"{service} will run {image} instead of {composeImage}. Deploy to apply it.");
+    }
+
+    /// <summary>Sets the overrides of a stack from stored JSON (a restored backup): the ones that fit its compose file stay, the rest are dropped.</summary>
+    public async Task RestoreImageOverridesAsync(long id, string? json, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return;
+        }
+
+        stack.ImageOverridesJson = ImageOverrides.Serialize(ImageOverrides.Parse(json));
+        ReconcileOverrides(stack, stack.ComposeYaml);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Drops the overrides that no longer fit the compose file (see <see cref="ImageOverrides.Reconcile"/>) and answers what was dropped.</summary>
+    private static IReadOnlyList<string> ReconcileOverrides(Stack stack, string? composeYaml)
+    {
+        var current = ImageOverrides.Of(stack);
+        if (current.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var kept = ImageOverrides.Reconcile(current, composeYaml, out var notes);
+        if (notes.Count > 0)
+        {
+            stack.ImageOverridesJson = ImageOverrides.Serialize(kept);
+        }
+
+        return notes;
+    }
+
+    private static string WithNotes((bool Ok, string Output) result, IReadOnlyList<string> notes)
+        => notes.Count == 0 ? result.Output : result.Output + "\n" + string.Join("\n", notes.Select(n => "Image override dropped, " + n));
+
     public Task<Stack?> GetAsync(long id, CancellationToken ct = default)
         => _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
 
@@ -183,8 +265,10 @@ public sealed class StackService
         }
 
         Apply(stack, input);
+        // An edited image line is a decision of its own: the override made against the old line goes.
+        var notes = stack.IsGitBacked ? Array.Empty<string>() : ReconcileOverrides(stack, stack.ComposeYaml);
         await _db.SaveChangesAsync(ct);
-        return (true, "Stack saved.");
+        return (true, notes.Count == 0 ? "Stack saved." : "Stack saved. " + string.Join(" ", notes.Select(n => "Image override dropped, " + n)));
     }
 
     public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)
@@ -443,13 +527,16 @@ public sealed class StackService
 
         await LoginRegistriesAsync(prep, ct);
 
-        var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent);
+        // The compose file may have changed an image since the override was made: then the compose wins.
+        var notes = ReconcileOverrides(stack, stack.ComposeYaml);
+        var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent, ImageOverrides.Render(ImageOverrides.Of(stack)));
         var command = pull
             ? StackCommands.Update(prep.Head!, stack.Name, PinnedOf(stack))
             : StackCommands.Deploy(prep.Head!, stack.Name);
-        return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
+        var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
+        return (ok, WithNotes((ok, output), notes));
     }
 
     private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, bool pull, CancellationToken ct)
@@ -529,14 +616,17 @@ public sealed class StackService
 
         // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
         var localDir = workDir;
-        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull, PinnedOf(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
+        // The repo may have changed an image since the override was made: then the repo wins.
+        var notes = ReconcileOverrides(stack, composeContent);
+        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)));
+        var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
             ct, beforePersist: s =>
             {
                 s.ComposeYaml = composeContent;
                 s.AppMetaJson = BuildAppMetaJson(composeContent, localDir, composePath);
             });
+        return (ok, WithNotes((ok, output), notes));
     }
 
     /// <summary>

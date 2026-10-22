@@ -50,7 +50,27 @@
                     {
                         <tr>
                             <td data-label="Service">@img.Service</td>
-                            <td data-label="Image" class="mat-mono mat-text-break">@img.Image</td>
+                            <td data-label="Image" class="mat-mono mat-text-break">
+                                @img.Image
+                                @if (Model.Overrides.TryGetValue(img.Service, out var over))
+                                {
+                                    <div class="mat-muted" title="The compose file names this image; MatDock runs the one above.">Compose: @over.Base</div>
+                                }
+                                @if (Model.ComposeImages.ContainsKey(img.Service))
+                                {
+                                    <form method="post" asp-page-handler="Image" class="md-image-form">
+                                        <input type="hidden" name="id" value="@Model.Id" />
+                                        <input type="hidden" name="service" value="@img.Service" />
+                                        <input name="image" class="mat-input mat-mono md-image-input" value="@(over is not null ? over.Image : Model.ComposeImages[img.Service])"
+                                               aria-label="Image of @img.Service" title="The image MatDock runs for this service. The compose file stays as it is." spellcheck="false" autocomplete="off" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Run this image" aria-label="Run this image for @img.Service"><icon name="save" /></button>
+                                        @if (over is not null)
+                                        {
+                                            <button type="submit" name="reset" value="true" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Back to the compose file's image" aria-label="Use the compose file's image for @img.Service"><icon name="refresh" /></button>
+                                        }
+                                    </form>
+                                }
+                            </td>
                             <td data-label="Status">
                                 @if (img.Pinned)
                                 {
@@ -68,9 +88,13 @@
                                 {
                                     <span class="mat-pill mat-pill--ok">Up to date</span>
                                 }
+                                @if (Model.Overrides.ContainsKey(img.Service))
+                                {
+                                    <span class="mat-pill mat-pill--info" title="MatDock runs another image than the compose file names.">Override</span>
+                                }
                                 @if (img.NewerTag is not null)
                                 {
-                                    <span class="mat-pill mat-pill--info" title="A newer version tag exists. Change the image tag in the compose file to move to it.">Newer: @img.NewerTag</span>
+                                    <span class="mat-pill mat-pill--info" title="A newer version tag exists. Enter it in the image field to run it.">Newer: @img.NewerTag</span>
                                 }
                             </td>
                             <td data-label="Local" class="mat-mono mat-muted" title="@img.LocalDigest">@Short(img.LocalDigest)</td>

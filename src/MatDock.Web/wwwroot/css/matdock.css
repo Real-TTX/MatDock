@@ -234,3 +234,7 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 
 /* A small inline add/pull form in a toolbar or actions row (image pull). */
 .md-inline-form { display: flex; align-items: center; gap: var(--mat-space-2); }
+
+/* Stack updates: the image MatDock runs for a service, beside the compose file's own. */
+.md-image-form { display: flex; align-items: center; gap: var(--mat-space-1); margin-top: var(--mat-space-1); }
+.md-image-input { flex: 1 1 10rem; min-width: 10rem; }

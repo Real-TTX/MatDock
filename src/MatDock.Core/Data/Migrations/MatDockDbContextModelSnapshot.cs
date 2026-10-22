@@ -758,6 +758,9 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ImageOverridesJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("LastDeployedAt")
                         .HasColumnType("TEXT");
 
