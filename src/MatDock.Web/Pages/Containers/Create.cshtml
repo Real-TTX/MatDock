@@ -1,0 +1,64 @@
+@page
+@model MatDock.Web.Pages.Containers.CreateModel
+@{
+    ViewData["Title"] = "New container";
+    ViewData["Width"] = "narrow";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Containers", "/Containers") };
+}
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" class="mat-form">
+            <partial name="_ValidationSummary" />
+
+            <div class="mat-form__grid">
+                <mat-field label="Environment" asp-for="Input.EnvironmentId">
+                    <select asp-for="Input.EnvironmentId" class="mat-select">
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+
+                <mat-field label="Name" asp-for="Input.Name" hint="Optional.">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="e.g. web" />
+                </mat-field>
+
+                <mat-field label="Image" asp-for="Input.Image" class="mat-field--full">
+                    <input asp-for="Input.Image" class="mat-input" placeholder="nginx:alpine" />
+                </mat-field>
+
+                <mat-field label="Ports" asp-for="Input.Ports" hint="One per line: 8080:80, 127.0.0.1:8080:80 or 53:53/udp.">
+                    <textarea asp-for="Input.Ports" class="mat-textarea" rows="3" spellcheck="false" placeholder="8080:80"></textarea>
+                </mat-field>
+
+                <mat-field label="Environment variables" asp-for="Input.Env" hint="One KEY=value per line.">
+                    <textarea asp-for="Input.Env" class="mat-textarea" rows="3" spellcheck="false" placeholder="TZ=Europe/Berlin"></textarea>
+                </mat-field>
+
+                <mat-field label="Volumes" asp-for="Input.Volumes" class="mat-field--full" hint="One per line: name:/path, /host/path:/path, add :ro for read-only.">
+                    <textarea asp-for="Input.Volumes" class="mat-textarea" rows="3" spellcheck="false" placeholder="app-data:/data"></textarea>
+                </mat-field>
+
+                <mat-field label="Restart" asp-for="Input.Restart">
+                    <select asp-for="Input.Restart" class="mat-select">
+                        <option value="no">no</option>
+                        <option value="unless-stopped">unless-stopped</option>
+                        <option value="always">always</option>
+                        <option value="on-failure">on-failure</option>
+                    </select>
+                </mat-field>
+
+                <mat-field label="Network" asp-for="Input.Network" hint="Optional.">
+                    <input asp-for="Input.Network" class="mat-input" placeholder="bridge" />
+                </mat-field>
+            </div>
+
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="play" /><span>Run container</span></button>
+                <a href="/Containers" class="mat-btn mat-btn--secondary">Cancel</a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

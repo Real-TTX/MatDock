@@ -330,6 +330,38 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>Starts an ad-hoc container (<c>docker run -d</c>). Returns the new container id or an actionable message.</summary>
+    public async Task<(bool Success, string Message)> RunAsync(DockerEnvironment environment, ContainerRunSpec spec, CancellationToken ct = default)
+    {
+        var invalid = ContainerRunCommands.Validate(spec);
+        if (invalid is not null)
+        {
+            return (false, invalid);
+        }
+
+        var settings = _environmentService.BuildSettings(environment);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+
+        try
+        {
+            using var client = _hostSessionFactory.Create(settings);
+            await ConnectAsync(client, settings, ct);
+
+            var result = await RunCommandAsync(client, ContainerRunCommands.Run(spec, head), ct);
+            var output = (result.StdOut ?? string.Empty).Trim();
+            // 2>&1 merges the pull progress into stdout; the container id is the last line.
+            var last = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty;
+            return result.ExitStatus == 0
+                ? (true, last.Length >= 12 ? $"Started {last[..12]}." : "Started.")
+                : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, output));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation(ex, "Container run of {Image} failed.", spec.Image);
+            return (false, ex.Message);
+        }
+    }
+
     public async Task<string> LogsAsync(DockerEnvironment environment, string id, int tail = 200, CancellationToken ct = default)
     {
         if (!ContainerCommands.IsValidId(id))

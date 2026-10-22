@@ -195,6 +195,10 @@
     </mat-table-body>
 
     <mat-table-actions>
+        @if (isAdmin)
+        {
+            <a href="/Containers/Create" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New container</span></a>
+        }
         <a href="@ViewUrl(Model.View)" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

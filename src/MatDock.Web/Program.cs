@@ -158,6 +158,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Volumes/Prune", "AdminOnly");
     options.Conventions.AuthorizePage("/Networks/Prune", "AdminOnly");
     options.Conventions.AuthorizePage("/Networks/Create", "AdminOnly");
+    // A one-off container can mount host paths (/:/host) → admins only.
+    options.Conventions.AuthorizePage("/Containers/Create", "AdminOnly");
     // Managed stacks deploy arbitrary compose (= arbitrary containers/binds) → admins only.
     options.Conventions.AuthorizeFolder("/Stacks", "AdminOnly");
     // App templates feed the stack editor (same power) → admins only.
