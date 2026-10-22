@@ -95,14 +95,46 @@ public static partial class StackCommands
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
-    /// <summary>Writes the stack's files from stdin, pulls newer images, then runs <c>compose up -d</c>.</summary>
-    public static string Update(string dockerHead, string name)
+    /// <summary>
+    /// Writes the stack's files from stdin, pulls newer images (not those of <paramref name="pinned"/> services), then runs
+    /// <c>compose up -d</c>, which leaves a service alone whose image did not change.
+    /// </summary>
+    public static string Update(string dockerHead, string name, IReadOnlyCollection<string>? pinned = null)
     {
         Require(name);
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
                    + WriteFiles + "cd \"$dir\"; "
-                   + dockerHead + " compose -p \"$name\" pull; " + dockerHead + " compose -p \"$name\" up -d";
+                   + PullStep(dockerHead, "-p \"$name\"", pinned) + dockerHead + " compose -p \"$name\" up -d";
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
+    }
+
+    // A compose service name: what compose accepts for a key, kept to a safe set (no quotes, spaces or shell characters).
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}\z")]
+    private static partial Regex ServiceRegex();
+
+    public static bool IsValidServiceName(string? service) => !string.IsNullOrEmpty(service) && ServiceRegex().IsMatch(service);
+
+    /// <summary>
+    /// <c>compose pull</c> of every service except the pinned ones. Without pins it is a plain pull; with pins the services come from
+    /// <c>compose config --services</c> and the pinned are left out (nothing is pulled when all are pinned). The names are validated and
+    /// contain no quote, so the fragment fits inside the single-quoted script bodies.
+    /// </summary>
+    private static string PullStep(string dockerHead, string composeArgs, IReadOnlyCollection<string>? pinned)
+    {
+        if (pinned is null || pinned.Count == 0)
+        {
+            return dockerHead + " compose " + composeArgs + " pull; ";
+        }
+
+        if (pinned.Any(p => !IsValidServiceName(p)))
+        {
+            throw new ArgumentException("Invalid pinned service name.", nameof(pinned));
+        }
+
+        return "pins=\" " + string.Join(' ', pinned) + " \"; svcs=\"\"; "
+               + "for s in $(" + dockerHead + " compose " + composeArgs + " config --services); do "
+               + "case \"$pins\" in *\" $s \"*) ;; *) svcs=\"$svcs $s\";; esac; done; "
+               + "if [ -n \"$svcs\" ]; then " + dockerHead + " compose " + composeArgs + " pull $svcs; fi; ";
     }
 
     /// <summary>
@@ -225,11 +257,11 @@ public static partial class StackCommands
     /// compose file. Files are overlaid (never wiped) so bind-mounted runtime data survives a redeploy.
     /// $1 = stack name, $2 = compose path (both shell-quoted args, not embedded).
     /// </summary>
-    public static string GitSync(string dockerHead, string name, string composePath, bool pull = false)
+    public static string GitSync(string dockerHead, string name, string composePath, bool pull = false, IReadOnlyCollection<string>? pinned = null)
     {
         Require(name);
-        // Optionally pull first so :latest images are refreshed before the (idempotent) up -d.
-        var pullStep = pull ? dockerHead + " compose -p \"$1\" -f \"$2\" pull; " : string.Empty;
+        // Optionally pull first so :latest images are refreshed before the (idempotent) up -d; pinned services are not pulled.
+        var pullStep = pull ? PullStep(dockerHead, "-p \"$1\" -f \"$2\"", pinned) : string.Empty;
         var script = "set -e; dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
                    + "tar -C \"$dir\" -xf -; cd \"$dir\"; " + pullStep
                    + dockerHead + " compose -p \"$1\" -f \"$2\" up -d";

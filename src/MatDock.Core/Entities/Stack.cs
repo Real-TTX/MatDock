@@ -32,6 +32,10 @@ public class Stack : AuditableEntity
     /// <summary>Optional <see cref="GitCredential"/> for private repos; null = anonymous/public.</summary>
     public long? GitCredentialId { get; set; }
 
+    /// <summary>Comma-separated service names that updates leave alone: not pulled by a manual update, a schedule or the API.
+    /// Null/empty = nothing pinned.</summary>
+    public string? PinnedServices { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }

@@ -317,7 +317,7 @@ public static class StacksApi
                 ctx.Log($"    {image.Service}: {image.Image} ({state})");
             }
 
-            var outcome = await updates.RunUpdateAsync(stackId, backupFirst, ct, ctx.Log);
+            var outcome = await updates.RunUpdateAsync(stackId, backupFirst, null, ct, ctx.Log, trigger: "api");
             if (!outcome.Ok)
             {
                 return OperationOutcome.Failure(LastLine(outcome.Message), new { changed = false });

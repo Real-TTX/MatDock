@@ -1,10 +1,13 @@
+using System.Text.Json;
 using MatDock.Core.Backups;
 using MatDock.Core.Containers;
+using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Images;
 using MatDock.Core.Registries;
 using MatDock.Core.Stacks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace MatDock.Core.Updates;
@@ -16,6 +19,11 @@ namespace MatDock.Core.Updates;
 /// </summary>
 public sealed class UpdateService
 {
+    /// <summary>How many update runs are kept per stack; older ones are removed.</summary>
+    public const int KeepRuns = 50;
+
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
     private readonly ContainerService _containers;
     private readonly IEnvironmentConnectionService _connection;
     private readonly EnvironmentService _environments;
@@ -23,6 +31,7 @@ public sealed class UpdateService
     private readonly StackService _stacks;
     private readonly BundleBackupService _bundle;
     private readonly UpdateCheckCache _cache;
+    private readonly MatDockDbContext _db;
     private readonly ILogger<UpdateService> _logger;
 
     public UpdateService(
@@ -33,6 +42,7 @@ public sealed class UpdateService
         StackService stacks,
         BundleBackupService bundle,
         UpdateCheckCache cache,
+        MatDockDbContext db,
         ILogger<UpdateService> logger)
     {
         _containers = containers;
@@ -42,12 +52,40 @@ public sealed class UpdateService
         _stacks = stacks;
         _bundle = bundle;
         _cache = cache;
+        _db = db;
         _logger = logger;
     }
 
-    /// <summary>Checks each image of a running stack for a newer registry digest (moving tags).</summary>
-    public async Task<StackUpdateReport> CheckStackAsync(DockerEnvironment env, string projectName, CancellationToken ct = default)
+    /// <summary>The newest update runs of a stack, newest first.</summary>
+    public async Task<IReadOnlyList<StackUpdateRun>> GetHistoryAsync(long stackId, int take = 10, CancellationToken ct = default)
+        => await _db.StackUpdateRuns.AsNoTracking()
+            .Where(r => r.StackId == stackId)
+            .OrderByDescending(r => r.CreateDate).ThenByDescending(r => r.Id)
+            .Take(Math.Clamp(take, 1, KeepRuns))
+            .ToListAsync(ct);
+
+    /// <summary>The services whose image changed in a run (empty when none, or the record has no detail).</summary>
+    public static IReadOnlyList<UpdateChange> ChangesOf(StackUpdateRun run)
     {
+        if (string.IsNullOrWhiteSpace(run.ChangesJson))
+        {
+            return Array.Empty<UpdateChange>();
+        }
+
+        try { return JsonSerializer.Deserialize<List<UpdateChange>>(run.ChangesJson, Json) ?? []; }
+        catch (JsonException) { return Array.Empty<UpdateChange>(); }
+    }
+
+    /// <summary>
+    /// Checks each image of a running stack for a newer registry digest (moving tags). Pinned services are reported as pinned and never
+    /// as an update. With <paramref name="newerTags"/> a plain version tag (<c>1.2.3</c>) also gets a hint when the registry has a newer one.
+    /// </summary>
+    public async Task<StackUpdateReport> CheckStackAsync(DockerEnvironment env, string projectName, CancellationToken ct = default, bool newerTags = false)
+    {
+        var pinned = (await _stacks.GetByNameAsync(env.Id, projectName, ct)) is { } managed
+            ? StackService.PinnedOf(managed).ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+
         IReadOnlyList<DockerContainer> containers;
         Dictionary<string, string?> localDigests;
         try
@@ -66,16 +104,22 @@ public sealed class UpdateService
 
         var statuses = new List<ImageUpdateStatus>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var registryDigests = new Dictionary<string, string?>(StringComparer.Ordinal); // one registry call per image, not per service
         foreach (var c in containers)
         {
             var image = c.Image?.Trim() ?? string.Empty;
-            if (image.Length == 0 || image == "<none>:<none>" || !seen.Add(image))
+            var service = string.IsNullOrEmpty(c.Service) ? c.Name : c.Service;
+            if (image.Length == 0 || image == "<none>:<none>" || !seen.Add($"{service}|{image}"))
             {
                 continue;
             }
 
-            var service = string.IsNullOrEmpty(c.Service) ? c.Name : c.Service;
             var iref = ImageRef.TryParse(image);
+            if (pinned.Contains(service))
+            {
+                statuses.Add(new ImageUpdateStatus(service, image, localDigests.GetValueOrDefault(image), null, false, "Pinned: updates skip it.", Pinned: true));
+                continue;
+            }
             if (iref is null)
             {
                 statuses.Add(new ImageUpdateStatus(service, image, null, null, false, "Could not parse image reference."));
@@ -88,19 +132,39 @@ public sealed class UpdateService
             }
 
             var localDigest = localDigests.GetValueOrDefault(image);
-            var registryDigest = await _registries.GetDigestForImageAsync(iref.Host, iref.Repository, iref.Tag, ct);
+            if (!registryDigests.TryGetValue(image, out var registryDigest))
+            {
+                registryDigest = await _registries.GetDigestForImageAsync(iref.Host, iref.Repository, iref.Tag, ct);
+                registryDigests[image] = registryDigest;
+            }
+
             var available = !string.IsNullOrEmpty(localDigest) && !string.IsNullOrEmpty(registryDigest)
                             && !string.Equals(localDigest, registryDigest, StringComparison.OrdinalIgnoreCase);
             string? note = registryDigest is null
                 ? "Registry unreachable or requires credentials."
                 : string.IsNullOrEmpty(localDigest) ? "Local digest unknown (pull once)." : null;
 
-            statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note));
+            // A plain version tag (1.2.3): say so when the registry has a newer one. Informational — nothing changes by itself.
+            var newer = newerTags && TagVersion.TryParse(iref.Tag) is not null
+                ? TagVersion.Newest(iref.Tag, await TagsAsync(iref, ct))
+                : null;
+
+            statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note, NewerTag: newer));
         }
 
         var report = new StackUpdateReport(statuses, null);
         _cache.Set(env.Id, projectName, report);
         return report;
+    }
+
+    private async Task<IReadOnlyList<string>> TagsAsync(ImageRef iref, CancellationToken ct)
+    {
+        try { return await _registries.ListTagsForImageAsync(iref.Host, iref.Repository, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Listing the tags of {Repository} failed.", iref.Repository);
+            return Array.Empty<string>();
+        }
     }
 
     /// <summary>Runs a manual update of a managed stack: optional pre-update backup, then pull + redeploy.</summary>
@@ -130,7 +194,26 @@ public sealed class UpdateService
     /// health check, within <see cref="UpdateSafety.Grace"/>; otherwise, with <see cref="UpdateSafety.Rollback"/>, the images the containers ran before
     /// get their tags back and the stack is deployed again (they are still on the host: a pull keeps the old image).
     /// </summary>
-    public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null)
+    /// <param name="trigger">Who started it, for the history: "manual", "schedule" or "api".</param>
+    public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null, string trigger = "manual")
+    {
+        var trace = new RunTrace();
+        var outcome = await RunUpdateCoreAsync(stackId, preBackup, safety, ct, log, trace);
+        await RecordRunAsync(stackId, trigger, outcome, trace);
+        return outcome;
+    }
+
+    /// <summary>What a run learns on the way, for its history entry.</summary>
+    private sealed class RunTrace
+    {
+        public string? StackName { get; set; }
+        public long EnvironmentId { get; set; }
+        public IReadOnlyList<(string Service, string Reference, string ImageId)>? Before { get; set; }
+        public IReadOnlyList<(string Service, string Reference, string ImageId)>? After { get; set; }
+        public bool RolledBack { get; set; }
+    }
+
+    private async Task<StackUpdateOutcome> RunUpdateCoreAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct, Action<string>? log, RunTrace trace)
     {
         var stack = await _stacks.GetAsync(stackId, ct);
         if (stack is null)
@@ -143,6 +226,10 @@ public sealed class UpdateService
         {
             return StackUpdateOutcome.Failed("Environment not available (disabled or deleted).");
         }
+
+        trace.StackName = stack.Name;
+        trace.EnvironmentId = env.Id;
+        trace.Before = await ImagesAsync(env, stack.Name, ct);
 
         if (preBackup)
         {
@@ -170,6 +257,7 @@ public sealed class UpdateService
         }
 
         _cache.Clear(env.Id, stack.Name);
+        trace.After = await ImagesAsync(env, stack.Name, ct);
         var after = await ContainerIdsAsync(env, stack.Name, ct);
         // When the containers cannot be listed, report a change rather than hide one.
         var changed = before is null || after is null || !before.SetEquals(after);
@@ -194,6 +282,7 @@ public sealed class UpdateService
         }
 
         log?.Invoke("==> Rolling back to the images from before the update");
+        trace.RolledBack = true;
         var rolledBack = await RollbackAsync(env, stack.Id, kept, ct);
         await ForgetKeptAsync(env, kept, ct);
         return StackUpdateOutcome.Failed($"{output}\nUpdated, but: {reason} {rolledBack}");
@@ -297,6 +386,78 @@ public sealed class UpdateService
         return deployed && errors.Count == 0
             ? "Rolled back to the images from before the update."
             : $"The rollback did not complete: {string.Join("; ", errors.Append(deployed ? string.Empty : output.Trim()).Where(e => e.Length > 0))}";
+    }
+
+    private async Task<IReadOnlyList<(string Service, string Reference, string ImageId)>?> ImagesAsync(DockerEnvironment env, string project, CancellationToken ct)
+    {
+        try { return await _containers.ImagesOfProjectAsync(env, project, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Reading the images of {Project} failed.", project);
+            return null;
+        }
+    }
+
+    /// <summary>The services whose image id differs between two readings (a service that is new or gone is not a change here).</summary>
+    public static IReadOnlyList<UpdateChange> DiffChanges(
+        IReadOnlyList<(string Service, string Reference, string ImageId)>? before,
+        IReadOnlyList<(string Service, string Reference, string ImageId)>? after)
+    {
+        if (before is null || after is null)
+        {
+            return Array.Empty<UpdateChange>();
+        }
+
+        static string Short(string id) => (id.StartsWith("sha256:", StringComparison.Ordinal) ? id[7..] : id) is var h && h.Length > 12 ? h[..12] : h;
+        var old = before.GroupBy(b => b.Service, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        return after
+            .Where(a => old.TryGetValue(a.Service, out var b) && !string.Equals(b.ImageId, a.ImageId, StringComparison.Ordinal))
+            .Select(a => new UpdateChange(a.Service, a.Reference, Short(old[a.Service].ImageId), Short(a.ImageId)))
+            .DistinctBy(c => c.Service)
+            .ToList();
+    }
+
+    /// <summary>Writes the history entry of a run and drops the oldest beyond <see cref="KeepRuns"/>. Never throws: a failing history must not fail an update.</summary>
+    private async Task RecordRunAsync(long stackId, string trigger, StackUpdateOutcome outcome, RunTrace trace)
+    {
+        if (trace.StackName is null)
+        {
+            return; // the stack or its environment was not found: nothing ran
+        }
+
+        try
+        {
+            var changes = DiffChanges(trace.Before, trace.After);
+            var message = outcome.Message.Trim();
+            _db.StackUpdateRuns.Add(new StackUpdateRun
+            {
+                StackId = stackId,
+                StackName = trace.StackName,
+                EnvironmentId = trace.EnvironmentId,
+                Trigger = trigger is "schedule" or "api" ? trigger : "manual",
+                Outcome = outcome.Ok
+                    ? (outcome.Changed ? UpdateRunOutcome.Updated : UpdateRunOutcome.NoChange)
+                    : (trace.RolledBack ? UpdateRunOutcome.RolledBack : UpdateRunOutcome.Failed),
+                Message = message.Length > 900 ? "…" + message[^899..] : message, // the end of the compose output is what matters
+                ChangesJson = changes.Count == 0 ? null : JsonSerializer.Serialize(changes, Json),
+            });
+            await _db.SaveChangesAsync();
+
+            var stale = await _db.StackUpdateRuns
+                .Where(r => r.StackId == stackId)
+                .OrderByDescending(r => r.CreateDate).ThenByDescending(r => r.Id)
+                .Skip(KeepRuns)
+                .ToListAsync();
+            if (stale.Count > 0)
+            {
+                _db.StackUpdateRuns.RemoveRange(stale);
+                await _db.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Recording the update run of {Stack} failed.", trace.StackName);
+        }
     }
 
     private async Task<HashSet<string>?> ContainerIdsAsync(DockerEnvironment env, string project, CancellationToken ct)

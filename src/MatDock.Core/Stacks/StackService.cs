@@ -58,6 +58,39 @@ public sealed class StackService
     public Task<List<Stack>> GetAllAsync(CancellationToken ct = default)
         => _db.Stacks.AsNoTracking().OrderBy(s => s.Name).ToListAsync(ct);
 
+    /// <summary>The services of <paramref name="stack"/> that updates leave alone (validated names only).</summary>
+    public static IReadOnlyList<string> PinnedOf(Stack stack)
+        => (stack.PinnedServices ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(StackCommands.IsValidServiceName)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>Pins or unpins one service: updates (manual, schedule, API) no longer pull its image while it is pinned.</summary>
+    public async Task<(bool Ok, string Message)> SetPinnedAsync(long id, string service, bool pinned, CancellationToken ct = default)
+    {
+        if (!StackCommands.IsValidServiceName(service))
+        {
+            return (false, "Invalid service name.");
+        }
+
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        var set = PinnedOf(stack).ToHashSet(StringComparer.Ordinal);
+        if (!(pinned ? set.Add(service) : set.Remove(service)))
+        {
+            return (true, pinned ? $"{service} is already pinned." : $"{service} was not pinned.");
+        }
+
+        stack.PinnedServices = set.Count == 0 ? null : string.Join(',', set.OrderBy(s => s, StringComparer.Ordinal));
+        await _db.SaveChangesAsync(ct);
+        return (true, pinned ? $"{service} is pinned: updates skip it." : $"{service} is no longer pinned.");
+    }
+
     public Task<Stack?> GetAsync(long id, CancellationToken ct = default)
         => _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
 
@@ -412,7 +445,7 @@ public sealed class StackService
 
         var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent);
         var command = pull
-            ? StackCommands.Update(prep.Head!, stack.Name)
+            ? StackCommands.Update(prep.Head!, stack.Name, PinnedOf(stack))
             : StackCommands.Deploy(prep.Head!, stack.Name);
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
@@ -496,7 +529,7 @@ public sealed class StackService
 
         // Stream the tar straight into the SSH channel (no full-repo buffer in memory).
         var localDir = workDir;
-        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull);
+        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull, PinnedOf(stack));
         return await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
             ct, beforePersist: s =>

@@ -32,6 +32,7 @@ public class UpdateModel : PageModel
     public Stack? Stack { get; private set; }
     public string? EnvName { get; private set; }
     public StackUpdateReport? Report { get; private set; }
+    public IReadOnlyList<StackUpdateRun> History { get; private set; } = Array.Empty<StackUpdateRun>();
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -50,8 +51,18 @@ public class UpdateModel : PageModel
         }
 
         EnvName = env.Name;
-        Report = await _updates.CheckStackAsync(env, Stack.Name, ct);
+        Report = await _updates.CheckStackAsync(env, Stack.Name, ct, newerTags: true);
+        History = await _updates.GetHistoryAsync(Stack.Id, 10, ct);
         return Page();
+    }
+
+    /// <summary>Pins or unpins one service: updates skip a pinned service.</summary>
+    public async Task<IActionResult> OnPostPinAsync(string service, bool pin)
+    {
+        var (ok, message) = await _stacks.SetPinnedAsync(Id, service, pin, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(new { Id });
     }
 
     public async Task<IActionResult> OnPostUpdateAsync()

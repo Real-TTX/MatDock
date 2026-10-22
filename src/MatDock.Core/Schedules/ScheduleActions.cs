@@ -541,7 +541,7 @@ public sealed class UpdateStacksAction : IScheduleAction
                 continue;
             }
 
-            var outcome = await _updates.RunUpdateAsync(stack.Id, opt.UpdateBackupFirst, opt.UpdateRollback ? Updates.UpdateSafety.Default : null, ct);
+            var outcome = await _updates.RunUpdateAsync(stack.Id, opt.UpdateBackupFirst, opt.UpdateRollback ? Updates.UpdateSafety.Default : null, ct, trigger: "schedule");
             if (outcome.Ok)
             {
                 updated.Add(stack.Name);

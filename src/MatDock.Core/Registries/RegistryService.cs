@@ -125,6 +125,15 @@ public sealed class RegistryService
         return await _api.GetDigestAsync(login, repo, tag, ct);
     }
 
+    /// <summary>The tags of a repository on a registry host, using configured credentials for the host or anonymous access;
+    /// empty when unavailable. Used for the "newer version" hint.</summary>
+    public async Task<IReadOnlyList<string>> ListTagsForImageAsync(string host, string repo, CancellationToken ct = default)
+    {
+        var login = await ResolveLoginForHostAsync(host, ct);
+        var list = await _api.ListTagsAsync(login, repo, ct);
+        return list.Error is null ? list.Tags : Array.Empty<string>();
+    }
+
     private async Task<RegistryLogin> ResolveLoginForHostAsync(string host, CancellationToken ct)
     {
         var norm = NormalizeHost(host);

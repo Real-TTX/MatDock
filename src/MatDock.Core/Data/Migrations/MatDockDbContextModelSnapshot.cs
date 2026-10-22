@@ -764,6 +764,10 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PinnedServices")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("SyncJobId")
                         .HasColumnType("INTEGER");
 
@@ -915,6 +919,60 @@ namespace MatDock.Core.Data.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("StackTemplate", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.StackUpdateRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChangesJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("StackId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StackName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StackId", "CreateDate");
+
+                    b.ToTable("StackUpdateRun", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.SyncJob", b =>

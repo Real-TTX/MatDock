@@ -38,6 +38,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
+    public DbSet<StackUpdateRun> StackUpdateRuns => Set<StackUpdateRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -154,6 +155,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.GitReference).HasMaxLength(200);
             e.Property(x => x.GitComposePath).HasMaxLength(500);
             e.Property(x => x.ManagedBy).HasMaxLength(100);
+            e.Property(x => x.PinnedServices).HasMaxLength(1000);
             e.HasIndex(x => x.SyncJobId);
             e.Ignore(x => x.IsGitBacked);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
@@ -283,6 +285,18 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Environment).HasMaxLength(128);
             e.Property(x => x.Message).HasMaxLength(500);
             e.HasIndex(x => x.CreateDate);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<StackUpdateRun>(e =>
+        {
+            e.ToTable("StackUpdateRun");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.StackName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Trigger).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Outcome).HasConversion<int>();
+            e.Property(x => x.Message).HasMaxLength(1000);
+            e.HasIndex(x => new { x.StackId, x.CreateDate });
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

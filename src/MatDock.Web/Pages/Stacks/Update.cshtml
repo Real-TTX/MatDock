@@ -1,5 +1,6 @@
 @page
 @model MatDock.Web.Pages.Stacks.UpdateModel
+@using MatDock.Core.Entities
 @{
     ViewData["Title"] = "Updates";
     string Short(string? digest) => string.IsNullOrEmpty(digest) ? "–"
@@ -42,7 +43,7 @@
         <div class="mat-table-wrap">
             <table class="mat-table">
                 <thead>
-                    <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th></tr>
+                    <tr><th>Service</th><th>Image</th><th>Status</th><th>Local</th><th>Registry</th><th><span class="mat-sr-only">Actions</span></th></tr>
                 </thead>
                 <tbody>
                     @foreach (var img in Model.Report.Images)
@@ -51,7 +52,11 @@
                             <td data-label="Service">@img.Service</td>
                             <td data-label="Image" class="mat-mono mat-text-break">@img.Image</td>
                             <td data-label="Status">
-                                @if (img.UpdateAvailable)
+                                @if (img.Pinned)
+                                {
+                                    <span class="mat-pill mat-pill--plain"><icon name="lock" /> Pinned</span>
+                                }
+                                else if (img.UpdateAvailable)
                                 {
                                     <span class="mat-pill mat-pill--warn">Update</span>
                                 }
@@ -63,9 +68,25 @@
                                 {
                                     <span class="mat-pill mat-pill--ok">Up to date</span>
                                 }
+                                @if (img.NewerTag is not null)
+                                {
+                                    <span class="mat-pill mat-pill--info" title="A newer version tag exists. Change the image tag in the compose file to move to it.">Newer: @img.NewerTag</span>
+                                }
                             </td>
                             <td data-label="Local" class="mat-mono mat-muted" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
                             <td data-label="Registry" class="mat-mono mat-muted" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>
+                            <td class="mat-table__cell-actions">
+                                <div class="mat-table__actions">
+                                    <form method="post" asp-page-handler="Pin">
+                                        <input type="hidden" name="id" value="@Model.Id" />
+                                        <input type="hidden" name="service" value="@img.Service" />
+                                        <input type="hidden" name="pin" value="@(img.Pinned ? "false" : "true")" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm"
+                                                title="@(img.Pinned ? "Unpin: updates may change this service again" : "Pin: updates skip this service")"
+                                                aria-label="@(img.Pinned ? "Unpin" : "Pin") @img.Service"><icon name="@(img.Pinned ? "x-circle" : "lock")" /></button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -91,6 +112,54 @@
                     <button type="submit" class="mat-btn mat-btn--primary"><icon name="refresh" /><span>Update now</span></button>
                 </mat-form-buttons>
             </form>
+        </div>
+    </section>
+}
+
+@if (Model.History.Count > 0)
+{
+    string OutcomePill(UpdateRunOutcome o) => o switch
+    {
+        UpdateRunOutcome.Updated => "mat-pill--ok",
+        UpdateRunOutcome.NoChange => "mat-pill--plain",
+        UpdateRunOutcome.RolledBack => "mat-pill--warn",
+        _ => "mat-pill--error",
+    };
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="clock" /><h2 class="mat-card__title">History</h2><span class="mat-badge">@Model.History.Count</span></div>
+        <div class="mat-table-wrap">
+            <table class="mat-table">
+                <thead>
+                    <tr><th>When</th><th>By</th><th>Result</th><th>Changed</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var run in Model.History)
+                    {
+                        var changes = MatDock.Core.Updates.UpdateService.ChangesOf(run);
+                        <tr>
+                            <td class="mat-nowrap" data-label="When">@run.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td data-label="By">@run.Trigger</td>
+                            <td data-label="Result">
+                                <span class="mat-pill @OutcomePill(run.Outcome)" title="@run.Message">@run.Outcome</span>
+                            </td>
+                            <td data-label="Changed" class="mat-mono">
+                                @if (changes.Count == 0)
+                                {
+                                    <span class="mat-muted">–</span>
+                                }
+                                else
+                                {
+                                    @foreach (var c in changes)
+                                    {
+                                        <div title="@c.Image">@c.Service: @c.Before → @c.After</div>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </section>
 }
