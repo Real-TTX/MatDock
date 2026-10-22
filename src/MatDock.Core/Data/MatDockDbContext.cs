@@ -128,6 +128,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.SmbHost).HasMaxLength(255);
             e.Property(x => x.SmbShare).HasMaxLength(255);
             e.Property(x => x.SmbDirectory).HasMaxLength(500);
+            e.Property(x => x.ResticRepository).HasMaxLength(500);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

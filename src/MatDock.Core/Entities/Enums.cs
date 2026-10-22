@@ -103,7 +103,10 @@ public enum ScheduleAction
     UpdateStacks = 9,
 
     /// <summary>Scans the images of the running containers for known vulnerabilities (Trivy) and notifies about critical and high ones.</summary>
-    ScanImages = 10
+    ScanImages = 10,
+
+    /// <summary>Frees the space of forgotten restic snapshots (<c>prune</c>) and checks the repository (<c>check</c>) of a restic backup target.</summary>
+    ResticMaintenance = 11
 }
 
 /// <summary>Why a stack bundle was taken.</summary>
@@ -144,5 +147,8 @@ public enum BackupTargetType
     Local = 0,
 
     /// <summary>A network share via SMB/CIFS (e.g. a NAS).</summary>
-    Smb = 1
+    Smb = 1,
+
+    /// <summary>A restic repository: encrypted, deduplicated, on S3/B2/Azure/GCS, a REST server or a path.</summary>
+    Restic = 2
 }

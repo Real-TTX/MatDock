@@ -71,7 +71,7 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 | Hosts with an agent | — | Not wanted: MatDock exists to need nothing on the hosts |
 | Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself, a line of the last 24 h; CPU is load per core |
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
-| restic backups (backup, restore, check, prune) | ✖ | Tar archives to local/SMB with retention and restore exist; planned (below) |
+| restic backups (backup, restore, check, prune) | ✅ | A backup target kind: every backup file is a snapshot (S3, B2, Azure, GCS, REST server, path); retention forgets, the schedule *Maintain restic repositories* prunes and checks |
 | Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |
 | Local users, roles | ◐ | Two fixed roles (Admin, User), enforced; per-environment rights not planned (homelab/small team) |
 | OIDC | ✅ | Through MatIdentity; any other OIDC provider is not wanted — MatIdentity is the family's identity |
@@ -82,7 +82,7 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 
 | # | What | Where | Effort | Risks |
 |---|---|---|---|---|
-| 1 | **restic** as a backup target kind (encrypted, deduplicated, S3/B2/SFTP): backup = `restic backup --stdin` of the volume tar stream, restore, `check` and `forget --prune` as schedule actions | `BackupTargetType.Restic`, new `ResticBackupStorage` beside `SmbBackupStorage`, `ScheduleAction.ResticMaintenance` | L | The restic binary in the image (or a restic container on the host); repository password handling; long operations |
+| 1 | ~~restic as a backup target kind~~ – done, see section 7 | `ResticBackupStorage`, `ScheduleAction.ResticMaintenance` | L | – |
 | 2 | ~~Move the UI onto MatUi~~ – done, see section 5 | all pages | L | – |
 | 3 | Update history and pinning: keep the update runs (old/new digest, result, rollback) and let a service be pinned to a digest so automatic updates leave it alone; newer version tags (semver) next to moving tags | `UpdateService`, a table `StackUpdateRun`, Stacks/Update | M | Semver of tags is guesswork for many images (`latest`, `16-alpine`) |
 | 4 | Per-environment rights (a user sees and controls only some environments) | `User` ↔ `DockerEnvironment`, `EnvSelection`, every list | M | Every page and the API filter by it; only worth it beyond a small team |
@@ -171,3 +171,39 @@ compose-first use (homelab or small business), not at Portainer's orchestration/
 Shipped this round: MatUi 0.2.0 → 0.3.2 (toolkit copy, no app changes); container pause/unpause/kill; image pull;
 network create and connect/disconnect. Still open to match Portainer where it is wanted: the ad-hoc container `run`
 form (section 3), everything else above is ✅ or deliberately —.
+
+## 7. restic as a backup target
+
+A target kind next to *Local* and *SMB*: `BackupTargetType.Restic`, a repository (S3, B2, Azure, GCS, Swift, a REST server or a path inside the
+MatDock container), its password and the backend's access keys. restic encrypts and deduplicates, so repeated backups of the same volume cost
+little space and a lost NAS or a stolen bucket exposes nothing.
+
+**How it fits.** The storage seam of the backups is file based (`OpenWrite/OpenRead/Delete/List/Test`), so `ResticBackupStorage` maps a backup
+file to a snapshot: writing pipes the volume's tar stream into `restic backup --stdin --stdin-filename <name>` (snapshot tagged
+`mdfile:<name>`, host `matdock`), reading is `restic dump --tag … latest /<name>`, listing is `restic snapshots --json`, deleting forgets the
+snapshot. Volume backups, stack bundles, the Targets browser, restore, retention and downloads work unchanged. Snapshots made by anything else
+in the same repository (another host or no `mdfile:` tag) are never listed, read or forgotten.
+
+**Safety.**
+- restic is started without a shell (an argument list) with an empty environment plus the repository, its password and the access keys:
+  nothing on the command line (where `ps` shows it), none of MatDock's own variables.
+- Only known backends are accepted (`s3:`, `b2:`, `rest:`, `azure:`, `gs:`, `swift:`, an absolute path without `..`). `rclone:` (starts a
+  program) and `sftp:` (needs an SSH key inside MatDock) are refused. Of the environment only the backends' key variables pass (`AWS_*`, `B2_*`,
+  `AZURE_*`, `GOOGLE_*`, `OS_*`, `ST_*`, `RESTIC_REST_USERNAME/PASSWORD`): `RESTIC_PASSWORD_COMMAND` would run a program.
+- Password and keys are encrypted at rest and never rendered back (blank on edit keeps them); the repository is shown without `user:pass@`.
+  Error messages never repeat a line of the keys.
+- The type of a target cannot change (its backups were written the old way). A write that breaks half way kills restic instead of saving a
+  snapshot of half a tar; a read that ends with a restic error fails instead of looking complete.
+- The *Test connection* button creates an empty repository (a new bucket or folder) and says "Wrong repository password" for exit code 12.
+
+**Maintenance.** Deleting a backup (or retention) only *forgets* the snapshot: `prune` is slow on a remote repository and would run after every
+step. The schedule action *Maintain restic repositories (prune + check)* frees the space and verifies the repository; one target or all.
+
+**Image.** restic 0.18.0 is copied from the pinned official image into MatDock's (`COPY --from=restic/restic:0.18.0`): a static Go binary, so it
+runs on the Debian/Ubuntu runtime; `MatDock:ResticPath` overrides the program.
+
+**Tried for real.** The six round-trip tests run against the real binary when `MATDOCK_TEST_RESTIC` names one (Linux, `mcr.microsoft.com/dotnet/sdk:10.0`
+with the binary from the restic image: 72 restic-related tests pass, none skipped); otherwise they are skipped. In the built image with the Docker
+socket: a stack with a volume was backed up as a bundle to a restic target (two snapshots in the repository), a file that only the backup
+contained was deleted and the restore brought it back, deleting a backup forgot exactly its two snapshots, and the maintenance schedule pruned
+the repository (1112 → 1084 KiB). (On this machine Docker Desktop had no free address pool left, so the test stack runs with `network_mode: none`.)

@@ -15,4 +15,13 @@ public sealed class BackupTargetInput
     public string? SmbUsername { get; set; }
     public string? SmbDomain { get; set; }
     public string? SmbPassword { get; set; }
+
+    // restic
+    public string? ResticRepository { get; set; }
+
+    /// <summary>Plaintext here; kept as stored when blank on edit.</summary>
+    public string? ResticPassword { get; set; }
+
+    /// <summary><c>NAME=value</c> lines; kept as stored when blank on edit.</summary>
+    public string? ResticEnv { get; set; }
 }

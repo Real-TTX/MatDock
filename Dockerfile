@@ -43,6 +43,10 @@ RUN apt-get update \
  && apt-get autoremove -y \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# restic for restic backup targets (encrypted, deduplicated backups to S3/B2/a REST server/…). A static Go binary, so it runs on
+# Debian although the official image is Alpine; copied from the pinned official image (multi-arch), no download in the build.
+COPY --from=restic/restic:0.18.0 /usr/bin/restic /usr/local/bin/restic
+
 ENV ASPNETCORE_URLS=http://+:4455 \
     ASPNETCORE_ENVIRONMENT=Production \
     MatDock__DataPath=/data

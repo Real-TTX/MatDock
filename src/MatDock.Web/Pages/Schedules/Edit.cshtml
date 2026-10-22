@@ -35,6 +35,7 @@
                         <option value="BundleBackup">Backup stacks (bundle: volumes + compose + .env)</option>
                         <option value="UpdateStacks">Update stacks (newer images)</option>
                         <option value="ScanImages">Scan images for vulnerabilities</option>
+                        <option value="ResticMaintenance">Maintain restic repositories (prune + check)</option>
                         <option value="Notify">Send a notification (event)</option>
                     </select>
                 </mat-field>
@@ -109,6 +110,17 @@
                     <input asp-for="Input.StopContainers" type="checkbox" />
                     <span>Stop the containers during backup (consistent snapshot)</span>
                 </label>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Action" data-show-value="ResticMaintenance">
+                <mat-field label="Restic target" asp-for="Input.BackupTargetId" hint="Empty = every restic target. Backups that were deleted or expired free their space here.">
+                    <select asp-for="Input.BackupTargetId" class="mat-select">
+                        <option value="">All restic targets</option>
+                        @foreach (var t in Model.BackupTargets.Where(t => t.Type == MatDock.Core.Entities.BackupTargetType.Restic))
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
+                </mat-field>
             </div>
 
             <div class="mat-form__grid">

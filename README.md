@@ -72,7 +72,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 
 **Backups**
 - **Scheduled jobs** (cron) with retention, plus a full **history**
-- **Targets**: the local data volume or a **NAS via SMB** – browse the archives actually present
+- **Targets**: the local data volume, a **NAS via SMB** or a **restic repository** (encrypted, deduplicated, on S3/B2/Azure/GCS, a REST server or a path) – browse the archives actually present
   at a target and **restore even backups written by another/older MatDock**
 - **Full stack bundles**: all volumes **+ the compose definition + image references** in one
   backup, restored as a running stack (images are pulled again on restore)
@@ -370,7 +370,7 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 - Docker access without an agent: **SSH.NET** opens a channel to the host and runs the Docker
   CLI; a **local** environment talks to the mounted socket instead – both behind one interface
 - Volume migration & backups stream a **tar over SSH** (no temp files on the host); backup
-  targets are the local volume or **SMB** (SMBLibrary, no OS mount)
+  targets are the local volume, **SMB** (SMBLibrary, no OS mount) or **restic** (each backup file is one snapshot; restic runs without a shell, its keys never on a command line)
 - The web terminal is **xterm.js** over a WebSocket ⇄ SSH PTY; live logs stream the same way
 - The interface is **plain JavaScript** – no framework, no build step; secrets are encrypted
   with **DataProtection**
@@ -382,14 +382,15 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Foundation | Docker, CI, versioning, auth, roles, sessions | ✅ |
 | Environments | SSH + local socket, host stats, global selector | ✅ |
 | Volumes | Listing, migration between hosts, file explorer | ✅ |
-| Backups | Scheduled jobs, retention, history, SMB targets, restore | ✅ |
+| Backups | Scheduled jobs, retention, history, SMB and restic targets, restore | ✅ |
 | Containers & stacks | Managed + discovered stacks, containers, live logs, terminal | ✅ |
 | Backup v2 | Browse/restore archives at a target, full stack bundles | ✅ |
 | Apps | Compose templates with icons, one-click install | ✅ |
 | Review | Security fixes, alerts, scheduled updates, activity log, network map, container files – see [docs/REVIEW.md](docs/REVIEW.md) | ✅ |
 | Review 2 | MatSMTP, update rollback, CVE scans, Docker API hosts, Git over SSH, files without a shell | ✅ |
 | MatUi | The UI on the MatUi toolkit like the other engines (shell, components, dialogs, accent of the registry) | ✅ |
-| Next | restic – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
+| Review 3 | restic targets, update history and pinning, container run, network create/connect, pause/kill, image pull, MatUi 0.3 | ✅ |
+| Next | Per-environment rights – the plan in [docs/REVIEW.md](docs/REVIEW.md) | open |
 
 ## Branches & versioning
 

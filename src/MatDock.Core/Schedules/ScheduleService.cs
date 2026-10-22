@@ -279,7 +279,7 @@ public sealed class ScheduleService
             All = input.OptionAll,
             IncludeShares = input.OptionIncludeShares,
             VolumesCsv = input.Action == ScheduleAction.Backup ? input.VolumesCsv : null,
-            BackupTargetId = isBackup ? input.BackupTargetId : null,
+            BackupTargetId = isBackup || input.Action == ScheduleAction.ResticMaintenance ? input.BackupTargetId : null,
             RetentionCount = isBackup ? input.RetentionCount : 0,
             RetentionDays = isBackup ? input.RetentionDays : 0,
             StopContainers = isBackup && input.StopContainers,

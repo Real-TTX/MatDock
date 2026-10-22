@@ -29,8 +29,41 @@ public sealed class BackupTargetService
     public Task<BackupTarget?> GetDefaultAsync(CancellationToken ct = default)
         => _db.BackupTargets.AsNoTracking().FirstOrDefaultAsync(t => t.IsDefault, ct);
 
+    /// <summary>
+    /// What is wrong with the input of a target, or null. <paramref name="hasStoredResticPassword"/>: an edit may leave the password blank to keep
+    /// the stored one (the same goes for the keys, which are optional anyway).
+    /// </summary>
+    public static string? ValidateInput(BackupTargetInput input, bool hasStoredResticPassword = false)
+    {
+        if (string.IsNullOrWhiteSpace(input.Name))
+        {
+            return "Please enter a name.";
+        }
+
+        switch (input.Type)
+        {
+            case BackupTargetType.Smb:
+                if (string.IsNullOrWhiteSpace(input.SmbHost)) { return "Please enter the NAS host."; }
+                if (string.IsNullOrWhiteSpace(input.SmbShare)) { return "Please enter the share."; }
+                return null;
+
+            case BackupTargetType.Restic:
+                if (ResticSettings.ValidateRepository(input.ResticRepository) is { } repoProblem) { return repoProblem; }
+                if (string.IsNullOrEmpty(input.ResticPassword) && !hasStoredResticPassword) { return "Enter the repository password: restic encrypts the backups with it. Keep it safe, without it they cannot be restored."; }
+                return ResticSettings.ParseEnv(input.ResticEnv).Error;
+
+            default:
+                return null;
+        }
+    }
+
     public async Task<BackupTarget> CreateAsync(BackupTargetInput input, CancellationToken ct = default)
     {
+        if (ValidateInput(input) is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(input));
+        }
+
         var target = new BackupTarget();
         ApplyInput(target, input, isCreate: true);
         _db.BackupTargets.Add(target);
@@ -49,6 +82,17 @@ public sealed class BackupTargetService
         if (target is null)
         {
             return false;
+        }
+
+        if (input.Type != target.Type)
+        {
+            // Its backups were written the old way; reading them the new way would find nothing.
+            throw new ArgumentException("The type of a target cannot be changed; create a new target.", nameof(input));
+        }
+
+        if (ValidateInput(input, hasStoredResticPassword: target.EncryptedResticPassword is not null) is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(input));
         }
 
         ApplyInput(target, input, isCreate: false);
@@ -99,9 +143,12 @@ public sealed class BackupTargetService
         try
         {
             await _storageFactory.Create(target).TestAsync(ct);
-            return (true, target.Type == BackupTargetType.Smb
-                ? $"Connected to \\\\{target.SmbHost}\\{target.SmbShare}."
-                : "Local storage is writable.");
+            return (true, target.Type switch
+            {
+                BackupTargetType.Smb => $"Connected to \\\\{target.SmbHost}\\{target.SmbShare}.",
+                BackupTargetType.Restic => "The restic repository is reachable and the password is right.",
+                _ => "Local storage is writable.",
+            });
         }
         catch (Exception ex)
         {
@@ -120,19 +167,32 @@ public sealed class BackupTargetService
             SmbShare = input.SmbShare,
             SmbDirectory = input.SmbDirectory,
             SmbUsername = input.SmbUsername,
-            SmbDomain = input.SmbDomain
+            SmbDomain = input.SmbDomain,
+            ResticRepository = input.ResticRepository?.Trim(),
         };
 
         try
         {
+            var stored = existingId is { } id ? await GetAsync(id, ct) : null;
+
             var password = input.SmbPassword;
-            if (string.IsNullOrEmpty(password) && existingId is { } id)
+            if (string.IsNullOrEmpty(password) && stored is not null)
             {
-                var stored = await GetAsync(id, ct);
-                password = stored is null ? null : _secrets.UnprotectNullable(stored.EncryptedSmbPassword);
+                password = _secrets.UnprotectNullable(stored.EncryptedSmbPassword);
             }
 
             probe.EncryptedSmbPassword = string.IsNullOrEmpty(password) ? null : _secrets.Protect(password);
+
+            // restic: what is typed wins; blank fields use the stored password and keys (the form never shows them).
+            var resticPassword = string.IsNullOrEmpty(input.ResticPassword) && stored is not null
+                ? _secrets.UnprotectNullable(stored.EncryptedResticPassword)
+                : input.ResticPassword;
+            probe.EncryptedResticPassword = string.IsNullOrEmpty(resticPassword) ? null : _secrets.Protect(resticPassword);
+
+            var resticEnv = string.IsNullOrWhiteSpace(input.ResticEnv) && stored is not null
+                ? _secrets.UnprotectNullable(stored.EncryptedResticEnv)
+                : input.ResticEnv;
+            probe.EncryptedResticEnv = string.IsNullOrWhiteSpace(resticEnv) ? null : _secrets.Protect(resticEnv);
         }
         catch (Exception ex)
         {
@@ -262,6 +322,30 @@ public sealed class BackupTargetService
         {
             target.SmbHost = target.SmbShare = target.SmbDirectory = target.SmbUsername = target.SmbDomain = null;
             target.EncryptedSmbPassword = null;
+        }
+
+        if (input.Type == BackupTargetType.Restic)
+        {
+            target.ResticRepository = input.ResticRepository?.Trim();
+            // Blank keeps what is stored (the form never shows a password or key back).
+            if (!string.IsNullOrEmpty(input.ResticPassword))
+            {
+                target.EncryptedResticPassword = _secrets.Protect(input.ResticPassword);
+            }
+            if (!string.IsNullOrWhiteSpace(input.ResticEnv))
+            {
+                target.EncryptedResticEnv = _secrets.Protect(input.ResticEnv);
+            }
+            else if (isCreate)
+            {
+                target.EncryptedResticEnv = null;
+            }
+        }
+        else
+        {
+            target.ResticRepository = null;
+            target.EncryptedResticPassword = null;
+            target.EncryptedResticEnv = null;
         }
     }
 }

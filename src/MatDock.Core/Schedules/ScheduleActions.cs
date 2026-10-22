@@ -632,3 +632,58 @@ public sealed class ScanImagesAction : ScheduleActionBase, IScheduleAction
         return PruneVolumesAction.Result(text, errors);
     }
 }
+
+/// <summary>
+/// Maintenance of restic backup targets: <c>prune</c> frees the space of the backups that were deleted or expired (they are only forgotten at
+/// the time), <c>check</c> verifies the repository. One target (the backup target of the task) or every restic target.
+/// </summary>
+public sealed class ResticMaintenanceAction : IScheduleAction
+{
+    private readonly MatDockDbContext _db;
+    private readonly Backups.IBackupStorageFactory _storage;
+
+    public ResticMaintenanceAction(MatDockDbContext db, Backups.IBackupStorageFactory storage)
+    {
+        _db = db;
+        _storage = storage;
+    }
+
+    public ScheduleAction Type => ScheduleAction.ResticMaintenance;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+        var targets = await _db.BackupTargets.AsNoTracking()
+            .Where(t => t.Type == BackupTargetType.Restic && (opt.BackupTargetId == null || t.Id == opt.BackupTargetId))
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+        if (targets.Count == 0)
+        {
+            return (false, opt.BackupTargetId is null ? "No restic backup target is set up." : "The chosen target is not a restic target (or was deleted).");
+        }
+
+        var lines = new List<string>();
+        var allOk = true;
+        foreach (var target in targets)
+        {
+            try
+            {
+                if (_storage.Create(target) is not Backups.ResticBackupStorage restic)
+                {
+                    continue;
+                }
+
+                var (ok, summary) = await restic.MaintainAsync(ct);
+                allOk &= ok;
+                lines.Add($"{target.Name}: {summary}");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                allOk = false;
+                lines.Add($"{target.Name}: {ex.Message}");
+            }
+        }
+
+        return (allOk, string.Join(" ", lines));
+    }
+}

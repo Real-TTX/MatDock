@@ -4,6 +4,7 @@
     ViewData["Title"] = Model.IsEdit ? "Edit backup target" : "New backup target";
     ViewData["Width"] = "narrow";
     var pwHint = Model.IsEdit ? "Leave blank to keep the stored password." : null;
+    var keyHint = Model.IsEdit ? "Leave blank to keep the stored keys." : "One NAME=value per line, as the backend needs them.";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Backup targets", "/Settings?tab=backup") };
 }
 
@@ -26,24 +27,54 @@
                 <input asp-for="Input.Name" class="mat-input" placeholder="e.g. NAS backups" />
             </mat-field>
 
-            <div class="mat-form__grid">
-                <mat-field label="Host (NAS)" asp-for="Input.SmbHost">
-                    <input asp-for="Input.SmbHost" class="mat-input" placeholder="nas.local or 192.168.1.20" />
+            @if (Model.IsEdit)
+            {
+                @* The type is fixed: the backups at this target were written that way. *@
+                <input type="hidden" asp-for="Input.Type" id="Input_Type" />
+                <dl class="mat-kv"><dt>Type</dt><dd>@(Model.Input.Type == MatDock.Core.Entities.BackupTargetType.Restic ? "restic repository" : "NAS (SMB/CIFS share)")</dd></dl>
+            }
+            else
+            {
+                <mat-field label="Type" asp-for="Input.Type">
+                    <select asp-for="Input.Type" id="Input_Type" class="mat-select">
+                        <option value="Smb">NAS (SMB/CIFS share)</option>
+                        <option value="Restic">restic repository (encrypted, deduplicated)</option>
+                    </select>
                 </mat-field>
-                <mat-field label="Share" asp-for="Input.SmbShare">
-                    <input asp-for="Input.SmbShare" class="mat-input" placeholder="backups" />
+            }
+
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="Smb">
+                <div class="mat-form__grid">
+                    <mat-field label="Host (NAS)" asp-for="Input.SmbHost">
+                        <input asp-for="Input.SmbHost" class="mat-input" placeholder="nas.local or 192.168.1.20" />
+                    </mat-field>
+                    <mat-field label="Share" asp-for="Input.SmbShare">
+                        <input asp-for="Input.SmbShare" class="mat-input" placeholder="backups" />
+                    </mat-field>
+                    <mat-field label="Subfolder" asp-for="Input.SmbDirectory" hint="Optional, e.g. matdock/volumes">
+                        <input asp-for="Input.SmbDirectory" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="Domain" asp-for="Input.SmbDomain" hint="Optional">
+                        <input asp-for="Input.SmbDomain" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="User" asp-for="Input.SmbUsername">
+                        <input asp-for="Input.SmbUsername" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Password" asp-for="Input.SmbPassword" hint="@pwHint">
+                        <input asp-for="Input.SmbPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                </div>
+            </div>
+
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="Restic">
+                <mat-field label="Repository" asp-for="Input.ResticRepository" hint="s3:host/bucket/path, b2:bucket:path, rest:https://host:8000/repo, azure:, gs: or an absolute path">
+                    <input asp-for="Input.ResticRepository" class="mat-input mat-mono" placeholder="s3:s3.amazonaws.com/my-bucket/matdock" autocomplete="off" />
                 </mat-field>
-                <mat-field label="Subfolder" asp-for="Input.SmbDirectory" hint="Optional, e.g. matdock/volumes">
-                    <input asp-for="Input.SmbDirectory" class="mat-input" />
+                <mat-field label="Repository password" asp-for="Input.ResticPassword" hint="@(pwHint ?? "Encrypts every backup. Without it they cannot be restored: keep it safe.")">
+                    <input asp-for="Input.ResticPassword" type="password" class="mat-input" autocomplete="new-password" />
                 </mat-field>
-                <mat-field label="Domain" asp-for="Input.SmbDomain" hint="Optional">
-                    <input asp-for="Input.SmbDomain" class="mat-input" />
-                </mat-field>
-                <mat-field label="User" asp-for="Input.SmbUsername">
-                    <input asp-for="Input.SmbUsername" class="mat-input" autocomplete="off" />
-                </mat-field>
-                <mat-field label="Password" asp-for="Input.SmbPassword" hint="@pwHint">
-                    <input asp-for="Input.SmbPassword" type="password" class="mat-input" autocomplete="new-password" />
+                <mat-field label="Access keys" asp-for="Input.ResticEnv" hint="@keyHint">
+                    <textarea asp-for="Input.ResticEnv" class="mat-textarea mat-mono" rows="4" spellcheck="false" autocomplete="off" placeholder="AWS_ACCESS_KEY_ID=…&#10;AWS_SECRET_ACCESS_KEY=…"></textarea>
                 </mat-field>
             </div>
 

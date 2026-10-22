@@ -27,4 +27,16 @@ public class BackupTarget : AuditableEntity
     public string? SmbDomain { get; set; }
 
     public string? EncryptedSmbPassword { get; set; }
+
+    // --- restic ---
+
+    /// <summary>The restic repository: <c>s3:host/bucket/path</c>, <c>b2:bucket:path</c>, <c>rest:https://…</c>, <c>azure:</c>, <c>gs:</c>,
+    /// <c>swift:</c> or an absolute path inside the MatDock container.</summary>
+    public string? ResticRepository { get; set; }
+
+    /// <summary>The repository password (restic encrypts everything with it), protected at rest.</summary>
+    public string? EncryptedResticPassword { get; set; }
+
+    /// <summary>The access keys of the repository's backend as <c>NAME=value</c> lines (<c>AWS_ACCESS_KEY_ID</c>, <c>B2_ACCOUNT_KEY</c>, …), protected at rest.</summary>
+    public string? EncryptedResticEnv { get; set; }
 }

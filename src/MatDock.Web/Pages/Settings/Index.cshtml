@@ -51,7 +51,12 @@ else
                         </tr>
                         @foreach (var t in Model.Targets)
                         {
-                            var details = t.Type == MatDock.Core.Entities.BackupTargetType.Smb ? $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}" : "";
+                            var details = t.Type switch
+                            {
+                                MatDock.Core.Entities.BackupTargetType.Smb => $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}",
+                                MatDock.Core.Entities.BackupTargetType.Restic => MatDock.Core.Backups.ResticSettings.Redact(t.ResticRepository),
+                                _ => "",
+                            };
                             <tr>
                                 <td data-label="Name"><a href="/Settings/BackupTargetEdit?id=@t.Id"><strong>@t.Name</strong></a></td>
                                 <td data-label="Type">@t.Type</td>

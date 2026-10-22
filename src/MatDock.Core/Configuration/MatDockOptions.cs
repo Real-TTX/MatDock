@@ -24,6 +24,9 @@ public sealed class MatDockOptions
     /// <summary>Tiny helper image used on the remote hosts to tar/untar volume contents.</summary>
     public string HelperImage { get; set; } = "busybox";
 
+    /// <summary>The <c>restic</c> program for restic backup targets (in the image: <c>/usr/local/bin/restic</c>, found through the PATH).</summary>
+    public string ResticPath { get; set; } = "restic";
+
     /// <summary>The image that scans images for vulnerabilities (Trivy), run on the Docker host of the image.</summary>
     public string ScannerImage { get; set; } = "aquasec/trivy:latest";
 

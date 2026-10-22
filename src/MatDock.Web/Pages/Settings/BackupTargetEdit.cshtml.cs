@@ -32,11 +32,13 @@ public class BackupTargetEditModel : PageModel
 
         public bool IsDefault { get; set; }
 
-        [Required(ErrorMessage = "Please enter the NAS host.")]
+        /// <summary>Smb or Restic; fixed once the target exists (its backups were written that way).</summary>
+        public BackupTargetType Type { get; set; } = BackupTargetType.Smb;
+
+        // SMB — required only for Smb (checked by BackupTargetService.ValidateInput)
         [Display(Name = "Host")]
         public string? SmbHost { get; set; }
 
-        [Required(ErrorMessage = "Please enter the share.")]
         [Display(Name = "Share")]
         public string? SmbShare { get; set; }
 
@@ -52,6 +54,17 @@ public class BackupTargetEditModel : PageModel
         [DataType(DataType.Password)]
         [Display(Name = "Password")]
         public string? SmbPassword { get; set; }
+
+        // restic
+        [Display(Name = "Repository")]
+        public string? ResticRepository { get; set; }
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Repository password")]
+        public string? ResticPassword { get; set; }
+
+        [Display(Name = "Access keys")]
+        public string? ResticEnv { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -69,11 +82,14 @@ public class BackupTargetEditModel : PageModel
                 Id = t.Id,
                 Name = t.Name,
                 IsDefault = t.IsDefault,
+                Type = t.Type == BackupTargetType.Restic ? BackupTargetType.Restic : BackupTargetType.Smb,
                 SmbHost = t.SmbHost,
                 SmbShare = t.SmbShare,
                 SmbDirectory = t.SmbDirectory,
                 SmbUsername = t.SmbUsername,
-                SmbDomain = t.SmbDomain
+                SmbDomain = t.SmbDomain,
+                // The repository is not a secret; the password and the keys are never sent back.
+                ResticRepository = t.ResticRepository,
             };
         }
 
@@ -82,7 +98,7 @@ public class BackupTargetEditModel : PageModel
 
     public async Task<IActionResult> OnPostSaveAsync()
     {
-        if (!ModelState.IsValid)
+        if (!await IsValidAsync())
         {
             return Page();
         }
@@ -114,7 +130,7 @@ public class BackupTargetEditModel : PageModel
 
     public async Task<IActionResult> OnPostTestAsync()
     {
-        if (!ModelState.IsValid)
+        if (!await IsValidAsync())
         {
             return Page();
         }
@@ -125,16 +141,44 @@ public class BackupTargetEditModel : PageModel
         return Page();
     }
 
+    /// <summary>The attributes first, then what depends on the type (host/share for SMB, repository/password/keys for restic).</summary>
+    private async Task<bool> IsValidAsync()
+    {
+        if (Input.Type is not (BackupTargetType.Smb or BackupTargetType.Restic))
+        {
+            ModelState.AddModelError(string.Empty, "Choose a target type.");
+        }
+
+        if (ModelState.IsValid)
+        {
+            // An existing target keeps its type and, for restic, may leave the password blank.
+            var stored = IsEdit ? await _targetService.GetAsync(Input.Id!.Value, HttpContext.RequestAborted) : null;
+            if (stored is not null && stored.Type != Input.Type)
+            {
+                ModelState.AddModelError(string.Empty, "The type of a target cannot be changed; create a new target.");
+            }
+            else if (BackupTargetService.ValidateInput(ToInput(), stored?.EncryptedResticPassword is not null) is { } problem)
+            {
+                ModelState.AddModelError(string.Empty, problem);
+            }
+        }
+
+        return ModelState.IsValid;
+    }
+
     private BackupTargetInput ToInput() => new()
     {
         Name = Input.Name,
-        Type = BackupTargetType.Smb,
+        Type = Input.Type,
         IsDefault = Input.IsDefault,
         SmbHost = Input.SmbHost,
         SmbShare = Input.SmbShare,
         SmbDirectory = Input.SmbDirectory,
         SmbUsername = Input.SmbUsername,
         SmbDomain = Input.SmbDomain,
-        SmbPassword = Input.SmbPassword
+        SmbPassword = Input.SmbPassword,
+        ResticRepository = Input.ResticRepository,
+        ResticPassword = Input.ResticPassword,
+        ResticEnv = Input.ResticEnv,
     };
 }

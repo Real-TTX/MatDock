@@ -154,6 +154,12 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("CreateUserId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EncryptedResticEnv")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedResticPassword")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EncryptedSmbPassword")
                         .HasColumnType("TEXT");
 
@@ -163,6 +169,10 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResticRepository")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SmbDirectory")
