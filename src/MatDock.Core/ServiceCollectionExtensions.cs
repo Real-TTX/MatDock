@@ -67,6 +67,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
         services.AddScoped<Updates.UpdateService>();
+        services.AddScoped<Updates.UpdatePolicyService>();
+        services.AddScoped<Updates.UpdateAutomation>();
+        services.AddSingleton<Updates.UpdateAutomationState>();
         services.AddScoped<Activity.ActivityLogService>();
         services.AddScoped<Images.ImageService>();
         services.AddScoped<Images.ImageScanService>();

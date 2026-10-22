@@ -70,6 +70,7 @@ builder.Services.AddSingleton<MatDock.Web.Support.Toolkit>();
 builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 builder.Services.AddHostedService<ContainerAlertMonitor>();
+builder.Services.AddHostedService<UpdateAutomationService>();
 builder.Services.AddHostedService<HostMetricsSampler>();
 
 // ---------------------------------------------------------------------------

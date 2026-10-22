@@ -157,6 +157,55 @@ public sealed class UpdateService
         return report;
     }
 
+    /// <summary>
+    /// What the rule of a stack would update now: per service its strategy decides (a moved tag, the newest version of the series, or nothing). A service that is
+    /// pinned or has no newer image is not in the plan.
+    /// </summary>
+    public async Task<StackUpdatePlan> PlanStackAsync(DockerEnvironment env, Stack stack, EffectiveUpdatePolicy policy, CancellationToken ct = default)
+    {
+        var report = await CheckStackAsync(env, stack.Name, ct);
+        if (report.Error is not null)
+        {
+            return new StackUpdatePlan(Array.Empty<PlannedUpdate>(), report.Error);
+        }
+
+        var items = new List<PlannedUpdate>();
+        foreach (var image in report.Images)
+        {
+            var strategy = policy.StrategyOf(image.Service);
+            if (image.Pinned || strategy == UpdateStrategy.Pinned)
+            {
+                continue;
+            }
+
+            if (strategy == UpdateStrategy.Tag)
+            {
+                if (image.UpdateAvailable)
+                {
+                    items.Add(new PlannedUpdate(image.Service, image.Image, ShortDigest(image.RegistryDigest), PlannedKind.Digest));
+                }
+
+                continue;
+            }
+
+            if (ImageRef.TryParse(image.Image) is not { IsDigestPinned: false } iref)
+            {
+                continue;
+            }
+
+            var target = TagVersion.Pick(iref.Tag, await TagsAsync(iref, ct), sameMajor: strategy == UpdateStrategy.Minor);
+            if (target is not null && ImageRef.WithTag(image.Image, target) is { } targetImage && ImageCommands.IsValidImageRef(targetImage))
+            {
+                items.Add(new PlannedUpdate(image.Service, image.Image, targetImage, PlannedKind.Version));
+            }
+        }
+
+        return new StackUpdatePlan(items, null);
+    }
+
+    private static string ShortDigest(string? digest)
+        => string.IsNullOrEmpty(digest) ? "new" : (digest.StartsWith("sha256:", StringComparison.Ordinal) ? digest[7..] : digest) is var h && h.Length > 12 ? "sha256:" + h[..12] : digest;
+
     private async Task<IReadOnlyList<string>> TagsAsync(ImageRef iref, CancellationToken ct)
     {
         try { return await _registries.ListTagsForImageAsync(iref.Host, iref.Repository, ct); }
@@ -218,13 +267,13 @@ public sealed class UpdateService
         var stack = await _stacks.GetAsync(stackId, ct);
         if (stack is null)
         {
-            return StackUpdateOutcome.Failed("Stack not found.");
+            return StackUpdateOutcome.NotStartedWith("Stack not found.");
         }
 
         var env = await _environments.GetAsync(stack.EnvironmentId, ct);
         if (env is null || !env.IsEnabled)
         {
-            return StackUpdateOutcome.Failed("Environment not available (disabled or deleted).");
+            return StackUpdateOutcome.NotStartedWith("Environment not available (disabled or deleted).");
         }
 
         trace.StackName = stack.Name;
@@ -239,7 +288,7 @@ public sealed class UpdateService
             if (!backupOk)
             {
                 // Never update without the safety net the user asked for.
-                return StackUpdateOutcome.Failed($"Pre-update backup failed, update aborted: {backupMsg}");
+                return StackUpdateOutcome.NotStartedWith($"Pre-update backup failed, update aborted: {backupMsg}");
             }
 
             log?.Invoke(backupMsg);
@@ -278,14 +327,14 @@ public sealed class UpdateService
         reason ??= $"The containers were not up and healthy within {(int)safety.Grace.TotalSeconds} s.";
         if (!safety.Rollback || kept is null || kept.Count == 0)
         {
-            return StackUpdateOutcome.Failed($"{output}\nUpdated, but: {reason}");
+            return new StackUpdateOutcome(false, $"{output}\nUpdated, but: {reason}", false, Deployed: true);
         }
 
         log?.Invoke("==> Rolling back to the images from before the update");
         trace.RolledBack = true;
-        var rolledBack = await RollbackAsync(env, stack.Id, kept, ct);
+        var rolledBack = await RollbackAsync(env, stack.Id, kept, trace, ct);
         await ForgetKeptAsync(env, kept, ct);
-        return StackUpdateOutcome.Failed($"{output}\nUpdated, but: {reason} {rolledBack}");
+        return new StackUpdateOutcome(false, $"{output}\nUpdated, but: {reason} {rolledBack}", false, RolledBack: true);
     }
 
     /// <summary>Tags the image of every service with its rollback name; answers (reference, rollback name) of those that worked.</summary>
@@ -362,10 +411,41 @@ public sealed class UpdateService
         }
     }
 
-    /// <summary>Puts every service's old image back under its tag and deploys the stack again (no pull).</summary>
-    private async Task<string> RollbackAsync(DockerEnvironment env, long stackId, IReadOnlyList<(string Reference, string Kept)> kept, CancellationToken ct)
+    /// <summary>
+    /// A rollback deploys the stack again, and the deploy reads the image overrides of the stack: one that brought the new image would bring it back. So the services whose
+    /// image reference the update changed get the reference they ran before (an override, or none when that is the compose file's own image).
+    /// </summary>
+    private async Task<IReadOnlyList<string>> RestoreOverridesAsync(long stackId, RunTrace trace, CancellationToken ct)
     {
         var errors = new List<string>();
+        if (trace.Before is null || trace.After is null)
+        {
+            return errors;
+        }
+
+        var after = trace.After.GroupBy(a => a.Service, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Reference, StringComparer.Ordinal);
+        foreach (var (service, reference, _) in trace.Before.DistinctBy(b => b.Service))
+        {
+            if (!after.TryGetValue(service, out var now) || string.Equals(now, reference, StringComparison.Ordinal) || !Stacks.StackCommands.IsValidServiceName(service))
+            {
+                continue;
+            }
+
+            var (ok, message) = await _stacks.SetImageOverrideAsync(stackId, service, reference, ct);
+            if (!ok)
+            {
+                errors.Add($"{service}: {message}");
+            }
+        }
+
+        return errors;
+    }
+
+    /// <summary>Puts every service's old image back under its tag and deploys the stack again (no pull).</summary>
+    private async Task<string> RollbackAsync(DockerEnvironment env, long stackId, IReadOnlyList<(string Reference, string Kept)> kept, RunTrace trace, CancellationToken ct)
+    {
+        var errors = new List<string>();
+        errors.AddRange(await RestoreOverridesAsync(stackId, trace, ct));
         foreach (var (reference, backup) in kept)
         {
             try
@@ -434,7 +514,7 @@ public sealed class UpdateService
                 StackId = stackId,
                 StackName = trace.StackName,
                 EnvironmentId = trace.EnvironmentId,
-                Trigger = trigger is "schedule" or "api" ? trigger : "manual",
+                Trigger = trigger is "schedule" or "api" or "auto" ? trigger : "manual",
                 Outcome = outcome.Ok
                     ? (outcome.Changed ? UpdateRunOutcome.Updated : UpdateRunOutcome.NoChange)
                     : (trace.RolledBack ? UpdateRunOutcome.RolledBack : UpdateRunOutcome.Failed),

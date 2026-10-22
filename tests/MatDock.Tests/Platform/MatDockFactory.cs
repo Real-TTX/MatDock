@@ -232,6 +232,12 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
     /// <summary>Every command that was run on a host, in order (what the app really asked Docker to do).</summary>
     public List<string> Commands { get; } = [];
 
+    /// <summary>When set: the output of a command (null = the default answer), so a test can make Docker say something else, also depending on what ran before.</summary>
+    public Func<string, string?>? Respond { get; set; }
+
+    /// <summary>When set and true for a command, the command fails (exit status 1, the answer as its error).</summary>
+    public Func<string, bool>? Fails { get; set; }
+
     public IHostSession Create(SshConnectionSettings settings) => new Session(this);
 
     private sealed class Session(FakeHostSessionFactory hosts) : IHostSession
@@ -245,7 +251,9 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
                 hosts.Commands.Add(command);
             }
 
-            return new Command(command.Contains(" ps -a", StringComparison.Ordinal) ? string.Join("\n", hosts.Containers) : string.Empty);
+            var result = hosts.Respond?.Invoke(command)
+                ?? (command.Contains(" ps -a", StringComparison.Ordinal) ? string.Join("\n", hosts.Containers) : string.Empty);
+            return new Command(result, hosts.Fails?.Invoke(command) == true);
         }
 
         public void Dispose()
@@ -253,15 +261,15 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
         }
     }
 
-    private sealed class Command(string result) : IHostCommand
+    private sealed class Command(string result, bool fails = false) : IHostCommand
     {
         public TimeSpan CommandTimeout { get; set; }
 
-        public int? ExitStatus => 0;
+        public int? ExitStatus => fails ? 1 : 0;
 
-        public string Error => string.Empty;
+        public string Error => fails ? "simulated failure" : string.Empty;
 
-        public string Result => result;
+        public string Result => fails ? string.Empty : result;
 
         public Stream OutputStream { get; } = new MemoryStream();
 

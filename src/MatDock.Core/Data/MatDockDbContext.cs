@@ -40,6 +40,8 @@ public class MatDockDbContext : DbContext
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
     public DbSet<StackUpdateRun> StackUpdateRuns => Set<StackUpdateRun>();
+    public DbSet<UpdatePolicy> UpdatePolicies => Set<UpdatePolicy>();
+    public DbSet<UpdateNotice> UpdateNotices => Set<UpdateNotice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -309,6 +311,29 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Outcome).HasConversion<int>();
             e.Property(x => x.Message).HasMaxLength(1000);
             e.HasIndex(x => new { x.StackId, x.CreateDate });
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<UpdatePolicy>(e =>
+        {
+            e.ToTable("UpdatePolicy");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Scope).HasConversion<int>();
+            e.Property(x => x.Mode).HasConversion<int?>();
+            e.Property(x => x.Strategy).HasConversion<int?>();
+            e.Property(x => x.ServiceStrategiesJson).HasMaxLength(4000);
+            // One rule per scope among the non-deleted ones.
+            e.HasIndex(x => new { x.Scope, x.ScopeId }).IsUnique().HasFilter("\"UpdateState\" <> 0");
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<UpdateNotice>(e =>
+        {
+            e.ToTable("UpdateNotice");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Service).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Target).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => new { x.StackId, x.Service, x.Target }).IsUnique().HasFilter("\"UpdateState\" <> 0");
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
     }

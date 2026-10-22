@@ -11,6 +11,19 @@ public sealed record ImageRef(string Host, string Repository, string Tag, string
     /// <summary>True when the reference is pinned to a digest (…@sha256:…) — not a moving tag.</summary>
     public bool IsDigestPinned => Digest is not null;
 
+    /// <summary>The image text with another tag (<c>nginx:1.2</c> + <c>1.3</c> → <c>nginx:1.3</c>, a registry port stays); null when the text has no explicit tag or is pinned to a digest.</summary>
+    public static string? WithTag(string image, string tag)
+    {
+        var text = image.Trim();
+        if (text.Contains('@'))
+        {
+            return null;
+        }
+
+        var colon = text.IndexOf(':', text.LastIndexOf('/') + 1);
+        return colon < 0 ? null : text[..colon] + ":" + tag;
+    }
+
     public static ImageRef? TryParse(string? image)
     {
         if (string.IsNullOrWhiteSpace(image))

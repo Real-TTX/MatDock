@@ -1134,6 +1134,122 @@ namespace MatDock.Core.Data.Migrations
                     b.ToTable("SyncJobItem", (string)null);
                 });
 
+            modelBuilder.Entity("MatDock.Core.Entities.UpdateNotice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Failed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("NotifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("StackId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StackId", "Service", "Target")
+                        .IsUnique()
+                        .HasFilter("\"UpdateState\" <> 0");
+
+                    b.ToTable("UpdateNotice", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.UpdatePolicy", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CheckEveryHours")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Mode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("NotifyAvailable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("NotifyResult")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("PreBackup")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("Rollback")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ScopeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServiceStrategiesJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Strategy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("WindowEndHour")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("WindowStartHour")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope", "ScopeId")
+                        .IsUnique()
+                        .HasFilter("\"UpdateState\" <> 0");
+
+                    b.ToTable("UpdatePolicy", (string)null);
+                });
+
             modelBuilder.Entity("MatDock.Core.Entities.User", b =>
                 {
                     b.Property<long>("Id")
