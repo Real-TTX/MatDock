@@ -188,7 +188,39 @@
     </section>
 }
 
+@if (Model.Stack is not null)
+{
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="link" /><h2 class="mat-card__title">Redeploy webhook</h2></div>
+        <div class="mat-card__body mat-stack">
+            @if (Model.WebhookUrl is { } url)
+            {
+                <p class="mat-hint">A POST to this address pulls and redeploys the stack with the backup and the health check of its rule, for example from a CI after it pushed a new image. The address is the secret.</p>
+                <div class="md-image-form">
+                    <input class="mat-input mat-mono md-image-input" value="@url" readonly aria-label="Webhook address" id="webhook-url" />
+                    <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-copy="#webhook-url" title="Copy" aria-label="Copy the address"><icon name="copy" /></button>
+                </div>
+                <pre class="mat-code">curl -X POST @url</pre>
+            }
+            <div class="mat-actions">
+                <form method="post" asp-page-handler="Webhook" data-confirm="@(Model.WebhookUrl is null ? null : "A new address? The old one stops working.")">
+                    <input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="enabled" value="true" />
+                    <button type="submit" class="mat-btn mat-btn--secondary"><icon name="@(Model.WebhookUrl is null ? "link" : "refresh")" /><span>@(Model.WebhookUrl is null ? "Switch on" : "New address")</span></button>
+                </form>
+                @if (Model.WebhookUrl is not null)
+                {
+                    <form method="post" asp-page-handler="Webhook" data-confirm="Switch the webhook off?">
+                        <input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="enabled" value="false" />
+                        <button type="submit" class="mat-btn mat-btn--danger"><icon name="x-circle" /><span>Switch off</span></button>
+                    </form>
+                }
+            </div>
+        </div>
+    </section>
+}
+
 @section Actions {
+    <a href="/Stacks/Copy?id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="copy" /><span>Copy</span></a>
     <a href="/Updates/Rules?scope=Stack&id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Rule</span></a>
     <a href="/Stacks/Update?id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Re-check</span></a>
 }

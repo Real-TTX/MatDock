@@ -40,6 +40,9 @@ public class Stack : AuditableEntity
     /// The compose file itself is never changed. Null/empty = none.</summary>
     public string? ImageOverridesJson { get; set; }
 
+    /// <summary>The secret of the redeploy webhook of this stack (<c>POST /webhooks/stacks/{token}</c>: pull and redeploy, for a CI after a push); null = off.</summary>
+    public string? WebhookToken { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }

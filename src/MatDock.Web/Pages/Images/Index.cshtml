@@ -133,6 +133,10 @@
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="download" /><span>Pull</span></button>
             </form>
         }
+        @if (isAdmin)
+        {
+            <a href="/Images/Load" class="mat-btn mat-btn--secondary"><icon name="upload" /><span>Import</span></a>
+        }
         <a href="/Images?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(Model.Q ?? string.Empty)&Refresh=true" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
         @if (isAdmin)
         {

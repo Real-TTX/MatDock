@@ -516,7 +516,7 @@ public sealed class UpdateService
                 StackId = stackId,
                 StackName = trace.StackName,
                 EnvironmentId = trace.EnvironmentId,
-                Trigger = trigger is "schedule" or "api" or "auto" ? trigger : "manual",
+                Trigger = trigger is "schedule" or "api" or "auto" or "webhook" ? trigger : "manual",
                 Outcome = outcome.Ok
                     ? (outcome.Changed ? UpdateRunOutcome.Updated : UpdateRunOutcome.NoChange)
                     : (trace.RolledBack ? UpdateRunOutcome.RolledBack : UpdateRunOutcome.Failed),

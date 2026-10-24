@@ -62,6 +62,18 @@ public class UpdateModel : PageModel
         return Page();
     }
 
+    /// <summary>The address a CI calls to redeploy this stack, or null when the webhook is off.</summary>
+    public string? WebhookUrl => Stack?.WebhookToken is { } token ? $"{Request.Scheme}://{Request.Host}/webhooks/stacks/{token}" : null;
+
+    /// <summary>Switches the redeploy webhook on with a new secret, or off.</summary>
+    public async Task<IActionResult> OnPostWebhookAsync(bool enabled)
+    {
+        var (ok, _) = await _stacks.SetWebhookAsync(Id, enabled, HttpContext.RequestAborted);
+        StatusMessage = !ok ? "Stack not found." : enabled ? "Webhook on: a former address no longer works." : "Webhook off.";
+        IsError = !ok;
+        return RedirectToPage(new { Id });
+    }
+
     /// <summary>Pins or unpins one service: updates skip a pinned service.</summary>
     public async Task<IActionResult> OnPostPinAsync(string service, bool pin)
     {

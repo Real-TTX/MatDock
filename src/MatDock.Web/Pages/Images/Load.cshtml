@@ -1,0 +1,34 @@
+@page
+@model MatDock.Web.Pages.Images.LoadModel
+@{
+    ViewData["Title"] = "Import image";
+    ViewData["Width"] = "narrow";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Images", "/Images") };
+}
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" enctype="multipart/form-data" class="mat-form">
+            <partial name="_ValidationSummary" />
+            <div class="mat-form__grid">
+                <mat-field label="Environment" asp-for="EnvironmentId">
+                    <select asp-for="EnvironmentId" class="mat-select">
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name</option>
+                        }
+                    </select>
+                </mat-field>
+                <div class="mat-field mat-field--full">
+                    <label class="mat-label" for="image-file">File</label>
+                    <input id="image-file" type="file" name="file" class="mat-input" accept=".tar,.gz,.tgz,.tar.gz,.xz,.bz2" required />
+                    <small class="mat-hint">A file written by docker save or by Export on an image page (plain or compressed).</small>
+                </div>
+            </div>
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="upload" /><span>Import</span></button>
+                <a href="/Images" class="mat-btn mat-btn--secondary">Cancel</a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>

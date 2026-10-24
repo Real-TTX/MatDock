@@ -194,6 +194,56 @@ public static partial class StackCommands
     public static string Start(string dockerHead, string name, string composePath)
         => Lifecycle(dockerHead, name, composePath, "start");
 
+    /// <summary>What can be done to one service of a managed stack.</summary>
+    public enum ServiceAction
+    {
+        Restart,
+        Stop,
+        Start,
+
+        /// <summary>New containers for the service, whether or not its settings changed (<c>up -d --force-recreate --no-deps</c>).</summary>
+        Recreate,
+
+        /// <summary>Runs the service with a number of containers (<c>up -d --scale</c>).</summary>
+        Scale,
+    }
+
+    /// <summary>
+    /// One service of a managed stack: restart, stop, start, recreate or scale it, with the stack's compose file and its image overrides.
+    /// $1 = stack, $2 = compose path, $3 = service, $4 = number of containers (all validated and passed as quoted arguments). Recreate and scale need the
+    /// files on the host (deployed from MatDock once); restart, stop and start fall back to the project label.
+    /// </summary>
+    public static string Service(string dockerHead, string name, string composePath, string service, ServiceAction action, int replicas = 1)
+    {
+        Require(name);
+        if (!IsValidServiceName(service))
+        {
+            throw new ArgumentException($"Invalid service name: '{service}'.", nameof(service));
+        }
+        if (action == ServiceAction.Scale && replicas is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(replicas), "Between 0 and 100 containers.");
+        }
+
+        var verb = action switch
+        {
+            ServiceAction.Restart => "restart \"$3\"",
+            ServiceAction.Stop => "stop \"$3\"",
+            ServiceAction.Start => "start \"$3\"",
+            ServiceAction.Recreate => "up -d --force-recreate --no-deps \"$3\"",
+            _ => "up -d --no-recreate --scale \"$3=$4\" \"$3\"",
+        };
+        var needsFiles = action is ServiceAction.Recreate or ServiceAction.Scale;
+        var script = "set -e; dir=\"" + StacksDir + "/$1\"; "
+                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + dockerHead + " compose -p \"$1\" -f \"$2\" $ov " + verb + "; "
+                   + (needsFiles
+                       ? "else echo \"The compose file of this stack is not on the host: deploy it from MatDock once.\" >&2; exit 3; fi"
+                       : "else " + dockerHead + " compose -p \"$1\" " + verb + "; fi");
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
+             + " " + VolumeFileCommands.ShellQuote(service) + " " + replicas.ToString(System.Globalization.CultureInfo.InvariantCulture) + " 2>&1";
+    }
+
     // ---- Discovered (external) stacks: operate by compose project label, no compose file needed ----
 
     /// <summary>Starts all containers of a discovered compose project (by label).</summary>

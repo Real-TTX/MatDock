@@ -6,6 +6,8 @@
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Images", $"/Images?EnvId={Model.EnvId}") };
 }
 
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
 @if (Model.Error is not null)
 {
     <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
@@ -47,10 +49,73 @@ else if (Model.Detail is { } d)
         </section>
     }
 
-    <section id="live-scan" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "10" : null)">
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="box" /><h2 class="mat-card__title">Used by</h2><span class="mat-badge">@Model.UsedBy.Count</span></div>
+        @if (Model.UsedBy.Count == 0)
+        {
+            <div class="mat-empty"><p>No container uses this image.</p></div>
+        }
+        else
+        {
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead><tr><th>Container</th><th>Stack</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.UsedBy)
+                        {
+                            <tr>
+                                <td data-label="Container"><a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)">@c.Name</a></td>
+                                <td data-label="Stack">@(c.Project ?? "–")</td>
+                                <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (User.IsInRole("Admin"))
+    {
+        <section id="live-push" class="mat-card" data-live="@(Model.PushRunning is { IsFinished: false } ? "5" : null)">
+            <div class="mat-card__head"><icon name="upload" /><h2 class="mat-card__title">Tag, push, export</h2></div>
+            <div class="mat-card__body mat-stack">
+                @if (Model.PushRunning is { } push)
+                {
+                    var (pushText, _) = push.Read(0);
+                    @if (push.Error is not null)
+                    {
+                        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@push.Error</div></div>
+                    }
+                    else if (push.IsFinished)
+                    {
+                        <div class="mat-alert mat-alert--success"><icon name="check-circle" /><div class="mat-alert__body">Pushed.</div></div>
+                    }
+                    <pre class="mat-code md-output">@pushText</pre>
+                }
+                <form method="post" asp-page-handler="Tag" class="md-image-form">
+                    <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="reference" value="@Model.Reference" />
+                    <input name="target" class="mat-input mat-mono md-image-input" placeholder="registry.example.com/team/app:1.2" aria-label="New name of the image" spellcheck="false" autocomplete="off" required />
+                    <button type="submit" class="mat-btn mat-btn--secondary"><icon name="tag" /><span>Add tag</span></button>
+                </form>
+                <div class="mat-actions">
+                    @foreach (var tag in d.Tags.Where(t => !t.EndsWith(":<none>", StringComparison.Ordinal)))
+                    {
+                        <form method="post" asp-page-handler="Push" data-confirm="Push @tag to its registry?">
+                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="reference" value="@Model.Reference" /><input type="hidden" name="tag" value="@tag" />
+                            <button type="submit" class="mat-btn mat-btn--secondary"><icon name="upload" /><span>Push @tag</span></button>
+                        </form>
+                    }
+                    <a class="mat-btn mat-btn--secondary" href="/Images/Detail?handler=Save&envId=@Model.EnvId&reference=@Uri.EscapeDataString(Model.Reference)"><icon name="download" /><span>Export (.tar.gz)</span></a>
+                </div>
+            </div>
+        </section>
+    }
+
+    <section id="live-scan" class="mat-card" data-live="@(Model.ScanRunning is { IsFinished: false } ? "10" : null)">
         <div class="mat-card__head"><icon name="shield" /><h2 class="mat-card__title">Vulnerabilities</h2></div>
         <div class="mat-card__body mat-stack">
-            @if (Model.Running is { } op)
+            @if (Model.ScanRunning is { } op)
             {
                 var (text, _) = op.Read(0);
                 if (!op.IsFinished)
@@ -101,11 +166,11 @@ else if (Model.Detail is { } d)
                     }
                 }
             }
-            else if (Model.Running is null)
+            else if (Model.ScanRunning is null)
             {
                 <p class="mat-hint">Not scanned yet.</p>
             }
-            @if (User.IsInRole("Admin") && Model.Running is not { IsFinished: false })
+            @if (User.IsInRole("Admin") && Model.ScanRunning is not { IsFinished: false })
             {
                 <form method="post" asp-page-handler="Scan">
                     <input type="hidden" name="envId" value="@Model.EnvId" />

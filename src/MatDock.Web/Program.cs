@@ -151,6 +151,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AuthorizeFolder("/Users", "AdminOnly");
     options.Conventions.AuthorizeFolder("/Updates", "AdminOnly");
+    options.Conventions.AuthorizePage("/Images/Load", "AdminOnly");
     options.Conventions.AuthorizeFolder("/Settings", "AdminOnly");
     // The role "User" looks at everything and starts/stops/restarts containers; everything that reaches the hosts beyond
     // that is for admins. Environments hold the SSH secrets and decide which hosts MatDock drives (a Local environment is
@@ -257,6 +258,9 @@ app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthori
 // Incoming Git webhook that triggers a sync job. Anonymous by design — the per-job URL token is the
 // secret (AllowAnonymous is required to escape the fallback "authenticated user" policy).
 app.MapPost("/webhooks/sync/{token}", MatDock.Web.Sync.WebhookSyncEndpoint.HandleAsync).AllowAnonymous();
+
+// The redeploy webhook of a stack (a CI after a push): anonymous, the token in the path is the secret; rate limited like the other anonymous endpoints.
+app.MapPost("/webhooks/stacks/{token}", MatDock.Web.Sync.WebhookStackEndpoint.HandleAsync).AllowAnonymous().RequireRateLimiting(MatPlatform.MatPlatformEndpoints.AnonymousRateLimit);
 
 // Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
 // (MatDock__Api__Key) is the guard; without a configured key every call answers 503.

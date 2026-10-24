@@ -35,12 +35,14 @@ public sealed class ImageService
     private readonly IHostSessionFactory _sessions;
     private readonly EnvironmentService _environments;
     private readonly MatDockOptions _options;
+    private readonly Registries.RegistryService? _registries;
 
-    public ImageService(IHostSessionFactory sessions, EnvironmentService environments, IOptions<MatDockOptions> options)
+    public ImageService(IHostSessionFactory sessions, EnvironmentService environments, IOptions<MatDockOptions> options, Registries.RegistryService? registries = null)
     {
         _sessions = sessions;
         _environments = environments;
         _options = options.Value;
+        _registries = registries;
     }
 
     /// <summary>The image, or an error text (invalid reference, not found, host unreachable).</summary>
@@ -79,10 +81,156 @@ public sealed class ImageService
         }
     }
 
-    private async Task<(int Exit, string Out, string Err)> RunAsync(IHostSession session, string command, CancellationToken ct)
+    /// <summary>The containers (running or not) made from this image.</summary>
+    public async Task<IReadOnlyList<Containers.DockerContainer>> UsedByAsync(DockerEnvironment env, string reference, CancellationToken ct = default)
+    {
+        if (!ImageCommands.IsValidImageRef(reference))
+        {
+            return Array.Empty<Containers.DockerContainer>();
+        }
+
+        var (exit, output, _) = await RunOnHostAsync(env, head => ImageCommands.UsedBy(reference, head), null, null, ct);
+        return exit == 0 ? Containers.ContainerService.ParseContainers(output) : Array.Empty<Containers.DockerContainer>();
+    }
+
+    /// <summary>Puts another name on the image (<c>docker image tag</c>).</summary>
+    public async Task<(bool Ok, string Message)> TagAsync(DockerEnvironment env, string source, string target, CancellationToken ct = default)
+    {
+        if (!ImageCommands.IsValidImageRef(source) || !ImageCommands.IsValidImageRef(target) || target.Contains('@'))
+        {
+            return (false, "Enter a name like registry.example.com/team/app:1.2.");
+        }
+
+        var (exit, output, error) = await RunOnHostAsync(env, head => ImageCommands.Tag(source, target, head), null, null, ct);
+        return exit == 0 ? (true, $"Tagged as {target}.") : (false, DockerErrorMessages.InterpretDockerError(error, output));
+    }
+
+    /// <summary>
+    /// Pushes a tag to its registry (<c>docker push</c>). The host signs in first with the credentials MatDock keeps for that registry (the token goes over
+    /// stdin, never on the command line); without them the push is anonymous and the registry decides.
+    /// </summary>
+    public async Task<(bool Ok, string Output)> PushAsync(DockerEnvironment env, string reference, Action<string>? log = null, CancellationToken ct = default)
+    {
+        if (!ImageCommands.IsValidImageRef(reference) || reference.Contains('@') || reference.StartsWith("sha256:", StringComparison.Ordinal))
+        {
+            return (false, "Only a tag can be pushed (repository:tag).");
+        }
+
+        var host = Updates.ImageRef.TryParse(reference)?.Host ?? "docker.io";
+        if (_registries is not null)
+        {
+            var login = (await _registries.GetEnabledLoginsAsync(ct))
+                .FirstOrDefault(l => Registries.RegistryService.HostMatches(l.Host, Registries.RegistryService.NormalizeHost(host)));
+            if (login is { Username.Length: > 0, Token.Length: > 0 })
+            {
+                log?.Invoke($"==> docker login {login.Host}");
+                var token = System.Text.Encoding.UTF8.GetBytes(login.Token);
+                var (loginExit, loginOut, loginErr) = await RunOnHostAsync(env, head => Stacks.StackCommands.Login(head, login.Host, login.Username), token, TimeSpan.FromSeconds(60), ct);
+                if (loginExit != 0)
+                {
+                    return (false, $"docker login {login.Host} failed: {DockerErrorMessages.InterpretDockerError(loginErr, loginOut)}");
+                }
+            }
+        }
+
+        log?.Invoke($"==> docker push {reference}");
+        var (exit, output, error) = await RunOnHostAsync(env, head => ImageCommands.Push(reference, head), null, TimeSpan.FromSeconds(Math.Max(300, _options.MigrationTimeoutSeconds)), ct);
+        var text = (output + error).Trim();
+        return exit == 0 ? (true, text) : (false, DockerErrorMessages.InterpretDockerError(error, output) is { Length: > 0 } why ? why : text);
+    }
+
+    /// <summary>Writes the image as a gzip-compressed tar (<c>docker save | gzip</c>) to <paramref name="output"/>, for a host without a registry.</summary>
+    public async Task<(bool Ok, string Error)> SaveAsync(DockerEnvironment env, string reference, Stream output, CancellationToken ct = default)
+    {
+        if (!ImageCommands.IsValidImageRef(reference))
+        {
+            return (false, "Invalid image reference.");
+        }
+
+        var settings = _environments.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        try
+        {
+            using var session = await ConnectAsync(settings, ct);
+            using var cmd = session.CreateCommand(ImageCommands.Save(reference, head));
+            var timeout = TimeSpan.FromSeconds(Math.Max(300, _options.MigrationTimeoutSeconds));
+            cmd.CommandTimeout = timeout;
+            cmd.BufferOutput = false;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+            var running = cmd.BeginExecute();
+            await cmd.OutputStream.CopyToAsync(output, cts.Token);
+            cmd.EndExecute(running);
+            return cmd.ExitStatus == 0 ? (true, string.Empty) : (false, "The image could not be saved.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>Loads images from a tar (plain or compressed, as <c>docker save</c> writes it) into the host's Docker (<c>docker load</c>).</summary>
+    public async Task<(bool Ok, string Message)> LoadAsync(DockerEnvironment env, Stream archive, CancellationToken ct = default)
+    {
+        var settings = _environments.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        try
+        {
+            using var session = await ConnectAsync(settings, ct);
+            using var cmd = session.CreateCommand(ImageCommands.Load(head));
+            cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(300, _options.MigrationTimeoutSeconds));
+            // The input stream only after BeginExecute opened the channel.
+            var running = cmd.BeginExecute();
+            var input = cmd.CreateInputStream();
+            await archive.CopyToAsync(input, ct);
+            input.Close();
+            cmd.EndExecute(running);
+            var text = ((cmd.Result ?? string.Empty) + (cmd.Error ?? string.Empty)).Trim();
+            var loaded = text.Split('\n').Where(l => l.StartsWith("Loaded image", StringComparison.OrdinalIgnoreCase)).Select(l => l.Trim()).ToList();
+            return cmd.ExitStatus == 0
+                ? (true, loaded.Count == 0 ? "Loaded." : string.Join(" ", loaded))
+                : (false, DockerErrorMessages.InterpretDockerError(cmd.Error ?? string.Empty, cmd.Result ?? string.Empty));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    private async Task<IHostSession> ConnectAsync(Ssh.SshConnectionSettings settings, CancellationToken ct)
+    {
+        var session = _sessions.Create(settings);
+        using var connect = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        connect.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, settings.TimeoutSeconds)));
+        await session.ConnectAsync(connect.Token);
+        return session;
+    }
+
+    /// <summary>One command on the host of <paramref name="env"/>, optionally with bytes on its stdin and its own time limit.</summary>
+    private async Task<(int Exit, string Out, string Err)> RunOnHostAsync(DockerEnvironment env, Func<string, string> command, byte[]? stdin, TimeSpan? timeout, CancellationToken ct)
+    {
+        var settings = _environments.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        using var session = await ConnectAsync(settings, ct);
+        if (stdin is null)
+        {
+            return await RunAsync(session, command(head), ct, timeout);
+        }
+
+        using var cmd = session.CreateCommand(command(head));
+        cmd.CommandTimeout = timeout ?? TimeSpan.FromSeconds(60);
+        var running = cmd.BeginExecute();
+        var input = cmd.CreateInputStream();
+        await input.WriteAsync(stdin, ct);
+        input.Close();
+        cmd.EndExecute(running);
+        return (cmd.ExitStatus ?? -1, cmd.Result ?? string.Empty, cmd.Error ?? string.Empty);
+    }
+
+    private async Task<(int Exit, string Out, string Err)> RunAsync(IHostSession session, string command, CancellationToken ct, TimeSpan? limit = null)
     {
         using var cmd = session.CreateCommand(command);
-        var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
+        var timeout = limit ?? TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
         cmd.CommandTimeout = timeout;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);

@@ -160,6 +160,8 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.GitComposePath).HasMaxLength(500);
             e.Property(x => x.ManagedBy).HasMaxLength(100);
             e.Property(x => x.PinnedServices).HasMaxLength(1000);
+            e.Property(x => x.WebhookToken).HasMaxLength(100);
+            e.HasIndex(x => x.WebhookToken);
             e.HasIndex(x => x.SyncJobId);
             e.Ignore(x => x.IsGitBacked);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);

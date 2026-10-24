@@ -10,12 +10,24 @@ public class StackModel : PageModel
 {
     private readonly ContainerService _containerService;
     private readonly EnvironmentService _environmentService;
+    private readonly MatDock.Core.Stacks.StackService _stacks;
 
-    public StackModel(ContainerService containerService, EnvironmentService environmentService)
+    public StackModel(ContainerService containerService, EnvironmentService environmentService, MatDock.Core.Stacks.StackService stacks)
     {
         _containerService = containerService;
         _environmentService = environmentService;
+        _stacks = stacks;
     }
+
+    /// <summary>The stack when MatDock manages it (its services can be restarted, recreated and scaled), else null.</summary>
+    public Stack? Managed { get; private set; }
+
+    /// <summary>The services of the stack with how many of their containers run.</summary>
+    public IReadOnlyList<(string Service, int Running, int Total)> Services =>
+        Containers.Where(c => !string.IsNullOrEmpty(c.Service)).GroupBy(c => c.Service!, StringComparer.Ordinal)
+            .Select(g => (g.Key, g.Count(c => c.IsRunning), g.Count())).OrderBy(s => s.Key, StringComparer.Ordinal).ToList();
+
+    public bool IsAdmin => User.IsInRole(nameof(UserRole.Admin));
 
     public long EnvId { get; private set; }
     public string Project { get; private set; } = string.Empty;
@@ -42,6 +54,7 @@ public class StackModel : PageModel
         try
         {
             Containers = await _containerService.ListByProjectAsync(Environment, Project, HttpContext.RequestAborted);
+            Managed = await _stacks.GetByNameAsync(Environment.Id, Project, HttpContext.RequestAborted);
             if (Containers.Count == 0)
             {
                 Error = "Stack not found or empty.";
@@ -53,6 +66,29 @@ public class StackModel : PageModel
         }
 
         return Page();
+    }
+
+    /// <summary>Restarts, stops, starts, recreates or scales one service of a managed stack (admins only).</summary>
+    public async Task<IActionResult> OnPostServiceAsync(long envId, string project, string service, MatDock.Core.Stacks.StackCommands.ServiceAction serviceAction, int replicas = 1)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        var stack = env is { IsEnabled: true } ? await _stacks.GetByNameAsync(env.Id, project ?? string.Empty, HttpContext.RequestAborted) : null;
+        if (stack is null || !ModelState.IsValid)
+        {
+            StatusMessage = stack is null ? "This stack is not managed by MatDock." : "Invalid action.";
+            IsError = true;
+            return RedirectToPage(new { envId, project });
+        }
+
+        var (ok, message) = await _stacks.ServiceActionAsync(stack.Id, service, serviceAction, replicas, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(new { envId, project });
     }
 
     public async Task<IActionResult> OnPostActionAsync(long envId, string project, string id, ContainerAction action, string? name = null)

@@ -138,6 +138,138 @@ public sealed class StackService
         return (true, $"{service} will run {image} instead of {composeImage}. Deploy to apply it.");
     }
 
+    /// <summary>Restarts, stops, starts, recreates or scales one service of a managed stack (with its compose file and image overrides).</summary>
+    public async Task<(bool Ok, string Output)> ServiceActionAsync(long id, string service, StackCommands.ServiceAction action, int replicas = 1, CancellationToken ct = default)
+    {
+        if (!StackCommands.IsValidServiceName(service))
+        {
+            return (false, "Invalid service name.");
+        }
+
+        if (action == StackCommands.ServiceAction.Scale && replicas is < 0 or > 100)
+        {
+            return (false, "Between 0 and 100 containers.");
+        }
+
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        var prep = await PrepareHostAsync(stack, ct);
+        if (!prep.Ok)
+        {
+            return (false, prep.Message);
+        }
+
+        try
+        {
+            var (ok, output) = await ExecOnHostAsync(prep.Settings!, StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas),
+                writeStdin: null, prep.Timeout, ct, stream: false);
+            var done = action switch
+            {
+                StackCommands.ServiceAction.Scale => $"{service} runs with {replicas} container(s).",
+                StackCommands.ServiceAction.Recreate => $"{service} recreated.",
+                _ => $"{service}: {action.ToString().ToLowerInvariant()} done.",
+            };
+            return ok ? (true, done) : (false, string.IsNullOrWhiteSpace(output) ? "Failed." : output.Trim());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>Switches the redeploy webhook of a stack on with a new secret (a former URL stops working), or off.</summary>
+    public async Task<(bool Ok, string? Token)> SetWebhookAsync(long id, bool enabled, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, null);
+        }
+
+        stack.WebhookToken = enabled
+            ? Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+            : null;
+        await _db.SaveChangesAsync(ct);
+        return (true, stack.WebhookToken);
+    }
+
+    /// <summary>The stack whose webhook has this secret, or null (an unknown or too short secret never matches).</summary>
+    public async Task<Stack?> GetByWebhookTokenAsync(string? token, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(token) || token.Length < 20 || token.Length > 100)
+        {
+            return null;
+        }
+
+        var stack = await _db.Stacks.AsNoTracking().FirstOrDefaultAsync(s => s.WebhookToken == token, ct);
+        // The lookup is by the index; the comparison afterwards takes the same time for every candidate.
+        return stack is not null && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(stack.WebhookToken ?? string.Empty), Encoding.UTF8.GetBytes(token)) ? stack : null;
+    }
+
+    /// <summary>
+    /// Copies a stack into another environment (or the same one under another name): compose file, <c>.env</c>, Git source, image overrides and pinned services.
+    /// Volumes are not copied (the volume migration does that); with <paramref name="deploy"/> the copy is started at once.
+    /// </summary>
+    public async Task<(bool Ok, string Message, long Id)> CopyAsync(long id, long targetEnvironmentId, string? newName, bool deploy, CancellationToken ct = default)
+    {
+        var source = await _db.Stacks.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (source is null)
+        {
+            return (false, "Stack not found.", 0);
+        }
+
+        if (await _environmentService.GetAsync(targetEnvironmentId, ct) is not { IsEnabled: true })
+        {
+            return (false, "The target environment is not available.", 0);
+        }
+
+        var name = string.IsNullOrWhiteSpace(newName) ? source.Name : newName.Trim();
+        if (name == source.Name && targetEnvironmentId == source.EnvironmentId)
+        {
+            return (false, "A copy in the same environment needs another name.", 0);
+        }
+
+        var (created, message, copyId) = await CreateAsync(new StackInput
+        {
+            Name = name,
+            EnvironmentId = targetEnvironmentId,
+            ComposeYaml = source.ComposeYaml,
+            EnvContent = source.EnvContent,
+            GitRepoUrl = source.GitRepoUrl,
+            GitReference = source.GitReference,
+            GitComposePath = source.GitComposePath,
+            GitCredentialId = source.GitCredentialId,
+        }, ct);
+        if (!created)
+        {
+            return (false, message, 0);
+        }
+
+        var copy = await _db.Stacks.FirstAsync(s => s.Id == copyId, ct);
+        copy.ImageOverridesJson = source.ImageOverridesJson;
+        copy.PinnedServices = source.PinnedServices;
+        if (source.IsGitBacked)
+        {
+            copy.ComposeYaml = source.ComposeYaml; // the cache of the repo's compose file, so overrides can be checked before the first deploy
+        }
+
+        await _db.SaveChangesAsync(ct);
+        if (!deploy)
+        {
+            return (true, $"Copied to '{name}'. Its volumes are not copied.", copyId);
+        }
+
+        var (deployed, output) = await DeployAsync(copyId, ct);
+        return deployed
+            ? (true, $"Copied to '{name}' and deployed. Its volumes are not copied.", copyId)
+            : (false, $"Copied to '{name}', but the deploy failed: {output.Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim()}", copyId);
+    }
+
     /// <summary>Sets the overrides of a stack from stored JSON (a restored backup): the ones that fit its compose file stay, the rest are dropped.</summary>
     public async Task RestoreImageOverridesAsync(long id, string? json, CancellationToken ct = default)
     {

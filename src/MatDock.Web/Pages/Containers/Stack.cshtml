@@ -86,6 +86,52 @@ else
 }
 </div>
 
+@if (Model.Error is null && Model.Managed is not null && Model.IsAdmin && Model.Services.Count > 0)
+{
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="layers" /><h2 class="mat-card__title">Services</h2><span class="mat-badge">@Model.Services.Count</span></div>
+        <div class="mat-table-wrap">
+            <table class="mat-table">
+                <thead><tr><th>Service</th><th class="mat-num">Running</th><th>Scale</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                    @foreach (var (service, running, total) in Model.Services)
+                    {
+                        <tr>
+                            <td data-label="Service" class="mat-mono">@service</td>
+                            <td data-label="Running" class="mat-num">@running / @total</td>
+                            <td data-label="Scale">
+                                <form method="post" asp-page-handler="Service" class="md-image-form">
+                                    <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" />
+                                    <input type="hidden" name="service" value="@service" /><input type="hidden" name="serviceAction" value="Scale" />
+                                    <input type="number" name="replicas" value="@total" min="0" max="100" class="mat-input md-scale-input" aria-label="Containers of @service" />
+                                    <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Scale" aria-label="Scale @service"><icon name="save" /></button>
+                                </form>
+                            </td>
+                            <td class="mat-table__cell-actions">
+                                <div class="mat-table__actions">
+                                    @foreach (var (action, icon, confirm) in new[] { ("Restart", "refresh", (string?)null), ("Recreate", "rocket", $"Recreate the containers of {service}?"), ("Start", "play", null), ("Stop", "stop", $"Stop {service}?") })
+                                    {
+                                        <form method="post" asp-page-handler="Service" data-confirm="@confirm">
+                                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" />
+                                            <input type="hidden" name="service" value="@service" /><input type="hidden" name="serviceAction" value="@action" />
+                                            <button type="submit" class="mat-btn @(action == "Stop" ? "mat-btn--danger" : "mat-btn--ghost") mat-btn--icon mat-btn--sm" title="@action" aria-label="@action @service"><icon name="@icon" /></button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
 @section Actions {
+    @if (Model.Managed is not null && Model.IsAdmin)
+    {
+        <a href="/Stacks/Update?id=@Model.Managed.Id" class="mat-btn mat-btn--secondary"><icon name="arrow-up" /><span>Updates</span></a>
+        <a href="/Stacks/Copy?id=@Model.Managed.Id" class="mat-btn mat-btn--secondary"><icon name="copy" /><span>Copy</span></a>
+    }
     <a href="/Containers/Logs?EnvId=@Model.EnvId&stack=@Uri.EscapeDataString(Model.Project)" class="mat-btn mat-btn--secondary"><icon name="eye" /><span>Logs</span></a>
 }

@@ -142,7 +142,7 @@ public sealed class RegistryService
         return match is not null ? ToLogin(match) : new RegistryLogin(norm, string.Empty, null, Insecure: false);
     }
 
-    private static bool HostMatches(string a, string b)
+    internal static bool HostMatches(string a, string b)
     {
         static string Canon(string h)
         {
@@ -181,7 +181,7 @@ public sealed class RegistryService
     }
 
     /// <summary>Strips scheme and trailing slash from a host entry (users often paste https://host).</summary>
-    private static string NormalizeHost(string host)
+    internal static string NormalizeHost(string host)
     {
         var h = host.Trim();
         if (h.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { h = h["https://".Length..]; }

@@ -70,6 +70,22 @@ public static partial class ImageCommands
     public static string Tag(string source, string target, string dockerHead = "docker")
         => VolumeCommands.PathPrefix + dockerHead + " image tag " + QuotedRef(source) + " " + QuotedRef(target);
 
+    /// <summary>The containers made from the image, running or not (<c>docker ps -a --filter ancestor=…</c>), one JSON line each.</summary>
+    public static string UsedBy(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " ps -a --filter ancestor=" + QuotedRef(reference) + " --format '{{json .}}'";
+
+    /// <summary>Pushes a tag to its registry; output merged so the progress and the refusal are captured.</summary>
+    public static string Push(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " push " + QuotedRef(reference) + " 2>&1";
+
+    /// <summary>The image as a gzip-compressed tar on stdout (<c>docker save | gzip</c>); pipefail, so a failing save is not hidden by gzip.</summary>
+    public static string Save(string reference, string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + "set -o pipefail 2>/dev/null; " + dockerHead + " image save " + QuotedRef(reference) + " | gzip -c";
+
+    /// <summary>Loads the images of a tar on stdin (<c>docker load</c> reads plain, gzip, bzip2 and xz).</summary>
+    public static string Load(string dockerHead = "docker")
+        => VolumeCommands.PathPrefix + dockerHead + " image load";
+
     /// <summary>The image as one JSON line (<c>docker image inspect</c>).</summary>
     public static string Inspect(string reference, string dockerHead = "docker")
         => VolumeCommands.PathPrefix + dockerHead + " image inspect --format '{{json .}}' " + QuotedRef(reference);

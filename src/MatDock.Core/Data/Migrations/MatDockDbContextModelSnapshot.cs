@@ -793,11 +793,17 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("UpdateUserId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("WebhookToken")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EnvironmentId");
 
                     b.HasIndex("SyncJobId");
+
+                    b.HasIndex("WebhookToken");
 
                     b.HasIndex("Name", "EnvironmentId")
                         .IsUnique()

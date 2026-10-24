@@ -1,0 +1,35 @@
+@page
+@model MatDock.Web.Pages.Stacks.CopyModel
+@{
+    ViewData["Title"] = $"Copy {Model.Source?.Name}";
+    ViewData["Width"] = "narrow";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
+}
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" class="mat-form">
+            <partial name="_ValidationSummary" />
+            <input type="hidden" asp-for="Id" />
+            <div class="mat-form__grid">
+                <mat-field label="To environment" asp-for="TargetEnvironmentId">
+                    <select asp-for="TargetEnvironmentId" class="mat-select">
+                        @foreach (var env in Model.Environments)
+                        {
+                            <option value="@env.Id">@env.Name@(env.Id == Model.Source?.EnvironmentId ? " (where it is now)" : "")</option>
+                        }
+                    </select>
+                </mat-field>
+                <mat-field label="Name" asp-for="Name" hint="Another name when it stays in the same environment.">
+                    <input asp-for="Name" class="mat-input mat-mono" />
+                </mat-field>
+            </div>
+            <label class="mat-check"><input asp-for="Deploy" type="checkbox" /><span>Deploy the copy at once</span></label>
+            <p class="mat-hint">The compose file, the .env, the Git source, the image overrides and the pinned services are copied. The volumes are not: <a href="/Environments/Migrate">migrate them</a> if the copy needs the data.</p>
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="copy" /><span>Copy</span></button>
+                <a href="/Stacks" class="mat-btn mat-btn--secondary">Cancel</a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</div>
