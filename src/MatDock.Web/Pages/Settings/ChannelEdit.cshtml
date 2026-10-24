@@ -1,0 +1,90 @@
+@page
+@model MatDock.Web.Pages.Settings.ChannelEditModel
+@using MatDock.Core.Entities
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit channel" : "New channel";
+    ViewData["Width"] = "narrow";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Notifications", "/Settings/Notifications") };
+    var keep = Model.HasSecret ? "Stored. Empty keeps it." : null;
+}
+
+<partial name="_SystemTabs" />
+
+<div class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" class="mat-form">
+            <partial name="_ValidationSummary" />
+            <div class="mat-form__grid">
+                <mat-field label="Name" asp-for="Input.Name">
+                    <input asp-for="Input.Name" class="mat-input" placeholder="e.g. Ops team" />
+                </mat-field>
+                <mat-field label="Type" asp-for="Input.Type">
+                    <select asp-for="Input.Type" id="Input_Type" class="mat-select" asp-items="Html.GetEnumSelectList<NotificationChannelType>()"></select>
+                </mat-field>
+            </div>
+
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Discord),@((int)NotificationChannelType.Slack),@((int)NotificationChannelType.Teams)">
+                <mat-field label="Webhook address" for-id="ch-webhook" hint="@(keep ?? "Discord: server settings → Integrations → Webhooks. Slack: an incoming webhook. Teams: the workflow “When a Teams webhook request is received”.")">
+                    <input asp-for="Input.Secret" id="ch-webhook" type="password" class="mat-input" autocomplete="off" placeholder="https://…" />
+                </mat-field>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Telegram)">
+                <div class="mat-form__grid">
+                    <mat-field label="Bot token" for-id="ch-bot" hint="@(keep ?? "From @BotFather.")">
+                        <input asp-for="Input.Secret" id="ch-bot" type="password" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Chat id" for-id="ch-chat" hint="A number (a group starts with -) or @@channel.">
+                        <input asp-for="Input.Target" id="ch-chat" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Ntfy)">
+                <div class="mat-form__grid">
+                    <mat-field label="Server" for-id="ch-ntfy-server" hint="Empty = https://ntfy.sh">
+                        <input asp-for="Input.Url" id="ch-ntfy-server" class="mat-input" autocomplete="off" placeholder="https://ntfy.sh" />
+                    </mat-field>
+                    <mat-field label="Topic" for-id="ch-topic">
+                        <input asp-for="Input.Target" id="ch-topic" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+                <mat-field label="Access token" for-id="ch-ntfy-token" hint="@(keep ?? "Only for a protected topic.")">
+                    <input asp-for="Input.Secret" id="ch-ntfy-token" type="password" class="mat-input" autocomplete="off" />
+                </mat-field>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Gotify)">
+                <div class="mat-form__grid">
+                    <mat-field label="Server" for-id="ch-gotify-server">
+                        <input asp-for="Input.Url" id="ch-gotify-server" class="mat-input" autocomplete="off" placeholder="https://gotify.example.com" />
+                    </mat-field>
+                    <mat-field label="Application token" for-id="ch-gotify-token" hint="@keep">
+                        <input asp-for="Input.Secret" id="ch-gotify-token" type="password" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+            </div>
+
+            <label class="mat-check">
+                <input asp-for="Input.Enabled" type="checkbox" />
+                <span>Enabled</span>
+            </label>
+
+            <mat-form-buttons>
+                <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                @if (Model.IsEdit)
+                {
+                    <button type="submit" form="test-form" class="mat-btn mat-btn--secondary"><icon name="mail" /><span>Send test</span></button>
+                }
+                <a href="/Settings/Notifications" class="mat-btn mat-btn--secondary">Cancel</a>
+                @if (Model.IsEdit)
+                {
+                    <span class="mat-btn-row__spacer"></span>
+                    <button type="submit" form="delete-form" class="mat-btn mat-btn--danger" data-confirm="Delete channel '@Model.Input.Name'?"><icon name="trash" /><span>Delete</span></button>
+                }
+            </mat-form-buttons>
+        </form>
+        @if (Model.IsEdit)
+        {
+            <form method="post" asp-page-handler="Test" id="test-form"><input type="hidden" name="id" value="@Model.Id" /></form>
+            <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Id" /></form>
+        }
+    </div>
+</div>

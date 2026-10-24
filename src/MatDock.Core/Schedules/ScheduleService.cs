@@ -195,8 +195,37 @@ public sealed class ScheduleService
         ScheduleEvent.EnvironmentOffline => "Environment offline",
         ScheduleEvent.ContainerDied => "Container died",
         ScheduleEvent.ContainerUnhealthy => "Container unhealthy",
+        ScheduleEvent.HostThreshold => "Host limit",
+        ScheduleEvent.ContainerRestartLoop => "Restart loop",
         _ => evt.ToString(),
     };
+
+    /// <summary>Whether an enabled schedule sends a notification on this event.</summary>
+    public Task<bool> NotifiesOnAsync(ScheduleEvent evt, CancellationToken ct = default)
+        => _db.ScheduledTasks.AnyAsync(s => s.Enabled && s.Trigger == ScheduleTrigger.Event && s.Event == evt && s.Action == ScheduleAction.Notify, ct);
+
+    /// <summary>
+    /// Sends a notification on an event or stops it: switched on, the notification schedules of the event are enabled (one "Alert: …" is created when
+    /// there is none); switched off, they are disabled, never deleted.
+    /// </summary>
+    public async Task SetNotifyOnAsync(ScheduleEvent evt, bool on, CancellationToken ct = default)
+    {
+        var tasks = await _db.ScheduledTasks
+            .Where(s => s.Trigger == ScheduleTrigger.Event && s.Event == evt && s.Action == ScheduleAction.Notify)
+            .ToListAsync(ct);
+        if (on && tasks.Count == 0)
+        {
+            await CreateAsync(new ScheduleInput { Name = $"Alert: {EventLabel(evt)}", Trigger = ScheduleTrigger.Event, Event = evt, Action = ScheduleAction.Notify }, ct);
+            return;
+        }
+
+        foreach (var task in tasks)
+        {
+            task.Enabled = on;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
 
     private async Task<string> RunAndNotifyAsync(ScheduledTask task, CancellationToken ct, ScheduleEvent? evt = null, string? detail = null)
     {

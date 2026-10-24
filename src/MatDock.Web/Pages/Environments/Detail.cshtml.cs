@@ -31,6 +31,9 @@ public class DetailModel : PageModel
 
     public bool IsAdmin => User.IsInRole(nameof(UserRole.Admin));
 
+    [TempData] public string? StatusMessage { get; set; }
+    [TempData] public bool IsError { get; set; }
+
     public async Task<IActionResult> OnGetAsync()
     {
         Environment = await _environments.GetAsync(Id, HttpContext.RequestAborted);
@@ -56,6 +59,20 @@ public class DetailModel : PageModel
         }
 
         return Page();
+    }
+
+    /// <summary>The own alert limits of this host (admins): empty = the global limit, 0 = none.</summary>
+    public async Task<IActionResult> OnPostAlertsAsync(int? cpu, int? mem, int? disk)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var ok = await _environments.SetAlertLimitsAsync(Id, cpu, mem, disk, HttpContext.RequestAborted);
+        StatusMessage = ok ? "Alert limits saved." : "A limit is a percentage from 0 to 100.";
+        IsError = !ok;
+        return RedirectToPage(new { Id });
     }
 
     /// <summary>Removes what the form names on this environment, in the background (admins only).</summary>

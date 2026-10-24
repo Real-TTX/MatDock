@@ -36,6 +36,7 @@ public class MatDockDbContext : DbContext
     public DbSet<GitRepo> GitRepos => Set<GitRepo>();
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
+    public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
@@ -248,6 +249,18 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Host).HasMaxLength(255).IsRequired();
             e.Property(x => x.Username).HasMaxLength(200);
+            e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<NotificationChannel>(e =>
+        {
+            e.ToTable("NotificationChannel");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Type).HasConversion<int>();
+            e.Property(x => x.Url).HasMaxLength(500);
+            e.Property(x => x.Target).HasMaxLength(200);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });

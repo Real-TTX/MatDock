@@ -143,7 +143,13 @@ public enum ScheduleEvent
     ContainerDied = 4,
 
     /// <summary>The health check of a container turned unhealthy.</summary>
-    ContainerUnhealthy = 5
+    ContainerUnhealthy = 5,
+
+    /// <summary>A host went over one of its limits (CPU, memory, disk), or came back below it.</summary>
+    HostThreshold = 6,
+
+    /// <summary>A container started again and again within a few minutes (a restart loop).</summary>
+    ContainerRestartLoop = 7
 }
 
 /// <summary>Where backup archives are stored.</summary>

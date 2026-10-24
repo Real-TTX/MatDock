@@ -208,8 +208,8 @@ public sealed class ContainerService
         return (result.ExitStatus == 0, (result.StdOut + result.StdErr).Trim());
     }
 
-    /// <summary>The alerts (died with an error, unhealthy) between two Unix times; null when the host cannot be asked.</summary>
-    public async Task<IReadOnlyList<ContainerAlert>?> ListAlertsAsync(DockerEnvironment environment, long sinceUnix, long untilUnix, CancellationToken ct = default)
+    /// <summary>The alerts (died with an error, unhealthy) and the starts between two Unix times; null when the host cannot be asked.</summary>
+    public async Task<ContainerAlertWindow?> ListAlertsAsync(DockerEnvironment environment, long sinceUnix, long untilUnix, CancellationToken ct = default)
     {
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
@@ -219,7 +219,9 @@ public sealed class ContainerService
             using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
             var result = await RunCommandAsync(client, ContainerAlerts.EventsCommand(head, sinceUnix, untilUnix), ct);
-            return result.ExitStatus == 0 ? ContainerAlerts.Detect(result.StdOut, environment.Name) : null;
+            return result.ExitStatus == 0
+                ? new ContainerAlertWindow(ContainerAlerts.Detect(result.StdOut, environment.Name), ContainerAlerts.Starts(result.StdOut))
+                : null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

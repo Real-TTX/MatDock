@@ -9,6 +9,8 @@
     string Or(string? v) => string.IsNullOrWhiteSpace(v) ? "–" : v;
 }
 
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
 <div class="mat-actions md-actions">
     <a class="mat-btn mat-btn--secondary" href="/Containers?EnvId=@env.Id"><icon name="box" /><span>Containers</span></a>
     @if (Model.IsAdmin)
@@ -157,6 +159,24 @@
                     <p class="mat-hint">Volumes hold data: they have their own <a href="/Volumes/Prune?EnvId=@env.Id">cleanup with a preview</a>.</p>
                     <mat-form-buttons>
                         <button type="submit" class="mat-btn mat-btn--danger"><icon name="broom" /><span>Clean up</span></button>
+                    </mat-form-buttons>
+                </form>
+            </div>
+        </section>
+
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="alert" /><h2 class="mat-card__title">Alert limits</h2></div>
+            <div class="mat-card__body">
+                <form method="post" asp-page-handler="Alerts" class="mat-form">
+                    <input type="hidden" name="id" value="@env.Id" />
+                    <p class="mat-hint">Empty = the limit of the <a href="/Settings/Notifications">notification settings</a>, 0 = no alert for this host.</p>
+                    <div class="mat-form__grid">
+                        <mat-field label="Disk %" for-id="alert-disk"><input id="alert-disk" name="disk" type="number" min="0" max="100" value="@env.AlertDiskPercent" class="mat-input" /></mat-field>
+                        <mat-field label="Memory %" for-id="alert-mem"><input id="alert-mem" name="mem" type="number" min="0" max="100" value="@env.AlertMemPercent" class="mat-input" /></mat-field>
+                        <mat-field label="CPU %" for-id="alert-cpu"><input id="alert-cpu" name="cpu" type="number" min="0" max="100" value="@env.AlertCpuPercent" class="mat-input" /></mat-field>
+                    </div>
+                    <mat-form-buttons>
+                        <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
                     </mat-form-buttons>
                 </form>
             </div>

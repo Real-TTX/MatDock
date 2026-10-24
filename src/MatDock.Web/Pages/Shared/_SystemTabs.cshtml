@@ -2,7 +2,7 @@
     var sp = Context.Request.Path.Value ?? "";
     var tab = Context.Request.Query["tab"].ToString();
     bool Is(string s) => sp.StartsWith(s, StringComparison.OrdinalIgnoreCase);
-    var onNotifications = Is("/Settings/Notifications");
+    var onNotifications = Is("/Settings/Notifications") || Is("/Settings/ChannelEdit");
     var onProxies = Is("/Settings/Proxies");
     var onRegistries = Is("/Settings/Registries");
     var onActivity = Is("/Settings/Activity");

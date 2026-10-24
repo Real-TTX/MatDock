@@ -66,4 +66,11 @@ public class DockerEnvironment : AuditableEntity
     public string? LastCheckMessage { get; set; }
 
     public string? DockerVersion { get; set; }
+
+    /// <summary>The limits of this host for the alerts, in percent; null = the global limit of the notification settings, 0 = no alert.</summary>
+    public int? AlertCpuPercent { get; set; }
+
+    public int? AlertMemPercent { get; set; }
+
+    public int? AlertDiskPercent { get; set; }
 }

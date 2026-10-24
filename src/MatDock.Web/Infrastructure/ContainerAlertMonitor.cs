@@ -15,11 +15,12 @@ public sealed class ContainerAlertMonitor : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan MaxWindow = TimeSpan.FromMinutes(10);
-    private static readonly ScheduleEvent[] Events = [ScheduleEvent.ContainerDied, ScheduleEvent.ContainerUnhealthy];
+    private static readonly ScheduleEvent[] Events = [ScheduleEvent.ContainerDied, ScheduleEvent.ContainerUnhealthy, ScheduleEvent.ContainerRestartLoop];
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ContainerAlertMonitor> _logger;
     private readonly Dictionary<long, long> _cursor = new();
+    private readonly MatDock.Core.Notifications.RestartLoopWatch _loops = new();
 
     public ContainerAlertMonitor(IServiceScopeFactory scopeFactory, ILogger<ContainerAlertMonitor> logger)
     {
@@ -60,6 +61,8 @@ public sealed class ContainerAlertMonitor : BackgroundService
         var environments = scope.ServiceProvider.GetRequiredService<EnvironmentService>();
         var containers = scope.ServiceProvider.GetRequiredService<ContainerService>();
         var bus = scope.ServiceProvider.GetRequiredService<IScheduleEventBus>();
+        var settings = await scope.ServiceProvider.GetRequiredService<MatDock.Core.Notifications.NotificationSettingsService>().GetAsync(ct);
+        var loopWindow = TimeSpan.FromMinutes(Math.Clamp(settings.RestartLoopMinutes, 1, 120));
 
         // A few seconds back, so the events of the last moment are in the daemon's log when the window is read.
         var until = DateTimeOffset.UtcNow.AddSeconds(-5).ToUnixTimeSeconds();
@@ -75,16 +78,21 @@ public sealed class ContainerAlertMonitor : BackgroundService
                 continue;
             }
 
-            var alerts = await containers.ListAlertsAsync(env, since, end, ct);
-            if (alerts is null)
+            var window = await containers.ListAlertsAsync(env, since, end, ct);
+            if (window is null)
             {
                 continue; // host not reachable: read this window again next time
             }
 
             _cursor[env.Id] = end;
-            foreach (var alert in alerts)
+            foreach (var alert in window.Alerts)
             {
                 await bus.PublishAsync(alert.Event, env.Id, alert.Detail, ct);
+            }
+
+            foreach (var loop in _loops.Add(env, window.Starts, settings.RestartLoopCount, loopWindow, DateTimeOffset.FromUnixTimeSeconds(end).UtcDateTime))
+            {
+                await bus.PublishAsync(ScheduleEvent.ContainerRestartLoop, env.Id, loop, ct);
             }
         }
 

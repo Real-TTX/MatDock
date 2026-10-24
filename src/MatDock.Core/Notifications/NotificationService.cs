@@ -26,13 +26,20 @@ public sealed class NotificationService : INotificationService
     private readonly NotificationSettingsService _settingsService;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<NotificationService> _logger;
+    private readonly NotificationChannelService? _channels;
 
-    public NotificationService(NotificationSettingsService settingsService, IHttpClientFactory httpFactory, ILogger<NotificationService> logger)
+    public NotificationService(NotificationSettingsService settingsService, IHttpClientFactory httpFactory, ILogger<NotificationService> logger,
+        NotificationChannelService? channels = null)
     {
         _settingsService = settingsService;
         _httpFactory = httpFactory;
         _logger = logger;
+        _channels = channels;
     }
+
+    /// <summary>E-mail, the webhook or one of the channels is on.</summary>
+    private async Task<bool> AnyChannelAsync(NotificationSettings s, CancellationToken ct)
+        => s.SmtpEnabled || s.WebhookEnabled || (_channels is not null && await _channels.AnyEnabledAsync(ct));
 
     public async Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default)
     {
@@ -51,9 +58,9 @@ public sealed class NotificationService : INotificationService
     public async Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default)
     {
         var s = await _settingsService.GetAsync(ct);
-        if (!s.SmtpEnabled && !s.WebhookEnabled)
+        if (!await AnyChannelAsync(s, ct))
         {
-            return (false, "No notification enabled (SMTP and webhook are off).");
+            return (false, "No notification enabled (e-mail, webhook and the channels are off).");
         }
 
         var errors = await DispatchAsync(s, "MatDock test notification",
@@ -66,9 +73,9 @@ public sealed class NotificationService : INotificationService
     public async Task<(bool Ok, string Message)> NotifyAsync(string subject, string body, CancellationToken ct = default)
     {
         var s = await _settingsService.GetAsync(ct);
-        if (!s.SmtpEnabled && !s.WebhookEnabled)
+        if (!await AnyChannelAsync(s, ct))
         {
-            return (false, "No notification channel enabled (SMTP and webhook are off).");
+            return (false, "No notification channel enabled (e-mail, webhook and the channels are off).");
         }
 
         var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
@@ -90,6 +97,11 @@ public sealed class NotificationService : INotificationService
         {
             try { await SendWebhookAsync(s, subject, body, scheduleName, success, ct); }
             catch (Exception ex) { _logger.LogWarning(ex, "Webhook notification failed."); errors.Add($"Webhook: {ex.Message}"); }
+        }
+
+        if (_channels is not null)
+        {
+            errors.AddRange(await _channels.SendAllAsync(subject, body, ct));
         }
 
         return errors;

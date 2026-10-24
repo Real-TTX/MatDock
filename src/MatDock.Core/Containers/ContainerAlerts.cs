@@ -8,6 +8,9 @@ namespace MatDock.Core.Containers;
 /// <summary>Something about a container worth telling someone: it died with an error, or its health check failed.</summary>
 public sealed record ContainerAlert(ScheduleEvent Event, string ContainerName, string? Project, string Detail, DateTime TimeUtc);
 
+/// <summary>What a window of events holds for the alerts: the alerts themselves and the starts (a restart loop shows over several windows).</summary>
+public sealed record ContainerAlertWindow(IReadOnlyList<ContainerAlert> Alerts, IReadOnlyList<Notifications.ContainerStart> Starts);
+
 /// <summary>
 /// Finds alerts in a window of <c>docker events</c>: a <c>die</c> with an exit code other than 0 (or after an <c>oom</c>)
 /// that no <c>kill</c> shortly before explains (docker stop, compose down and restart send one), and a health check that
@@ -76,6 +79,10 @@ public static class ContainerAlerts
 
         return alerts;
     }
+
+    /// <summary>The starts in the same window (for <see cref="Notifications.RestartLoopWatch"/>).</summary>
+    public static IReadOnlyList<Notifications.ContainerStart> Starts(string eventsOutput)
+        => Parse(eventsOutput).Where(e => e.Action == "start").Select(e => new Notifications.ContainerStart(e.Id, e.Name, e.TimeUtc)).ToList();
 
     private sealed record RawEvent(string Id, string Action, string Name, string? Project, int? ExitCode, long TimeNano)
     {

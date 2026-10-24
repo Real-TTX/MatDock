@@ -268,6 +268,15 @@ namespace MatDock.Core.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("AlertCpuPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AlertDiskPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AlertMemPercent")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("AuthType")
                         .HasColumnType("INTEGER");
 
@@ -520,6 +529,56 @@ namespace MatDock.Core.Data.Migrations
                     b.ToTable("ImageScan", (string)null);
                 });
 
+            modelBuilder.Entity("MatDock.Core.Entities.NotificationChannel", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EncryptedSecret")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Target")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("NotificationChannel", (string)null);
+                });
+
             modelBuilder.Entity("MatDock.Core.Entities.NotificationSettings", b =>
                 {
                     b.Property<long>("Id")
@@ -535,10 +594,25 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<string>("EncryptedSmtpPassword")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("HostCpuLimit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("HostDiskLimit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("HostMemLimit")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("NotifyOnFailure")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("NotifyOnSuccess")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RestartLoopCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RestartLoopMinutes")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("SmtpEnabled")

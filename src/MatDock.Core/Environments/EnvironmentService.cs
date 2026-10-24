@@ -120,6 +120,20 @@ public sealed class EnvironmentService
         return true;
     }
 
+    /// <summary>The own alert limits of a host in percent: null = the global limit, 0 = no alert; false for an unknown environment or a value over 100.</summary>
+    public async Task<bool> SetAlertLimitsAsync(long id, int? cpu, int? mem, int? disk, CancellationToken ct = default)
+    {
+        var entity = await _db.Environments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (entity is null || new[] { cpu, mem, disk }.Any(v => v is < 0 or > 100))
+        {
+            return false;
+        }
+
+        (entity.AlertCpuPercent, entity.AlertMemPercent, entity.AlertDiskPercent) = (cpu, mem, disk);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<DockerEnvironment> CreateAsync(EnvironmentInput input, CancellationToken ct = default)
     {
         var entity = new DockerEnvironment();

@@ -1,4 +1,6 @@
+using MatDock.Core.Entities;
 using MatDock.Core.Notifications;
+using MatDock.Core.Schedules;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -8,15 +10,44 @@ public class NotificationsModel : PageModel
 {
     private readonly NotificationSettingsService _settingsService;
     private readonly INotificationService _notificationService;
+    private readonly NotificationChannelService _channels;
+    private readonly ScheduleService _schedules;
 
-    public NotificationsModel(NotificationSettingsService settingsService, INotificationService notificationService)
+    public NotificationsModel(NotificationSettingsService settingsService, INotificationService notificationService, NotificationChannelService channels, ScheduleService schedules)
     {
         _settingsService = settingsService;
         _notificationService = notificationService;
+        _channels = channels;
+        _schedules = schedules;
     }
+
+    /// <summary>The events of the alerts a notification can be switched on for here (a schedule "Send a notification" each).</summary>
+    public static readonly IReadOnlyList<(ScheduleEvent Event, string Label)> AlertEvents =
+    [
+        (ScheduleEvent.ContainerDied, "A container died with an error"),
+        (ScheduleEvent.ContainerUnhealthy, "A container turned unhealthy"),
+        (ScheduleEvent.ContainerRestartLoop, "A container is in a restart loop"),
+        (ScheduleEvent.HostThreshold, "A host is over a limit"),
+        (ScheduleEvent.EnvironmentOffline, "An environment went offline"),
+    ];
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
+
+    [BindProperty]
+    public AlertInput Alerts { get; set; } = new();
+
+    public IReadOnlyList<NotificationChannel> Channels { get; private set; } = Array.Empty<NotificationChannel>();
+
+    public sealed class AlertInput
+    {
+        public int? Cpu { get; set; }
+        public int? Mem { get; set; }
+        public int? Disk { get; set; }
+        public int RestartCount { get; set; } = 3;
+        public int RestartMinutes { get; set; } = 10;
+        public List<ScheduleEvent> Notify { get; set; } = [];
+    }
 
     public bool HasStoredPassword { get; private set; }
 
@@ -63,6 +94,46 @@ public class NotificationsModel : PageModel
             WebhookUrl = s.WebhookUrl
         };
         ShowRelay();
+        await LoadExtrasAsync(s);
+    }
+
+    /// <summary>The channels and the alerts (their limits and which events notify).</summary>
+    private async Task LoadExtrasAsync(NotificationSettings s)
+    {
+        var ct = HttpContext.RequestAborted;
+        Channels = await _channels.GetAllAsync(ct);
+        var notify = new List<ScheduleEvent>();
+        foreach (var (evt, _) in AlertEvents)
+        {
+            if (await _schedules.NotifiesOnAsync(evt, ct))
+            {
+                notify.Add(evt);
+            }
+        }
+
+        Alerts = new AlertInput
+        {
+            Cpu = s.HostCpuLimit, Mem = s.HostMemLimit, Disk = s.HostDiskLimit,
+            RestartCount = s.RestartLoopCount, RestartMinutes = s.RestartLoopMinutes, Notify = notify,
+        };
+    }
+
+    /// <summary>Saves the limits of the alerts and switches the notification of each alert event on or off.</summary>
+    public async Task<IActionResult> OnPostAlertsAsync()
+    {
+        var ct = HttpContext.RequestAborted;
+        var problem = await _settingsService.UpdateAlertsAsync(Alerts.Cpu, Alerts.Mem, Alerts.Disk, Alerts.RestartCount, Alerts.RestartMinutes, ct);
+        if (problem is null)
+        {
+            foreach (var (evt, _) in AlertEvents)
+            {
+                await _schedules.SetNotifyOnAsync(evt, Alerts.Notify.Contains(evt), ct);
+            }
+        }
+
+        StatusMessage = problem ?? "Alerts saved.";
+        IsError = problem is not null;
+        return RedirectToPage();
     }
 
     /// <summary>With MatSMTP the server fields show its values (the password never); the stored own ones stay in the database.</summary>
@@ -109,6 +180,7 @@ public class NotificationsModel : PageModel
             var current = await _settingsService.GetAsync(HttpContext.RequestAborted);
             HasStoredPassword = !string.IsNullOrEmpty(current.EncryptedSmtpPassword);
             ShowRelay();
+            await LoadExtrasAsync(current);
             return Page();
         }
 

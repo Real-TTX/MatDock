@@ -88,3 +88,82 @@
         <span class="mat-hint">Save before sending a test.</span>
     </mat-form-buttons>
 </form>
+
+<div class="mat-stack md-narrow mat-mt-6">
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="message-square" /><h2 class="mat-card__title">Channels</h2><span class="mat-badge">@Model.Channels.Count</span></div>
+        @if (Model.Channels.Count > 0)
+        {
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead><tr><th>Name</th><th>Type</th><th>Status</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.Channels)
+                        {
+                            <tr>
+                                <td data-label="Name"><a href="/Settings/ChannelEdit?id=@c.Id">@c.Name</a></td>
+                                <td data-label="Type">@c.Type</td>
+                                <td data-label="Status"><span class="mat-pill @(c.Enabled ? "mat-pill--ok" : "mat-pill--plain")">@(c.Enabled ? "On" : "Off")</span></td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">
+                                        <form method="post" asp-page="/Settings/ChannelEdit" asp-page-handler="Test">
+                                            <input type="hidden" name="id" value="@c.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Send a test" aria-label="Send a test to @c.Name"><icon name="mail" /></button>
+                                        </form>
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Settings/ChannelEdit?id=@c.Id" title="Edit" aria-label="Edit @c.Name"><icon name="edit" /></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        <div class="mat-card__body">
+            <div class="mat-actions">
+                <a href="/Settings/ChannelEdit" class="mat-btn mat-btn--secondary"><icon name="plus" /><span>New channel</span></a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="alert" /><h2 class="mat-card__title">Alerts</h2></div>
+        <div class="mat-card__body">
+            <form method="post" asp-page-handler="Alerts" class="mat-form">
+                <p class="mat-hint">The limits apply to every host; an environment can have its own. Empty = no limit.</p>
+                <div class="mat-form__grid">
+                    <mat-field label="Disk %" asp-for="Alerts.Disk">
+                        <input asp-for="Alerts.Disk" type="number" min="1" max="100" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="Memory %" asp-for="Alerts.Mem" hint="Two readings in a row (10 min).">
+                        <input asp-for="Alerts.Mem" type="number" min="1" max="100" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="CPU %" asp-for="Alerts.Cpu" hint="Load per core, two readings in a row.">
+                        <input asp-for="Alerts.Cpu" type="number" min="1" max="100" class="mat-input" />
+                    </mat-field>
+                </div>
+                <div class="mat-form__grid">
+                    <mat-field label="Restart loop: starts" asp-for="Alerts.RestartCount" hint="0 = not watched.">
+                        <input asp-for="Alerts.RestartCount" type="number" min="0" max="50" class="mat-input" />
+                    </mat-field>
+                    <mat-field label="within minutes" asp-for="Alerts.RestartMinutes">
+                        <input asp-for="Alerts.RestartMinutes" type="number" min="1" max="120" class="mat-input" />
+                    </mat-field>
+                </div>
+                <fieldset class="mat-fieldset">
+                    <legend class="mat-label">Send a notification on</legend>
+                    @foreach (var (evt, label) in MatDock.Web.Pages.Settings.NotificationsModel.AlertEvents)
+                    {
+                        <label class="mat-check">
+                            <input type="checkbox" name="Alerts.Notify" value="@evt" checked="@Model.Alerts.Notify.Contains(evt)" />
+                            <span>@label</span>
+                        </label>
+                    }
+                </fieldset>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="save" /><span>Save</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+</div>

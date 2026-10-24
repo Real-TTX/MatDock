@@ -68,6 +68,38 @@ public sealed class NotificationSettingsService
     }
 
     /// <summary>
+    /// The limits of the alerts: CPU, memory and disk of the hosts in percent (null or 0 = none, at most 100) and the restart loop (starts within minutes;
+    /// 0 starts = not watched). Answers what is wrong, or null when saved.
+    /// </summary>
+    public async Task<string?> UpdateAlertsAsync(int? cpu, int? mem, int? disk, int restartCount, int restartMinutes, CancellationToken ct = default)
+    {
+        if (new[] { cpu, mem, disk }.Any(v => v is < 0 or > 100))
+        {
+            return "A limit is a percentage from 1 to 100 (empty = none).";
+        }
+
+        if (restartCount is < 0 or > 50 || (restartCount > 0 && restartMinutes is < 1 or > 120) || restartCount == 1)
+        {
+            return "A restart loop is 2 to 50 starts within 1 to 120 minutes (0 starts = not watched).";
+        }
+
+        var settings = await _db.NotificationSettings.FirstOrDefaultAsync(ct);
+        if (settings is null)
+        {
+            settings = new NotificationSettings();
+            _db.NotificationSettings.Add(settings);
+        }
+
+        settings.HostCpuLimit = cpu is > 0 ? cpu : null;
+        settings.HostMemLimit = mem is > 0 ? mem : null;
+        settings.HostDiskLimit = disk is > 0 ? disk : null;
+        settings.RestartLoopCount = restartCount;
+        settings.RestartLoopMinutes = restartCount > 0 ? restartMinutes : settings.RestartLoopMinutes;
+        await _db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /// <summary>
     /// The rules of the notification settings, by the name of the property of <see cref="NotificationSettingsInput"/>: e-mail needs a host, a sender
     /// and recipients, the port is 1 to 65535, the webhook needs an http(s) address. Empty = valid.
     /// </summary>
