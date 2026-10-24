@@ -18,17 +18,20 @@ public sealed class ScheduleService
     private readonly IEnumerable<IScheduleAction> _actions;
     private readonly INotificationService _notifications;
     private readonly ILogger<ScheduleService> _logger;
+    private readonly Security.ISecretProtector? _secrets;
 
     public ScheduleService(
         MatDockDbContext db,
         IEnumerable<IScheduleAction> actions,
         INotificationService notifications,
-        ILogger<ScheduleService> logger)
+        ILogger<ScheduleService> logger,
+        Security.ISecretProtector? secrets = null)
     {
         _db = db;
         _actions = actions;
         _notifications = notifications;
         _logger = logger;
+        _secrets = secrets;
     }
 
     public Task<List<ScheduledTask>> GetAllAsync(CancellationToken ct = default)
@@ -44,6 +47,7 @@ public sealed class ScheduleService
 
         var task = new ScheduledTask();
         Apply(task, input);
+        if (MissingPassphrase(task) is { } missing) { return (false, missing, 0); }
         _db.ScheduledTasks.Add(task);
         await _db.SaveChangesAsync(ct);
         return (true, "Schedule saved.", task.Id);
@@ -58,6 +62,7 @@ public sealed class ScheduleService
         if (task is null) { return (false, "Schedule not found."); }
 
         Apply(task, input);
+        if (MissingPassphrase(task) is { } missing) { return (false, missing); }
         await _db.SaveChangesAsync(ct);
         return (true, "Schedule saved.");
     }
@@ -262,6 +267,11 @@ public sealed class ScheduleService
     private void Apply(ScheduledTask task, ScheduleInput input)
     {
         var isBackup = input.Action is ScheduleAction.Backup or ScheduleAction.BundleBackup;
+        var self = input.Action == ScheduleAction.SelfBackup;
+        // A blank passphrase keeps the stored one (like the other secrets).
+        var passphrase = !self ? null
+            : !string.IsNullOrEmpty(input.SelfBackupPassphrase) && _secrets is not null ? _secrets.Protect(input.SelfBackupPassphrase)
+            : ScheduleOptions.Parse(task.OptionsJson).SelfBackupPassphrase;
         task.Name = input.Name.Replace('\r', ' ').Replace('\n', ' ').Trim();
         task.Enabled = input.Enabled;
         task.Trigger = input.Trigger;
@@ -279,8 +289,8 @@ public sealed class ScheduleService
             All = input.OptionAll,
             IncludeShares = input.OptionIncludeShares,
             VolumesCsv = input.Action == ScheduleAction.Backup ? input.VolumesCsv : null,
-            BackupTargetId = isBackup || input.Action == ScheduleAction.ResticMaintenance ? input.BackupTargetId : null,
-            RetentionCount = isBackup ? input.RetentionCount : 0,
+            BackupTargetId = isBackup || self || input.Action == ScheduleAction.ResticMaintenance ? input.BackupTargetId : null,
+            RetentionCount = isBackup || self ? input.RetentionCount : 0,
             RetentionDays = isBackup ? input.RetentionDays : 0,
             StopContainers = isBackup && input.StopContainers,
             BundleStack = input.Action is ScheduleAction.BundleBackup or ScheduleAction.UpdateStacks && !string.IsNullOrWhiteSpace(input.BundleStack)
@@ -289,6 +299,7 @@ public sealed class ScheduleService
             UpdateApply = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply,
             UpdateBackupFirst = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply && input.UpdateBackupFirst,
             UpdateRollback = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply && input.UpdateRollback,
+            SelfBackupPassphrase = passphrase,
         }.ToJson();
         task.NextRunAt = input.Enabled && input.Trigger == ScheduleTrigger.Cron
             ? SafeNext(task.Cron, DateTime.UtcNow)
@@ -330,12 +341,22 @@ public sealed class ScheduleService
         {
             return "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).";
         }
+        if (input.Action == ScheduleAction.SelfBackup && !string.IsNullOrEmpty(input.SelfBackupPassphrase)
+            && SelfBackupService.PassphraseProblem(input.SelfBackupPassphrase) is { } weak)
+        {
+            return weak;
+        }
         if (input.RetentionCount < 0 || input.RetentionDays < 0)
         {
             return "Retention cannot be negative.";
         }
         return null;
     }
+
+    private static string? MissingPassphrase(ScheduledTask task)
+        => task.Action == ScheduleAction.SelfBackup && ScheduleOptions.Parse(task.OptionsJson).SelfBackupPassphrase is null
+            ? "Please enter the passphrase the backups are encrypted with."
+            : null;
 
     private static DateTime? SafeNext(string? cron, DateTime fromUtc)
     {

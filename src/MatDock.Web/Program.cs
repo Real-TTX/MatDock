@@ -29,6 +29,8 @@ var dataPath = !string.IsNullOrWhiteSpace(configuredDataPath)
 
 var appPaths = new AppPaths(dataPath);
 appPaths.EnsureCreated();
+// A restore of MatDock itself that was prepared before the last stop takes its place now, before anything opens the database or reads the keys.
+var restored = MatDock.Core.Backups.SelfBackupRestore.ApplyPending(appPaths);
 builder.Services.AddSingleton(appPaths);
 builder.Services.PostConfigure<MatDockOptions>(options => options.DataPath = dataPath);
 
@@ -196,6 +198,10 @@ builder.Services.AddRazorPages(options =>
 var app = builder.Build();
 // The toolkit is read once at start: AppView needs the icon names before the first layout asks for the sprite.
 app.Services.GetRequiredService<MatDock.Web.Support.Toolkit>();
+if (restored is not null)
+{
+    app.Logger.LogWarning("{Message}", restored);
+}
 
 // ---------------------------------------------------------------------------
 // HTTP pipeline

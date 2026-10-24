@@ -36,6 +36,7 @@
                         <option value="UpdateStacks">Update stacks (newer images)</option>
                         <option value="ScanImages">Scan images for vulnerabilities</option>
                         <option value="ResticMaintenance">Maintain restic repositories (prune + check)</option>
+                        <option value="SelfBackup">Back up MatDock itself (database + keys, encrypted)</option>
                         <option value="Notify">Send a notification (event)</option>
                     </select>
                 </mat-field>
@@ -110,6 +111,26 @@
                     <input asp-for="Input.StopContainers" type="checkbox" />
                     <span>Stop the containers during backup (consistent snapshot)</span>
                 </label>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Action" data-show-value="SelfBackup">
+                <div class="mat-form__grid">
+                    <mat-field label="Backup target" asp-for="Input.BackupTargetId">
+                        <select asp-for="Input.BackupTargetId" class="mat-select">
+                            <option value="">Local (/data/backups)</option>
+                            @foreach (var t in Model.BackupTargets)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                    </mat-field>
+                    <mat-field label="Keep newest (0 = unlimited)" asp-for="Input.RetentionCount">
+                        <input asp-for="Input.RetentionCount" type="number" min="0" class="mat-input" />
+                    </mat-field>
+                </div>
+                <mat-field label="Passphrase" asp-for="Input.SelfBackupPassphrase"
+                           hint="@(Model.HasSelfBackupPassphrase ? "Stored. Empty keeps it." : "At least 12 characters. Write it down: without it no backup opens.")">
+                    <input asp-for="Input.SelfBackupPassphrase" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
             </div>
             <div class="mat-stack" data-show-if="#Input_Action" data-show-value="ResticMaintenance">
                 <mat-field label="Restic target" asp-for="Input.BackupTargetId" hint="Empty = every restic target. Backups that were deleted or expired free their space here.">

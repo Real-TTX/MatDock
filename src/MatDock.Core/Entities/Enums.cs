@@ -106,7 +106,10 @@ public enum ScheduleAction
     ScanImages = 10,
 
     /// <summary>Frees the space of forgotten restic snapshots (<c>prune</c>) and checks the repository (<c>check</c>) of a restic backup target.</summary>
-    ResticMaintenance = 11
+    ResticMaintenance = 11,
+
+    /// <summary>A backup of MatDock itself (database and key ring, encrypted with a passphrase) to a backup target.</summary>
+    SelfBackup = 12
 }
 
 /// <summary>Why a stack bundle was taken.</summary>

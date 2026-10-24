@@ -34,6 +34,9 @@ public sealed class ScheduleInput
     /// <summary>UpdateStacks: health gate with rollback.</summary>
     public bool UpdateRollback { get; set; }
 
+    /// <summary>SelfBackup: a new passphrase for the archives (empty keeps the stored one).</summary>
+    public string? SelfBackupPassphrase { get; set; }
+
     /// <summary>Owner of a task created through the API (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so
     /// a save from the Schedules page never drops it; an empty string clears it.</summary>
     public string? ManagedBy { get; set; }

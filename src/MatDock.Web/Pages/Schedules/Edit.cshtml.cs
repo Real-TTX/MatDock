@@ -27,6 +27,9 @@ public class EditModel : PageModel
     public List<BackupTarget> BackupTargets { get; private set; } = new();
     public bool IsEdit => Input.Id is > 0;
 
+    /// <summary>A backup of MatDock itself: a passphrase is stored (the field may stay empty).</summary>
+    public bool HasSelfBackupPassphrase { get; private set; }
+
     /// <summary>Owner of a schedule created through the API (shown as a hint; a save here keeps it).</summary>
     public string? ManagedBy { get; private set; }
     /// <summary>A copy of a sync job's timing: it belongs to the job and cannot be deleted here.</summary>
@@ -60,11 +63,20 @@ public class EditModel : PageModel
         public bool UpdateApply { get; set; }
         public bool UpdateBackupFirst { get; set; }
         public bool UpdateRollback { get; set; } = true;
+        public string? SelfBackupPassphrase { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(long? id)
+    public async Task<IActionResult> OnGetAsync(long? id, ScheduleAction? action)
     {
         await LoadAsync();
+        // A new schedule for one action, from the page of that action (the MatDock backup, for example).
+        if (id is not > 0 && action == ScheduleAction.SelfBackup)
+        {
+            Input.Action = ScheduleAction.SelfBackup;
+            Input.Name = "MatDock backup";
+            Input.Cron = "30 3 * * *";
+            Input.RetentionCount = 14;
+        }
 
         if (id is > 0)
         {
@@ -80,6 +92,7 @@ public class EditModel : PageModel
             var opt = ScheduleOptions.Parse(t.OptionsJson);
             ManagedBy = t.ManagedBy;
             IsSyncSchedule = t.SourceKind == ScheduleService.SyncSource;
+            HasSelfBackupPassphrase = opt.SelfBackupPassphrase is not null;
             Input = new InputModel
             {
                 Id = t.Id,
@@ -148,6 +161,7 @@ public class EditModel : PageModel
             var task = await _service.GetAsync(Input.Id.Value, ct);
             ManagedBy = task?.ManagedBy;
             IsSyncSchedule = task?.SourceKind == ScheduleService.SyncSource;
+            HasSelfBackupPassphrase = ScheduleOptions.Parse(task?.OptionsJson).SelfBackupPassphrase is not null;
         }
     }
 
@@ -173,6 +187,7 @@ public class EditModel : PageModel
         UpdateApply = Input.UpdateApply,
         UpdateBackupFirst = Input.UpdateBackupFirst,
         UpdateRollback = Input.UpdateRollback,
+        SelfBackupPassphrase = Input.SelfBackupPassphrase,
     };
 
     public async Task<IActionResult> OnPostDeleteAsync(long id)

@@ -42,6 +42,9 @@ public sealed class ScheduleOptions
     /// <summary>UpdateStacks: wait for the containers to be up and healthy and roll back to the old images when they are not.</summary>
     public bool UpdateRollback { get; set; }
 
+    /// <summary>SelfBackup: the passphrase of the archives, encrypted with the key ring (never shown again).</summary>
+    public string? SelfBackupPassphrase { get; set; }
+
     // --- Sync action (reference) ---
     /// <summary>Sync action: the SyncJob (GitOps) to execute.</summary>
     public long? SyncJobId { get; set; }

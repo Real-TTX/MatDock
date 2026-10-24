@@ -1,0 +1,103 @@
+@page
+@model MatDock.Web.Pages.Settings.SelfBackupModel
+@{
+    ViewData["Title"] = "MatDock backup";
+}
+
+<partial name="_SystemTabs" />
+
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
+<div class="mat-stack md-narrow">
+    @if (Model.HasPendingRestore)
+    {
+        <div class="mat-alert mat-alert--warning">
+            <icon name="alert" />
+            <div class="mat-alert__body">A restore is prepared: it replaces the current data at the next start of MatDock.</div>
+            <div class="mat-actions">
+                @if (MatDock.Web.Pages.Settings.SelfBackupModel.InContainer)
+                {
+                    <form method="post" asp-page-handler="Restart" data-confirm="Restart MatDock now? Every user is signed out.">
+                        <button type="submit" class="mat-btn mat-btn--primary mat-btn--sm"><icon name="refresh" /><span>Restart now</span></button>
+                    </form>
+                }
+                <form method="post" asp-page-handler="Cancel">
+                    <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm"><icon name="x-circle" /><span>Drop</span></button>
+                </form>
+            </div>
+        </div>
+    }
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="download" /><h2 class="mat-card__title">Download</h2></div>
+        <div class="mat-card__body">
+            <form method="post" asp-page-handler="Download" class="mat-form">
+                <p class="mat-hint">The database (environments with their access, stacks, schedules, rules, users) and the keys of the stored passwords, encrypted with the passphrase. The backups of volumes and stacks stay at their targets.</p>
+                <div class="mat-form__grid">
+                    <div class="mat-field">
+                        <label class="mat-label" for="sb-pass">Passphrase</label>
+                        <input id="sb-pass" name="passphrase" type="password" class="mat-input" minlength="12" required autocomplete="new-password" />
+                        <small class="mat-hint">At least 12 characters. Without it the file does not open.</small>
+                    </div>
+                    <div class="mat-field">
+                        <label class="mat-label" for="sb-repeat">Repeat</label>
+                        <input id="sb-repeat" name="repeat" type="password" class="mat-input" minlength="12" required autocomplete="new-password" />
+                    </div>
+                </div>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="download" /><span>Download</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="clock" /><h2 class="mat-card__title">Schedules</h2><span class="mat-badge">@Model.Schedules.Count</span></div>
+        <div class="mat-card__body mat-stack">
+            @if (Model.Schedules.Count > 0)
+            {
+                <dl class="mat-kv">
+                    @foreach (var s in Model.Schedules)
+                    {
+                        <dt><a href="/Schedules/Edit?id=@s.Id">@s.Name</a></dt>
+                        <dd>
+                            @if (s.LastRunAt is { } last)
+                            {
+                                <span class="mat-pill @(s.LastRunOk == false ? "mat-pill--error" : "mat-pill--ok")" title="@s.LastStatus">@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                            }
+                            else
+                            {
+                                <span class="mat-muted">@(s.Enabled ? "Not run yet" : "Off")</span>
+                            }
+                        </dd>
+                    }
+                </dl>
+            }
+            <div class="mat-actions">
+                <a href="/Schedules/Edit?action=SelfBackup" class="mat-btn mat-btn--secondary"><icon name="plus" /><span>New schedule</span></a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="upload" /><h2 class="mat-card__title">Restore</h2></div>
+        <div class="mat-card__body">
+            <form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="mat-form" data-confirm="Restore this backup? At the next start it replaces every setting, stack and user of this MatDock.">
+                <p class="mat-hint">Takes effect at the next start of MatDock; the data it replaces is kept in the data folder.</p>
+                <div class="mat-form__grid">
+                    <div class="mat-field">
+                        <label class="mat-label" for="sb-file">File</label>
+                        <input id="sb-file" name="file" type="file" class="mat-input" accept=".mdsb" required />
+                    </div>
+                    <div class="mat-field">
+                        <label class="mat-label" for="sb-restore-pass">Passphrase</label>
+                        <input id="sb-restore-pass" name="passphrase" type="password" class="mat-input" required autocomplete="off" />
+                    </div>
+                </div>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--danger"><icon name="upload" /><span>Restore</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+</div>

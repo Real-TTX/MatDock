@@ -687,3 +687,58 @@ public sealed class ResticMaintenanceAction : IScheduleAction
         return (allOk, string.Join(" ", lines));
     }
 }
+
+/// <summary>A backup of MatDock itself (<see cref="Backups.SelfBackupService"/>) to the backup target of the task, keeping the newest ones.</summary>
+public sealed class SelfBackupAction : IScheduleAction
+{
+    private readonly MatDockDbContext _db;
+    private readonly Backups.SelfBackupService _backups;
+    private readonly Security.ISecretProtector _secrets;
+
+    public SelfBackupAction(MatDockDbContext db, Backups.SelfBackupService backups, Security.ISecretProtector secrets)
+    {
+        _db = db;
+        _backups = backups;
+        _secrets = secrets;
+    }
+
+    public ScheduleAction Type => ScheduleAction.SelfBackup;
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var opt = ScheduleOptions.Parse(task.OptionsJson);
+        string passphrase;
+        try
+        {
+            passphrase = _secrets.UnprotectNullable(opt.SelfBackupPassphrase) ?? string.Empty;
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return (false, "The stored passphrase cannot be read (the keys changed): enter it again in the schedule.");
+        }
+
+        if (Backups.SelfBackupService.PassphraseProblem(passphrase) is not null)
+        {
+            return (false, "The schedule has no passphrase: enter one in the schedule.");
+        }
+
+        BackupTarget? target = null;
+        if (opt.BackupTargetId is { } id)
+        {
+            target = await _db.BackupTargets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
+            if (target is null)
+            {
+                return (false, "The backup target of this schedule was deleted.");
+            }
+        }
+
+        try
+        {
+            return await _backups.BackupToTargetAsync(target, passphrase, opt.RetentionCount, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (false, ex.Message);
+        }
+    }
+}

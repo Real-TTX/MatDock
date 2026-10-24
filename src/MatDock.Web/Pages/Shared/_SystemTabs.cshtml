@@ -6,9 +6,11 @@
     var onProxies = Is("/Settings/Proxies");
     var onRegistries = Is("/Settings/Registries");
     var onActivity = Is("/Settings/Activity");
+    var onSelfBackup = Is("/Settings/SelfBackup");
+    var onOther = onNotifications || onProxies || onRegistries || onActivity || onSelfBackup;
     var onBackupTargets = Is("/Settings/BackupTargetEdit")
-        || (Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
-    var onGeneral = Is("/Settings") && !onNotifications && !onProxies && !onRegistries && !onActivity && !onBackupTargets;
+        || (Is("/Settings") && !onOther && string.Equals(tab, "backup", StringComparison.OrdinalIgnoreCase));
+    var onGeneral = Is("/Settings") && !onOther && !onBackupTargets;
 }
 <nav class="mat-tabs" aria-label="System">
     <a class="mat-tab @(onGeneral ? "is-active" : "")" aria-current="@(onGeneral ? "page" : null)" href="/Settings"><icon name="settings" /><span>General</span></a>
@@ -19,5 +21,6 @@
     <a class="mat-tab @(onProxies ? "is-active" : "")" aria-current="@(onProxies ? "page" : null)" href="/Settings/Proxies"><icon name="route" /><span>Proxies</span></a>
     <a class="mat-tab @(onRegistries ? "is-active" : "")" aria-current="@(onRegistries ? "page" : null)" href="/Settings/Registries"><icon name="registry" /><span>Registries</span></a>
     <a class="mat-tab @(onBackupTargets ? "is-active" : "")" aria-current="@(onBackupTargets ? "page" : null)" href="/Settings?tab=backup"><icon name="save" /><span>Backup targets</span></a>
+    <a class="mat-tab @(onSelfBackup ? "is-active" : "")" aria-current="@(onSelfBackup ? "page" : null)" href="/Settings/SelfBackup"><icon name="database" /><span>MatDock backup</span></a>
     <a class="mat-tab @(onActivity ? "is-active" : "")" aria-current="@(onActivity ? "page" : null)" href="/Settings/Activity"><icon name="clock" /><span>Activity</span></a>
 </nav>
