@@ -426,4 +426,9 @@ else if (c is not null)
             </div>
         </section>
     </div>
+
+    @if (Model.Usage is not null)
+    {
+        <partial name="_MetricCharts" model="Model.Usage" />
+    }
 }

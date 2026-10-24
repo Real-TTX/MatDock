@@ -14,14 +14,23 @@ public class DetailModel : PageModel
     private readonly DockerSystemService _system;
     private readonly OperationRegistry _operations;
 
-    public DetailModel(EnvironmentService environments, DockerSystemService system, OperationRegistry operations)
+    private readonly MetricsStore _metrics;
+
+    public DetailModel(EnvironmentService environments, DockerSystemService system, OperationRegistry operations, MetricsStore metrics)
     {
         _environments = environments;
         _system = system;
         _operations = operations;
+        _metrics = metrics;
     }
 
     [BindProperty(SupportsGet = true)] public long Id { get; set; }
+
+    /// <summary>The range of the usage charts (6h, 24h, 7d, 30d).</summary>
+    [BindProperty(SupportsGet = true)] public string? Range { get; set; }
+
+    /// <summary>The readings of the host over <see cref="Range"/>.</summary>
+    public MatDock.Web.Support.MetricCharts? Usage { get; private set; }
     [BindProperty(SupportsGet = true)] public string? Op { get; set; }
 
     public DockerEnvironment? Environment { get; private set; }
@@ -43,6 +52,10 @@ public class DetailModel : PageModel
         }
 
         Running = string.IsNullOrEmpty(Op) ? null : _operations.Get(Op);
+        var range = MetricsStore.Ranges.ContainsKey(Range ?? string.Empty) ? Range! : "24h";
+        Usage = new MatDock.Web.Support.MetricCharts(
+            await _metrics.GetAsync(Environment.Id, null, MetricsStore.RangeOf(range), DateTime.UtcNow, HttpContext.RequestAborted), range,
+            r => $"/Environments/Detail?id={Environment.Id}&range={r}", Host: true);
         if (!Environment.IsEnabled)
         {
             Error = "This environment is disabled.";

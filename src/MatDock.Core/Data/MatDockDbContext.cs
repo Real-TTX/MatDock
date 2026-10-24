@@ -37,6 +37,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
+    public DbSet<Docker.MetricSample> MetricSamples => Set<Docker.MetricSample>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
@@ -251,6 +252,16 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Username).HasMaxLength(200);
             e.HasIndex(x => x.Name);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        // Telemetry: no audit columns, no soft delete (MetricsStore folds and trims it).
+        modelBuilder.Entity<Docker.MetricSample>(e =>
+        {
+            e.ToTable("MetricSample");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Container).HasMaxLength(255);
+            e.HasIndex(x => new { x.EnvironmentId, x.Container, x.TimeUtc });
+            e.HasIndex(x => new { x.Hourly, x.TimeUtc });
         });
 
         modelBuilder.Entity<NotificationChannel>(e =>

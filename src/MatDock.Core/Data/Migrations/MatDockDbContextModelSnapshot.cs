@@ -17,6 +17,46 @@ namespace MatDock.Core.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
+            modelBuilder.Entity("MatDock.Core.Docker.MetricSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Container")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Cpu")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("Disk")
+                        .HasColumnType("REAL");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Hourly")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Mem")
+                        .HasColumnType("REAL");
+
+                    b.Property<long?>("MemBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("TimeUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Hourly", "TimeUtc");
+
+                    b.HasIndex("EnvironmentId", "Container", "TimeUtc");
+
+                    b.ToTable("MetricSample", (string)null);
+                });
+
             modelBuilder.Entity("MatDock.Core.Entities.ActivityEntry", b =>
                 {
                     b.Property<long>("Id")

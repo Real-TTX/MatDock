@@ -28,6 +28,13 @@
 .md-spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .md-spark__cpu { stroke: var(--mat-accent); }
 .md-spark__mem { stroke: var(--mat-success); }
+.md-spark__disk { stroke: var(--mat-warning); }
+.md-spark--tall { height: 64px; }
+
+/* The usage charts of a host or a container: a line per metric with its values above. */
+.md-chart { display: flex; flex-direction: column; gap: var(--mat-space-1); }
+.md-chart__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--mat-space-2); font-size: var(--mat-fs-sm); font-variant-numeric: tabular-nums; }
+.md-card-end { margin-left: auto; }
 
 /* Usage in a table cell: value with a small meter below; RAM/CPU/disk rows of the environments list. */
 .md-usage-cell { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--mat-space-1); min-width: 5em; }

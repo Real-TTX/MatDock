@@ -10,12 +10,20 @@ public class ContainerDetailModel : PageModel
 {
     private readonly ContainerService _containerService;
     private readonly EnvironmentService _environmentService;
+    private readonly MatDock.Core.Docker.MetricsStore _metrics;
 
-    public ContainerDetailModel(ContainerService containerService, EnvironmentService environmentService)
+    public ContainerDetailModel(ContainerService containerService, EnvironmentService environmentService, MatDock.Core.Docker.MetricsStore metrics)
     {
         _containerService = containerService;
         _environmentService = environmentService;
+        _metrics = metrics;
     }
+
+    /// <summary>The range of the usage charts (6h, 24h, 7d, 30d).</summary>
+    [BindProperty(SupportsGet = true)] public string? Range { get; set; }
+
+    /// <summary>The readings of the container over <see cref="Range"/>.</summary>
+    public MatDock.Web.Support.MetricCharts? Usage { get; private set; }
 
     public long EnvId { get; private set; }
     public string Id { get; private set; } = string.Empty;
@@ -58,6 +66,11 @@ public class ContainerDetailModel : PageModel
                 {
                     (Processes, ProcessesError) = await _containerService.TopAsync(Environment, container.Id.Length > 0 ? container.Id : Id, HttpContext.RequestAborted);
                 }
+
+                var range = MatDock.Core.Docker.MetricsStore.Ranges.ContainsKey(Range ?? string.Empty) ? Range! : "24h";
+                var points = await _metrics.GetAsync(envId, container.Name, MatDock.Core.Docker.MetricsStore.RangeOf(range), DateTime.UtcNow, HttpContext.RequestAborted);
+                Usage = new MatDock.Web.Support.MetricCharts(points, range,
+                    r => $"/Containers/ContainerDetail?envId={envId}&id={Uri.EscapeDataString(Id)}&range={r}", Host: false);
             }
 
             if (container is null)

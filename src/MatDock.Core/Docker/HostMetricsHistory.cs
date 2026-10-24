@@ -43,6 +43,20 @@ public sealed class HostMetricsHistory
         }
     }
 
+    /// <summary>Fills the history of an environment that has none yet from stored readings (at the start, so a restart keeps the charts).</summary>
+    public void Seed(long environmentId, IEnumerable<HostSample> samples)
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var list = _samples.GetOrAdd(environmentId, _ => new List<HostSample>());
+        lock (list)
+        {
+            if (list.Count == 0)
+            {
+                list.AddRange(samples.Where(s => now - s.TimeUtc <= Keep).OrderBy(s => s.TimeUtc));
+            }
+        }
+    }
+
     public IReadOnlyList<HostSample> Get(long environmentId)
     {
         if (!_samples.TryGetValue(environmentId, out var list))

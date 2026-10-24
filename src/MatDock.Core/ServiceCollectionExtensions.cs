@@ -20,6 +20,8 @@ public static class ServiceCollectionExtensions
         // Stateless helpers.
         services.AddSingleton(_ => new Auth.LoginThrottle());
         services.AddSingleton(_ => new Docker.HostMetricsHistory());
+        services.AddSingleton<Docker.MetricsSnapshot>();
+        services.AddScoped<Docker.MetricsStore>();
         services.TryAddSingleton<Notifications.IMailRelaySource, Notifications.NoMailRelay>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();

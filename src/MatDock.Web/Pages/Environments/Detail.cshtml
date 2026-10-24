@@ -116,6 +116,11 @@
         </section>
     </div>
 
+    @if (Model.Usage is not null)
+    {
+        <partial name="_MetricCharts" model="Model.Usage" />
+    }
+
     <section class="mat-card">
         <div class="mat-card__head"><icon name="hard-drive" /><h2 class="mat-card__title">Disk usage</h2></div>
         @if (o.DiskUsage.Count == 0)

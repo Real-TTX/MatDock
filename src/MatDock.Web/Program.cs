@@ -264,6 +264,9 @@ app.MapRazorPages();
 // Interactive terminal (WebSocket ⇄ SSH PTY). Admin-only; the handler validates env + container id.
 app.MapGet("/terminal/ws", MatDock.Web.Terminal.TerminalEndpoint.HandleAsync).RequireAuthorization("AdminOnly");
 
+// Prometheus: the last readings of the hosts and containers, with an API key (X-Api-Key or bearer); anonymous at the cookie level.
+app.MapGet("/metrics", MatDock.Web.Api.MetricsEndpoint.HandleAsync).AllowAnonymous();
+
 // The suggestions of the search in the header bar (MatUi search field). Any signed-in user; each sees the environments it may see.
 app.MapGet("/api/search", MatDock.Web.Search.SearchEndpoint.HandleAsync).RequireAuthorization();
 

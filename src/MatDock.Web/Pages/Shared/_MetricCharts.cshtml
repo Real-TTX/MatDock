@@ -1,0 +1,40 @@
+@model MatDock.Web.Support.MetricCharts
+@* The readings of a host or a container over a range: a line per metric with the value now, the average and the peak. *@
+<section class="mat-card" id="usage">
+    <div class="mat-card__head">
+        <icon name="activity" /><h2 class="mat-card__title">Usage</h2>
+        <div class="mat-btn-group md-card-end" role="group" aria-label="Range">
+            @foreach (var range in MatDock.Core.Docker.MetricsStore.Ranges.Keys)
+            {
+                <a href="@Model.Link(range)#usage" class="mat-btn mat-btn--sm @(range == Model.Range ? "is-active" : "")" aria-current="@(range == Model.Range ? "true" : null)">@range</a>
+            }
+        </div>
+    </div>
+    <div class="mat-card__body mat-stack">
+        @if (Model.Points.Count < 2)
+        {
+            <p class="mat-muted">No readings yet.</p>
+        }
+        else
+        {
+            var from = Model.Points[0].TimeUtc.ToLocalTime();
+            @foreach (var s in Model.All())
+            {
+                var line = MatDock.Core.Docker.HostMetricsHistory.Sparkline(s.Values, 600, 64);
+                <div class="md-chart">
+                    <div class="md-chart__head">
+                        <strong>@s.Label</strong>
+                        <span class="mat-muted">now @s.Now · avg @s.Avg · max @s.Max</span>
+                    </div>
+                    @if (line is not null)
+                    {
+                        <svg class="md-spark md-spark--tall" viewBox="0 0 600 64" preserveAspectRatio="none" role="img" aria-label="@s.Label since @from.ToString("dd.MM. HH:mm"): now @s.Now, average @s.Avg, peak @s.Max">
+                            <polyline class="@s.Css" points="@line" />
+                        </svg>
+                    }
+                </div>
+            }
+            <p class="mat-hint">Since @from.ToString("dd.MM.yyyy HH:mm") · a reading every 5 minutes, older than 2 days one per hour.</p>
+        }
+    </div>
+</section>
