@@ -1,0 +1,99 @@
+@page
+@model MatDock.Web.Pages.Settings.ApiKeysModel
+@using MatDock.Core.Entities
+@{
+    ViewData["Title"] = "API keys";
+}
+
+<partial name="_SystemTabs" />
+
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
+<div class="mat-stack md-narrow">
+    @if (Model.NewKey is { } key)
+    {
+        <div class="mat-alert mat-alert--success" role="status">
+            <icon name="key" />
+            <div class="mat-alert__body mat-stack">
+                <strong>Copy the key now: it is not shown again.</strong>
+                <div class="md-image-form">
+                    <input class="mat-input mat-mono md-image-input" value="@key" readonly aria-label="The new key" id="new-key" />
+                    <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-copy="#new-key" title="Copy" aria-label="Copy the key"><icon name="copy" /></button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <mat-table>
+        <mat-table-body>
+            @if (Model.Keys.Count == 0)
+            {
+                <div class="mat-empty"><div class="mat-empty__icon"><icon name="key" /></div><p class="mat-empty__title">No keys</p></div>
+            }
+            else
+            {
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead><tr><th>Name</th><th>Key</th><th>May</th><th>Last used</th><th>Expires</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr></thead>
+                        <tbody>
+                            @foreach (var k in Model.Keys)
+                            {
+                                var expired = k.ExpiresAt <= DateTime.UtcNow;
+                                <tr>
+                                    <td data-label="Name">@k.Name</td>
+                                    <td data-label="Key" class="mat-mono mat-muted">@k.Prefix…</td>
+                                    <td data-label="May"><span class="mat-pill @(k.Scope == ApiKeyScope.Full ? "mat-pill--warn" : "mat-pill--plain")">@(k.Scope == ApiKeyScope.Full ? "Everything" : "Read")</span></td>
+                                    <td data-label="Last used" class="mat-nowrap">@(k.LastUsedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                                    <td data-label="Expires" class="mat-nowrap">
+                                        @if (k.ExpiresAt is { } e)
+                                        {
+                                            <span class="@(expired ? "mat-pill mat-pill--error" : string.Empty)">@e.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="mat-muted">never</span>
+                                        }
+                                    </td>
+                                    <td class="mat-table__cell-actions">
+                                        <div class="mat-table__actions">
+                                            <form method="post" asp-page-handler="Revoke" data-confirm="Revoke the key '@k.Name'? What uses it loses access at once.">
+                                                <input type="hidden" name="id" value="@k.Id" />
+                                                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Revoke" aria-label="Revoke @k.Name"><icon name="trash" /></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </mat-table-body>
+    </mat-table>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="plus" /><h2 class="mat-card__title">New key</h2></div>
+        <div class="mat-card__body">
+            <form method="post" asp-page-handler="Create" class="mat-form">
+                <p class="mat-hint">For /api/v1 (<a href="/api/v1/openapi.json">description</a>) and /metrics: as the header X-Api-Key or as Authorization: Bearer.@(Model.HasEngineKey ? " The engine key of the configuration works as well." : string.Empty)</p>
+                <div class="mat-form__grid">
+                    <mat-field label="Name" for-id="key-name">
+                        <input id="key-name" name="name" class="mat-input" maxlength="100" required placeholder="e.g. Prometheus" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="May" for-id="key-scope">
+                        <select id="key-scope" name="scope" class="mat-select">
+                            <option value="Read">Read (GET only)</option>
+                            <option value="Full">Everything</option>
+                        </select>
+                    </mat-field>
+                    <mat-field label="Expires after days" for-id="key-days" hint="Empty = never.">
+                        <input id="key-days" name="days" type="number" min="1" max="3650" class="mat-input" />
+                    </mat-field>
+                </div>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="key" /><span>Make key</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+</div>

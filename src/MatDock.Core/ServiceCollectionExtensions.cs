@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(_ => new Docker.HostMetricsHistory());
         services.AddSingleton<Docker.MetricsSnapshot>();
         services.AddScoped<Docker.MetricsStore>();
+        services.AddScoped<Security.ApiKeyService>();
         services.TryAddSingleton<Notifications.IMailRelaySource, Notifications.NoMailRelay>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();

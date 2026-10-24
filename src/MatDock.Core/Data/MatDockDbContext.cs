@@ -38,6 +38,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
     public DbSet<Docker.MetricSample> MetricSamples => Set<Docker.MetricSample>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
@@ -262,6 +263,18 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Container).HasMaxLength(255);
             e.HasIndex(x => new { x.EnvironmentId, x.Container, x.TimeUtc });
             e.HasIndex(x => new { x.Hourly, x.TimeUtc });
+        });
+
+        modelBuilder.Entity<ApiKey>(e =>
+        {
+            e.ToTable("ApiKey");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Prefix).HasMaxLength(16).IsRequired();
+            e.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Scope).HasConversion<int>();
+            e.HasIndex(x => x.KeyHash).IsUnique().HasFilter("\"UpdateState\" <> 0");
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 
         modelBuilder.Entity<NotificationChannel>(e =>

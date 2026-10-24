@@ -79,6 +79,19 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddScoped<MatDock.Web.Search.GlobalSearch>();
+// The description of the machine API (/api/v1 only, not the platform endpoints or the pages).
+builder.Services.AddOpenApi("v1", options =>
+{
+    options.ShouldInclude = description => description.RelativePath?.StartsWith("api/v1/", StringComparison.OrdinalIgnoreCase) == true;
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "MatDock API";
+        document.Info.Version = MatDock.Web.Api.MatDockApi.ApiVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        document.Info.Description = "The engine API of MatDock. Every call needs a key: X-Api-Key or Authorization: Bearer (MatDock__Api__Key, or System → API keys; "
+            + "a read key may only GET). ?environment= takes the id or the name of an environment; without it the local one.";
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddSingleton<MatDock.Web.Support.Toolkit>();
 // Every timed task (backups, bundles, sync jobs, prune, reports) runs through the Schedules; webhooks start syncs directly.
 builder.Services.AddHostedService<ScheduleRunnerService>();
@@ -283,6 +296,8 @@ app.MapPost("/webhooks/stacks/{token}", MatDock.Web.Sync.WebhookStackEndpoint.Ha
 // Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
 // (MatDock__Api__Key) is the guard; without a configured key every call answers 503.
 app.MapMatDockApi();
+// What /api/v1 offers, for a client generator or a person: open, it holds no data.
+app.MapOpenApi("/api/v1/openapi.json").AllowAnonymous();
 
 // The platform contract next to it: /api (definition) and /api/health anonymous and rate limited, /api/state, /api/configure and
 // /api/actions with X-Api-Key (MAT_API_KEY, else MatDock__Api__Key) or a bearer token of MatIdentity. Never under /api/v1.
