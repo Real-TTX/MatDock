@@ -27,6 +27,7 @@
                     <select asp-for="Input.Role" id="Input_Role" class="mat-select">
                         <option value="Admin">Admin</option>
                         <option value="User">User</option>
+                        <option value="Viewer">Viewer (read only)</option>
                     </select>
                 </mat-field>
 
@@ -46,8 +47,8 @@
                 </mat-field>
             </div>
 
-            @* An admin always sees every environment; a user can be limited to some. *@
-            <div class="mat-stack" data-show-if="#Input_Role" data-show-value="User">
+            @* An admin always sees every environment; a user or a viewer can be limited to some. *@
+            <div class="mat-stack" data-show-if="#Input_Role" data-show-value="User,Viewer">
                 <label class="mat-check">
                     <input asp-for="Input.RestrictEnvironments" type="checkbox" />
                     <span>Only these environments</span>

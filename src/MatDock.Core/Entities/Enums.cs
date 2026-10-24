@@ -1,11 +1,14 @@
 namespace MatDock.Core.Entities;
 
-/// <summary>Simple role model: Admin, User and Anonymous (link sharing, later).</summary>
+/// <summary>Simple role model: Admin, User, Viewer (looks, changes nothing) and Anonymous (link sharing, later).</summary>
 public enum UserRole
 {
     Anonymous = 0,
     User = 1,
-    Admin = 2
+    Admin = 2,
+
+    /// <summary>Sees what a user sees (the logs too) and changes nothing: no start, stop or restart.</summary>
+    Viewer = 3
 }
 
 /// <summary>How MatDock authenticates against a remote SSH host.</summary>

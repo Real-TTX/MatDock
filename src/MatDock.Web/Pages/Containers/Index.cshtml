@@ -5,6 +5,7 @@
     ViewData["Title"] = "Containers";
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsInRole("Admin");
+    var canControl = User.CanControl();
 
     string SearchKey(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r) => $"{r.Env.Name} {r.Container.Name} {r.Container.Image} {r.Container.Service} {r.Container.Project} {r.Container.Ports}".ToLowerInvariant();
     string State(DockerContainer c) => c.IsRunning ? "running" : "stopped";
@@ -26,6 +27,10 @@
         }
         <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
         <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack" aria-label="Volumes"><icon name="volume" /></a>
+        if (!canControl)
+        {
+            return;
+        }
         var paused = string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
         @if (c.IsRunning)
         {

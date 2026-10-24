@@ -140,8 +140,8 @@ public class EditModel : PageModel
             StatusMessage = "User created.";
         }
 
-        // Which environments the user may use (only a user of the role User can be limited; an admin never is).
-        await _userService.SetEnvironmentAccessAsync(userId, Input.RestrictEnvironments && Input.Role == UserRole.User, Input.EnvironmentIds, HttpContext.RequestAborted);
+        // Which environments the user may use (a user or a viewer can be limited; an admin never is).
+        await _userService.SetEnvironmentAccessAsync(userId, Input.RestrictEnvironments && Input.Role != UserRole.Admin, Input.EnvironmentIds, HttpContext.RequestAborted);
 
         IsError = false;
         return RedirectToPage("/Users/Index");

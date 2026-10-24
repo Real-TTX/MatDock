@@ -193,7 +193,12 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Terminal", "AdminOnly");
 })
     // Every action of a user on a page goes into the activity log (System → Activity).
-    .AddMvcOptions(o => o.Filters.Add<ActivityPageFilter>());
+    .AddMvcOptions(o =>
+    {
+        // A viewer looks and changes nothing (every POST of a page is refused, the own account aside).
+        o.Filters.Add<ViewerReadOnlyFilter>();
+        o.Filters.Add<ActivityPageFilter>();
+    });
 
 var app = builder.Build();
 // The toolkit is read once at start: AppView needs the icon names before the first layout asks for the sprite.

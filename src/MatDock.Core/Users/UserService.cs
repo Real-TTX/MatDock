@@ -47,8 +47,8 @@ public sealed class UserService
 
     /// <summary>
     /// Limits a user to the given environments (<paramref name="restrict"/>) or lifts the limit. The list is replaced as a whole; ids of environments
-    /// that do not exist are dropped. Returns false for an unknown user. Only users of the role <see cref="UserRole.User"/> can be limited:
-    /// an administrator is never restricted, so the flag is cleared for them.
+    /// that do not exist are dropped. Returns false for an unknown user. Users and viewers can be limited: an administrator is never restricted,
+    /// so the flag is cleared for them.
     /// </summary>
     public async Task<bool> SetEnvironmentAccessAsync(long userId, bool restrict, IEnumerable<long> environmentIds, CancellationToken ct = default)
     {
@@ -58,7 +58,7 @@ public sealed class UserService
             return false;
         }
 
-        user.RestrictEnvironments = restrict && user.Role == UserRole.User;
+        user.RestrictEnvironments = restrict && user.Role is UserRole.User or UserRole.Viewer;
 
         var requested = environmentIds.Distinct().ToList();
         var wanted = user.RestrictEnvironments
@@ -284,13 +284,14 @@ public sealed class UserService
         return user;
     }
 
-    /// <summary>The role claim of MatIdentity: <c>admin</c> or <c>user</c> sets the role (never demoting the last active administrator); anything else leaves it.</summary>
+    /// <summary>The role claim of MatIdentity: <c>admin</c>, <c>user</c> or <c>viewer</c> sets the role (never demoting the last active administrator); anything else leaves it.</summary>
     private async Task ApplyExternalRoleAsync(User user, string? claim, bool created, CancellationToken ct)
     {
         UserRole? wanted = claim?.Trim().ToLowerInvariant() switch
         {
             "admin" => UserRole.Admin,
             "user" => UserRole.User,
+            "viewer" => UserRole.Viewer,
             _ => null,
         };
 

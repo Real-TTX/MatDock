@@ -33,15 +33,16 @@
 else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
+    var canControl = User.CanControl();
     <div class="mat-actions md-actions">
-        @if (running)
+        @if (running && canControl)
         {
             <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Restart</span></button>
             </form>
         }
-        else
+        else if (canControl)
         {
             <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
@@ -58,7 +59,7 @@ else if (c is not null)
             <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
             <a class="mat-btn mat-btn--secondary" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
         }
-        @if (running)
+        @if (running && canControl)
         {
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />

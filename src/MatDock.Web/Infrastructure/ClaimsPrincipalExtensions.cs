@@ -31,4 +31,8 @@ public static class ClaimsPrincipalExtensions
 
     public static bool IsAdmin(this ClaimsPrincipal principal)
         => principal.IsInRole(nameof(UserRole.Admin));
+
+    /// <summary>Starts, stops and restarts containers: everyone signed in except a viewer.</summary>
+    public static bool CanControl(this ClaimsPrincipal principal)
+        => principal.Identity?.IsAuthenticated == true && !principal.IsInRole(nameof(UserRole.Viewer));
 }

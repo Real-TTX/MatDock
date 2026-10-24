@@ -3,6 +3,7 @@
 @model MatDock.Web.Pages.Containers.StackModel
 @{
     ViewData["Title"] = Model.Project;
+    var canControl = User.CanControl();
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", $"/Stacks?EnvId={Model.EnvId}") };
 }
 
@@ -58,7 +59,7 @@ else
                                     <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open" aria-label="Open"><icon name="external" /></a>
                                 }
                                 <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
-                                @if (c.IsRunning)
+                                @if (canControl && c.IsRunning)
                                 {
                                     <form method="post" asp-page-handler="Action">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
@@ -69,7 +70,7 @@ else
                                         <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
                                     </form>
                                 }
-                                else
+                                else if (canControl)
                                 {
                                     <form method="post" asp-page-handler="Action">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
