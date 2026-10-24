@@ -6,6 +6,19 @@
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
     var isAdmin = User.IsInRole("Admin");
     var canControl = User.CanControl();
+    // The list (not the tiles) has a tick per row and a bar for several containers at once.
+    var selectable = canControl && !isGallery;
+    const string BulkForm = "bulk-containers";
+    var bulkButtons = new List<BulkButton>
+    {
+        new("Start", "play", "Start"),
+        new("Restart", "refresh", "Restart"),
+        new("Stop", "stop", "Stop", Danger: true, Confirm: "Stop the selected containers?"),
+    };
+    if (isAdmin)
+    {
+        bulkButtons.Add(new("Remove", "trash", "Remove", Danger: true, Confirm: "Remove the selected containers? Running ones are skipped; their anonymous volumes go too."));
+    }
 
     string SearchKey(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r) => $"{r.Env.Name} {r.Container.Name} {r.Container.Image} {r.Container.Service} {r.Container.Project} {r.Container.Ports}".ToLowerInvariant();
     string State(DockerContainer c) => c.IsRunning ? "running" : "stopped";
@@ -102,7 +115,7 @@
     <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@err</div></div>
 }
 
-<mat-table>
+<mat-table data-selectable>
     <mat-table-toolbar>
         <div class="mat-input-icon mat-toolbar__search">
             <icon name="search" />
@@ -125,6 +138,10 @@
     </mat-table-toolbar>
 
     <mat-table-body>
+        @if (selectable)
+        {
+            <partial name="_BulkBar" model="new BulkBar(BulkForm, bulkButtons)" />
+        }
         <div id="live-containers" data-live="20">
         @if (Model.Environments.Count == 0)
         {
@@ -170,6 +187,10 @@
                 <table class="mat-table" id="container-table">
                     <thead>
                         <tr>
+                            @if (selectable)
+                            {
+                                <th class="mat-table__select"><input type="checkbox" data-select-all aria-label="Select all containers" /></th>
+                            }
                             <th>Environment</th><th>Container</th><th>Status</th><th>Ports</th><th>Resources</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th>
                         </tr>
                     </thead>
@@ -179,6 +200,10 @@
                             var env = r.Env;
                             var c = r.Container;
                             <tr data-item data-state="@State(c)" data-search="@SearchKey(r)">
+                                @if (selectable)
+                                {
+                                    <td class="mat-table__select"><input type="checkbox" data-select-row name="ids" value="@Bulk.Value(env.Id, c.Name)" form="@BulkForm" aria-label="Select @c.Name" /></td>
+                                }
                                 <td data-label="Environment" class="mat-nowrap">@env.Name</td>
                                 <td data-label="Container">
                                     <div class="mat-table__name">
@@ -221,3 +246,7 @@
         }
     </mat-table-actions>
 </mat-table>
+@if (selectable)
+{
+    <form method="post" asp-page-handler="Bulk" id="@BulkForm"></form>
+}

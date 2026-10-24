@@ -128,7 +128,8 @@ public sealed partial class UiTests : IClassFixture<UiTests.Site>
         foreach (Match cell in CellRegex().Matches(html))
         {
             var tag = cell.Value;
-            Assert.True(tag.Contains("data-label=") || tag.Contains("mat-table__cell-actions") || tag.Contains("colspan="), $"{path}: a cell without data-label: {tag}");
+            // The tick of a selectable row has no label (the toolkit shows none for it on a phone).
+            Assert.True(tag.Contains("data-label=") || tag.Contains("mat-table__cell-actions") || tag.Contains("mat-table__select") || tag.Contains("colspan="), $"{path}: a cell without data-label: {tag}");
         }
     }
 

@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Networks";
     var isAdmin = User.IsInRole("Admin");
+    const string BulkForm = "bulk-networks";
+    var bulkBar = new BulkBar(BulkForm, [new BulkButton("Remove", "trash", "Delete", Danger: true, Confirm: "Delete the selected networks?")]);
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -25,7 +27,7 @@
     </div>
 }
 
-<mat-table>
+<mat-table data-selectable>
     <mat-table-toolbar>
         <form method="get" class="js-autosubmit md-contents">
             <div class="mat-input-icon mat-toolbar__search">
@@ -47,10 +49,18 @@
         }
         else
         {
+            if (isAdmin)
+            {
+                <partial name="_BulkBar" model="bulkBar" />
+            }
             <div class="mat-table-wrap">
                 <table class="mat-table">
                     <thead>
                         <tr>
+                            @if (isAdmin)
+                            {
+                                <th class="mat-table__select"><input type="checkbox" data-select-all aria-label="Select all networks" /></th>
+                            }
                             <th>Environment</th>
                             <th>Network</th>
                             <th>Driver</th>
@@ -62,7 +72,12 @@
                         @foreach (var row in Model.Rows)
                         {
                             var detail = $"/Networks/Detail?envId={row.Environment.Id}&network={Uri.EscapeDataString(row.Network.Name)}";
+                            var locked = row.Network.IsPredefined || !row.Unused;
                             <tr>
+                                @if (isAdmin)
+                                {
+                                    <td class="mat-table__select"><input type="checkbox" data-select-row name="ids" value="@Bulk.Value(row.Environment.Id, row.Network.Name)" form="@BulkForm" disabled="@locked" title="@(row.Network.IsPredefined ? "Predefined" : locked ? "In use" : null)" aria-label="Select @row.Network.Name" /></td>
+                                }
                                 <td class="mat-nowrap" data-label="Environment">@row.Environment.Name</td>
                                 <td class="mat-text-wrap" data-label="Network">
                                     <div class="mat-table__name">
@@ -120,3 +135,7 @@
         }
     </mat-table-actions>
 </mat-table>
+@if (isAdmin)
+{
+    <form method="post" asp-page-handler="Bulk" id="@BulkForm"><input type="hidden" name="EnvId" value="@Model.EnvId" /><input type="hidden" name="Q" value="@Model.Q" /></form>
+}

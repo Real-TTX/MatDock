@@ -135,6 +135,46 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    /// <summary>Starts, stops or restarts the ticked containers, or removes them (admins; a running one is refused by docker and named in the answer).</summary>
+    public async Task<IActionResult> OnPostBulkAsync(string? bulkAction, List<string>? ids)
+    {
+        var remove = bulkAction == "Remove";
+        if (remove && !User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        ContainerAction? action = !remove && Enum.TryParse<ContainerAction>(bulkAction, out var a) && a is ContainerAction.Start or ContainerAction.Stop or ContainerAction.Restart
+            ? a
+            : null;
+        if (!remove && action is null)
+        {
+            StatusMessage = "Unknown action.";
+            IsError = true;
+            return RedirectToPage();
+        }
+
+        var ct = HttpContext.RequestAborted;
+        var environments = (await _environmentService.GetEnabledAsync(ct)).ToDictionary(e => e.Id);
+        var results = new List<(string Name, bool Ok, string Message)>();
+        foreach (var (envId, name) in Bulk.Parse(ids))
+        {
+            if (!environments.TryGetValue(envId, out var env))
+            {
+                results.Add((name, false, "environment not available"));
+                continue;
+            }
+
+            var (ok, message) = remove
+                ? await _containerService.RemoveAsync(env, name, force: false, volumes: true, ct)
+                : await _containerService.ActionAsync(env, name, action!.Value, ct);
+            results.Add((name, ok, message));
+        }
+
+        (StatusMessage, IsError) = Bulk.Summary(remove ? "Remove" : action!.Value.ToString(), results);
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action, string? name = null)
     {
         if (!ModelState.IsValid)

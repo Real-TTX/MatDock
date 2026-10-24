@@ -52,6 +52,9 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
     /// <summary>The SSH host key the fake server shows in a connection test.</summary>
     public string? HostKey { get; set; }
 
+    /// <summary>What was removed, as <c>image:ref</c>, <c>network:name</c> and <c>volume:name</c>.</summary>
+    public List<string> Removed { get; } = [];
+
     public Task<DockerConnectionResult> TestConnectionAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
@@ -110,6 +113,7 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<PruneResult> RemoveVolumesAsync(SshConnectionSettings settings, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
+        Removed.AddRange(names.Select(n => "volume:" + n));
         return Task.FromResult(new PruneResult(true, names.Count, string.Empty));
     }
 
@@ -128,6 +132,7 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
+        Removed.Add("network:" + nameOrId);
         return Task.FromResult((true, "ok"));
     }
 
@@ -146,6 +151,7 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
     public Task<(bool Ok, string Message)> RemoveImageAsync(SshConnectionSettings settings, string reference, bool force, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
+        Removed.Add("image:" + reference);
         return Task.FromResult((true, "ok"));
     }
 

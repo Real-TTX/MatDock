@@ -198,16 +198,39 @@
             });
             if (count) { count.textContent = shown; }
             if (total) { total.textContent = all; }
+            document.dispatchEvent(new CustomEvent("matdock:filtered"));
         }
         input.addEventListener("input", apply);
         if (status) { status.addEventListener("change", apply); }
         document.addEventListener("matdock:live", apply);
     })();
 
+    /* ---------------- Selection of a filtered list ----------------
+       A row the filter hides is never ticked: "select all" ticks the shown rows only, and a row the filter hides loses
+       its tick, so a bulk action never reaches what the user does not see. */
+    (function () {
+        function untickHidden(box) {
+            var changed = null;
+            box.querySelectorAll("input[data-select-row]:checked").forEach(function (check) {
+                var row = check.closest("[data-item], tr, .mat-tile");
+                if (row && row.hidden) { check.checked = false; changed = check; }
+            });
+            // MatUi counts again (the bar, the select-all box) on a change of a row.
+            if (changed) { changed.dispatchEvent(new Event("change", { bubbles: true })); }
+        }
+        document.addEventListener("change", function (e) {
+            var box = e.target.matches && e.target.matches("input[data-select-all]") ? e.target.closest("[data-selectable]") : null;
+            if (box) { untickHidden(box); }
+        });
+        document.addEventListener("matdock:filtered", function () {
+            document.querySelectorAll("[data-selectable]").forEach(untickHidden);
+        });
+    })();
+
     /* ---------------- Live regions ----------------
        <div id="…" data-live="20"> is read again every 20 s (at least 10) while the tab is visible: the page is fetched
-       once more and the region's content replaced by the new one. Skipped while something inside has the focus or a
-       POST is running, so nothing changes under the user's hand. Fires "matdock:live" on document afterwards. */
+       once more and the region's content replaced by the new one. Skipped while something inside has the focus, a row
+       of it is ticked or a POST is running, so nothing changes under the user's hand. Fires "matdock:live" on document afterwards. */
     (function () {
         var regions = Array.prototype.slice.call(document.querySelectorAll("[data-live][id]"));
         if (regions.length === 0 || !window.fetch || !window.DOMParser) { return; }
@@ -217,6 +240,7 @@
             if (busy || document.hidden || document.querySelector(".is-loading")) { return; }
             var focused = document.activeElement;
             if (focused && focused !== document.body && regions.some(function (r) { return r.contains(focused); })) { return; }
+            if (regions.some(function (r) { return r.querySelector("input[data-select-row]:checked"); })) { return; }
             busy = true;
             fetch(location.href, { credentials: "same-origin", headers: { "X-Requested-With": "matdock-live" } })
                 .then(function (r) { return r.ok && !r.redirected ? r.text() : null; })

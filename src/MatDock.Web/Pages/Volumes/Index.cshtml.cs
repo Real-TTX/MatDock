@@ -51,6 +51,29 @@ public class IndexModel : PageModel
 
     private sealed record CachedVolumes(IReadOnlyList<DockerVolume> Volumes, IReadOnlyCollection<string> Unused, string? Error);
 
+    /// <summary>Deletes the ticked volumes (admins); docker refuses one that a container mounts, and it is named in the answer.</summary>
+    public async Task<IActionResult> OnPostBulkAsync(string? bulkAction, List<string>? ids)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)) || bulkAction != "Remove")
+        {
+            return Forbid();
+        }
+
+        var ct = HttpContext.RequestAborted;
+        var environments = (await _environmentService.GetEnabledAsync(ct)).ToDictionary(e => e.Id);
+        var results = new List<(string Name, bool Ok, string Message)>();
+        foreach (var (envId, name) in MatDock.Web.Support.Bulk.Parse(ids))
+        {
+            var result = environments.TryGetValue(envId, out var env)
+                ? await _connectionService.RemoveVolumesAsync(_environmentService.BuildSettings(env), [name], ct)
+                : PruneResult.Fail("environment not available");
+            results.Add((name, result.Success, result.Detail));
+        }
+
+        (StatusMessage, IsError) = MatDock.Web.Support.Bulk.Summary("Delete", results);
+        return RedirectToPage(new { EnvId, Q, Status, Refresh = true });
+    }
+
     public async Task OnGetAsync()
     {
         // The environment is chosen globally (sidebar dropdown / cookie); 0 = all.

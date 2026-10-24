@@ -1,0 +1,9 @@
+@model MatDock.Web.Support.BulkBar
+@* The bar of a selectable list (inside its data-selectable): shown by MatUi while rows are ticked. The ticks and the buttons belong to the form Model.FormId. *@
+<div class="mat-bulk" data-bulk-bar hidden>
+    <span class="mat-bulk__count"><span data-bulk-count>0</span> selected</span>
+    @foreach (var b in Model.Buttons)
+    {
+        <button type="submit" form="@Model.FormId" name="bulkAction" value="@b.Action" class="mat-btn mat-btn--sm @(b.Danger ? "mat-btn--danger" : "mat-btn--secondary")" data-confirm="@b.Confirm"><icon name="@b.Icon" /><span>@b.Label</span></button>
+    }
+</div>

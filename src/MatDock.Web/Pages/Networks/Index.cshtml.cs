@@ -40,6 +40,29 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync() => await LoadAsync();
 
+    /// <summary>Deletes the ticked networks (admins); docker refuses a predefined one and one a container is connected to.</summary>
+    public async Task<IActionResult> OnPostBulkAsync(string? bulkAction, List<string>? ids)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)) || bulkAction != "Remove")
+        {
+            return Forbid();
+        }
+
+        var ct = HttpContext.RequestAborted;
+        var environments = (await _environmentService.GetEnabledAsync(ct)).ToDictionary(e => e.Id);
+        var results = new List<(string Name, bool Ok, string Message)>();
+        foreach (var (envId, name) in MatDock.Web.Support.Bulk.Parse(ids))
+        {
+            var (ok, message) = environments.TryGetValue(envId, out var env)
+                ? await _connectionService.RemoveNetworkAsync(_environmentService.BuildSettings(env), name, ct)
+                : (false, "environment not available");
+            results.Add((name, ok, message));
+        }
+
+        (StatusMessage, IsError) = MatDock.Web.Support.Bulk.Summary("Delete", results);
+        return RedirectToPage(new { EnvId, Q, Refresh = true });
+    }
+
     public async Task<IActionResult> OnPostRemoveAsync(long envId, string name)
     {
         if (!User.IsInRole(nameof(UserRole.Admin)))
