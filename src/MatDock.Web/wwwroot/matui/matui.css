@@ -1,4 +1,4 @@
-/* MatUi 0.8.0 (6d245be3ea) - build local-20261022 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
+/* MatUi 0.9.2 (899bab0e2d) - build local-20261024 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
 /* ==========================================================================
    MatUi · tokens
    The single source of the look of every Mat app. Components use only these custom properties, never a raw colour.
@@ -524,6 +524,10 @@ kbd {
 .mat-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 900px) { .mat-grid--3, .mat-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .mat-grid--2, .mat-grid--3, .mat-grid--4 { grid-template-columns: minmax(0, 1fr); } }
+/* A grid of figures (mat-stat, bare or as the body of a card) keeps two columns on a phone: a figure is short, and one per line turned a row of
+   key figures into a long column of mostly empty cards. Only on the narrowest screens does it go to one. */
+@media (max-width: 600px) { .mat-grid:has(> .mat-stat, > .mat-card > .mat-stat) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 340px) { .mat-grid:has(> .mat-stat, > .mat-card > .mat-stat) { grid-template-columns: minmax(0, 1fr); } }
 .mat-muted { color: var(--mat-text-muted); }
 .mat-faint { color: var(--mat-text-faint); }
 .mat-mono { font-family: var(--mat-mono); }
@@ -580,6 +584,16 @@ kbd {
   background: var(--mat-bg);
 }
 
+/* The shell scrolls inside (the content, the list of the menu); the document itself never does. Without this a wheel over a part that does not
+   scroll (the foot of the menu with the account) is handed on to the document, and any pixel of overflow (rounding at a zoom, a popover, a toast,
+   a touchpad) lets the whole app slide out of the window. Pages without the shell (sign-in, .mat-auth) still scroll. */
+html:has(> body > .mat-app),
+html:has(> body > .mat-app) > body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* ---- The menu ---- */
 .mat-nav {
   position: relative;
@@ -591,6 +605,7 @@ kbd {
   border-right: 1px solid var(--mat-border);
   padding-top: var(--mat-safe-top);
   padding-left: var(--mat-safe-left);
+  overscroll-behavior: contain;
 }
 
 .mat-nav__brand {
@@ -890,7 +905,12 @@ button.mat-nav__item:hover { background: var(--mat-surface-3); }
 }
 
 /* ---- The content side ---- */
+/* position: relative makes the content the box an absolutely placed element inside it is placed in. Without it a visually hidden caption
+   (mat-sr-only) or a table head hidden on a phone, far down a long page, was placed against the document and made the document as tall as
+   the content: invisible since the document is locked (SHELL-07), but focusing such an element or searching the page still scrolled the
+   locked document and slid the whole app out of the window. */
 .mat-main {
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -1159,10 +1179,15 @@ html.mat-lock { overflow: hidden; }
   content: "";
   position: absolute; inset: 0; margin: auto;
   width: 1.1em; height: 1.1em;
-  border: 2px solid var(--mat-on-accent); border-right-color: transparent;
+  border: 2px solid var(--mat-text-muted); border-right-color: transparent;
   border-radius: 50%;
   animation: mat-spin .7s linear infinite;
 }
+/* The ring takes the colour that stands on the button: on a filled one the colour on its fill, on a light one (secondary,
+   ghost, danger) a text colour. It used to be the colour on the accent everywhere: white on the white of a secondary button. */
+.mat-btn--primary.is-loading::after { border-color: var(--mat-on-accent); border-right-color: transparent; }
+.mat-btn--danger.is-loading::after { border-color: var(--mat-danger-text); border-right-color: transparent; }
+.mat-btn--danger.mat-btn--solid.is-loading::after { border-color: var(--mat-on-danger); border-right-color: transparent; }
 @keyframes mat-spin { to { transform: rotate(360deg); } }
 
 /* ---- Button row ------------------------------------------------------------------------------------------------
@@ -1343,10 +1368,12 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
 .mat-empty__icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--mat-accent-soft); color: var(--mat-accent-text); font-size: 1.8rem; }
 .mat-empty__title { font-size: var(--mat-fs-lg); font-weight: 650; color: var(--mat-text); }
 
-.mat-kv { display: grid; grid-template-columns: fit-content(60%) minmax(0, 1fr); gap: var(--mat-space-3) var(--mat-space-5); margin: 0; }
-.mat-kv dt { color: var(--mat-text-muted); min-width: 200px; overflow-wrap: anywhere; }
+/* The label column is 200 px (or 40 % of a narrow list) and grows with the longest label; the value keeps at least 40 %, so a long label wraps
+   instead of pushing the value out, and a list in a narrow card (a side panel, a two-column grid on a tablet) still has room for its values. */
+.mat-kv { display: grid; grid-template-columns: minmax(min(200px, 40%), max-content) minmax(40%, 1fr); gap: var(--mat-space-3) var(--mat-space-5); margin: 0; }
+.mat-kv dt { color: var(--mat-text-muted); min-width: 0; overflow-wrap: anywhere; }
 .mat-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-@media (max-width: 600px) { .mat-kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } .mat-kv dt { min-width: 0; } .mat-kv dd { margin-bottom: var(--mat-space-3); } }
+@media (max-width: 600px) { .mat-kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } .mat-kv dd { margin-bottom: var(--mat-space-3); } }
 
 .mat-code {
   position: relative;
@@ -1903,7 +1930,8 @@ input[type="file"].mat-input { padding: 6px; }
 /* ---- An icon in the field (search), a button in the field (show the password), a counter ---- */
 .mat-input-icon { position: relative; display: flex; align-items: center; }
 .mat-input-icon > .mat-icon { position: absolute; left: var(--mat-space-3); font-size: 1.1rem; color: var(--mat-text-muted); pointer-events: none; }
-.mat-input-icon > .mat-input { padding-left: calc(var(--mat-space-3) + 1.6rem); }
+/* room at the start only for an icon that stands there: the eye of a password field is at the end and the field starts like every field */
+.mat-input-icon > .mat-input:where(.mat-icon ~ .mat-input) { padding-left: calc(var(--mat-space-3) + 1.6rem); }
 .mat-input-icon--end > .mat-input { padding-right: 48px; }
 .mat-input-icon__btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 .mat-toggle-off { display: none; }
@@ -2757,6 +2785,15 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
   border: 1px solid var(--mat-border);
   border-radius: var(--mat-table-radius, var(--mat-radius-lg));
   box-shadow: var(--mat-shadow-1);
+}
+/* A table that fills a card (straight under the card, or alone in the body of a flush card): the card is its frame, so the table drops its own -
+   two 1 px edges side by side read as a thick, doubled line. Its last row keeps inside the card's round corners. */
+.mat-card > .mat-table-wrap,
+.mat-card--flush > .mat-card__body > .mat-table-wrap:only-child { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.mat-card > .mat-table-wrap:last-child,
+.mat-card--flush > .mat-card__body:last-child > .mat-table-wrap:only-child {
+  border-bottom-left-radius: calc(var(--mat-card-radius, var(--mat-radius-lg)) - 1px);
+  border-bottom-right-radius: calc(var(--mat-card-radius, var(--mat-radius-lg)) - 1px);
 }
 /* The empty state takes the place of the table or the gallery in a list: the same frame, so a list without rows keeps its shape and the way to fill it
    stands where the rows will be (LIST-11). Outside a list mat-empty--framed gives it the frame; in a card it needs none (the card is the frame). */
@@ -4196,7 +4233,7 @@ dialog.mat-dialog--start[open] { animation-name: mat-panel-in-start; }
 [data-app="matsplit"]    { --mat-app-accent: #bf5610; }
 [data-app="matmon"]      { --mat-app-accent: #295cff; }
 [data-app="matcms"]      { --mat-app-accent: #2563eb; }
-[data-app="matdo"]       { --mat-app-accent: #8300bc; }
+[data-app="matdo"]       { --mat-app-accent: #d03d33; }
 [data-app="matstat"]     { --mat-app-accent: #2563eb; }
 [data-app="matbu"]       { --mat-app-accent: #0b7f8a; }
 [data-app="mattrakr"]    { --mat-app-accent: #6c5ce7; }

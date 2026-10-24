@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Version 0.8.0 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
+   Version 0.9.2 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
    `node tools/bump.js` writes the version here, in matui.boot.js and in MatUiVersion (Directory.Build.props); window.MatUi.version has it.
    MatUi · behaviour
    Dependency-free. Everything is wired by delegated listeners and data-attributes, so server-rendered and dynamically added
@@ -1330,6 +1330,22 @@
       bad[0].focus();
     }
   }, true);
+  // A POST form is sent once. A second submit of the same form right after the first - Enter pressed while a complete code sends
+  // itself (data-submit), a double click - is dropped: the second request reaches the server after the first one has changed what
+  // the form was made for (a sign-in that already happened turns its token down with a 400). This listener bubbles, so it runs after
+  // validation and data-confirm and does not mark a form they stopped. A form whose answer does not replace the page (a download,
+  // another target) can be sent again after 2 s, a page brought back by Back at once; a GET form (a filter) is never held back.
+  doc.addEventListener('submit', function (e) {
+    var form = e.target, sub = e.submitter;
+    if (e.defaultPrevented || !form.matches || !form.matches('form')) { return; }
+    var method = ((sub && sub.getAttribute('formmethod')) || form.getAttribute('method') || 'get').toLowerCase();
+    var target = (sub && sub.getAttribute('formtarget')) || form.getAttribute('target') || '';
+    if (method !== 'post' || (target && target !== '_self')) { return; }
+    var now = Date.now();
+    if (form._matSentAt && now - form._matSentAt < 2000) { e.preventDefault(); return; }
+    form._matSentAt = now;
+  });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) { $$('form').forEach(function (f) { f._matSentAt = 0; }); } });
   // (typing in the text field of a tag input says nothing: the value is the real input's, and it changes when a tag is added)
   doc.addEventListener('input', function (e) { var i = e.target; if (i.closest && !i.classList.contains('mat-tagfield__input') && i.closest('.mat-field.is-invalid') && i.checkValidity()) { showError(i, ''); } });
 
@@ -8099,7 +8115,7 @@
   if (doc.readyState === 'loading') { doc.addEventListener('DOMContentLoaded', init); } else { init(); }
 
   window.MatUi = {
-    version: '0.8.0',
+    version: '0.9.2',
     dialog: { open: openDialog, close: closeDialog },
     confirm: confirmDialog,
     alert: alertDialog,
