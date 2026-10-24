@@ -172,6 +172,15 @@
                         }
                     </ol>
                 </nav>
+                @* The search of MatDock (MatUi SHELL-20, FORM-23): suggestions from /api/search, every result on /Search; a plain search form without the script. *@
+                <div class="mat-topbar__search">
+                    <form role="search" action="/Search" method="get">
+                        <label class="mat-sr-only" for="app-search">Search MatDock</label>
+                        <div class="mat-search" data-autocomplete data-search-url="/api/search" data-results-url="/Search" data-recent="app" data-key="/,mod+k">
+                            <input class="mat-search__input" type="search" id="app-search" name="q" placeholder="Search" maxlength="100" autocomplete="off" />
+                        </div>
+                    </form>
+                </div>
                 @if (IsSectionDefined("Actions"))
                 {
                     <div class="mat-topbar__actions">

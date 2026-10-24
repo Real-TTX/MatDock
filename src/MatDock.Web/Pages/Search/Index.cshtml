@@ -1,0 +1,51 @@
+@page
+@model MatDock.Web.Pages.Search.IndexModel
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.Q) ? "Search" : $"Search: {Model.Q}";
+    ViewData["Width"] = "narrow";
+}
+
+<div class="mat-list">
+    <div class="mat-toolbar" role="toolbar">
+        <form method="get" role="search" class="md-toolbar-form">
+            <div class="mat-input-icon mat-toolbar__search">
+                <icon name="search" />
+                <input type="search" name="q" value="@Model.Q" class="mat-input" placeholder="Containers, stacks, images, volumes, networks, environments, pages…" aria-label="Search" maxlength="100" autocomplete="off" />
+            </div>
+        </form>
+    </div>
+
+    @if (Model.Groups.Count == 0)
+    {
+        <div class="mat-empty">
+            <span class="mat-empty__icon"><icon name="search" /></span>
+            <div class="mat-empty__title">@(string.IsNullOrEmpty(Model.Q) ? "Search MatDock" : $"No results for “{Model.Q}”")</div>
+        </div>
+    }
+    @foreach (var group in Model.Groups)
+    {
+        var id = "results-" + group.Name.ToLowerInvariant();
+        <section class="mat-section" aria-labelledby="@id">
+            <div class="mat-section__head">
+                <h2 id="@id">@group.Name <span class="mat-badge mat-badge--soft">@group.Items.Count</span></h2>
+            </div>
+            <ul class="mat-itemlist mat-itemlist--inset">
+                @foreach (var item in group.Items)
+                {
+                    <li class="mat-item">
+                        <a class="mat-item__main" href="@item.Href">
+                            <span class="mat-item__lead"><icon name="@item.Icon" /></span>
+                            <span class="mat-item__body">
+                                <span class="mat-item__title">@item.Title</span>
+                                @if (!string.IsNullOrEmpty(item.Text))
+                                {
+                                    <span class="mat-item__text">@item.Text</span>
+                                }
+                            </span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>

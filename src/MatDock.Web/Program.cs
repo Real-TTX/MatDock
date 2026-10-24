@@ -78,6 +78,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
+builder.Services.AddScoped<MatDock.Web.Search.GlobalSearch>();
 builder.Services.AddSingleton<MatDock.Web.Support.Toolkit>();
 // Every timed task (backups, bundles, sync jobs, prune, reports) runs through the Schedules; webhooks start syncs directly.
 builder.Services.AddHostedService<ScheduleRunnerService>();
@@ -262,6 +263,9 @@ app.MapRazorPages();
 
 // Interactive terminal (WebSocket ⇄ SSH PTY). Admin-only; the handler validates env + container id.
 app.MapGet("/terminal/ws", MatDock.Web.Terminal.TerminalEndpoint.HandleAsync).RequireAuthorization("AdminOnly");
+
+// The suggestions of the search in the header bar (MatUi search field). Any signed-in user; each sees the environments it may see.
+app.MapGet("/api/search", MatDock.Web.Search.SearchEndpoint.HandleAsync).RequireAuthorization();
 
 // Live container logs (one-directional WebSocket, docker logs -f). Any authenticated user, like the Logs page.
 app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthorization();
