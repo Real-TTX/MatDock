@@ -70,6 +70,13 @@
                 <input type="hidden" name="action" value="Start" />
                 <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Start" aria-label="Start"><icon name="play" /></button>
             </form>
+            if (isAdmin)
+            {
+                <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'? Its anonymous volumes go too; named volumes stay.">
+                    <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                    <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Remove" aria-label="Remove @c.Name"><icon name="trash" /></button>
+                </form>
+            }
         }
     }
 }
@@ -200,5 +207,12 @@
             <a href="/Containers/Create" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New container</span></a>
         }
         <a href="@ViewUrl(Model.View ?? "list")" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
+        @if (isAdmin && Model.StoppedCount > 0)
+        {
+            <span class="mat-btn-row__spacer"></span>
+            <form method="post" asp-page-handler="Prune" class="md-inline-form" data-confirm="Remove @Model.StoppedCount stopped container(s)@(Model.IsAll ? " in all environments" : string.Empty)? Containers of stacks come back with the next deploy.">
+                <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove stopped (@Model.StoppedCount)</span></button>
+            </form>
+        }
     </mat-table-actions>
 </mat-table>

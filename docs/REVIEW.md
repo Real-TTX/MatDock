@@ -257,3 +257,28 @@ endpoints"), disconnect, and delete once it is free.
 That found a second defect, in the volume form as well as the new network form: when Docker refused (a name that already exists), the form came
 back **without a word**. The message went into a TempData that the form never renders. Both forms now show Docker's reason in the form
 (`CreateFormTests`; with the old code put back, the two refusal tests fail).
+
+## 9. Audit: what a complete Docker manager still needs (October 2026)
+
+Against Portainer, Dockhand, Komodo and Dockge, from the code (not the docs). Not wanted stays not wanted (Swarm, Kubernetes, agents, teams or
+rights per object, LDAP/generic OIDC, 2FA in MatDock). Image build stays open until it is decided.
+
+| # | What | Status |
+|---|---|---|
+| 1 | Remove a container (with its anonymous volumes, forced), remove all stopped ones, rename | done |
+| 2 | Container detail: environment (secrets masked), labels, networks with IPs, command, restart policy and count, health with its log, times, processes, inspect | done |
+| 3 | Security headers: CSP, frame-ancestors / X-Frame-Options, nosniff, Referrer-Policy, HSTS over HTTPS | done |
+| 4 | Secrets at rest: the `.env` of a stack encrypted in the database and in bundle backups; the key ring protected by a certificate when one is given | done |
+| 5 | System view per environment: `docker info`, `docker version`, `system df`, build cache prune, a system cleanup with a preview | done |
+| 6 | Container form: command, entrypoint, labels, limits, hostname, user, working directory, capabilities, privileged, devices, GPUs, logging, DNS, extra hosts, health check; `docker update`; duplicate and recreate | planned |
+| 7 | Networks: IPAM on create (subnet, gateway, range, IPv6), a fixed IP and aliases on connect | planned |
+| 8 | Images: used by, tag, push, save and load | planned |
+| 9 | Stacks: per service restart/stop/start/recreate, scale, a redeploy webhook per stack, copy to another environment | planned |
+| 10 | Alerts: Discord, Slack, Teams, Telegram, ntfy, Gotify; thresholds for disk, memory and CPU per host, restart loops | planned |
+| 11 | Metrics: kept in the database (30 days), per container, a live view in the container detail, `/metrics` for Prometheus | planned |
+| 12 | API: containers, images, volumes, networks, environments, update rules; OpenAPI; several named keys (read or full) | planned |
+| 13 | Backup of MatDock itself (database and keys, encrypted with a passphrase), download and restore, as a schedule | planned |
+| 14 | A read-only role (Viewer) | planned |
+| 15 | An events page per environment with filters | planned |
+| 16 | Selecting several items of a list for one action (containers, images, volumes, networks) | planned |
+| 17 | A search of the whole app in the header bar | planned |

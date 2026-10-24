@@ -103,7 +103,7 @@
                         };
                         <tr>
                             <td data-label="Name">
-                                <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")"><strong>@env.Name</strong></a>
+                                <a href="/Environments/Detail?id=@env.Id"><strong>@env.Name</strong></a>
                                 @if (!env.IsEnabled)
                                 {
                                     <span class="mat-pill mat-pill--plain">Disabled</span>

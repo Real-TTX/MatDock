@@ -3,8 +3,15 @@
 @model MatDock.Web.Pages.Containers.ContainerDetailModel
 @{
     var c = Model.Container;
+    var i = Model.Inspect;
     ViewData["Title"] = c?.Name ?? Model.Id;
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Containers", $"/Containers?EnvId={Model.EnvId}") };
+
+    string Bytes(long b) => b <= 0 ? "–" : b >= 1L << 30 ? $"{b / (double)(1L << 30):0.#} GiB" : b >= 1L << 20 ? $"{b / (double)(1L << 20):0.#} MiB" : $"{b / 1024d:0.#} KiB";
+    string When(string? iso) => iso is not null && DateTimeOffset.TryParse(iso, out var t) ? t.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss") : "–";
+    string HealthPill(string? s) => s switch { "healthy" => "mat-pill--ok", "unhealthy" => "mat-pill--error", "starting" => "mat-pill--warn", _ => "mat-pill--plain" };
+    var hasHealth = i?.HealthStatus is not null;
+    var running = c?.IsRunning == true;
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -27,7 +34,7 @@ else if (c is not null)
 {
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
     <div class="mat-actions md-actions">
-        @if (c.IsRunning)
+        @if (running)
         {
             <form method="post" asp-page-handler="Action">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
@@ -46,75 +53,335 @@ else if (c is not null)
             <a class="mat-btn mat-btn--secondary" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
         }
         <a class="mat-btn mat-btn--secondary" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
-        @if (c.IsRunning && User.IsInRole("Admin"))
+        @if (running && Model.IsAdmin)
         {
             <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
             <a class="mat-btn mat-btn--secondary" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
         }
-        @if (c.IsRunning)
+        @if (running)
         {
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
                 <button type="submit" class="mat-btn mat-btn--danger"><icon name="stop" /><span>Stop</span></button>
             </form>
         }
+        @if (Model.IsAdmin)
+        {
+            <span class="mat-btn-row__spacer"></span>
+            <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'?@(running ? " It is stopped first." : string.Empty) Its anonymous volumes go too; named volumes stay.@(i?.Project is { } p ? $" It belongs to the stack '{p}' and comes back with its next deploy." : string.Empty)">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove</span></button>
+            </form>
+        }
     </div>
 
-    <section class="mat-card">
-        <div class="mat-card__head"><icon name="box" /><h2 class="mat-card__title">Details</h2></div>
-        <div class="mat-card__body">
-            <dl class="mat-kv">
-                <dt>Status</dt>
-                <dd><container-status state="@c.State" status="@c.Status" /></dd>
-                <dt>Image</dt>
-                <dd class="mat-mono">@c.Image</dd>
-                <dt>Stack</dt>
-                <dd>@(c.Project ?? "–")@(c.Service is { Length: > 0 } ? " / " + c.Service : "")</dd>
-                <dt>Ports</dt>
-                <dd><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
-                <dt>CPU</dt>
-                <dd>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</dd>
-                <dt>RAM</dt>
-                <dd>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</dd>
-                <dt>ID</dt>
-                <dd class="mat-mono">@c.Id</dd>
-            </dl>
+    <div class="mat-stack" data-tabs>
+        <div class="mat-tabs" role="tablist" aria-label="Container">
+            <button type="button" class="mat-tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true" tabindex="0"><icon name="box" /><span>Overview</span></button>
+            <button type="button" class="mat-tab" role="tab" id="tab-env" aria-controls="panel-env" aria-selected="false" tabindex="-1"><icon name="list" /><span>Environment</span></button>
+            <button type="button" class="mat-tab" role="tab" id="tab-net" aria-controls="panel-net" aria-selected="false" tabindex="-1"><icon name="network" /><span>Networks</span></button>
+            <button type="button" class="mat-tab" role="tab" id="tab-mounts" aria-controls="panel-mounts" aria-selected="false" tabindex="-1"><icon name="volume" /><span>Mounts</span></button>
+            @if (hasHealth)
+            {
+                <button type="button" class="mat-tab" role="tab" id="tab-health" aria-controls="panel-health" aria-selected="false" tabindex="-1"><icon name="heart" /><span>Health</span></button>
+            }
+            @if (running)
+            {
+                <button type="button" class="mat-tab" role="tab" id="tab-top" aria-controls="panel-top" aria-selected="false" tabindex="-1"><icon name="activity" /><span>Processes</span></button>
+            }
+            <button type="button" class="mat-tab" role="tab" id="tab-inspect" aria-controls="panel-inspect" aria-selected="false" tabindex="-1"><icon name="code" /><span>Inspect</span></button>
         </div>
-    </section>
 
-    <section class="mat-card">
-        <div class="mat-card__head"><icon name="volume" /><h2 class="mat-card__title">Volumes &amp; mounts</h2><span class="mat-badge">@Model.Mounts.Count</span></div>
-        @if (Model.Mounts.Count == 0)
-        {
-            <div class="mat-empty"><p>No mounts.</p></div>
-        }
-        else
-        {
-            <div class="mat-card__body mat-p-0">
-                <table class="mat-table">
-                    <thead><tr><th>Type</th><th>Source</th><th>Target (in container)</th><th>Mode</th></tr></thead>
-                    <tbody>
-                        @foreach (var m in Model.Mounts)
+        <section class="mat-card" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    <dt>Status</dt>
+                    <dd>
+                        <container-status state="@c.State" status="@c.Status" />
+                        @if (hasHealth)
                         {
-                            <tr>
-                                <td data-label="Type">@(m.IsVolume ? "Volume" : m.Type)</td>
-                                <td data-label="Source" class="mat-mono mat-text-break">
-                                    @if (m.IsVolume && !string.IsNullOrEmpty(m.Name))
-                                    {
-                                        <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(m.Name)">@m.Name</a>
-                                    }
-                                    else
-                                    {
-                                        @(m.Source ?? "–")
-                                    }
-                                </td>
-                                <td data-label="Target" class="mat-mono mat-text-break">@m.Destination</td>
-                                <td data-label="Mode">@(m.ReadWrite ? "rw" : "ro")</td>
-                            </tr>
+                            <span class="mat-pill @HealthPill(i!.HealthStatus)">@i.HealthStatus</span>
                         }
-                    </tbody>
-                </table>
+                        @if (i?.OomKilled == true)
+                        {
+                            <span class="mat-pill mat-pill--error">out of memory</span>
+                        }
+                    </dd>
+                    <dt>Name</dt>
+                    <dd>
+                        @if (Model.IsAdmin)
+                        {
+                            <form method="post" asp-page-handler="Rename" class="md-image-form">
+                                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                                <input name="newName" value="@c.Name" class="mat-input mat-mono md-image-input" aria-label="Name of the container" spellcheck="false" autocomplete="off" pattern="[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,127}" />
+                                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Rename" aria-label="Rename"><icon name="save" /></button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="mat-mono">@c.Name</span>
+                        }
+                    </dd>
+                    <dt>Image</dt>
+                    <dd class="mat-mono"><a href="/Images/Detail?envId=@Model.EnvId&reference=@Uri.EscapeDataString(c.Image)">@c.Image</a></dd>
+                    <dt>Stack</dt>
+                    <dd>
+                        @if (c.Project is { Length: > 0 } project)
+                        {
+                            <a href="/Containers/Stack?envId=@Model.EnvId&project=@Uri.EscapeDataString(project)">@project</a>@(c.Service is { Length: > 0 } ? " / " + c.Service : "")
+                        }
+                        else
+                        {
+                            <span class="mat-muted">–</span>
+                        }
+                    </dd>
+                    <dt>Ports</dt>
+                    <dd><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
+                    <dt>CPU</dt>
+                    <dd>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</dd>
+                    <dt>RAM</dt>
+                    <dd>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</dd>
+                    @if (i is not null)
+                    {
+                        <dt>Created</dt>
+                        <dd>@When(i.Created)</dd>
+                        <dt>@(running ? "Running since" : "Started")</dt>
+                        <dd>@When(i.StartedAt)</dd>
+                        @if (!running && i.FinishedAt is not null)
+                        {
+                            <dt>Stopped</dt>
+                            <dd>@When(i.FinishedAt) <span class="mat-muted">(exit code @i.ExitCode)</span></dd>
+                        }
+                        @if (i.StateError is not null)
+                        {
+                            <dt>Error</dt>
+                            <dd class="mat-mono">@i.StateError</dd>
+                        }
+                        <dt>Restart policy</dt>
+                        <dd>@i.RestartPolicy@(i.RestartPolicy == "on-failure" && i.RestartMaxRetries > 0 ? $" (at most {i.RestartMaxRetries})" : "") <span class="mat-muted">· restarted @i.RestartCount time(s)</span></dd>
+                        <dt>Command</dt>
+                        <dd class="mat-mono">@(string.Join(' ', i.Entrypoint.Concat(i.Cmd)) is { Length: > 0 } cmd ? cmd : "–")</dd>
+                        @if (i.WorkingDir is not null)
+                        {
+                            <dt>Working directory</dt>
+                            <dd class="mat-mono">@i.WorkingDir</dd>
+                        }
+                        @if (i.User is not null)
+                        {
+                            <dt>User</dt>
+                            <dd class="mat-mono">@i.User</dd>
+                        }
+                        <dt>Hostname</dt>
+                        <dd class="mat-mono">@(i.Hostname ?? "–")</dd>
+                        <dt>Limits</dt>
+                        <dd>Memory @Bytes(i.MemoryBytes) · CPUs @(i.Cpus > 0 ? i.Cpus.ToString("0.##") : "–")</dd>
+                        @if (i.Privileged || i.CapAdd.Count > 0 || i.Devices.Count > 0)
+                        {
+                            <dt>Privileges</dt>
+                            <dd class="mat-mono">
+                                @if (i.Privileged)
+                                {
+                                    <span class="mat-pill mat-pill--warn">privileged</span>
+                                }
+                                @string.Join(", ", i.CapAdd.Concat(i.Devices))
+                            </dd>
+                        }
+                        <dt>Logging</dt>
+                        <dd class="mat-mono">@(i.LogDriver ?? "–")@(i.LogOptions.Count > 0 ? " (" + string.Join(", ", i.LogOptions.Select(o => $"{o.Key}={o.Value}")) + ")" : "")</dd>
+                    }
+                    <dt>ID</dt>
+                    <dd class="mat-mono">@c.Id</dd>
+                </dl>
             </div>
+        </section>
+
+        <section class="mat-card" role="tabpanel" id="panel-env" aria-labelledby="tab-env" hidden>
+            @if (i is null || (i.Env.Count == 0 && i.Labels.Count == 0))
+            {
+                <div class="mat-empty"><p>No environment variables or labels.</p></div>
+            }
+            else
+            {
+                @if (i.Env.Count > 0)
+                {
+                    <div class="mat-card__head"><icon name="list" /><h2 class="mat-card__title">Environment</h2><span class="mat-badge">@i.Env.Count</span></div>
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody>
+                                @foreach (var e in i.Env)
+                                {
+                                    <tr>
+                                        <td data-label="Name" class="mat-mono">@e.Name</td>
+                                        <td data-label="Value" class="mat-mono mat-text-break">
+                                            @e.Value
+                                            @if (e.Masked)
+                                            {
+                                                <span class="mat-pill mat-pill--plain" title="The name looks like a secret: its value is not shown.">hidden</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                @if (i.Labels.Count > 0)
+                {
+                    <div class="mat-card__head"><icon name="tag" /><h2 class="mat-card__title">Labels</h2><span class="mat-badge">@i.Labels.Count</span></div>
+                    <div class="mat-card__body">
+                        <dl class="mat-kv">
+                            @foreach (var (key, value) in i.Labels)
+                            {
+                                <dt class="mat-mono">@key</dt><dd class="mat-mono">@value</dd>
+                            }
+                        </dl>
+                    </div>
+                }
+            }
+        </section>
+
+        <section class="mat-card" role="tabpanel" id="panel-net" aria-labelledby="tab-net" hidden>
+            @if (i is null || i.Networks.Count == 0)
+            {
+                <div class="mat-empty"><p>Not attached to a network@(i?.NetworkMode is { Length: > 0 } mode ? $" (network mode {mode})" : "").</p></div>
+            }
+            else
+            {
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead><tr><th>Network</th><th>IP address</th><th>IPv6</th><th>Gateway</th><th>MAC</th><th>Aliases</th></tr></thead>
+                        <tbody>
+                            @foreach (var n in i.Networks)
+                            {
+                                <tr>
+                                    <td data-label="Network"><a href="/Networks/Detail?envId=@Model.EnvId&network=@Uri.EscapeDataString(n.Name)">@n.Name</a></td>
+                                    <td data-label="IP address" class="mat-mono">@(string.IsNullOrEmpty(n.IpAddress) ? "–" : n.IpAddress)</td>
+                                    <td data-label="IPv6" class="mat-mono">@(string.IsNullOrEmpty(n.Ipv6Address) ? "–" : n.Ipv6Address)</td>
+                                    <td data-label="Gateway" class="mat-mono">@(string.IsNullOrEmpty(n.Gateway) ? "–" : n.Gateway)</td>
+                                    <td data-label="MAC" class="mat-mono">@(string.IsNullOrEmpty(n.MacAddress) ? "–" : n.MacAddress)</td>
+                                    <td data-label="Aliases" class="mat-mono mat-text-break">@(n.Aliases.Count == 0 ? "–" : string.Join(", ", n.Aliases))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <section class="mat-card" role="tabpanel" id="panel-mounts" aria-labelledby="tab-mounts" hidden>
+            @if (Model.Mounts.Count == 0)
+            {
+                <div class="mat-empty"><p>No mounts.</p></div>
+            }
+            else
+            {
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead><tr><th>Type</th><th>Source</th><th>Target (in container)</th><th>Mode</th></tr></thead>
+                        <tbody>
+                            @foreach (var m in Model.Mounts)
+                            {
+                                <tr>
+                                    <td data-label="Type">@(m.IsVolume ? "Volume" : m.Type)</td>
+                                    <td data-label="Source" class="mat-mono mat-text-break">
+                                        @if (m.IsVolume && !string.IsNullOrEmpty(m.Name))
+                                        {
+                                            <a href="/Volumes/Detail?envId=@Model.EnvId&volume=@Uri.EscapeDataString(m.Name)">@m.Name</a>
+                                        }
+                                        else
+                                        {
+                                            @(m.Source ?? "–")
+                                        }
+                                    </td>
+                                    <td data-label="Target" class="mat-mono mat-text-break">@m.Destination</td>
+                                    <td data-label="Mode">@(m.ReadWrite ? "rw" : "ro")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        @if (hasHealth)
+        {
+            <section class="mat-card" role="tabpanel" id="panel-health" aria-labelledby="tab-health" hidden>
+                <div class="mat-card__body">
+                    <dl class="mat-kv">
+                        <dt>Health</dt><dd><span class="mat-pill @HealthPill(i!.HealthStatus)">@i.HealthStatus</span></dd>
+                        <dt>Failing in a row</dt><dd>@i.HealthFailingStreak</dd>
+                        @if (i.HealthTest is not null)
+                        {
+                            <dt>Check</dt><dd class="mat-mono">@i.HealthTest</dd>
+                        }
+                    </dl>
+                </div>
+                @if (i.HealthLog.Count > 0)
+                {
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
+                            <thead><tr><th>When</th><th>Exit code</th><th>Output</th></tr></thead>
+                            <tbody>
+                                @foreach (var run in i.HealthLog.Reverse())
+                                {
+                                    <tr>
+                                        <td data-label="When" class="mat-nowrap">@When(run.Start)</td>
+                                        <td data-label="Exit code"><span class="mat-pill @(run.ExitCode == 0 ? "mat-pill--ok" : "mat-pill--error")">@run.ExitCode</span></td>
+                                        <td data-label="Output" class="mat-mono mat-text-break">@(run.Output.Length == 0 ? "–" : run.Output)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
         }
-    </section>
+
+        @if (running)
+        {
+            <section class="mat-card" role="tabpanel" id="panel-top" aria-labelledby="tab-top" hidden>
+                @if (Model.ProcessesError is not null)
+                {
+                    <div class="mat-card__body"><div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">@Model.ProcessesError</div></div></div>
+                }
+                else if (Model.Processes is { Rows.Count: > 0 } top)
+                {
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
+                            <thead><tr>@foreach (var col in top.Columns) { <th>@col</th> }</tr></thead>
+                            <tbody>
+                                @foreach (var row in top.Rows)
+                                {
+                                    <tr>
+                                        @for (var k = 0; k < top.Columns.Count; k++)
+                                        {
+                                            <td data-label="@top.Columns[k]" class="mat-mono @(k == top.Columns.Count - 1 ? "mat-text-break" : "mat-nowrap")">@(k < row.Count ? row[k] : "")</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="mat-empty"><p>No processes.</p></div>
+                }
+            </section>
+        }
+
+        <section class="mat-card" role="tabpanel" id="panel-inspect" aria-labelledby="tab-inspect" hidden>
+            <div class="mat-card__body">
+                @if (i is null)
+                {
+                    <p class="mat-muted">Docker did not answer the inspect.</p>
+                }
+                else
+                {
+                    <pre class="mat-code md-output md-output--tall">@i.RawJson</pre>
+                }
+            </div>
+        </section>
+    </div>
 }

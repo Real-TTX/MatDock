@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<Notifications.IMailRelaySource, Notifications.NoMailRelay>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+        services.AddSingleton<StackSecretsInterceptor>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
         services.AddSingleton<Execution.IHostSessionFactory, Execution.HostSessionFactory>();
         services.AddSingleton<Backups.IBackupStorageFactory, Backups.BackupStorageFactory>();
@@ -67,6 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
         services.AddScoped<Updates.UpdateService>();
+        services.AddScoped<Docker.DockerSystemService>();
         services.AddScoped<Updates.UpdatePolicyService>();
         services.AddScoped<Updates.UpdateAutomation>();
         services.AddSingleton<Updates.UpdateAutomationState>();

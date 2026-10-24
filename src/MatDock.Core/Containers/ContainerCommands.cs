@@ -87,6 +87,37 @@ public static partial class ContainerCommands
         return VolumeCommands.PathPrefix + $"{dockerHead} {verb} '{id}'";
     }
 
+    /// <summary><c>docker inspect</c> of one container: the whole JSON (read by <see cref="ContainerInspect.Parse"/>).</summary>
+    public static string Inspect(string dockerHead, string id)
+        => VolumeCommands.PathPrefix + $"{dockerHead} inspect --type container '{Checked(id)}'";
+
+    /// <summary>The processes of a running container (<c>docker top</c>).</summary>
+    public static string Top(string dockerHead, string id)
+        => VolumeCommands.PathPrefix + $"{dockerHead} top '{Checked(id)}' 2>&1";
+
+    /// <summary>Removes a container; <paramref name="force"/> stops a running one first, <paramref name="volumes"/> also removes its anonymous volumes
+    /// (named volumes are never removed by Docker here).</summary>
+    public static string Remove(string dockerHead, string id, bool force, bool volumes)
+        => VolumeCommands.PathPrefix + $"{dockerHead} rm{(force ? " -f" : string.Empty)}{(volumes ? " -v" : string.Empty)} '{Checked(id)}' 2>&1";
+
+    /// <summary>Gives a container another name; the new name follows the same rule as an id.</summary>
+    public static string Rename(string dockerHead, string id, string newName)
+    {
+        if (!IsValidId(newName))
+        {
+            throw new ArgumentException($"Invalid container name: '{newName}'.", nameof(newName));
+        }
+
+        return VolumeCommands.PathPrefix + $"{dockerHead} rename '{Checked(id)}' '{newName}' 2>&1";
+    }
+
+    /// <summary>Removes every stopped container (<c>docker container prune</c>); the output ends with the space it freed.</summary>
+    public static string PruneStopped(string dockerHead)
+        => VolumeCommands.PathPrefix + dockerHead + " container prune -f 2>&1";
+
+    private static string Checked(string id)
+        => IsValidId(id) ? id : throw new ArgumentException($"Invalid container ID: '{id}'.", nameof(id));
+
     public static string Logs(string dockerHead, string id, int tail)
     {
         if (!IsValidId(id))

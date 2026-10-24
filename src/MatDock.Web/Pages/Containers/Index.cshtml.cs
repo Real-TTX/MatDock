@@ -79,6 +79,60 @@ public class IndexModel : PageModel
             .ThenBy(r => r.Container.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
         LoadErrors = results.Where(r => r.error is not null).Select(r => $"{r.env.Name}: {r.error}").ToList();
+        StoppedCount = Rows.Count(r => IsStopped(r.Container));
+    }
+
+    /// <summary>How many containers of the shown environments are stopped (exited, created or dead; a paused one is not).</summary>
+    public int StoppedCount { get; private set; }
+
+    private static bool IsStopped(DockerContainer c) => !c.IsRunning && !string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Removes one container (admins only); its anonymous volumes go too.</summary>
+    public async Task<IActionResult> OnPostRemoveAsync(long envId, string id, string? name = null)
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            StatusMessage = "Environment not available (disabled or deleted).";
+            IsError = true;
+            return RedirectToPage();
+        }
+
+        var (ok, message) = await _containerService.RemoveAsync(env, id, force: false, volumes: true, HttpContext.RequestAborted);
+        StatusMessage = $"Remove {(string.IsNullOrWhiteSpace(name) ? id : name)}: {message}";
+        IsError = !ok;
+        return RedirectToPage();
+    }
+
+    /// <summary>Removes the stopped containers of the chosen environment, or of every environment shown when "All" is chosen (admins only).</summary>
+    public async Task<IActionResult> OnPostPruneAsync()
+    {
+        if (!User.IsInRole(nameof(UserRole.Admin)))
+        {
+            return Forbid();
+        }
+
+        var selected = EnvSelection.Current(HttpContext);
+        var targets = (await _environmentService.GetEnabledAsync(HttpContext.RequestAborted))
+            .Where(e => selected is null || e.Id == selected)
+            .ToList();
+        var lines = new List<string>();
+        var failed = false;
+        foreach (var env in targets)
+        {
+            var (ok, message) = await _containerService.PruneStoppedAsync(env, HttpContext.RequestAborted);
+            failed |= !ok;
+            lines.Add(targets.Count > 1 ? $"{env.Name}: {message}" : message);
+        }
+
+        StatusMessage = lines.Count == 0 ? "No environment." : string.Join(" ", lines);
+        IsError = failed;
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action, string? name = null)

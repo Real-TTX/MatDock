@@ -1,0 +1,164 @@
+@page
+@model MatDock.Web.Pages.Environments.DetailModel
+@{
+    var env = Model.Environment!;
+    var o = Model.Overview;
+    ViewData["Title"] = env.Name;
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Environments", "/Environments") };
+    string Bytes(long b) => b <= 0 ? "–" : b >= 1L << 30 ? $"{b / (double)(1L << 30):0.#} GiB" : $"{b / (double)(1L << 20):0} MiB";
+    string Or(string? v) => string.IsNullOrWhiteSpace(v) ? "–" : v;
+}
+
+<div class="mat-actions md-actions">
+    <a class="mat-btn mat-btn--secondary" href="/Containers?EnvId=@env.Id"><icon name="box" /><span>Containers</span></a>
+    @if (Model.IsAdmin)
+    {
+        <a class="mat-btn mat-btn--secondary" href="/Stacks?EnvId=@env.Id"><icon name="layers" /><span>Stacks</span></a>
+    }
+    <a class="mat-btn mat-btn--secondary" href="/Images?EnvId=@env.Id"><icon name="image" /><span>Images</span></a>
+    <a class="mat-btn mat-btn--secondary" href="/Volumes?EnvId=@env.Id"><icon name="volume" /><span>Volumes</span></a>
+    <a class="mat-btn mat-btn--secondary" href="/Networks?EnvId=@env.Id"><icon name="network" /><span>Networks</span></a>
+    @if (Model.IsAdmin)
+    {
+        <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)"><icon name="terminal" /><span>Shell</span></a>
+        <a class="mat-btn mat-btn--secondary" href="/Environments/Edit?id=@env.Id"><icon name="edit" /><span>Edit</span></a>
+    }
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+}
+
+<section id="live-run" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "5" : null)" hidden="@(Model.Running is null ? "hidden" : null)">
+    @if (Model.Running is { } op)
+    {
+        var (text, _) = op.Read(0);
+        <div class="mat-card__head">
+            <icon name="@(op.IsFinished ? (op.Error is null ? "check-circle" : "alert") : "refresh")" />
+            <h2 class="mat-card__title">Cleanup@(op.IsFinished ? string.Empty : "…")</h2>
+        </div>
+        <div class="mat-card__body mat-stack">
+            @if (op.Error is not null)
+            {
+                <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
+            }
+            <pre class="mat-code md-output">@text</pre>
+        </div>
+    }
+</section>
+
+@if (o is not null)
+{
+    @if (o.Errors.Count > 0)
+    {
+        <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">@string.Join(" · ", o.Errors)</div></div>
+    }
+    @if (o.Warnings.Count > 0)
+    {
+        <div class="mat-alert mat-alert--warning">
+            <icon name="alert" />
+            <div class="mat-alert__body">
+                <strong>Docker warns:</strong>
+                @foreach (var w in o.Warnings)
+                {
+                    <div>@w</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="mat-grid mat-grid--2">
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="whale" /><h2 class="mat-card__title">Engine</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    <dt>Docker</dt><dd class="mat-mono">@Or(o.ServerVersion)@(o.ApiVersion is null ? "" : $" (API {o.ApiVersion})")</dd>
+                    <dt>Compose</dt><dd class="mat-mono">@Or(o.ComposeVersion)</dd>
+                    <dt>Storage driver</dt><dd class="mat-mono">@Or(o.StorageDriver)</dd>
+                    <dt>Data directory</dt><dd class="mat-mono">@Or(o.DockerRootDir)</dd>
+                    <dt>Logging driver</dt><dd class="mat-mono">@Or(o.LoggingDriver)</dd>
+                    <dt>Cgroup</dt><dd class="mat-mono">@Or(o.CgroupDriver)@(o.CgroupVersion is null ? "" : $" v{o.CgroupVersion}")</dd>
+                    <dt>Runtimes</dt><dd class="mat-mono">@(o.Runtimes.Count == 0 ? "–" : string.Join(", ", o.Runtimes))@(o.DefaultRuntime is null ? "" : $" (default {o.DefaultRuntime})")</dd>
+                    <dt>Security</dt>
+                    <dd class="mat-mono">
+                        @if (o.Rootless)
+                        {
+                            <span class="mat-pill mat-pill--info">rootless</span>
+                        }
+                        @(o.SecurityOptions.Count == 0 ? "–" : string.Join(", ", o.SecurityOptions))
+                    </dd>
+                    @if (o.SwarmState is { Length: > 0 } swarm && swarm != "inactive")
+                    {
+                        <dt>Swarm</dt><dd>@swarm</dd>
+                    }
+                </dl>
+            </div>
+        </section>
+
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="server" /><h2 class="mat-card__title">Host</h2></div>
+            <div class="mat-card__body">
+                <dl class="mat-kv">
+                    <dt>Name</dt><dd class="mat-mono">@Or(o.HostName)</dd>
+                    <dt>System</dt><dd>@Or(o.OperatingSystem)</dd>
+                    <dt>Kernel</dt><dd class="mat-mono">@Or(o.KernelVersion)</dd>
+                    <dt>Architecture</dt><dd class="mat-mono">@Or(o.Architecture)</dd>
+                    <dt>CPUs</dt><dd>@(o.Cpus > 0 ? o.Cpus.ToString() : "–")</dd>
+                    <dt>Memory</dt><dd>@Bytes(o.MemoryBytes)</dd>
+                    <dt>Containers</dt><dd>@o.Containers <span class="mat-muted">(@o.ContainersRunning running · @o.ContainersPaused paused · @o.ContainersStopped stopped)</span></dd>
+                    <dt>Images</dt><dd>@o.Images</dd>
+                </dl>
+            </div>
+        </section>
+    </div>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="hard-drive" /><h2 class="mat-card__title">Disk usage</h2></div>
+        @if (o.DiskUsage.Count == 0)
+        {
+            <div class="mat-empty"><p>Docker did not say.</p></div>
+        }
+        else
+        {
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead><tr><th>Kind</th><th class="mat-num">Count</th><th class="mat-num">In use</th><th class="mat-num">Size</th><th class="mat-num">Reclaimable</th></tr></thead>
+                    <tbody>
+                        @foreach (var row in o.DiskUsage)
+                        {
+                            <tr>
+                                <td data-label="Kind">@row.Type</td>
+                                <td data-label="Count" class="mat-num">@row.TotalCount</td>
+                                <td data-label="In use" class="mat-num">@row.Active</td>
+                                <td data-label="Size" class="mat-num mat-mono">@row.Size</td>
+                                <td data-label="Reclaimable" class="mat-num mat-mono">@row.Reclaimable</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (Model.IsAdmin)
+    {
+        <section class="mat-card">
+            <div class="mat-card__head"><icon name="broom" /><h2 class="mat-card__title">Clean up</h2></div>
+            <div class="mat-card__body">
+                <form method="post" asp-page-handler="Cleanup" class="mat-form" data-confirm="Remove what is ticked on @env.Name? Nothing that a container uses is removed.">
+                    <input type="hidden" name="id" value="@env.Id" />
+                    <label class="mat-check"><input type="checkbox" name="containers" value="true" checked /><span>Stopped containers</span></label>
+                    <label class="mat-check"><input type="checkbox" name="danglingImages" value="true" checked /><span>Dangling images (without a tag)</span></label>
+                    <label class="mat-check"><input type="checkbox" name="allImages" value="true" /><span>All images no container uses (they are pulled again when needed)</span></label>
+                    <label class="mat-check"><input type="checkbox" name="networks" value="true" checked /><span>Networks no container uses</span></label>
+                    <label class="mat-check"><input type="checkbox" name="buildCache" value="true" checked /><span>Build cache</span></label>
+                    <p class="mat-hint">Volumes hold data: they have their own <a href="/Volumes/Prune?EnvId=@env.Id">cleanup with a preview</a>.</p>
+                    <mat-form-buttons>
+                        <button type="submit" class="mat-btn mat-btn--danger"><icon name="broom" /><span>Clean up</span></button>
+                    </mat-form-buttons>
+                </form>
+            </div>
+        </section>
+    }
+}

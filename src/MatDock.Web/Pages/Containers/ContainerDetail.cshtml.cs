@@ -22,6 +22,15 @@ public class ContainerDetailModel : PageModel
     public DockerEnvironment? Environment { get; private set; }
     public DockerContainer? Container { get; private set; }
     public IReadOnlyList<ContainerMount> Mounts { get; private set; } = new List<ContainerMount>();
+
+    /// <summary>What <c>docker inspect</c> says (environment masked); null when it could not be read.</summary>
+    public ContainerInspect? Inspect { get; private set; }
+
+    /// <summary>The processes of a running container.</summary>
+    public ContainerProcessTable? Processes { get; private set; }
+    public string? ProcessesError { get; private set; }
+
+    public bool IsAdmin => User.IsInRole(nameof(UserRole.Admin));
     public string? Error { get; private set; }
 
     [TempData] public string? StatusMessage { get; set; }
@@ -42,6 +51,15 @@ public class ContainerDetailModel : PageModel
             var (container, mounts) = await _containerService.GetDetailAsync(Environment, Id, HttpContext.RequestAborted);
             Container = container;
             Mounts = mounts;
+            if (container is not null)
+            {
+                Inspect = await _containerService.InspectAsync(Environment, container.Id.Length > 0 ? container.Id : Id, HttpContext.RequestAborted);
+                if (container.IsRunning)
+                {
+                    (Processes, ProcessesError) = await _containerService.TopAsync(Environment, container.Id.Length > 0 ? container.Id : Id, HttpContext.RequestAborted);
+                }
+            }
+
             if (container is null)
             {
                 Error = "Container not found.";
@@ -53,6 +71,46 @@ public class ContainerDetailModel : PageModel
         }
 
         return Page();
+    }
+
+    /// <summary>Removes the container (admins only): a running one is stopped first; its anonymous volumes go too. Back to the list afterwards.</summary>
+    public async Task<IActionResult> OnPostRemoveAsync(long envId, string id, string? name = null)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var (ok, message) = await _containerService.RemoveAsync(env, id, force: true, volumes: true, HttpContext.RequestAborted);
+        StatusMessage = $"Remove {(string.IsNullOrWhiteSpace(name) ? id : name)}: {message}";
+        IsError = !ok;
+        return ok ? RedirectToPage("Index") : RedirectToPage(new { envId, id });
+    }
+
+    /// <summary>Gives the container another name (admins only).</summary>
+    public async Task<IActionResult> OnPostRenameAsync(long envId, string id, string? newName)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var (ok, message) = await _containerService.RenameAsync(env, id, newName ?? string.Empty, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return RedirectToPage(new { envId, id });
     }
 
     public async Task<IActionResult> OnPostActionAsync(long envId, string id, ContainerAction action, string? name = null)

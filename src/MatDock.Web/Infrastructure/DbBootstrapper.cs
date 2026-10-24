@@ -24,6 +24,13 @@ public static class DbBootstrapper
 
         await db.Database.MigrateAsync();
 
+        // A .env written by an older MatDock is still plain text in the database: encrypt it now (the interceptor does it from here on).
+        var encrypted = await MatDock.Core.Security.StackSecretsInterceptor.EncryptExistingAsync(db);
+        if (encrypted > 0)
+        {
+            logger.LogInformation("Encrypted the .env of {Count} stack(s) in the database.", encrypted);
+        }
+
         var users = provider.GetRequiredService<UserService>();
         var options = provider.GetRequiredService<IOptions<MatDockOptions>>().Value;
         var environment = provider.GetRequiredService<IHostEnvironment>();

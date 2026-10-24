@@ -23,7 +23,7 @@
     <div class="md-env-card__head">
         <div class="mat-min-w-0">
             <div class="md-env-card__name">
-                <a href="@(User.IsAdmin() ? $"/Environments/Edit?id={env.Id}" : $"/Containers?EnvId={env.Id}")">@env.Name</a>
+                <a href="/Environments/Detail?id=@env.Id">@env.Name</a>
                 @if (!env.IsEnabled)
                 {
                     <span class="mat-pill mat-pill--plain">Disabled</span>

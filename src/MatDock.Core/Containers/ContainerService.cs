@@ -330,6 +330,99 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>Everything <c>docker inspect</c> says about one container, secrets masked; null when it is not there.</summary>
+    public async Task<ContainerInspect?> InspectAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return null;
+        }
+
+        var (ok, output) = await RunAsync(environment, head => ContainerCommands.Inspect(head, id), ct);
+        return ok ? ContainerInspect.Parse(output) : null;
+    }
+
+    /// <summary>The processes of a running container; an empty table when it is not running or <c>docker top</c> refuses.</summary>
+    public async Task<(ContainerProcessTable Table, string? Error)> TopAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        var empty = new ContainerProcessTable(Array.Empty<string>(), Array.Empty<IReadOnlyList<string>>());
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return (empty, "Invalid container ID.");
+        }
+
+        var (ok, output) = await RunAsync(environment, head => ContainerCommands.Top(head, id), ct);
+        return ok ? (ContainerInspect.ParseTop(output), null) : (empty, DockerErrorMessages.InterpretDockerError(output, output));
+    }
+
+    /// <summary>Removes a container (stopped, or running with <paramref name="force"/>); with <paramref name="volumes"/> also its anonymous volumes.</summary>
+    public async Task<(bool Success, string Message)> RemoveAsync(DockerEnvironment environment, string id, bool force, bool volumes, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return (false, "Invalid container ID.");
+        }
+
+        try
+        {
+            var (ok, output) = await RunAsync(environment, head => ContainerCommands.Remove(head, id, force, volumes), ct);
+            return ok ? (true, "Removed.") : (false, DockerErrorMessages.InterpretDockerError(output, output));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogInformation(ex, "Removing container {Id} failed.", id);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>Gives a container another name.</summary>
+    public async Task<(bool Success, string Message)> RenameAsync(DockerEnvironment environment, string id, string newName, CancellationToken ct = default)
+    {
+        newName = newName?.Trim() ?? string.Empty;
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return (false, "Invalid container ID.");
+        }
+
+        if (!ContainerCommands.IsValidId(newName))
+        {
+            return (false, "A name starts with a letter or digit and has only letters, digits, '_', '.' and '-' (at most 128).");
+        }
+
+        try
+        {
+            var (ok, output) = await RunAsync(environment, head => ContainerCommands.Rename(head, id, newName), ct);
+            return ok ? (true, $"Renamed to {newName}.") : (false, DockerErrorMessages.InterpretDockerError(output, output));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogInformation(ex, "Renaming container {Id} failed.", id);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>Removes all stopped containers of an environment; the message says how much space it freed.</summary>
+    public async Task<(bool Success, string Message)> PruneStoppedAsync(DockerEnvironment environment, CancellationToken ct = default)
+    {
+        try
+        {
+            var (ok, output) = await RunAsync(environment, ContainerCommands.PruneStopped, ct);
+            if (!ok)
+            {
+                return (false, DockerErrorMessages.InterpretDockerError(output, output));
+            }
+
+            var removed = output.Split('\n').Count(l => l.Trim().Length == 64 && l.Trim().All(char.IsAsciiHexDigitLower));
+            var reclaimed = output.Split('\n').FirstOrDefault(l => l.StartsWith("Total reclaimed space", StringComparison.OrdinalIgnoreCase))?.Trim();
+            return (true, $"Removed {removed} stopped container(s).{(reclaimed is null ? string.Empty : " " + reclaimed + ".")}");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogInformation(ex, "Container prune on env {Env} failed.", environment.Id);
+            return (false, ex.Message);
+        }
+    }
+
     /// <summary>Starts an ad-hoc container (<c>docker run -d</c>). Returns the new container id or an actionable message.</summary>
     public async Task<(bool Success, string Message)> RunAsync(DockerEnvironment environment, ContainerRunSpec spec, CancellationToken ct = default)
     {

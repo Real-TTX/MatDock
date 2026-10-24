@@ -80,6 +80,7 @@ public sealed class BundleBackupService
     private readonly VolumeBackupService _volumeBackupService;
     private readonly IBackupStorageFactory _storageFactory;
     private readonly ILogger<BundleBackupService> _logger;
+    private readonly Security.StackSecretsInterceptor? _secrets;
 
     public BundleBackupService(
         MatDockDbContext db,
@@ -87,8 +88,10 @@ public sealed class BundleBackupService
         StackService stackService,
         VolumeBackupService volumeBackupService,
         IBackupStorageFactory storageFactory,
-        ILogger<BundleBackupService> logger)
+        ILogger<BundleBackupService> logger,
+        Security.StackSecretsInterceptor? secrets = null)
     {
+        _secrets = secrets;
         _db = db;
         _containerService = containerService;
         _stackService = stackService;
@@ -232,7 +235,8 @@ public sealed class BundleBackupService
             CreatedUtc = ts,
             ComposeSource = composeSource,
             Compose = compose,
-            EnvContent = managed is null ? null : managed.EnvContent ?? string.Empty,
+            // Encrypted like in the database: a bundle at an SMB share or on a disk must not carry passwords in plain text.
+            EnvContent = managed is null ? null : (_secrets is null ? managed.EnvContent : _secrets.Protect(managed.EnvContent)) ?? string.Empty,
             ImageOverrides = managed is null ? null : managed.ImageOverridesJson ?? string.Empty,
             ManagedBy = stack?.ManagedBy,
             Services = services,
@@ -307,6 +311,7 @@ public sealed class BundleBackupService
         }
 
         var name = string.IsNullOrWhiteSpace(overrideName) ? manifest.Name : overrideName.Trim();
+        var (bundleEnv, envNote) = BundleEnv(manifest.EnvContent);
         var deployOk = true;
         string deployMsg;
         if (!string.IsNullOrWhiteSpace(manifest.Compose))
@@ -319,7 +324,7 @@ public sealed class BundleBackupService
                 EnvironmentId = targetEnv.Id,
                 ComposeYaml = manifest.Compose,
                 // The bundle's .env when it carries one; an older bundle (none) keeps the stack's current .env.
-                EnvContent = manifest.EnvContent ?? existing?.EnvContent,
+                EnvContent = bundleEnv ?? existing?.EnvContent,
                 // A re-created stack gets its owner back; an existing one keeps its own (null = keep).
                 ManagedBy = existing is null ? manifest.ManagedBy : null,
             };
@@ -355,7 +360,25 @@ public sealed class BundleBackupService
             deployMsg = "no compose in bundle — only volumes restored";
         }
 
-        return (fail == 0 && deployOk, $"Restored {ok}/{ok + fail} volume(s); {deployMsg}.");
+        return (fail == 0 && deployOk, $"Restored {ok}/{ok + fail} volume(s); {deployMsg}.{(envNote is null ? string.Empty : " " + envNote)}");
+    }
+
+    /// <summary>The <c>.env</c> a bundle carries, decrypted. One encrypted by another MatDock (other keys) cannot be read: the stack keeps its own then.</summary>
+    private (string? Env, string? Note) BundleEnv(string? value)
+    {
+        if (!Security.StackSecretsInterceptor.IsProtected(value))
+        {
+            return (value, null);
+        }
+
+        try
+        {
+            return _secrets is null ? (null, "The .env of the bundle is encrypted; the stack keeps its own.") : (_secrets.Unprotect(value), null);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return (null, "The .env of the bundle was encrypted by another MatDock installation (other keys); the stack keeps its own .env.");
+        }
     }
 
     // ---- Recorded bundles (StackBackup) -------------------------------------------------------

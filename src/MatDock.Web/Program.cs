@@ -39,12 +39,23 @@ var sessionLifetimeDays = builder.Configuration.GetValue($"{MatDockOptions.Secti
 // ---------------------------------------------------------------------------
 
 // Data Protection keys live on the mounted volume so cookies + encrypted secrets survive restarts.
-builder.Services.AddDataProtection()
+var dataProtection = builder.Services.AddDataProtection()
     .SetApplicationName("MatDock")
     .PersistKeysToFileSystem(new DirectoryInfo(appPaths.KeysPath));
 
-builder.Services.AddDbContext<MatDockDbContext>(options =>
-    options.UseSqlite(appPaths.SqliteConnectionString));
+// Optional: the key ring itself encrypted with a certificate that lives outside the data volume (a Docker secret, for example), so a copy of the
+// volume alone does not open the stored passwords. MatDock__KeyCertificate = path of a PFX, MatDock__KeyCertificatePassword = its password.
+if (builder.Configuration["MatDock:KeyCertificate"] is { Length: > 0 } keyCertificatePath)
+{
+    var keyCertificate = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12FromFile(
+        keyCertificatePath, builder.Configuration["MatDock:KeyCertificatePassword"]);
+    dataProtection.ProtectKeysWithCertificate(keyCertificate).UnprotectKeysWithAnyCertificate(keyCertificate);
+}
+
+// The .env of the stacks is encrypted in the database and decrypted when read (StackSecretsInterceptor).
+builder.Services.AddDbContext<MatDockDbContext>((sp, options) =>
+    options.UseSqlite(appPaths.SqliteConnectionString)
+        .AddInterceptors(MatDock.Core.Security.StackSecretsInterceptor.Shared));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
@@ -189,10 +200,14 @@ app.Services.GetRequiredService<MatDock.Web.Support.Toolkit>();
 // HTTP pipeline
 // ---------------------------------------------------------------------------
 app.UseForwardedHeaders();
+// No framing, no sniffing, only MatDock's own scripts and connections (static files too, so it comes first).
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
+    // Only on answers over HTTPS (behind a TLS proxy through the forwarded headers): a plain HTTP installation in a LAN is not affected.
+    app.UseHsts();
 }
 
 // Ensure the web-app manifest is served with the correct MIME type (some hosts omit it).

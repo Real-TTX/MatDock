@@ -191,12 +191,16 @@ internal sealed class TestDatabase : IDisposable
 {
     private readonly SqliteConnection _connection;
 
-    public TestDatabase(long? currentUserId = 1)
+    private readonly Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor[] _interceptors;
+
+    public TestDatabase(long? currentUserId = 1, params Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor[] interceptors)
     {
+        _interceptors = interceptors;
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
         var options = new DbContextOptionsBuilder<MatDockDbContext>()
             .UseSqlite(_connection)
+            .AddInterceptors(_interceptors)
             .Options;
         Context = new MatDockDbContext(options, new FakeCurrentUser(currentUserId));
         Context.Database.EnsureCreated();
@@ -209,6 +213,7 @@ internal sealed class TestDatabase : IDisposable
     {
         var options = new DbContextOptionsBuilder<MatDockDbContext>()
             .UseSqlite(_connection)
+            .AddInterceptors(_interceptors)
             .Options;
         return new MatDockDbContext(options, new FakeCurrentUser(currentUserId));
     }

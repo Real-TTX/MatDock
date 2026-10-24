@@ -248,3 +248,4 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 
 /* The notice while the connection is lost: it stays in view at the top of the content. */
 .md-offline { position: sticky; top: 0; z-index: 5; margin-bottom: var(--mat-space-4); }
+.md-output--tall { max-height: 40rem; }
