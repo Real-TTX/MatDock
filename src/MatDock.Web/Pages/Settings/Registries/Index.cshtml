@@ -9,10 +9,11 @@
 <partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
+    <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
     <mat-table-body>
     @if (Model.Registries.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="registry" /></div><p class="mat-empty__title">No registries yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="registry" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No registries yet." : "No registries found.")</p></div>
     }
     else
     {

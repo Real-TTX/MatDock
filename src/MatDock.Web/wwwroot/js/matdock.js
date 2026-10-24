@@ -237,6 +237,38 @@
         }
         setInterval(refresh, seconds * 1000);
         document.addEventListener("visibilitychange", function () { if (!document.hidden) { refresh(); } });
+        // Back online: read the page again at once, so nothing stale stays on screen.
+        window.addEventListener("online", refresh);
+    })();
+
+    /* ---------------- Connection lost ----------------
+       While the browser is offline a notice stands at the top of the content: what is on the page may be old and nothing can be
+       saved. When the connection is back the notice goes, a short toast says so, and the live regions read their page again
+       (see above). The service worker shows /offline.html only when a page is opened without a connection. */
+    (function () {
+        var notice = null;
+
+        function show() {
+            var main = document.getElementById("main");
+            if (notice || !main) { return; }
+            notice = document.createElement("div");
+            notice.className = "mat-alert mat-alert--warning md-offline";
+            notice.setAttribute("role", "status");
+            notice.innerHTML = '<svg class="mat-icon" aria-hidden="true" focusable="false"><use href="#mat-i-alert"></use></svg><div class="mat-alert__body"></div>';
+            notice.querySelector(".mat-alert__body").textContent = "You're offline. What you see may be out of date, and nothing can be saved until the connection is back.";
+            main.insertBefore(notice, main.firstChild);
+        }
+
+        function hide() {
+            if (!notice) { return; }
+            notice.remove();
+            notice = null;
+            if (window.MatUi && window.MatUi.toast) { window.MatUi.toast("Back online.", { tone: "success", timeout: 3000 }); }
+        }
+
+        window.addEventListener("offline", show);
+        window.addEventListener("online", hide);
+        if (navigator.onLine === false) { show(); }
     })();
 
     /* ---------------- Network map: hovering a network or a container lights its lines ---------------- */

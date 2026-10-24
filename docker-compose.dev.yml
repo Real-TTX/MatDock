@@ -1,28 +1,25 @@
-# MatDock – dev override. Adds a lightweight SQLite web viewer (instead of pgAdmin) on the data volume.
+# MatDock – dev stack: the image in Development mode (a test account tester / Tester123! is created) and a SQLite web viewer on the data volume.
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 # App:        http://localhost:4455
 # SQLite web: http://localhost:8085
+name: matdock
+
 services:
-  matdock:
-    environment:
-      # Development => es wird automatisch ein Test-Konto angelegt (tester / Tester123!).
-      ASPNETCORE_ENVIRONMENT: Development
-    # Lokaler Docker-Socket, damit "Lokal"-Environments den Host-Daemon steuern koennen.
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+  web:
+    build:
+      args:
+        AspNetEnvironment: Development
 
   sqlite-web:
     image: coleifer/sqlite-web:latest
-    container_name: matdock-sqlite-web
     depends_on:
-      - matdock
+      - web
     ports:
       - "8085:8080"
-    environment:
-      SQLITE_DATABASE: /data/matdock.db
+    command: ["sqlite_web", "-H", "0.0.0.0", "-x", "/data/matdock.db"]
     volumes:
-      - matdock-data:/data
+      - data:/data
     restart: unless-stopped
 
 volumes:
-  matdock-data:
+  data:

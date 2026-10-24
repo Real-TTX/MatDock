@@ -1,0 +1,18 @@
+﻿<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MatDock (maskable)">
+  <rect width="512" height="512" fill="#0d1520"/>
+  <g transform="translate(44.8,55) scale(6)">
+    <rect x="21" y="13" width="9" height="8" rx="1.5" fill="#22c55e"/>
+    <rect x="31" y="13" width="9" height="8" rx="1.5" fill="#fb7185"/>
+    <rect x="16" y="22" width="9" height="8" rx="1.5" fill="#3b82f6"/>
+    <rect x="26" y="22" width="9" height="8" rx="1.5" fill="#14b8a6"/>
+    <rect x="36" y="22" width="9" height="8" rx="1.5" fill="#f59e0b"/>
+    <g stroke="#0b2340" stroke-width="0.6" opacity="0.3">
+      <path d="M18 23v6M20.5 23v6M28 23v6M30.5 23v6M38 23v6M40.5 23v6M23 14v6M25.5 14v6M33 14v6M35.5 14v6"/>
+    </g>
+    <path d="M10 32s5 2 22 2 22-2 22-2c1.2 0 1.8 1 1.6 2.1C54.5 42 46 47 32 47S9.5 42 8.4 34.1C8.2 33 8.8 32 10 32Z" fill="#2bb3f3"/>
+    <path d="M54 33c2-1.8 4-2.3 4.8-1.8.7.4.5 1.7-.4 2.7 1.3.1 2 .9 1.9 1.8-.1 1-1.8 1.6-3.8 1.3" fill="#1e8fd6"/>
+    <circle cx="17" cy="37" r="1.6" fill="#0b2340"/>
+    <circle cx="16.5" cy="36.5" r="0.5" fill="#eaf4ff"/>
+    <path d="M10 52c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2 2.5 2 5 2 2.5-2 5-2 2.5 2 5 2" stroke="#38bdf8" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

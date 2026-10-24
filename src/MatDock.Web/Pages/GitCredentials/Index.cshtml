@@ -9,10 +9,11 @@
 <partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
+    <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
     <mat-table-body>
     @if (Model.Credentials.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="key" /></div><p class="mat-empty__title">No git credentials yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="key" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No git credentials yet." : "No git credentials found.")</p></div>
     }
     else
     {

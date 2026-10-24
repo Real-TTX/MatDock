@@ -9,10 +9,11 @@
 <partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
+    <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
     <mat-table-body>
     @if (Model.Connections.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p class="mat-empty__title">No reverse proxies yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="route" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No reverse proxies yet." : "No reverse proxies found.")</p></div>
     }
     else
     {

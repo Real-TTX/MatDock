@@ -239,3 +239,12 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-image-form { display: flex; align-items: center; gap: var(--mat-space-1); margin-top: var(--mat-space-1); }
 .md-image-input { flex: 1 1 10rem; min-width: 10rem; }
 .md-inline-form { display: inline-flex; margin: 0; }
+
+/* About: the logo beside the name of the app. */
+.md-about-head { display: flex; align-items: center; gap: var(--mat-space-5); }
+/* The version at the bottom of the menu leads to the About page. */
+.md-nav-version { display: block; text-decoration: none; }
+.md-nav-version:hover, .md-nav-version[aria-current="page"] { color: var(--mat-text); }
+
+/* The notice while the connection is lost: it stays in view at the top of the content. */
+.md-offline { position: sticky; top: 0; z-index: 5; margin-bottom: var(--mat-space-4); }

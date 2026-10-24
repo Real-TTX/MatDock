@@ -1,0 +1,55 @@
+@page
+@model MatDock.Web.Pages.About.IndexModel
+@{
+    ViewData["Title"] = "About";
+    ViewData["Heading"] = "About";
+}
+
+<div class="mat-stack mat-stack--lg">
+    <section class="mat-card">
+        <div class="mat-card__body md-about-head">
+            <span class="mat-logo mat-logo--lg" role="img" aria-label="MatDock"><img src="~/img/logo.svg" alt="" /></span>
+            <div class="mat-stack">
+                <h2 class="md-section-title">MatDock</h2>
+                <p>Manages Docker across environments: stacks, containers, images, volumes, networks, backups and updates.</p>
+                <p class="mat-muted">© Matthias Schmoldt</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="info" /><h2 class="mat-card__title">Version</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Version</dt><dd class="mat-mono">@Model.Version</dd>
+                <dt>Channel</dt><dd><span class="mat-pill @(Model.Channel == "Release" ? "mat-pill--ok" : "mat-pill--plain")">@Model.Channel</span></dd>
+                @if (Model.BuildDate is { } date)
+                {
+                    <dt>Built</dt><dd>@date.ToString("dd.MM.yyyy")</dd>
+                }
+                <dt>Runtime</dt><dd class="mat-mono">@Model.Runtime</dd>
+                <dt>System</dt><dd class="mat-mono">@Model.System</dd>
+            </dl>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="layers" /><h2 class="mat-card__title">Made of</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>MatUi</dt><dd class="mat-mono">@Model.MatUiVersion</dd>
+                <dt>MatPlatform</dt><dd class="mat-mono">@Model.MatPlatformVersion</dd>
+            </dl>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="link" /><h2 class="mat-card__title">Project</h2></div>
+        <div class="mat-card__body">
+            <dl class="mat-kv">
+                <dt>Source</dt><dd><a href="https://github.com/Real-TTX/MatDock" target="_blank" rel="noopener">github.com/Real-TTX/MatDock</a></dd>
+                <dt>Part of</dt><dd><a href="https://github.com/Real-TTX/Mattiverse" target="_blank" rel="noopener">Mattiverse</a>, the Mat apps</dd>
+            </dl>
+        </div>
+    </section>
+</div>

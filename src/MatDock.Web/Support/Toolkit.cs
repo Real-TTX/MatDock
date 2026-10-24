@@ -13,9 +13,13 @@ public sealed partial class Toolkit
         var file = env.WebRootFileProvider.GetFileInfo("matui/matui-icons.svg");
         using var reader = new StreamReader(file.CreateReadStream());
         Sprite = reader.ReadToEnd();
+        MatUiVersion = ReadMatUiVersion(env);
         IconNames = SymbolRegex().Matches(Sprite).Select(m => m.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
         Names = IconNames;
     }
+
+    /// <summary>The version of the MatUi toolkit copy in <c>wwwroot/matui</c> (the first line of <c>matui.css</c> says it), or "unknown".</summary>
+    public string MatUiVersion { get; }
 
     /// <summary>The icon names of the sprite, for code without the service (an app icon of the x-matdock metadata).</summary>
     public static IReadOnlySet<string> Names { get; private set; } = new HashSet<string>();
@@ -24,6 +28,21 @@ public sealed partial class Toolkit
     public string Sprite { get; }
 
     public IReadOnlySet<string> IconNames { get; }
+
+    private static string ReadMatUiVersion(IWebHostEnvironment env)
+    {
+        var file = env.WebRootFileProvider.GetFileInfo("matui/matui.css");
+        if (!file.Exists)
+        {
+            return "unknown";
+        }
+
+        using var reader = new StreamReader(file.CreateReadStream());
+        return VersionRegex().Match(reader.ReadLine() ?? string.Empty) is { Success: true } m ? m.Groups[1].Value : "unknown";
+    }
+
+    [GeneratedRegex(@"MatUi (\d+\.\d+\.\d+)")]
+    private static partial Regex VersionRegex();
 
     [GeneratedRegex(@"<symbol id=""mat-i-([a-z0-9-]+)""")]
     private static partial Regex SymbolRegex();

@@ -9,10 +9,11 @@
 <partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
 <mat-table>
+    <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
     <mat-table-body>
     @if (Model.Repos.Count == 0)
     {
-        <div class="mat-empty"><div class="mat-empty__icon"><icon name="git" /></div><p class="mat-empty__title">No git repositories yet.</p></div>
+        <div class="mat-empty"><div class="mat-empty__icon"><icon name="git" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No git repositories yet." : "No git repositories found.")</p></div>
     }
     else
     {

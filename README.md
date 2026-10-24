@@ -199,42 +199,39 @@ their version tag).
 ### 1. Just run it
 
 ```yaml
+name: matdock
+
 services:
-  matdock:
+  web:
     image: ghcr.io/real-ttx/matdock:release
-    container_name: matdock
     restart: unless-stopped
     ports:
       - "4455:4455"
-    environment:
-      # Create the initial administrator on the first start (without Seed the setup wizard asks for one).
-      # Username/Password only apply together with Seed=true – change the password before the first start.
-      MatDock__Admin__Seed: "true"
-      MatDock__Admin__Username: admin
-      MatDock__Admin__Password: admin
     volumes:
-      - matdock-data:/data
+      - data:/data
       # Optional: manage THIS host's Docker directly (a "local" environment)
       - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
-  matdock-data:
+  data:
 ```
 
 ```bash
 docker compose up -d
 ```
 
-Open **http://localhost:4455** and sign in with **`admin` / `admin`** (you are asked to set a new password).
-Without `MatDock__Admin__Seed` the first visit opens a setup wizard that creates the administrator. The `matdock-data`
-volume keeps the database, the configuration, the backups and the session keys, so an update is
-just `docker compose pull && docker compose up -d`.
+Open **http://localhost:4455**: the first visit opens a setup wizard that creates the administrator. (For a headless
+install set `MatDock__Admin__Seed` and the two settings below it, see [Settings that matter](#settings-that-matter).)
+The `data` volume (`matdock_data`) keeps the database, the configuration, the backups and the session keys, so an update is
+just `docker compose pull && docker compose up -d`. Before this naming the volume was called `matdock-data`: to keep its
+data, run `docker volume create matdock_data` and copy it over
+(`docker run --rm -v matdock-data:/from -v matdock_data:/to alpine cp -a /from/. /to/`).
 
 Without Compose:
 
 ```bash
 docker run -d --name matdock -p 4455:4455 \
-  -v matdock-data:/data -v /var/run/docker.sock:/var/run/docker.sock \
+  -v matdock_data:/data -v /var/run/docker.sock:/var/run/docker.sock \
   ghcr.io/real-ttx/matdock:release
 ```
 
@@ -257,7 +254,7 @@ needed) as a CI artifact – handy for running MatDock straight on a workstation
 
 ```bash
 docker compose up -d --build                              # release build
-docker compose -f docker-compose.dev.yml up -d --build    # dev stack + SQLite web viewer
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build    # dev stack + SQLite web viewer
 ```
 
 ### Settings that matter

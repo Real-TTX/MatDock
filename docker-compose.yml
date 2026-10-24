@@ -1,42 +1,22 @@
-# MatDock – release stack (as simple as possible: only the app + a data volume).
+# MatDock – as simple as possible: the app and its data volume.
 #   docker compose up -d --build
+name: matdock
+
 services:
-  matdock:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         Channel: local
     image: matdock:local
-    container_name: matdock
     ports:
       - "4455:4455"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      MatDock__DataPath: /data
-      # Initial administrator (forced to change the password on first login).
-      # Override these, especially the password, before the first start.
-      MatDock__Admin__Username: admin
-      MatDock__Admin__Password: admin
-      # The Mat platform (all optional; Mattiverse sets them when it installs MatDock):
-      # MAT_API_KEY: ""                    # the key of /api/* (unset: MatDock__Api__Key is the key there too)
-      # MATIDENTITY_AUTHORITY: ""          # https://id.example.com: sign-in through MatIdentity
-      # MATIDENTITY_CLIENT_ID: "matdock"
-      # MATIDENTITY_CLIENT_SECRET: ""
-      # MATIDENTITY_INTERNAL_URL: ""       # http://matidentity:2300 inside Docker
-      # Mail through MatSMTP (set = every mail goes through it; the mail server settings are then fixed):
-      # MATSMTP_HOST: ""                   # mattiverse-matsmtp-matsmtp
-      # MATSMTP_PORT: "2025"
-      # MATSMTP_USERNAME: ""               # the relay user of MatDock in MatSMTP
-      # MATSMTP_PASSWORD: ""
-      # MATSMTP_FROM: ""                   # matdock@example.com
-      # MATSMTP_TLS: "none"                # none | starttls | tls
     volumes:
-      - matdock-data:/data
-      # Optional: mount the host Docker socket so a "local" environment (ConnectionType = Local)
-      # can manage this host's Docker directly. Remove this line if you only use SSH environments.
+      - data:/data
+      # The Docker of this host as a "local" environment; leave it out for SSH environments only.
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
 volumes:
-  matdock-data:
+  data:

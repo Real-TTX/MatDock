@@ -10,11 +10,12 @@
  *
  * Bump CACHE_VERSION to force old caches out on the next activation.
  */
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE = "matdock-" + CACHE_VERSION;
 
 const PRECACHE = [
     "/offline.html",
+    "/js/offline.js",
     "/matui/matui.css",
     "/matui/matui.boot.js",
     "/manifest.webmanifest",
@@ -23,6 +24,7 @@ const PRECACHE = [
     "/img/logo.svg",
     "/img/icon-192.png",
     "/img/icon-512.png",
+    "/img/icon-maskable-512.png",
 ];
 
 self.addEventListener("install", (event) => {

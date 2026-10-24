@@ -17,8 +17,13 @@
 }
 
 <mat-table>
+    <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
     <mat-table-body>
-        @if (Model.Jobs.Count == 0)
+        @if (Model.Total > 0 && Model.Jobs.Count == 0)
+        {
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="refresh" /></div><p class="mat-empty__title">No sync jobs found.</p></div>
+        }
+        else if (Model.Jobs.Count == 0)
         {
             <div class="mat-empty mat-empty--first">
                 <div class="mat-empty__icon"><icon name="refresh" /></div>

@@ -47,8 +47,10 @@ RUN apt-get update \
 # Debian although the official image is Alpine; copied from the pinned official image (multi-arch), no download in the build.
 COPY --from=restic/restic:0.18.0 /usr/bin/restic /usr/local/bin/restic
 
+# "Development" (a test account is created) only for the dev stack: docker-compose.dev.yml passes it as a build argument.
+ARG AspNetEnvironment=Production
 ENV ASPNETCORE_URLS=http://+:4455 \
-    ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_ENVIRONMENT=$AspNetEnvironment \
     MatDock__DataPath=/data
 
 RUN mkdir -p /data

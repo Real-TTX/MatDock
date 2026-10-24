@@ -12,6 +12,9 @@ namespace MatDock.Web.Pages.Updates;
 /// <summary>All managed stacks with their update rule and what the rule would update, from the last look; checking and updating many at once.</summary>
 public class IndexModel : PageModel
 {
+    private static readonly IReadOnlyList<SortChoice<UpdateRow>> SortChoices = ListView.Sorts<UpdateRow>(
+        ("Environment", r => r.EnvName), ("Stack", r => r.Stack.Name), ("Updates", r => r.Pending), ("Checked", r => r.CheckedUtc));
+
     private readonly EnvironmentService _environments;
     private readonly StackService _stacks;
     private readonly UpdatePolicyService _policies;
@@ -28,6 +31,8 @@ public class IndexModel : PageModel
     }
 
     [BindProperty(SupportsGet = true)] public string? Op { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Q { get; set; }
+    [BindProperty(SupportsGet = true)] public string? SortKey { get; set; }
 
     public Operation? Running { get; private set; }
     public long EnvId { get; private set; }
@@ -44,7 +49,12 @@ public class IndexModel : PageModel
         public int Pending => Plan?.Items.Count ?? 0;
     }
 
-    public int PendingStacks => Rows.Count(r => r.Pending > 0);
+    /// <summary>All the stacks of the chosen environment (the list may be narrowed by a search): what Update all would update.</summary>
+    public int Total { get; private set; }
+
+    public int PendingStacks { get; private set; }
+
+    public ListToolbarModel Toolbar { get; private set; } = null!;
 
     public async Task OnGetAsync()
     {
@@ -69,13 +79,18 @@ public class IndexModel : PageModel
     private async Task LoadAsync()
     {
         var policies = await _policies.LoadAsync(HttpContext.RequestAborted);
-        Rows = (await VisibleStacksAsync())
+        var all = (await VisibleStacksAsync())
             .Select(x =>
             {
                 var cached = _cache.Plan(x.Env.Id, x.Stack.Name);
                 return new UpdateRow(x.Stack, x.Env.Name, policies.For(x.Stack), cached?.Plan, cached?.CheckedUtc);
             })
             .ToList();
+        Total = all.Count;
+        PendingStacks = all.Count(r => r.Pending > 0);
+        Rows = ListView.Apply(all, Q, SortChoices, SortKey, r => r.Stack.Name, r => r.EnvName, r => r.Policy.Mode.ToString(),
+            r => string.Join(" ", r.Plan?.Items.Select(i => i.Service) ?? []));
+        Toolbar = ListView.Toolbar(Q, SortKey, "Search stacks", SortChoices);
     }
 
     /// <summary>Looks for updates in every stack shown (in the background: the registries are asked one stack after the other).</summary>

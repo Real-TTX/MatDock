@@ -40,9 +40,12 @@
     }
 </section>
 
+<mat-table>
+<mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>
+<mat-table-body>
 @if (Model.Rows.Count == 0)
 {
-    <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="layers" /></div><p>No stack is managed by MatDock yet.</p></div>
+    <div class="mat-empty"><div class="mat-empty__icon"><icon name="layers" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No stack is managed by MatDock yet." : "No stacks found.")</p></div>
 }
 else
 {
@@ -114,20 +117,22 @@ else
         </table>
     </div>
 }
-
-@section Actions {
-    <a href="/Updates/Rules?scope=Global" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Default rule</span></a>
-    @if (Model.EnvId > 0)
-    {
-        <a href="/Updates/Rules?scope=Environment&id=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="server" /><span>Rule of @Model.EnvName</span></a>
-    }
-    <form method="post" asp-page-handler="Check" class="md-inline-form">
-        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="search" /><span>Check all</span></button>
-    </form>
+</mat-table-body>
+<mat-table-actions>
     @if (Model.PendingStacks > 0)
     {
         <form method="post" asp-page-handler="UpdateAll" class="md-inline-form" data-confirm="Update @Model.PendingStacks stack(s) now? Each gets the backup and the health check of its rule.">
             <button type="submit" class="mat-btn mat-btn--primary"><icon name="arrow-up" /><span>Update all (@Model.PendingStacks)</span></button>
         </form>
     }
-}
+    <form method="post" asp-page-handler="Check" class="md-inline-form">
+        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="search" /><span>Check all</span></button>
+    </form>
+    <a href="/Updates/Rules?scope=Global" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Default rule</span></a>
+    @if (Model.EnvId > 0)
+    {
+        <a href="/Updates/Rules?scope=Environment&id=@Model.EnvId" class="mat-btn mat-btn--secondary"><icon name="server" /><span>Rule of @Model.EnvName</span></a>
+    }
+</mat-table-actions>
+</mat-table>
+

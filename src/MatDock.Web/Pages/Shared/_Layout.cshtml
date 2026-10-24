@@ -140,7 +140,7 @@
                         <svg class="mat-icon" data-theme-icon="dark" aria-hidden="true" focusable="false"><use href="#mat-i-moon"></use></svg>
                     </button>
                 </div>
-                <div class="mat-nav__version" title="@AppVersion.Informational">@name @AppVersion.Informational</div>
+                <a class="mat-nav__version md-nav-version" href="/About" title="About @name" aria-current="@(IsActive("/About") ? "page" : null)">@name @AppVersion.Informational</a>
             </div>
         </aside>
 

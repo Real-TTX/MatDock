@@ -1,0 +1,14 @@
+@model MatDock.Web.Support.ListToolbarModel
+@* The toolbar of a short list: search and sort in one GET form (the result is a link). Several lists on a page do not clash: nothing here has an id. *@
+<form method="get" class="mat-row js-autosubmit md-toolbar-form">
+    <div class="mat-input-icon mat-toolbar__search">
+        <icon name="search" />
+        <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search…" aria-label="@Model.SearchLabel" />
+    </div>
+    <select name="SortKey" class="mat-select mat-w-auto" aria-label="Sort">
+        @foreach (var (key, label) in Model.Sorts)
+        {
+            <option value="@key" selected="@(Model.SortKey == key)">@label</option>
+        }
+    </select>
+</form>
