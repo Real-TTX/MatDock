@@ -54,6 +54,7 @@ else if (c is not null)
             <a class="mat-btn mat-btn--secondary" href="@openUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
         }
         <a class="mat-btn mat-btn--secondary" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
+        <a class="mat-btn mat-btn--secondary" href="/Events?EnvId=@Model.EnvId&Container=@Uri.EscapeDataString(c.Name)&Hours=168"><icon name="activity" /><span>Events</span></a>
         @if (running && Model.IsAdmin)
         {
             <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>

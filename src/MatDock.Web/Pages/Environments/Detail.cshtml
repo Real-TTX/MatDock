@@ -18,6 +18,7 @@
     <a class="mat-btn mat-btn--secondary" href="/Images?EnvId=@env.Id"><icon name="image" /><span>Images</span></a>
     <a class="mat-btn mat-btn--secondary" href="/Volumes?EnvId=@env.Id"><icon name="volume" /><span>Volumes</span></a>
     <a class="mat-btn mat-btn--secondary" href="/Networks?EnvId=@env.Id"><icon name="network" /><span>Networks</span></a>
+    <a class="mat-btn mat-btn--secondary" href="/Events?EnvId=@env.Id"><icon name="activity" /><span>Events</span></a>
     @if (Model.IsAdmin)
     {
         <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@env.Id&name=@Uri.EscapeDataString(env.Name)"><icon name="terminal" /><span>Shell</span></a>

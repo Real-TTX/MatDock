@@ -1,0 +1,108 @@
+@page
+@model MatDock.Web.Pages.Events.IndexModel
+@using MatDock.Core.Docker
+@{
+    ViewData["Title"] = "Events";
+    string Pill(DockerEvent e) => e.IsProblem ? "mat-pill--error"
+        : e.Action is "start" or "create" or "pull" or "connect" or "mount" ? "mat-pill--ok"
+        : e.Action is "stop" or "kill" or "destroy" or "delete" or "remove" or "untag" or "disconnect" or "unmount" ? "mat-pill--warn"
+        : "mat-pill--plain";
+    string TypeIcon(string t) => t switch { "container" => "box", "image" => "image", "volume" => "volume", "network" => "network", "daemon" => "server", _ => "activity" };
+}
+
+@foreach (var error in Model.Errors)
+{
+    <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">@error</div></div>
+}
+
+<mat-table>
+    <mat-table-toolbar>
+        <form method="get" class="mat-row js-autosubmit md-toolbar-form">
+            @if (Model.Container is not null)
+            {
+                <input type="hidden" name="Container" value="@Model.Container" />
+            }
+            <div class="mat-input-icon mat-toolbar__search">
+                <icon name="search" />
+                <input type="search" name="Q" value="@Model.Q" class="mat-input" placeholder="Search (action, name, image)…" aria-label="Search the events" />
+            </div>
+            <select name="Hours" class="mat-select mat-w-auto" aria-label="Window">
+                @foreach (var h in DockerEvents.Windows)
+                {
+                    <option value="@h" selected="@(Model.Hours == h)">@(h < 24 ? $"Last {h} h" : h == 24 ? "Last 24 h" : $"Last {h / 24} days")</option>
+                }
+            </select>
+            <select name="Type" class="mat-select mat-w-auto" aria-label="Type">
+                <option value="" selected="@(Model.Type is null)">All types</option>
+                @foreach (var t in DockerEvents.Types)
+                {
+                    <option value="@t" selected="@(Model.Type == t)">@(char.ToUpperInvariant(t[0]) + t[1..])</option>
+                }
+            </select>
+            <select name="Problems" class="mat-select mat-w-auto" aria-label="Result">
+                <option value="false" selected="@(!Model.Problems)">All</option>
+                <option value="true" selected="@Model.Problems">Problems only</option>
+            </select>
+            <span class="mat-toolbar__spacer"></span>
+            <span class="mat-toolbar__info">@(Model.Rows.Count == 1 ? "1 event" : $"{Model.Rows.Count} events")</span>
+        </form>
+    </mat-table-toolbar>
+
+    <mat-table-body>
+        @if (Model.Container is not null)
+        {
+            <div class="mat-alert mat-alert--info">
+                <icon name="filter" /><div class="mat-alert__body">Container <span class="mat-mono">@Model.Container</span></div>
+                <a class="mat-btn mat-btn--ghost mat-btn--sm" href="/Events?Hours=@Model.Hours">All</a>
+            </div>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="activity" /></div><p class="mat-empty__title">@(string.IsNullOrWhiteSpace(Model.Q) && Model.Type is null && !Model.Problems ? "Nothing happened in this window" : "No events match the filter")</p></div>
+        }
+        else
+        {
+            if (Model.Capped)
+            {
+                <p class="mat-hint">Only the newest @DockerEvents.MaxEvents events per environment are shown; choose a shorter window or a type for older ones.</p>
+            }
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead><tr>@if (Model.IsAll) { <th>Environment</th> }<th>Time</th><th>Type</th><th>Action</th><th>Object</th><th>Details</th></tr></thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var e = row.Event;
+                            var link = Model.LinkOf(row);
+                            <tr>
+                                @if (Model.IsAll)
+                                {
+                                    <td class="mat-nowrap" data-label="Environment">@row.Env.Name</td>
+                                }
+                                <td class="mat-muted mat-nowrap" data-label="Time">@e.TimeUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                <td class="mat-nowrap" data-label="Type"><icon name="@TypeIcon(e.Type)" /> @e.Type</td>
+                                <td data-label="Action"><span class="mat-pill @Pill(e)">@e.Label</span></td>
+                                <td class="mat-mono mat-text-break" data-label="Object">
+                                    @if (link.Length > 0)
+                                    {
+                                        <a href="@link">@(e.Name ?? e.Id[..Math.Min(12, e.Id.Length)])</a>
+                                    }
+                                    else
+                                    {
+                                        @(e.Name ?? (e.Id.Length > 12 ? e.Id[..12] : e.Id))
+                                    }
+                                </td>
+                                <td class="mat-mono mat-muted mat-text-break" data-label="Details">
+                                    @if (e.Image is { } image && e.Type == "container") { <div>@image</div> }
+                                    @if (e.ExitCode is { } code) { <div>exit @code</div> }
+                                    @if (e.Container is { } cid && e.Type == "network") { <div>container @(cid.Length > 12 ? cid[..12] : cid)</div> }
+                                    @if (e.Attributes.TryGetValue("exec_start", out var exec)) { <div>@exec</div> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </mat-table-body>
+</mat-table>

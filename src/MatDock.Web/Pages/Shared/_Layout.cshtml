@@ -48,6 +48,7 @@
     docker.Add(("/Images", "image", "Images", IsActive("/Images")));
     docker.Add(("/Volumes", "volume", "Volumes", IsActive("/Volumes")));
     docker.Add(("/Networks", "network", "Networks", IsActive("/Networks")));
+    docker.Add(("/Events", "activity", "Events", IsActive("/Events")));
     menu.Add(("Docker", docker));
     if (isAdmin)
     {

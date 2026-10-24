@@ -189,6 +189,22 @@ public sealed class DockerSystemService
         return DockerSystemOverview.Parse(info, version, compose, df, errors.Distinct().ToList());
     }
 
+    /// <summary>The events of the last <paramref name="hours"/> with the filters of <see cref="DockerEvents.Command"/>, newest first, or why they could not be read.</summary>
+    public async Task<(IReadOnlyList<DockerEvent> Events, string? Error)> GetEventsAsync(
+        DockerEnvironment environment, int hours, string? type = null, string? action = null, string? container = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var (ok, output) = await _containers.RunAsync(environment, head => DockerEvents.Command(head, hours, type, action, container), ct);
+            return ok ? (DockerEvents.Parse(output), null) : (Array.Empty<DockerEvent>(), DockerErrorMessages.InterpretDockerError(output, output));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "docker events on env {Env} failed.", environment.Id);
+            return (Array.Empty<DockerEvent>(), ex.Message);
+        }
+    }
+
     /// <summary>Removes what the cleanup names, one step after the other; each step says what it did (a failed step does not stop the next).</summary>
     public async Task<(bool Ok, IReadOnlyList<string> Lines)> CleanupAsync(DockerEnvironment environment, SystemCleanup cleanup, CancellationToken ct = default)
     {
