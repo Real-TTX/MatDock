@@ -67,6 +67,14 @@ else if (c is not null)
         }
         @if (Model.IsAdmin)
         {
+            <a class="mat-btn mat-btn--secondary" href="/Containers/Create?from=@Uri.EscapeDataString(c.Id)&envId=@Model.EnvId"><icon name="copy" /><span>Duplicate</span></a>
+            @if (i is not null && i.Project is null)
+            {
+                <form method="post" asp-page-handler="Recreate" data-confirm="Recreate '@c.Name' with the newest image of @i.Image? It keeps its settings and volumes; it is stopped for a moment.">
+                    <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="pull" value="true" />
+                    <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Recreate</span></button>
+                </form>
+            }
             <span class="mat-btn-row__spacer"></span>
             <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'?@(running ? " It is stopped first." : string.Empty) Its anonymous volumes go too; named volumes stay.@(i?.Project is { } p ? $" It belongs to the stack '{p}' and comes back with its next deploy." : string.Empty)">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
@@ -192,6 +200,38 @@ else if (c is not null)
                     <dt>ID</dt>
                     <dd class="mat-mono">@c.Id</dd>
                 </dl>
+                @if (Model.IsAdmin && i is not null)
+                {
+                    <form method="post" asp-page-handler="Limits" class="mat-form md-limits">
+                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" />
+                        <h3 class="md-section-title">Change limits</h3>
+                        <div class="mat-form__grid">
+                            <div class="mat-field">
+                                <label class="mat-label" for="limit-memory">Memory</label>
+                                <input id="limit-memory" name="memory" class="mat-input mat-mono" placeholder="@(i.MemoryBytes > 0 ? (i.MemoryBytes / (1024 * 1024)) + "m" : "512m")" spellcheck="false" />
+                                <small class="mat-hint">512m, 2g, 0 for none.</small>
+                            </div>
+                            <div class="mat-field">
+                                <label class="mat-label" for="limit-cpus">CPUs</label>
+                                <input id="limit-cpus" name="cpus" class="mat-input mat-mono" placeholder="@(i.Cpus > 0 ? i.Cpus.ToString("0.##") : "1.5")" spellcheck="false" />
+                                <small class="mat-hint">Cores, 0 for none.</small>
+                            </div>
+                            <div class="mat-field">
+                                <label class="mat-label" for="limit-restart">Restart</label>
+                                <select id="limit-restart" name="restart" class="mat-select">
+                                    <option value="">As it is (@i.RestartPolicy)</option>
+                                    @foreach (var policy in ContainerRunCommands.RestartPolicies)
+                                    {
+                                        <option value="@policy">@policy</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <mat-form-buttons>
+                            <button type="submit" class="mat-btn mat-btn--secondary"><icon name="save" /><span>Apply</span></button>
+                        </mat-form-buttons>
+                    </form>
+                }
             </div>
         </section>
 

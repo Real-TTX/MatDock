@@ -1,15 +1,23 @@
 @page
 @model MatDock.Web.Pages.Containers.CreateModel
+@using MatDock.Core.Containers
 @{
-    ViewData["Title"] = "New container";
+    ViewData["Title"] = Model.FromName is null ? "New container" : $"Duplicate {Model.FromName}";
     ViewData["Width"] = "narrow";
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Containers", "/Containers") };
+    var i = Model.Input;
 }
 
 <div class="mat-card">
     <div class="mat-card__body">
         <form method="post" class="mat-form">
             <partial name="_ValidationSummary" />
+            <input type="hidden" asp-for="Input.FromId" />
+
+            @if (Model.FromName is not null)
+            {
+                <div class="mat-alert mat-alert--info"><icon name="copy" /><div class="mat-alert__body">The settings of @Model.FromName. Values shown as @ContainerInspect.Mask are taken from it.</div></div>
+            }
 
             <div class="mat-form__grid">
                 <mat-field label="Environment" asp-for="Input.EnvironmentId">
@@ -53,6 +61,105 @@
                 <mat-field label="Network" asp-for="Input.Network" hint="Optional.">
                     <input asp-for="Input.Network" class="mat-input" placeholder="bridge" />
                 </mat-field>
+            </div>
+
+            <div class="mat-accordion">
+                <details class="mat-accordion__item" open="@(Model.Has(i.Command, i.Entrypoint, i.WorkDir, i.User, i.Hostname, i.Labels) ? "open" : null)">
+                    <summary>Command and identity@Ui.Icon("chevron-down", "mat-accordion__chev")</summary>
+                    <div class="mat-accordion__body mat-form__grid">
+                        <mat-field label="Command" asp-for="Input.Command" class="mat-field--full" hint="The arguments after the image, one per line (each is passed as it is).">
+                            <textarea asp-for="Input.Command" class="mat-textarea mat-mono" rows="3" spellcheck="false" placeholder="--port&#10;8080"></textarea>
+                        </mat-field>
+                        <mat-field label="Entrypoint" asp-for="Input.Entrypoint" hint="Replaces the one of the image.">
+                            <input asp-for="Input.Entrypoint" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Working directory" asp-for="Input.WorkDir">
+                            <input asp-for="Input.WorkDir" class="mat-input mat-mono" placeholder="/app" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="User" asp-for="Input.User" hint="1000, app or 1000:1000.">
+                            <input asp-for="Input.User" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Hostname" asp-for="Input.Hostname">
+                            <input asp-for="Input.Hostname" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Labels" asp-for="Input.Labels" class="mat-field--full" hint="One key=value per line.">
+                            <textarea asp-for="Input.Labels" class="mat-textarea mat-mono" rows="2" spellcheck="false" placeholder="matdock.openurl=https://app.example.com"></textarea>
+                        </mat-field>
+                    </div>
+                </details>
+
+                <details class="mat-accordion__item" open="@(Model.Has(i.Ip, i.NetworkAliases, i.Dns, i.ExtraHosts) ? "open" : null)">
+                    <summary>Network@Ui.Icon("chevron-down", "mat-accordion__chev")</summary>
+                    <div class="mat-accordion__body mat-form__grid">
+                        <mat-field label="Fixed IP address" asp-for="Input.Ip" hint="On the network above (one with a subnet).">
+                            <input asp-for="Input.Ip" class="mat-input mat-mono" placeholder="172.20.0.10" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Aliases" asp-for="Input.NetworkAliases" hint="More names on that network, one per line.">
+                            <textarea asp-for="Input.NetworkAliases" class="mat-textarea mat-mono" rows="2" spellcheck="false"></textarea>
+                        </mat-field>
+                        <mat-field label="DNS servers" asp-for="Input.Dns" hint="One address per line.">
+                            <textarea asp-for="Input.Dns" class="mat-textarea mat-mono" rows="2" spellcheck="false" placeholder="1.1.1.1"></textarea>
+                        </mat-field>
+                        <mat-field label="Extra hosts" asp-for="Input.ExtraHosts" hint="name:address or name:host-gateway, one per line.">
+                            <textarea asp-for="Input.ExtraHosts" class="mat-textarea mat-mono" rows="2" spellcheck="false" placeholder="db:10.0.0.5"></textarea>
+                        </mat-field>
+                    </div>
+                </details>
+
+                <details class="mat-accordion__item" open="@(Model.Has(i.Memory, i.Cpus, i.Gpus, i.Devices, i.CapAdd, i.CapDrop) || i.Privileged ? "open" : null)">
+                    <summary>Resources and privileges@Ui.Icon("chevron-down", "mat-accordion__chev")</summary>
+                    <div class="mat-accordion__body mat-form__grid">
+                        <mat-field label="Memory limit" asp-for="Input.Memory" hint="512m or 2g.">
+                            <input asp-for="Input.Memory" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="CPU limit" asp-for="Input.Cpus" hint="Cores, like 1.5.">
+                            <input asp-for="Input.Cpus" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="GPUs" asp-for="Input.Gpus" hint="all, a number, or device=0,1 (needs the NVIDIA runtime).">
+                            <input asp-for="Input.Gpus" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Devices" asp-for="Input.Devices" hint="/dev/ttyUSB0 or /dev/ttyUSB0:/dev/ttyUSB0:rwm, one per line.">
+                            <textarea asp-for="Input.Devices" class="mat-textarea mat-mono" rows="2" spellcheck="false"></textarea>
+                        </mat-field>
+                        <mat-field label="Add capabilities" asp-for="Input.CapAdd" hint="NET_ADMIN, one per line.">
+                            <textarea asp-for="Input.CapAdd" class="mat-textarea mat-mono" rows="2" spellcheck="false"></textarea>
+                        </mat-field>
+                        <mat-field label="Drop capabilities" asp-for="Input.CapDrop" hint="One per line.">
+                            <textarea asp-for="Input.CapDrop" class="mat-textarea mat-mono" rows="2" spellcheck="false"></textarea>
+                        </mat-field>
+                        <label class="mat-check mat-field--full"><input asp-for="Input.Privileged" type="checkbox" /><span>Privileged (all devices and capabilities of the host: only when nothing else works)</span></label>
+                    </div>
+                </details>
+
+                <details class="mat-accordion__item" open="@(Model.Has(i.LogDriver, i.LogMaxSize, i.HealthCmd, i.HealthInterval) || i.LogMaxFile is not null || i.HealthRetries is not null ? "open" : null)">
+                    <summary>Logging and health@Ui.Icon("chevron-down", "mat-accordion__chev")</summary>
+                    <div class="mat-accordion__body mat-form__grid">
+                        <mat-field label="Logging driver" asp-for="Input.LogDriver">
+                            <select asp-for="Input.LogDriver" class="mat-select">
+                                <option value="">Default of the host</option>
+                                @foreach (var d in ContainerRunCommands.LogDrivers.Order())
+                                {
+                                    <option value="@d">@d</option>
+                                }
+                            </select>
+                        </mat-field>
+                        <mat-field label="Size of a log file" asp-for="Input.LogMaxSize" hint="10m (json-file and local).">
+                            <input asp-for="Input.LogMaxSize" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Log files kept" asp-for="Input.LogMaxFile">
+                            <input asp-for="Input.LogMaxFile" type="number" min="1" max="100" class="mat-input" />
+                        </mat-field>
+                        <mat-field label="Health check" asp-for="Input.HealthCmd" class="mat-field--full" hint="Runs in a shell in the container; exit code 0 is healthy.">
+                            <input asp-for="Input.HealthCmd" class="mat-input mat-mono" placeholder="curl -f http://localhost/ || exit 1" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Every" asp-for="Input.HealthInterval" hint="30s, 1m.">
+                            <input asp-for="Input.HealthInterval" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Unhealthy after (failures)" asp-for="Input.HealthRetries">
+                            <input asp-for="Input.HealthRetries" type="number" min="1" max="100" class="mat-input" />
+                        </mat-field>
+                    </div>
+                </details>
             </div>
 
             <mat-form-buttons>

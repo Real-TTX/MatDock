@@ -479,8 +479,13 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
-    public async Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default)
+    public async Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default, NetworkIpam? ipam = null)
     {
+        if (ipam is not null && ipam.Problem(driver) is { } ipamProblem)
+        {
+            return (false, ipamProblem);
+        }
+
         if (!NetworkCommands.IsValidNetworkRef(name))
         {
             return (false, "Invalid network name.");
@@ -501,14 +506,23 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var result = RunCommand(client, NetworkCommands.Create(name, driver, @internal, head), settings);
+        var result = RunCommand(client, NetworkCommands.Create(name, driver, @internal, head, ipam is { IsEmpty: false } ? ipam : null), settings);
         return result.ExitStatus == 0
             ? (true, $"Network \"{name}\" created.")
             : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
-    public async Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default)
+    public async Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default, string? ip = null, IReadOnlyList<string>? aliases = null)
     {
+        if (!string.IsNullOrEmpty(ip) && !System.Net.IPAddress.TryParse(ip, out _))
+        {
+            return (false, "Invalid IP address.");
+        }
+        if (aliases?.FirstOrDefault(a => !NetworkCommands.IsValidAlias(a)) is { } badAlias)
+        {
+            return (false, $"Invalid alias '{badAlias}'.");
+        }
+
         if (!NetworkCommands.IsValidNetworkRef(network) || !NetworkCommands.IsValidNetworkRef(container))
         {
             return (false, "Invalid network or container reference.");
@@ -525,7 +539,7 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
         }
 
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var command = connect ? NetworkCommands.Connect(network, container, head) : NetworkCommands.Disconnect(network, container, head);
+        var command = connect ? NetworkCommands.Connect(network, container, head, ip, aliases) : NetworkCommands.Disconnect(network, container, head);
         var result = RunCommand(client, command, settings);
         return result.ExitStatus == 0
             ? (true, connect ? $"Connected to \"{network}\"." : $"Disconnected from \"{network}\".")

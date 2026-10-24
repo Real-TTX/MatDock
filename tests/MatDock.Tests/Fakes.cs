@@ -30,6 +30,11 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
 {
     public SshConnectionSettings? LastSettings { get; private set; }
 
+    /// <summary>The addresses of the last network created, and the last connect (network, container, fixed IP, aliases).</summary>
+    public MatDock.Core.Networks.NetworkIpam? LastIpam { get; private set; }
+
+    public (string Network, string Container, string? Ip, IReadOnlyList<string>? Aliases)? LastConnect { get; private set; }
+
     /// <summary>What <see cref="GetHostStatsAsync"/> answers.</summary>
     public HostStats Stats { get; set; } = new();
 
@@ -150,15 +155,17 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
         return Task.FromResult((true, "ok"));
     }
 
-    public Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default)
+    public Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default, MatDock.Core.Networks.NetworkIpam? ipam = null)
     {
         LastSettings = settings;
+        LastIpam = ipam;
         return Task.FromResult(CreateResult);
     }
 
-    public Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default)
+    public Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default, string? ip = null, IReadOnlyList<string>? aliases = null)
     {
         LastSettings = settings;
+        LastConnect = (network, container, ip, aliases);
         return Task.FromResult((true, "ok"));
     }
 

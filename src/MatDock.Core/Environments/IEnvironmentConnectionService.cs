@@ -53,10 +53,10 @@ public interface IEnvironmentConnectionService
     Task<(bool Ok, string Message)> RemoveNetworkAsync(SshConnectionSettings settings, string nameOrId, CancellationToken cancellationToken = default);
 
     /// <summary>Creates a network (optional driver, internal flag). Returns an actionable message on failure.</summary>
-    Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default);
+    Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default, Networks.NetworkIpam? ipam = null);
 
     /// <summary>Attaches (<paramref name="connect"/> = true) or detaches a container to/from a network.</summary>
-    Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default);
+    Task<(bool Ok, string Message)> ConnectContainerToNetworkAsync(SshConnectionSettings settings, string network, string container, bool connect, CancellationToken cancellationToken = default, string? ip = null, IReadOnlyList<string>? aliases = null);
 
     /// <summary>Removes all unused (custom) networks on the host — <c>docker network prune</c>.</summary>
     Task<PruneResult> PruneNetworksAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default);

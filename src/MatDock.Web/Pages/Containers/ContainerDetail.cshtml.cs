@@ -93,6 +93,47 @@ public class ContainerDetailModel : PageModel
         return ok ? RedirectToPage("Index") : RedirectToPage(new { envId, id });
     }
 
+    /// <summary>Changes the memory and CPU limits and the restart policy (admins only); an empty field stays as it is.</summary>
+    public async Task<IActionResult> OnPostLimitsAsync(long envId, string id, string? memory, string? cpus, string? restart)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        static string? Value(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Replace(',', '.');
+        var (ok, message) = await _containerService.UpdateAsync(env, id, new ContainerUpdateSpec(Value(memory), Value(cpus), Value(restart)), HttpContext.RequestAborted);
+        StatusMessage = ok ? "Limits and restart policy updated." : message;
+        IsError = !ok;
+        return RedirectToPage(new { envId, id });
+    }
+
+    /// <summary>Recreates the container with its settings and the newest image of its tag (admins only, not for a container of a stack).</summary>
+    public async Task<IActionResult> OnPostRecreateAsync(long envId, string id, bool pull = true)
+    {
+        if (!IsAdmin)
+        {
+            return Forbid();
+        }
+
+        var env = await _environmentService.GetAsync(envId, HttpContext.RequestAborted);
+        if (env is null || !env.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var (ok, message) = await _containerService.RecreateAsync(env, id, pull, log: null, HttpContext.RequestAborted);
+        StatusMessage = message;
+        IsError = !ok;
+        return ok ? RedirectToPage("Index") : RedirectToPage(new { envId, id });
+    }
+
     /// <summary>Gives the container another name (admins only).</summary>
     public async Task<IActionResult> OnPostRenameAsync(long envId, string id, string? newName)
     {

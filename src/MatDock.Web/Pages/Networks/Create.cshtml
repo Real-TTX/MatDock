@@ -39,6 +39,30 @@
                 <span>Internal (no external connectivity)</span>
             </label>
 
+            <div class="mat-accordion">
+                <details class="mat-accordion__item" open="@(Model.HasAddresses ? "open" : null)">
+                    <summary>Addresses@Ui.Icon("chevron-down", "mat-accordion__chev")</summary>
+                    <div class="mat-accordion__body mat-form__grid">
+                        <mat-field label="Subnet" asp-for="Input.Subnet" hint="IPv4, like 172.30.0.0/24. Empty: Docker picks one.">
+                            <input asp-for="Input.Subnet" class="mat-input mat-mono" placeholder="172.30.0.0/24" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Gateway" asp-for="Input.Gateway" hint="An address in the subnet.">
+                            <input asp-for="Input.Gateway" class="mat-input mat-mono" placeholder="172.30.0.1" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Address range" asp-for="Input.IpRange" hint="The part of the subnet Docker hands out, like 172.30.0.128/25.">
+                            <input asp-for="Input.IpRange" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <mat-field label="Parent interface" asp-for="Input.Parent" hint="macvlan and ipvlan: the interface of the host, like eth0.">
+                            <input asp-for="Input.Parent" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                        <label class="mat-check mat-field--full"><input asp-for="Input.Ipv6" type="checkbox" /><span>IPv6</span></label>
+                        <mat-field label="IPv6 subnet" asp-for="Input.Ipv6Subnet" hint="Like fd00:dead:beef::/64.">
+                            <input asp-for="Input.Ipv6Subnet" class="mat-input mat-mono" spellcheck="false" />
+                        </mat-field>
+                    </div>
+                </details>
+            </div>
+
             <mat-form-buttons>
                 <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create network</span></button>
                 <a href="/Networks?EnvId=@Model.Input.EnvironmentId" class="mat-btn mat-btn--secondary">Cancel</a>

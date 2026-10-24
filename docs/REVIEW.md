@@ -270,8 +270,8 @@ rights per object, LDAP/generic OIDC, 2FA in MatDock). Image build stays open un
 | 3 | Security headers: CSP, frame-ancestors / X-Frame-Options, nosniff, Referrer-Policy, HSTS over HTTPS | done |
 | 4 | Secrets at rest: the `.env` of a stack encrypted in the database and in bundle backups; the key ring protected by a certificate when one is given | done |
 | 5 | System view per environment: `docker info`, `docker version`, `system df`, build cache prune, a system cleanup with a preview | done |
-| 6 | Container form: command, entrypoint, labels, limits, hostname, user, working directory, capabilities, privileged, devices, GPUs, logging, DNS, extra hosts, health check; `docker update`; duplicate and recreate | planned |
-| 7 | Networks: IPAM on create (subnet, gateway, range, IPv6), a fixed IP and aliases on connect | planned |
+| 6 | Container form: command, entrypoint, labels, limits, hostname, user, working directory, capabilities, privileged, devices, GPUs, logging, DNS, extra hosts, health check; `docker update`; duplicate and recreate | done |
+| 7 | Networks: IPAM on create (subnet, gateway, range, IPv6), a fixed IP and aliases on connect | done |
 | 8 | Images: used by, tag, push, save and load | planned |
 | 9 | Stacks: per service restart/stop/start/recreate, scale, a redeploy webhook per stack, copy to another environment | planned |
 | 10 | Alerts: Discord, Slack, Teams, Telegram, ntfy, Gotify; thresholds for disk, memory and CPU per host, restart loops | planned |

@@ -238,7 +238,6 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 /* Stack updates: the image MatDock runs for a service, beside the compose file's own. */
 .md-image-form { display: flex; align-items: center; gap: var(--mat-space-1); margin-top: var(--mat-space-1); }
 .md-image-input { flex: 1 1 10rem; min-width: 10rem; }
-.md-inline-form { display: inline-flex; margin: 0; }
 
 /* About: the logo beside the name of the app. */
 .md-about-head { display: flex; align-items: center; gap: var(--mat-space-5); }
@@ -249,3 +248,5 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 /* The notice while the connection is lost: it stays in view at the top of the content. */
 .md-offline { position: sticky; top: 0; z-index: 5; margin-bottom: var(--mat-space-4); }
 .md-output--tall { max-height: 40rem; }
+.md-limits { margin-top: var(--mat-space-5); padding-top: var(--mat-space-4); border-top: 1px solid var(--mat-border); }
+.md-connect-ip { max-width: 14rem; }

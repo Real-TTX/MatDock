@@ -28,7 +28,18 @@ public class CreateModel : PageModel
         public string Name { get; set; } = string.Empty;
         public string Driver { get; set; } = "bridge";
         public bool Internal { get; set; }
+        public string? Subnet { get; set; }
+        public string? Gateway { get; set; }
+        public string? IpRange { get; set; }
+        public bool Ipv6 { get; set; }
+        public string? Ipv6Subnet { get; set; }
+        public string? Parent { get; set; }
     }
+
+    /// <summary>Whether an address was entered (the section opens then).</summary>
+    public bool HasAddresses => !string.IsNullOrWhiteSpace(Input.Subnet) || !string.IsNullOrWhiteSpace(Input.Parent) || Input.Ipv6;
+
+    private static string? Text(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public async Task OnGetAsync()
     {
@@ -50,7 +61,8 @@ public class CreateModel : PageModel
 
         var (ok, message) = await _connectionService.CreateNetworkAsync(
             _environmentService.BuildSettings(env), Input.Name.Trim(),
-            string.IsNullOrWhiteSpace(Input.Driver) ? null : Input.Driver.Trim(), Input.Internal, HttpContext.RequestAborted);
+            string.IsNullOrWhiteSpace(Input.Driver) ? null : Input.Driver.Trim(), Input.Internal, HttpContext.RequestAborted,
+            new MatDock.Core.Networks.NetworkIpam(Text(Input.Subnet), Text(Input.Gateway), Text(Input.IpRange), Input.Ipv6, Text(Input.Ipv6Subnet), Text(Input.Parent)));
 
         if (!ok)
         {

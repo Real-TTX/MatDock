@@ -95,13 +95,14 @@ public class DetailModel : PageModel
         return Page();
     }
 
-    public Task<IActionResult> OnPostConnectAsync(long envId, string network, string container)
-        => AttachAsync(envId, network, container, connect: true);
+    public Task<IActionResult> OnPostConnectAsync(long envId, string network, string container, string? ip = null, string? aliases = null)
+        => AttachAsync(envId, network, container, connect: true, string.IsNullOrWhiteSpace(ip) ? null : ip.Trim(),
+            (aliases ?? string.Empty).Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
     public Task<IActionResult> OnPostDisconnectAsync(long envId, string network, string container)
         => AttachAsync(envId, network, container, connect: false);
 
-    private async Task<IActionResult> AttachAsync(long envId, string network, string container, bool connect)
+    private async Task<IActionResult> AttachAsync(long envId, string network, string container, bool connect, string? ip = null, IReadOnlyList<string>? aliases = null)
     {
         if (!User.IsInRole(nameof(UserRole.Admin)))
         {
@@ -117,7 +118,7 @@ public class DetailModel : PageModel
         }
 
         var (ok, message) = await _connectionService.ConnectContainerToNetworkAsync(
-            _environmentService.BuildSettings(env), network ?? string.Empty, container ?? string.Empty, connect, HttpContext.RequestAborted);
+            _environmentService.BuildSettings(env), network ?? string.Empty, container ?? string.Empty, connect, HttpContext.RequestAborted, ip, aliases);
         StatusMessage = message;
         IsError = !ok;
         return RedirectToPage(new { envId, network });

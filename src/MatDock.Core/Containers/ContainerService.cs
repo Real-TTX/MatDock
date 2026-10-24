@@ -197,13 +197,14 @@ public sealed class ContainerService
     }
 
     /// <summary>Runs one docker command on the environment; (exit code 0, output).</summary>
-    public async Task<(bool Ok, string Output)> RunAsync(DockerEnvironment environment, Func<string, string> command, CancellationToken ct = default)
+    /// <param name="timeout">How long the command may take; the short SSH timeout by default (a pull needs <see cref="LongTimeout"/>).</param>
+    public async Task<(bool Ok, string Output)> RunAsync(DockerEnvironment environment, Func<string, string> command, CancellationToken ct = default, TimeSpan? timeout = null)
     {
         var settings = _environmentService.BuildSettings(environment);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
         using var client = _hostSessionFactory.Create(settings);
         await ConnectAsync(client, settings, ct);
-        var result = await RunCommandAsync(client, command(head), ct);
+        var result = await RunCommandAsync(client, command(head), ct, timeout);
         return (result.ExitStatus == 0, (result.StdOut + result.StdErr).Trim());
     }
 
@@ -401,6 +402,137 @@ public sealed class ContainerService
         }
     }
 
+    /// <summary>
+    /// The settings that start this container again (see <see cref="ContainerRunSpecs.FromInspect"/>), with the real values of its environment: for MatDock's
+    /// own use only (recreate, the secrets of a duplicate); never shown on a page. Null when the container is not there.
+    /// </summary>
+    public async Task<(ContainerRunSpec Spec, ContainerInspect Container)?> GetRunSpecAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return null;
+        }
+
+        var (ok, output) = await RunAsync(environment, head => ContainerCommands.Inspect(head, id), ct);
+        if (!ok || ContainerInspect.Parse(output, maskSecrets: false) is not { } container)
+        {
+            return null;
+        }
+
+        var image = ImageConfig.Empty;
+        if (container.ImageId is { } imageId && Images.ImageCommands.IsValidImageRef(imageId))
+        {
+            var (imageOk, imageJson) = await RunAsync(environment,
+                head => VolumeCommands.PathPrefix + head + " image inspect --format '{{json .Config}}' " + VolumeFileCommands.ShellQuote(imageId), ct);
+            image = imageOk ? ImageConfig.Parse(imageJson) : ImageConfig.Empty;
+        }
+
+        return (ContainerRunSpecs.FromInspect(container, image), container);
+    }
+
+    /// <summary>Changes the limits or the restart policy of a container (<c>docker update</c>).</summary>
+    public async Task<(bool Success, string Message)> UpdateAsync(DockerEnvironment environment, string id, ContainerUpdateSpec update, CancellationToken ct = default)
+    {
+        if (!ContainerCommands.IsValidId(id))
+        {
+            return (false, "Invalid container ID.");
+        }
+
+        if (ContainerRunCommands.Validate(update) is { } invalid)
+        {
+            return (false, invalid);
+        }
+
+        try
+        {
+            var (ok, output) = await RunAsync(environment, head => ContainerRunCommands.Update(head, id, update), ct);
+            return ok ? (true, "Updated.") : (false, DockerErrorMessages.InterpretDockerError(output, output));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogInformation(ex, "docker update of {Id} failed.", id);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Recreates a container with the same settings (and with <paramref name="pull"/> the newest image of its tag): the old one is renamed and stopped, the new one
+    /// takes its name, and the old one is removed once the new one runs. When the new one does not start, the old one gets its name back and runs again.
+    /// Anonymous volumes are handed over by name, so their data stays. Not for a container of a stack: its stack recreates it.
+    /// </summary>
+    public async Task<(bool Success, string Message)> RecreateAsync(DockerEnvironment environment, string id, bool pull, Action<string>? log = null, CancellationToken ct = default)
+    {
+        var read = await GetRunSpecAsync(environment, id, ct);
+        if (read is not { } found)
+        {
+            return (false, "Container not found.");
+        }
+
+        var (spec, old) = found;
+        if (old.Project is not null)
+        {
+            return (false, $"This container belongs to the stack '{old.Project}': recreate it with the stack.");
+        }
+
+        if (ContainerRunCommands.Validate(spec) is { } invalid)
+        {
+            return (false, $"Its settings cannot be repeated by MatDock: {invalid}");
+        }
+
+        string Q(string s) => VolumeFileCommands.ShellQuote(s);
+        var oldName = old.Name;
+        var parked = $"{oldName}-old-{DateTime.UtcNow:yyyyMMddHHmmss}";
+        if (!ContainerCommands.IsValidId(parked))
+        {
+            parked = $"matdock-old-{DateTime.UtcNow:yyyyMMddHHmmss}";
+        }
+
+        if (pull)
+        {
+            log?.Invoke($"==> docker pull {spec.Image}");
+            var (pulled, pullOutput) = await RunAsync(environment, head => VolumeCommands.PathPrefix + head + " pull " + Q(spec.Image) + " 2>&1", ct, LongTimeout);
+            if (!pulled)
+            {
+                return (false, $"Pull failed, nothing changed: {DockerErrorMessages.InterpretDockerError(pullOutput, pullOutput)}");
+            }
+        }
+
+        log?.Invoke($"==> {oldName} → {parked}, stop");
+        var (renamed, renameOutput) = await RunAsync(environment, head => ContainerCommands.Rename(head, old.Id, parked), ct);
+        if (!renamed)
+        {
+            return (false, $"Could not set the old container aside: {DockerErrorMessages.InterpretDockerError(renameOutput, renameOutput)}");
+        }
+
+        if (old.Running)
+        {
+            await RunAsync(environment, head => ContainerCommands.Action(head, ContainerAction.Stop, old.Id), ct);
+        }
+
+        log?.Invoke("==> docker run (the same settings)");
+        spec.Name = oldName;
+        var (started, runOutput) = await RunAsync(environment, head => ContainerRunCommands.Run(spec, head), ct, LongTimeout);
+        if (!started)
+        {
+            // Back to how it was: a half-created new one goes, the old one gets its name back and runs again.
+            await RunAsync(environment, head => ContainerCommands.Remove(head, oldName, force: true, volumes: false), ct);
+            await RunAsync(environment, head => ContainerCommands.Rename(head, old.Id, oldName), ct);
+            if (old.Running)
+            {
+                await RunAsync(environment, head => ContainerCommands.Action(head, ContainerAction.Start, old.Id), ct);
+            }
+
+            return (false, $"The new container did not start; the old one runs again: {DockerErrorMessages.InterpretDockerError(runOutput, runOutput)}");
+        }
+
+        log?.Invoke($"==> remove {parked}");
+        // Without -v: its anonymous volumes are the new container's now.
+        var (removed, removeOutput) = await RunAsync(environment, head => ContainerCommands.Remove(head, old.Id, force: true, volumes: false), ct);
+        return removed
+            ? (true, $"Recreated {oldName}.")
+            : (true, $"Recreated {oldName}; the old container '{parked}' could not be removed: {DockerErrorMessages.InterpretDockerError(removeOutput, removeOutput)}");
+    }
+
     /// <summary>Removes all stopped containers of an environment; the message says how much space it freed.</summary>
     public async Task<(bool Success, string Message)> PruneStoppedAsync(DockerEnvironment environment, CancellationToken ct = default)
     {
@@ -440,7 +572,8 @@ public sealed class ContainerService
             using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
 
-            var result = await RunCommandAsync(client, ContainerRunCommands.Run(spec, head), ct);
+            // docker run pulls an image it does not have: that takes longer than a quick command.
+            var result = await RunCommandAsync(client, ContainerRunCommands.Run(spec, head), ct, LongTimeout);
             var output = (result.StdOut ?? string.Empty).Trim();
             // 2>&1 merges the pull progress into stdout; the container id is the last line.
             var last = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty;
@@ -499,10 +632,13 @@ public sealed class ContainerService
         }
     }
 
-    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunCommandAsync(IHostSession client, string command, CancellationToken ct)
+    /// <summary>The time a command that pulls an image may take.</summary>
+    private TimeSpan LongTimeout => TimeSpan.FromSeconds(Math.Max(60, _options.MigrationTimeoutSeconds));
+
+    private async Task<(int ExitStatus, string StdOut, string StdErr)> RunCommandAsync(IHostSession client, string command, CancellationToken ct, TimeSpan? limit = null)
     {
         using var cmd = client.CreateCommand(command);
-        var timeout = TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
+        var timeout = limit ?? TimeSpan.FromSeconds(Math.Max(10, _options.SshTimeoutSeconds));
         cmd.CommandTimeout = timeout;
 
         // Honor request cancellation/shutdown and still bound the command by the configured timeout.

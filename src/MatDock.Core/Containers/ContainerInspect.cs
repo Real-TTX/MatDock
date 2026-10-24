@@ -8,7 +8,11 @@ namespace MatDock.Core.Containers;
 public sealed record ContainerEnvVar(string Name, string Value, bool Masked);
 
 /// <summary>A network a container is attached to, with its addresses.</summary>
-public sealed record ContainerNetwork(string Name, string? IpAddress, string? Ipv6Address, string? Gateway, string? MacAddress, IReadOnlyList<string> Aliases);
+public sealed record ContainerNetwork(string Name, string? IpAddress, string? Ipv6Address, string? Gateway, string? MacAddress, IReadOnlyList<string> Aliases,
+    string? FixedIp = null);
+
+/// <summary>A mount of a container as <c>docker inspect</c> lists it.</summary>
+public sealed record ContainerInspectMount(string Type, string? Name, string? Source, string Destination, bool ReadWrite);
 
 /// <summary>One run of a container's health check.</summary>
 public sealed record ContainerHealthRun(string? Start, int ExitCode, string Output);
@@ -61,6 +65,22 @@ public sealed partial class ContainerInspect
     public IReadOnlyDictionary<string, string> LogOptions { get; init; } = new Dictionary<string, string>();
     public IReadOnlyList<string> Dns { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> ExtraHosts { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> CapDrop { get; init; } = Array.Empty<string>();
+
+    /// <summary>The published ports as <c>[address:]hostPort:containerPort[/udp]</c>.</summary>
+    public IReadOnlyList<string> PortBindings { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<ContainerInspectMount> Mounts { get; init; } = Array.Empty<ContainerInspectMount>();
+
+    /// <summary>The GPUs asked for: <c>all</c>, a number or <c>device=0,1</c>; null for none.</summary>
+    public string? Gpus { get; init; }
+
+    /// <summary>The health check as Docker keeps it (<c>CMD-SHELL</c>, the command …) with its interval and retries.</summary>
+    public IReadOnlyList<string> HealthTestRaw { get; init; } = Array.Empty<string>();
+
+    public TimeSpan? HealthInterval { get; init; }
+
+    public int HealthRetries { get; init; }
 
     /// <summary>The whole inspect answer, indented, with secret-looking environment values masked.</summary>
     public string RawJson { get; init; } = string.Empty;
@@ -80,7 +100,9 @@ public sealed partial class ContainerInspect
     public static bool IsSecretName(string name) => SecretNameRegex().IsMatch(name);
 
     /// <summary>Reads the JSON of <c>docker inspect</c> (an array with one object, or the object). Null when it is not a container.</summary>
-    public static ContainerInspect? Parse(string json)
+    /// <param name="json">The answer of <c>docker inspect</c>.</param>
+    /// <param name="maskSecrets">False only for MatDock's own use (rebuilding the container): the values then never go to a page.</param>
+    public static ContainerInspect? Parse(string json, bool maskSecrets = true)
     {
         JsonNode? root;
         try
@@ -113,13 +135,13 @@ public sealed partial class ContainerInspect
                 var eq = e.IndexOf('=');
                 var name = eq < 0 ? e : e[..eq];
                 var value = eq < 0 ? string.Empty : e[(eq + 1)..];
-                var masked = IsSecretName(name) && value.Length > 0;
+                var masked = maskSecrets && IsSecretName(name) && value.Length > 0;
                 return new ContainerEnvVar(name, masked ? Mask : value, masked);
             })
             .ToList();
 
         // The raw view gets the same masking: the inspect answer is mostly what a person copies to someone else.
-        if (config?["Env"] is JsonArray rawEnv)
+        if (maskSecrets && config?["Env"] is JsonArray rawEnv)
         {
             for (var i = 0; i < rawEnv.Count; i++)
             {
@@ -137,13 +159,15 @@ public sealed partial class ContainerInspect
         {
             foreach (var (name, value) in nets)
             {
+                var fixedIp = Text(value?["IPAMConfig"]?["IPv4Address"]) is { Length: > 0 } v4 ? v4 : Text(value?["IPAMConfig"]?["IPv6Address"]) is { Length: > 0 } v6 ? v6 : null;
                 networks.Add(new ContainerNetwork(
                     name,
                     Text(value?["IPAddress"]),
                     Text(value?["GlobalIPv6Address"]),
                     Text(value?["Gateway"]),
                     Text(value?["MacAddress"]),
-                    Strings(value?["Aliases"]).ToList()));
+                    Strings(value?["Aliases"]).ToList(),
+                    fixedIp));
             }
         }
 
@@ -157,6 +181,44 @@ public sealed partial class ContainerInspect
         }
 
         var healthTest = Strings(config?["Healthcheck"]?["Test"]).ToList();
+
+        var ports = new List<string>();
+        if (host?["PortBindings"] is JsonObject bindings)
+        {
+            foreach (var (containerPort, list) in bindings)
+            {
+                var (number, protocol) = containerPort.Split('/') is [var n, var p] ? (n, p) : (containerPort, "tcp");
+                foreach (var binding in (list as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+                {
+                    var hostIp = Text(binding["HostIp"]);
+                    var hostPort = Text(binding["HostPort"]);
+                    if (string.IsNullOrEmpty(hostPort) || hostIp == "::")
+                    {
+                        continue; // no host port (an unpublished one) or the IPv6 twin of the same binding
+                    }
+
+                    var address = string.IsNullOrEmpty(hostIp) || hostIp == "0.0.0.0" ? string.Empty : hostIp + ":";
+                    ports.Add($"{address}{hostPort}:{number}{(protocol == "tcp" ? string.Empty : "/" + protocol)}");
+                }
+            }
+        }
+
+        var mounts = (obj["Mounts"] as JsonArray)?.OfType<JsonObject>()
+            .Select(m => new ContainerInspectMount(Text(m["Type"]) ?? string.Empty, Text(m["Name"]), Text(m["Source"]), Text(m["Destination"]) ?? string.Empty, m["RW"] is null || Bool(m["RW"])))
+            .ToList() ?? new List<ContainerInspectMount>();
+
+        string? gpus = null;
+        foreach (var request in (host?["DeviceRequests"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+        {
+            if (!Strings(request["Capabilities"]?[0]).Contains("gpu") && request["Capabilities"] is JsonArray { Count: > 0 })
+            {
+                continue;
+            }
+
+            var ids = Strings(request["DeviceIDs"]).ToList();
+            var count = Int(request["Count"]);
+            gpus = ids.Count > 0 ? "device=" + string.Join(',', ids) : count == -1 ? "all" : count > 0 ? count.ToString(System.Globalization.CultureInfo.InvariantCulture) : gpus;
+        }
 
         return new ContainerInspect
         {
@@ -204,6 +266,13 @@ public sealed partial class ContainerInspect
                 .ToDictionary(l => l.Key, l => Text(l.Value) ?? string.Empty) ?? new Dictionary<string, string>(),
             Dns = Strings(host?["Dns"]).ToList(),
             ExtraHosts = Strings(host?["ExtraHosts"]).ToList(),
+            CapDrop = Strings(host?["CapDrop"]).ToList(),
+            PortBindings = ports,
+            Mounts = mounts,
+            Gpus = gpus,
+            HealthTestRaw = healthTest,
+            HealthInterval = Long(config?["Healthcheck"]?["Interval"]) is > 0 and var interval ? TimeSpan.FromTicks(interval / 100) : null,
+            HealthRetries = Int(config?["Healthcheck"]?["Retries"]),
             RawJson = obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
         };
     }
