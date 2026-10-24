@@ -35,6 +35,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   page follows it
 - Connection test with a clear result; secrets stored **encrypted**; the **SSH host key** is saved at the first
   connection and a server that shows another one is refused (forget it on the environment after a reinstall)
+- A **system view** per environment: what `docker info` and `docker version` say, the disk usage per kind, a **cleanup**
+  (stopped containers, images, networks, build cache – never volumes) and **usage charts** of the host (6 h to 30 days)
+- An **events page** (`docker events` of one or all environments): window, type, only problems, a container, search
 
 **Dashboard**
 - Environment tiles with **live CPU / RAM / disk** usage (the dashboard, environments, containers and stack pages
@@ -46,9 +49,16 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   container cards** with per-service actions
 - Add a stack from the **Compose editor**, from **Git** (HTTPS with a token, or SSH with a key; the Git server's host key
   is saved at the first clone), or from an **App template**
-- Deploy / redeploy / stop, aggregated **resources** per stack
+- Deploy / redeploy / stop, aggregated **resources** per stack; per **service** restart, stop, start, recreate and **scale**;
+  a **redeploy webhook** per stack (for a CI); **copy** a stack to another environment
 - Container list with **short status** (hover for detail), **ports as clickable tags**, combined
-  **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**
+  **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**; tick several for **start, stop, restart or
+  remove at once** (images, volumes and networks too)
+- A **container detail** page: environment (secrets masked), networks with their addresses, mounts, health with its log,
+  processes, the raw inspect, **usage charts**; rename, remove, change memory/CPU/restart (`docker update`), **duplicate**
+  and **recreate** with the newest image
+- **New container** from a full form: command, entrypoint, labels, limits, hostname, user, capabilities, devices, GPUs,
+  logging, DNS, extra hosts, health check, a fixed IP and aliases
 - A **file browser inside a running container** (the same as for volumes: browse, edit, upload, download, create,
   rename, duplicate, delete; it runs `docker exec`; a container without a shell (distroless, scratch) is browsed, read and
   written through `docker cp`)
@@ -56,6 +66,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 **Images**
 - List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,
   platform, entrypoint, ports, labels and the **layers** (`docker image history`); prune dangling or **all unused** images
+- Which containers use an image; **tag**, **push** (signed in to its registry), **export** as a `.tar.gz` and **import** one
+  (for a host without a registry)
 - **Vulnerability scan** with Trivy, run as a container on the image's own host (its database is kept in the volume
   `matdock-trivy-cache` there): findings per image on the detail page, critical/high in the list, and the schedule action
   *Scan images* that scans the images of the running containers and notifies about critical and high findings
@@ -63,6 +75,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 **Networks**
 - List, details with the attached containers, prune; a **network map** per environment: the networks and the
   containers on them, so you see which services can reach each other
+- Create with **IPAM** (subnet, gateway, range, IPv6); connect a container with a **fixed IP** and **aliases**
 
 **Volumes**
 - List across environments, **migrate a volume from one host to another** (tar over SSH)
@@ -83,9 +96,14 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Web terminal** (xterm.js) – a shell on an SSH host or straight into a container (bash when it has one, else sh;
   on the local Docker socket too)
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
-- Users & roles, notifications (**SMTP + webhook**), Git credentials – all under **System**
+- Users & roles, notifications (**SMTP, webhook, Discord, Slack, Teams, Telegram, ntfy, Gotify**), Git credentials, API keys –
+  all under **System**
 - An **activity log** (System → Activity): every action of a user and every changing call of the API, with user,
   target, environment and result, searchable, kept for 90 days
+- A **search** in the header bar (`/` or `Ctrl+K`): containers, stacks, images, volumes, networks, environments and pages
+- **Metrics**: hosts and containers every 5 minutes in the database (30 days, hourly after two days), `/metrics` for Prometheus
+- **Backup of MatDock itself** (System → MatDock backup): the database and the keys in one file encrypted with a passphrase
+  (AES-256-GCM), as a download or a schedule; a restore takes its place at the next start and keeps what it replaced
 
 **Schedules and alerts**
 - Cron schedules for prune (volumes, images, networks), status reports, health alerts, volume and stack backups and Git sync
@@ -99,10 +117,12 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   too), a time window, how often to look, a backup before, rollback and notifications. A new version is announced once; in automatic
   mode it is applied within the window and a failed update is not tried again. **Updates** lists all stacks with Check all and Update all
 - **Alerts**: event schedules for *container died* (an error exit or out of memory, not a stop), *container unhealthy*,
-  environment offline and failed deploys, backups and syncs – with *Send a notification* the event itself is the message
-- Two roles: **User** sees everything and starts/stops/restarts containers and reads their logs; **Admin** does the rest
-  (environments, stacks, volumes, files, backups, schedules, terminal, settings). The sign-in is locked for 15 minutes after
-  5 wrong passwords for one account (or 20 from one address)
+  a **restart loop** (n starts in m minutes), a **host over a limit** (CPU, memory, disk; global or per environment, said once
+  when crossed and once when back), environment offline and failed deploys, backups and syncs – with *Send a notification*
+  the event itself is the message; switched on per event under System → Notifications
+- Three roles: **Viewer** sees what a user sees and changes nothing; **User** also starts/stops/restarts containers;
+  **Admin** does the rest (environments, stacks, volumes, files, backups, schedules, terminal, settings). The sign-in is
+  locked for 15 minutes after 5 wrong passwords for one account (or 20 from one address)
 - **Light and dark**, works well on **mobile**, no cloud and no third-party services
 
 ## Screenshots
@@ -294,8 +314,11 @@ MatDock is one of the engines of [Mattiverse](https://github.com/Real-TTX/Mattiv
 MatDock stacks and uses MatDock's backups and schedules, so everything stays visible and editable here. The contract is
 `docs/ENGINES.md` in the Mattiverse repository.
 
-- **Key:** set `MatDock__Api__Key`; every call sends it as `X-Api-Key` (compared in constant time). No key configured =
-  `503`, wrong or missing key = `401`. The session cookie plays no role. Errors are `{"error": "…"}`.
+- **Key:** set `MatDock__Api__Key`, or make named keys under System → API keys (*read*: only `GET`; *everything*; with an
+  optional expiry; only their SHA-256 is stored, the key is shown once). Every call sends one as `X-Api-Key` or as
+  `Authorization: Bearer …` (compared in constant time). No key at all = `503`, wrong or missing key = `401`, a read key on a
+  change = `403`. The session cookie plays no role; the activity log names a named key. Errors are `{"error": "…"}`.
+- **Description:** `GET /api/v1/openapi.json` (OpenAPI, open).
 - **Environment:** calls work on the *Local* environment (the mounted Docker socket) unless `?environment=<id or name>`
   says otherwise. `PUT /api/v1/environments/local` or `MatDock__Environments__EnsureLocal=true` creates it.
 - **Long actions** answer `202 {"operationId": "…"}`; poll `GET /api/v1/operations/{id}?offset=<chars read>` for the
@@ -307,7 +330,18 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 
 | Method and path | |
 |---|---|
-| `GET /api/v1/status` | `ok`, `app`, `version`, `apiVersion` (1), `environments` |
+| `GET /api/v1/status` | `ok`, `app`, `version`, `apiVersion` (2), `environments` |
+| `GET /api/v1/environments` | every environment with type, host, status, Docker version and its last reading (CPU, memory, disk, running containers) |
+| `GET /api/v1/containers` | the containers with state, stack, service, ports, CPU and memory |
+| `GET /api/v1/containers/{name}` | the inspect: state, restart policy, environment (secrets masked), labels, networks, mounts |
+| `POST /api/v1/containers/{name}/actions/{action}` | `start`, `stop`, `restart`, `pause`, `unpause`, `kill` |
+| `DELETE /api/v1/containers/{name}?force=&volumes=` | remove (a running one only with `force`) |
+| `GET /api/v1/containers/{name}/logs?tail=200` | the last lines as text |
+| `GET /api/v1/images`, `POST /api/v1/images/pull` (`{reference}`), `DELETE /api/v1/images?reference=&force=` | images with the containers that use them |
+| `GET /api/v1/volumes`, `DELETE /api/v1/volumes/{name}` | volumes with `inUse`; one in use is never removed (`409`) |
+| `GET /api/v1/networks`, `DELETE /api/v1/networks/{name}` | networks with `predefined` and `inUse` |
+| `GET /api/v1/events?hours=24&type=&container=` | the events of the engine |
+| `GET /api/v1/update-rules`, `GET`/`PUT /api/v1/update-rules/{global/0, environment/{id}, stack/{id}}` | the update rules `{mode, strategy, windowStartHour, windowEndHour, checkEveryHours, preBackup, rollback, notifyAvailable, notifyResult, serviceStrategies}`; `null` = as the wider rule says |
 | `PUT /api/v1/environments/local` | ensure the Local environment `local` → `{id, name, created}`; `409` without a Docker socket |
 | `GET /api/v1/stacks?managedBy=` | managed and discovered stacks with `state` (`running/stopped/partial/unhealthy/missing`) and containers |
 | `GET /api/v1/stacks/{name}` | the same plus `composeYaml` and `envContent` |
@@ -326,6 +360,15 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 A stack bundle holds all volumes of the stack, its compose file, its `.env` and the image references; bundle schedules
 appear on the Schedules page (action *Backup stacks*) and keep the newest scheduled bundles per stack.
 
+**Prometheus:** `GET /metrics` with a key (a read key is enough; a scrape job sends it with `authorization: {credentials: …}`)
+answers the last reading of the sampler (every 5 minutes): `matdock_environment_up`, `matdock_host_cpu_percent`,
+`matdock_host_memory_percent`, `matdock_host_disk_percent`, `matdock_containers_running`, `matdock_container_up`,
+`matdock_container_cpu_percent`, `matdock_container_memory_percent`, `matdock_container_memory_bytes` and
+`matdock_reading_age_seconds`, with the labels `environment`, `container`, `stack` and `image`.
+
+**Redeploy webhook:** `POST /webhooks/stacks/{token}` (switched on per stack on its Updates page; the address is the secret)
+pulls and redeploys the stack with the backup and the health check of its update rule.
+
 ## Platform API and sign-in through MatIdentity
 
 Besides its engine API, MatDock speaks the platform contract of the Mat apps (MatDesign `docs/PLATFORM.md`, shared code
@@ -341,7 +384,7 @@ without knowing it beforehand. It lives next to `/api/v1` and never under it; `/
 | `POST /api/actions/{id}` | key or token | run an action → `{"ok", "message"}` (`409` when it cannot run now) |
 
 - **Key:** `X-Api-Key` = `MAT_API_KEY`, or the engine key `MatDock__Api__Key` when `MAT_API_KEY` is not set (one key for a
-  caller that only knows the engine key). `/api/v1` still takes only `MatDock__Api__Key`. Without a key `401`.
+  caller that only knows the engine key). `/api/v1` takes `MatDock__Api__Key` or a named key, not `MAT_API_KEY`. Without a key `401`.
   With MatIdentity on, a bearer token of MatIdentity for the audience `matdock` works too.
 - **Tiles:** environments (and the unreachable ones), stacks, containers running / stopped / unhealthy, images, the
   disk of the local Docker host (used of total), the last backup (status and time), the next scheduled backup, failed
@@ -364,7 +407,7 @@ request of it lands on the sign-in page; written to the activity log as `MatIden
 The person is matched by `sub`; the first sign-in creates the user (no password). An existing account whose user name
 equals the person's `preferred_username` or e-mail is **not** linked by the name alone: the sign-in page asks to sign in
 once with that account's password (`?local=1&link=1`, or cancel), then it is linked. Several matches, or a match linked to
-another person, are refused. The claim `role` (`admin` / `user`) sets the role at every sign-in, never demoting the last
+another person, are refused. The claim `role` (`admin` / `user` / `viewer`) sets the role at every sign-in, never demoting the last
 administrator; without it MatDock keeps managing roles itself. Signing out ends the session at MatIdentity too.
 
 ## How it is built
@@ -393,6 +436,8 @@ administrator; without it MatDock keeps managing roles itself. Signing out ends 
 | Review 2 | MatSMTP, update rollback, CVE scans, Docker API hosts, Git over SSH, files without a shell | ✅ |
 | MatUi | The UI on the MatUi toolkit like the other engines (shell, components, dialogs, accent of the registry) | ✅ |
 | Review 3 | restic targets, update history and pinning, container run, rights per environment, network create/connect, pause/kill, image pull, MatUi 0.3 | ✅ |
+| Update management | Image overrides, update rules per scope, automation, Updates overview with Update all | ✅ |
+| Audit (complete manager) | Container detail/remove/duplicate/recreate, security headers, secrets at rest, system view, IPAM, image tag/push/export, service actions and scale, webhooks, stack copy, alert channels and limits, metrics and Prometheus, API v2 with named keys and OpenAPI, MatDock backup, Viewer role, events, multi-select, search – see [docs/REVIEW.md](docs/REVIEW.md) section 9 | ✅ |
 
 ## Trying a change locally
 

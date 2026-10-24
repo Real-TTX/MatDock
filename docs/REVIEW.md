@@ -72,8 +72,8 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 | Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself, a line of the last 24 h; CPU is load per core |
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
 | restic backups (backup, restore, check, prune) | ✅ | A backup target kind: every backup file is a snapshot (S3, B2, Azure, GCS, REST server, path); retention forgets, the schedule *Maintain restic repositories* prunes and checks |
-| Alerts by e-mail/webhook on container events, health, updates | ✅ | *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |
-| Local users, roles | ✅ | Two roles (Admin, User), enforced; a user can be limited to some environments (section 8) |
+| Alerts by e-mail/webhook on container events, health, updates | ✅ | Also to Discord, Slack, Teams, Telegram, ntfy and Gotify; host limits (CPU, memory, disk) and restart loops; *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |
+| Local users, roles | ✅ | Three roles (Admin, User, Viewer), enforced; a user or viewer can be limited to some environments (section 8) |
 | OIDC | ✅ | Through MatIdentity; any other OIDC provider is not wanted — MatIdentity is the family's identity |
 | 2FA | — | Not in MatDock: MatIdentity does it for every Mat app; the local sign-in is the fallback (throttled) |
 | Activity/audit log across environments | ✅ | System → Activity |
@@ -157,16 +157,16 @@ compose-first use (homelab or small business), not at Portainer's orchestration/
 | App templates / one-click apps | ✅ | the Store, plus *Adopt* for a discovered stack |
 | Images: list, prune, layers | ✅ | + update tracking, rollback, Trivy CVE scan |
 | Image pull | ✅ | *Pull* onto the selected environment |
-| Image build / import-export | ✖ | build belongs in CI (git-deployed stacks build on the host); not planned |
+| Image import-export, tag, push | ✅ | save as a .tar.gz, load, tag, push to a registry (signed in); build stays open (it belongs in CI) |
 | Volumes: list, create, remove, browse, backup | ✅ | browser + migration + backup — beyond Portainer |
 | Networks: list, detail, remove, prune, map | ✅ | + a network map per environment |
 | Network create, connect/disconnect a container | ✅ | create (bridge/macvlan/ipvlan, internal); connect/disconnect on the detail page |
 | Registries: credentials + browse | ✅ | |
-| Users/roles | ◐ | Admin/User, enforced; teams and per-object RBAC not wanted (homelab/small team) |
+| Users/roles | ◐ | Admin, User, Viewer (read only), enforced; teams and per-object RBAC not wanted (homelab/small team) |
 | Per-environment rights | ✅ | a user is limited to chosen environments, enforced in one place (section 8) |
 | Auth: internal, LDAP, OAuth/OIDC | ◐ | local + MatIdentity OIDC; generic LDAP/OIDC not wanted |
-| REST API / automation | ✅ | `/api/v1` (stacks, backups, operations), `X-Api-Key` |
-| Dashboard, events, alerts, audit log | ✅ | |
+| REST API / automation | ✅ | `/api/v1` (stacks, backups, containers, images, volumes, networks, events, update rules), OpenAPI, named keys (read or full), `/metrics` for Prometheus |
+| Dashboard, events, alerts, audit log | ✅ | events page with filters; alerts by mail, webhook, Discord, Slack, Teams, Telegram, ntfy, Gotify; host limits and restart loops |
 
 Shipped this round: MatUi 0.2.0 → 0.3.2 (toolkit copy, no app changes); container pause/unpause/kill; image pull;
 network create and connect/disconnect. Still open to match Portainer where it is wanted: the ad-hoc container `run`
@@ -272,13 +272,13 @@ rights per object, LDAP/generic OIDC, 2FA in MatDock). Image build stays open un
 | 5 | System view per environment: `docker info`, `docker version`, `system df`, build cache prune, a system cleanup with a preview | done |
 | 6 | Container form: command, entrypoint, labels, limits, hostname, user, working directory, capabilities, privileged, devices, GPUs, logging, DNS, extra hosts, health check; `docker update`; duplicate and recreate | done |
 | 7 | Networks: IPAM on create (subnet, gateway, range, IPv6), a fixed IP and aliases on connect | done |
-| 8 | Images: used by, tag, push, save and load | planned |
-| 9 | Stacks: per service restart/stop/start/recreate, scale, a redeploy webhook per stack, copy to another environment | planned |
-| 10 | Alerts: Discord, Slack, Teams, Telegram, ntfy, Gotify; thresholds for disk, memory and CPU per host, restart loops | planned |
-| 11 | Metrics: kept in the database (30 days), per container, a live view in the container detail, `/metrics` for Prometheus | planned |
-| 12 | API: containers, images, volumes, networks, environments, update rules; OpenAPI; several named keys (read or full) | planned |
-| 13 | Backup of MatDock itself (database and keys, encrypted with a passphrase), download and restore, as a schedule | planned |
-| 14 | A read-only role (Viewer) | planned |
-| 15 | An events page per environment with filters | planned |
-| 16 | Selecting several items of a list for one action (containers, images, volumes, networks) | planned |
-| 17 | A search of the whole app in the header bar | planned |
+| 8 | Images: used by, tag, push (signed in to its registry), save and load | done |
+| 9 | Stacks: per service restart/stop/start/recreate, scale, a redeploy webhook per stack, copy to another environment | done |
+| 10 | Alerts: Discord, Slack, Teams, Telegram, ntfy, Gotify; thresholds for disk, memory and CPU per host (global, per environment), restart loops | done |
+| 11 | Metrics: kept in the database (30 days, hourly after two days), per container, charts in the container and environment detail, `/metrics` for Prometheus | done |
+| 12 | API: containers, images, volumes, networks, environments, events, update rules; OpenAPI (`/api/v1/openapi.json`); named keys (read or full, expiry) | done |
+| 13 | Backup of MatDock itself (database and keys, AES-256-GCM with a passphrase), download and restore (at the next start), as a schedule | done |
+| 14 | A read-only role (Viewer): sees, changes nothing; every POST of a page refused | done |
+| 15 | An events page (one or all environments) with filters: window, type, problems, container, text | done |
+| 16 | Selecting several items of a list for one action (containers, images, volumes, networks) | done |
+| 17 | A search of the whole app in the header bar (/ or Ctrl+K), every result on /Search | done |
