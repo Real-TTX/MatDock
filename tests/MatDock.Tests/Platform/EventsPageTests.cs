@@ -9,6 +9,7 @@ public sealed class EventsPageTests : IClassFixture<EventsPageTests.Site>
 {
     private const string Output = """
         {"Type":"container","Action":"start","Actor":{"ID":"runnerid0001aaaa","Attributes":{"name":"runner","image":"nginx:1.27"}},"time":1761300000,"timeNano":1761300000000000000}
+        {"Type":"container","Action":"exec_start: pg_isready -U shop","Actor":{"ID":"dbid00000001bbbb","Attributes":{"name":"db","image":"postgres:17"}},"time":1761300030,"timeNano":1761300030000000000}
         {"Type":"container","Action":"die","Actor":{"ID":"runnerid0001aaaa","Attributes":{"name":"runner","image":"nginx:1.27","exitCode":"137"}},"time":1761300060,"timeNano":1761300060000000000}
         {"Type":"container","Action":"health_status: unhealthy","Actor":{"ID":"dbid00000001bbbb","Attributes":{"name":"db","image":"postgres:17"}},"time":1761300090,"timeNano":1761300090000000000}
         {"Type":"image","Action":"pull","Actor":{"ID":"redis:7","Attributes":{"name":"redis"}},"time":1761300120,"timeNano":1761300120000000000}
@@ -61,8 +62,10 @@ public sealed class EventsPageTests : IClassFixture<EventsPageTests.Site>
     {
         var events = DockerEvents.Parse(Output);
 
-        Assert.Equal(6, events.Count);
-        Assert.Equal(["volume", "network", "image", "container", "container", "container"], events.Select(e => e.Type));
+        Assert.Equal(7, events.Count);
+        Assert.Equal(["volume", "network", "image", "container", "container", "container", "container"], events.Select(e => e.Type));
+        var probe = events.Single(e => e.IsProbe);
+        Assert.Equal(("exec_start", "pg_isready -U shop"), (probe.Action, probe.Attributes["exec_start"]));
 
         var volume = events[0];
         Assert.Equal("shop_data", volume.Name);
@@ -79,7 +82,14 @@ public sealed class EventsPageTests : IClassFixture<EventsPageTests.Site>
         Assert.False(events.Single(e => e.Action == "start").IsProblem);
 
         Assert.Equal(new DateTime(2025, 10, 24, 10, 0, 0, DateTimeKind.Utc), events[^1].TimeUtc);
-        Assert.Single(DockerEvents.Matching(events, "postgres"));
+        Assert.Equal(2, DockerEvents.Matching(events, "postgres").Count);
+
+        // A die right after a kill is the end of a stop, not a problem.
+        var stopped = DockerEvents.Parse("""
+            {"Type":"container","Action":"kill","Actor":{"ID":"abc","Attributes":{"name":"web","signal":"15"}},"timeNano":1761300000000000000}
+            {"Type":"container","Action":"die","Actor":{"ID":"abc","Attributes":{"name":"web","exitCode":"137"}},"timeNano":1761300010000000000}
+            """);
+        Assert.False(stopped.Single(e => e.Action == "die").IsProblem);
     }
 
     [Fact]
@@ -100,11 +110,16 @@ public sealed class EventsPageTests : IClassFixture<EventsPageTests.Site>
     {
         var browser = await SignInAsync();
 
-        var problems = await (await browser.GetAsync($"/Events?EnvId={_site.EnvId}&Problems=true")).Content.ReadAsStringAsync();
+        var problems = await (await browser.GetAsync($"/Events?EnvId={_site.EnvId}&Show=problems")).Content.ReadAsStringAsync();
         Assert.Contains("2 events", problems);
 
         var search = await (await browser.GetAsync($"/Events?EnvId={_site.EnvId}&Q=redis")).Content.ReadAsStringAsync();
         Assert.Contains("1 event<", search);
+
+        // The probes of health checks only with "Everything".
+        var everything = await (await browser.GetAsync($"/Events?EnvId={_site.EnvId}&Show=all")).Content.ReadAsStringAsync();
+        Assert.Contains("7 events", everything);
+        Assert.Contains("pg_isready -U shop", everything);
 
         _site.App.Hosts.Commands.Clear();
         await browser.GetAsync($"/Events?EnvId={_site.EnvId}&Type=image&Hours=6&Container=runner");

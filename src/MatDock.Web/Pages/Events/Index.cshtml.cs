@@ -24,7 +24,8 @@ public class IndexModel : PageModel
 
     [BindProperty(SupportsGet = true)] public int Hours { get; set; } = 24;
     [BindProperty(SupportsGet = true)] public string? Type { get; set; }
-    [BindProperty(SupportsGet = true)] public bool Problems { get; set; }
+    /// <summary>What to show: empty = without the probes of health checks (<c>exec_*</c>, the bulk of a busy engine), <c>problems</c>, or <c>all</c>.</summary>
+    [BindProperty(SupportsGet = true)] public string? Show { get; set; }
     [BindProperty(SupportsGet = true)] public string? Container { get; set; }
     [BindProperty(SupportsGet = true)] public string? Q { get; set; }
 
@@ -34,7 +35,7 @@ public class IndexModel : PageModel
     public IReadOnlyList<string> Errors { get; private set; } = Array.Empty<string>();
     public bool IsAll { get; private set; }
 
-    /// <summary>The window reached the limit: older events of it are not shown.</summary>
+    /// <summary>An engine answered as many events as Docker keeps: older ones of the window are gone.</summary>
     public bool Capped { get; private set; }
 
     public async Task OnGetAsync()
@@ -70,9 +71,12 @@ public class IndexModel : PageModel
         }));
 
         Errors = results.Where(r => r.result.Error is not null).Select(r => $"{r.env.Name}: {r.result.Error}").ToList();
-        Capped = results.Any(r => r.result.Events.Count >= DockerEvents.MaxEvents);
+        Capped = results.Any(r => r.result.Events.Count >= DockerEvents.DaemonKeeps);
+        Show = Show is "problems" or "all" ? Show : null;
         Rows = results
-            .SelectMany(r => DockerEvents.Matching(r.result.Events, Q).Where(e => !Problems || e.IsProblem).Select(e => new Row(r.env, e)))
+            .SelectMany(r => DockerEvents.Matching(r.result.Events, Q)
+                .Where(e => Show switch { "problems" => e.IsProblem, "all" => true, _ => !e.IsProbe })
+                .Select(e => new Row(r.env, e)))
             .OrderByDescending(r => r.Event.TimeUtc)
             .ToList();
     }

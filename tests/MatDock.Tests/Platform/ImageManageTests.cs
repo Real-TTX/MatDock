@@ -75,10 +75,32 @@ public sealed class ImageManageTests : IClassFixture<ImageManageTests.Site>
     {
         Assert.EndsWith("docker ps -a --filter ancestor='nginx:1.27' --format '{{json .}}'", ImageCommands.UsedBy("nginx:1.27"));
         Assert.EndsWith("docker push 'reg.example.com/app:1' 2>&1", ImageCommands.Push("reg.example.com/app:1"));
-        Assert.Contains("set -o pipefail", ImageCommands.Save("nginx:1.27"));
+        Assert.Contains("(set -o pipefail) 2>/dev/null && set -o pipefail;", ImageCommands.Save("nginx:1.27"));
         Assert.EndsWith("docker image save 'nginx:1.27' | gzip -c", ImageCommands.Save("nginx:1.27"));
         Assert.EndsWith("docker image load", ImageCommands.Load());
         Assert.Throws<ArgumentException>(() => ImageCommands.Push("x'; id"));
+    }
+
+    [Fact]
+    public void The_export_gets_past_the_pipefail_line_in_any_shell()
+    {
+        if (!File.Exists("/bin/sh"))
+        {
+            return;
+        }
+
+        // `echo` stands for docker. dash (the /bin/sh of Debian, and of MatDock's image) has no pipefail: a bare `set -o pipefail` ended the
+        // whole script there, so an export came out empty.
+        var psi = new System.Diagnostics.ProcessStartInfo("/bin/sh") { RedirectStandardOutput = true, RedirectStandardError = true };
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add(ImageCommands.Save("nginx:1.27", "echo"));
+        using var process = System.Diagnostics.Process.Start(psi)!;
+        using var gunzip = new System.IO.Compression.GZipStream(process.StandardOutput.BaseStream, System.IO.Compression.CompressionMode.Decompress);
+        var text = new StreamReader(gunzip).ReadToEnd();
+        process.WaitForExit(10_000);
+
+        Assert.Equal(0, process.ExitCode);
+        Assert.Equal("image save nginx:1.27\n", text);
     }
 
     [Fact]

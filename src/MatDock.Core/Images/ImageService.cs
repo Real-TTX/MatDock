@@ -161,7 +161,10 @@ public sealed class ImageService
             var running = cmd.BeginExecute();
             await cmd.OutputStream.CopyToAsync(output, cts.Token);
             cmd.EndExecute(running);
-            return cmd.ExitStatus == 0 ? (true, string.Empty) : (false, "The image could not be saved.");
+            // Without pipefail (dash) gzip's exit status hides a failed save; docker's complaint on stderr does not.
+            return cmd.ExitStatus == 0 && string.IsNullOrWhiteSpace(cmd.Error)
+                ? (true, string.Empty)
+                : (false, string.IsNullOrWhiteSpace(cmd.Error) ? "The image could not be saved." : cmd.Error.Trim());
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {

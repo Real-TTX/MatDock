@@ -39,9 +39,10 @@
                     <option value="@t" selected="@(Model.Type == t)">@(char.ToUpperInvariant(t[0]) + t[1..])</option>
                 }
             </select>
-            <select name="Problems" class="mat-select mat-w-auto" aria-label="Result">
-                <option value="false" selected="@(!Model.Problems)">All</option>
-                <option value="true" selected="@Model.Problems">Problems only</option>
+            <select name="Show" class="mat-select mat-w-auto" aria-label="Show">
+                <option value="" selected="@(Model.Show is null)">Without health probes</option>
+                <option value="problems" selected="@(Model.Show == "problems")">Problems only</option>
+                <option value="all" selected="@(Model.Show == "all")">Everything</option>
             </select>
             <span class="mat-toolbar__spacer"></span>
             <span class="mat-toolbar__info">@(Model.Rows.Count == 1 ? "1 event" : $"{Model.Rows.Count} events")</span>
@@ -58,13 +59,13 @@
         }
         @if (Model.Rows.Count == 0)
         {
-            <div class="mat-empty"><div class="mat-empty__icon"><icon name="activity" /></div><p class="mat-empty__title">@(string.IsNullOrWhiteSpace(Model.Q) && Model.Type is null && !Model.Problems ? "Nothing happened in this window" : "No events match the filter")</p></div>
+            <div class="mat-empty"><div class="mat-empty__icon"><icon name="activity" /></div><p class="mat-empty__title">@(string.IsNullOrWhiteSpace(Model.Q) && Model.Type is null && Model.Show is null ? "Nothing happened in this window" : "No events match the filter")</p></div>
         }
         else
         {
             if (Model.Capped)
             {
-                <p class="mat-hint">Only the newest @DockerEvents.MaxEvents events per environment are shown; choose a shorter window or a type for older ones.</p>
+                <p class="mat-hint">Docker keeps only its newest @DockerEvents.DaemonKeeps events: on a busy engine they reach back less far than the window.</p>
             }
             <div class="mat-table-wrap">
                 <table class="mat-table">

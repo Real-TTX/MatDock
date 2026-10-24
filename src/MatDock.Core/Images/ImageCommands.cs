@@ -80,7 +80,8 @@ public static partial class ImageCommands
 
     /// <summary>The image as a gzip-compressed tar on stdout (<c>docker save | gzip</c>); pipefail, so a failing save is not hidden by gzip.</summary>
     public static string Save(string reference, string dockerHead = "docker")
-        => VolumeCommands.PathPrefix + "set -o pipefail 2>/dev/null; " + dockerHead + " image save " + QuotedRef(reference) + " | gzip -c";
+        // Tried in a subshell first: dash (the /bin/sh of Debian) has no pipefail, and a failing `set` ends the whole shell there.
+        => VolumeCommands.PathPrefix + "(set -o pipefail) 2>/dev/null && set -o pipefail; " + dockerHead + " image save " + QuotedRef(reference) + " | gzip -c";
 
     /// <summary>Loads the images of a tar on stdin (<c>docker load</c> reads plain, gzip, bzip2 and xz).</summary>
     public static string Load(string dockerHead = "docker")

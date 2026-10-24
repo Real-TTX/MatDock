@@ -102,9 +102,8 @@ public sealed class SelfBackupService
         var copy = Path.Combine(Path.GetTempPath(), $"matdock-selfbackup-{Guid.NewGuid():N}.db");
         try
         {
-#pragma warning disable EF1002 // the path is ours (a temporary file), quoted for SQLite
-            await _db.Database.ExecuteSqlRawAsync("VACUUM INTO '" + copy.Replace("'", "''") + "'", ct);
-#pragma warning restore EF1002
+            // A consistent copy while MatDock runs; SQLite takes the file name as a bound parameter.
+            await _db.Database.ExecuteSqlAsync($"VACUUM INTO {copy}", ct);
 
             using var tar = new MemoryStream();
             await using (var writer = new TarWriter(tar, leaveOpen: true))

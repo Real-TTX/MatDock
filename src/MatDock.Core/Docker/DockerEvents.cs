@@ -17,10 +17,16 @@ public sealed record DockerEvent(DateTime TimeUtc, string Type, string Action, s
     /// <summary>The container a network event is about (connect, disconnect).</summary>
     public string? Container => Attributes.TryGetValue("container", out var v) ? v : null;
 
-    /// <summary>Something went wrong: a container died with an exit code other than 0, ran out of memory, or turned unhealthy.</summary>
+    /// <summary>Set by <see cref="DockerEvents.Parse"/> on a <c>die</c> that a <c>kill</c> shortly before explains: the end of a stop, not a crash.</summary>
+    public const string StoppedAttribute = "matdock.stopped";
+
+    /// <summary>Something went wrong: a container died with an exit code other than 0 (not the end of a stop), ran out of memory, or turned unhealthy.</summary>
     public bool IsProblem => Action == "oom"
-        || (Action == "die" && ExitCode is { } code && code != "0")
+        || (Action == "die" && ExitCode is { } code && code != "0" && !Attributes.ContainsKey(StoppedAttribute))
         || (Action == "health_status" && Attributes.TryGetValue("health_status", out var h) && h == "unhealthy");
+
+    /// <summary>A command run inside a container (<c>exec_create</c>, <c>exec_start</c>, <c>exec_die</c>): mostly the probes of health checks.</summary>
+    public bool IsProbe => Action.StartsWith("exec_", StringComparison.Ordinal);
 
     /// <summary>Action words for the eye: <c>health_status: unhealthy</c> keeps its value, <c>exec_start: sh</c> its command.</summary>
     public string Label => Attributes.TryGetValue("health_status", out var h) && Action == "health_status" ? "health: " + h : Action;
@@ -35,8 +41,11 @@ public static partial class DockerEvents
     /// <summary>The windows the page offers, in hours.</summary>
     public static readonly IReadOnlyList<int> Windows = [1, 6, 24, 72, 168];
 
-    /// <summary>More are not shown (an engine with a restart loop writes thousands).</summary>
+    /// <summary>More are not read (a guard; Docker itself keeps fewer, <see cref="DaemonKeeps"/>).</summary>
     public const int MaxEvents = 1000;
+
+    /// <summary>How many past events the Docker daemon keeps in memory: an answer of this size has lost the older ones of its window.</summary>
+    public const int DaemonKeeps = 256;
 
     [GeneratedRegex("^[a-z_]{2,30}$")]
     private static partial Regex ActionPattern();
@@ -134,7 +143,24 @@ public static partial class DockerEvents
             }
         }
 
-        return list.OrderByDescending(e => e.TimeUtc).ToList();
+        // A die within a minute after a kill of the same container is the end of a stop (docker stop, compose down), as the alerts see it.
+        var ordered = list.OrderBy(e => e.TimeUtc).ToList();
+        var lastKill = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var e = ordered[i];
+            if (e.Type == "container" && e.Action == "kill")
+            {
+                lastKill[e.Id] = e.TimeUtc;
+            }
+            else if (e.Type == "container" && e.Action == "die" && lastKill.Remove(e.Id, out var killed) && e.TimeUtc - killed <= TimeSpan.FromMinutes(1))
+            {
+                ordered[i] = e with { Attributes = new Dictionary<string, string>(e.Attributes, StringComparer.Ordinal) { [DockerEvent.StoppedAttribute] = "true" } };
+            }
+        }
+
+        ordered.Reverse();
+        return ordered;
     }
 
     /// <summary>The events that contain <paramref name="text"/> in their action, name, image or id (empty = all).</summary>
