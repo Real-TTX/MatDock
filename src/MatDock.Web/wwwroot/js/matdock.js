@@ -206,39 +206,19 @@
     })();
 
     /* ---------------- Selection of a filtered list ----------------
-       A row the filter hides is never ticked: "select all" ticks the shown rows only (and no disabled one), and a row
-       the filter hides loses its tick, so a bulk action never reaches what the user does not see. */
+       "Select all" leaves the rows the filter hid alone (MatUi 0.9.3); a row that was ticked before the filter hid it loses
+       its tick here, so a bulk action never reaches what the user does not see. */
     (function () {
-        function hidden(check) {
-            var row = check.closest("[data-item], tr, .mat-tile");
-            return !!(row && row.hidden);
-        }
-        function untickHidden(box) {
-            var changed = null;
-            // A disabled tick (an image or volume in use) is never sent, so it is not counted either.
-            box.querySelectorAll("input[data-select-row]:checked").forEach(function (check) {
-                if (hidden(check) || check.disabled) { check.checked = false; changed = check; }
-            });
-            // MatUi counts again (the bar, the select-all box) on a change of a row.
-            if (changed) { changed.dispatchEvent(new Event("change", { bubbles: true })); }
-        }
-        // The select-all box says whether the rows that are shown are ticked (MatUi counts the hidden ones too).
-        function syncAll(box) {
-            var all = box.querySelector("input[data-select-all]");
-            if (!all) { return; }
-            var shown = Array.prototype.filter.call(box.querySelectorAll("input[data-select-row]"), function (c) { return !hidden(c) && !c.disabled; });
-            var ticked = shown.filter(function (c) { return c.checked; }).length;
-            all.checked = shown.length > 0 && ticked === shown.length;
-            all.indeterminate = ticked > 0 && ticked < shown.length;
-        }
-        document.addEventListener("change", function (e) {
-            var box = e.target.closest ? e.target.closest("[data-selectable]") : null;
-            if (!box || !e.target.matches("input[data-select-all], input[data-select-row]")) { return; }
-            if (e.target.matches("input[data-select-all]")) { untickHidden(box); }
-            syncAll(box);
-        });
         document.addEventListener("matdock:filtered", function () {
-            document.querySelectorAll("[data-selectable]").forEach(function (box) { untickHidden(box); syncAll(box); });
+            document.querySelectorAll("[data-selectable]").forEach(function (box) {
+                var first = box.querySelector("input[data-select-row]");
+                box.querySelectorAll("input[data-select-row]:checked").forEach(function (check) {
+                    var row = check.closest("[data-item], tr, .mat-tile");
+                    if (row && row.hidden) { check.checked = false; }
+                });
+                // MatUi counts again on a change of a row: the bar, and the select-all box for the rows that are shown now.
+                if (first) { first.dispatchEvent(new Event("change", { bubbles: true })); }
+            });
         });
     })();
 

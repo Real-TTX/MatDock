@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Version 0.9.2 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
+   Version 0.9.3 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
    `node tools/bump.js` writes the version here, in matui.boot.js and in MatUiVersion (Directory.Build.props); window.MatUi.version has it.
    MatUi · behaviour
    Dependency-free. Everything is wired by delegated listeners and data-attributes, so server-rendered and dynamically added
@@ -39,7 +39,8 @@
      data-password-toggle="id"              the eye button of a password field: shows and hides the password (aria-pressed)
      data-selectable                        a table, a gallery or a list of cards with a data-select-row check per item, maybe a data-select-all check and a [data-bulk-bar] with [data-bulk-count];
                                             the item of a ticked check is marked is-selected: its table row, its .mat-tile, or the nearest element with data-select-item
-                                            (the same around a .mat-itemlist: the rows are marked is-selected and select-all works on the rows that are shown)
+                                            (the same around a .mat-itemlist: the rows are marked is-selected); select-all acts on the checks that are shown and not
+                                            disabled (a row a filter hid, an item that cannot be chosen are left alone), the count is the ticked checks that are not disabled
      data-itemlist                         a list of rows (.mat-itemlist of .mat-item, LIST-15): the script adds sliding actions (a row with .mat-item__options: a swipe, the More
                                             button or the arrow keys; an option sends mat:item-action, data-item-action names it) and, with data-reorder, reordering by a
                                             .mat-item__handle (pointer, or Space + arrow keys; mat:reorder, data-item-key names a row). The texts: data-il-<name> on <html>
@@ -849,25 +850,21 @@
   }
   doc.addEventListener('input', function (e) { if (e.target.matches && e.target.matches('[data-item-filter]')) { ilFilter(e.target); } });
 
-  // ---- selection: the checks of the rows are the ones of tables (data-select-row, data-select-all); the select-all check works on the rows that are shown
+  // ---- selection: the checks of the rows are the ones of tables (data-select-row, data-select-all); the select-all check works on the rows that are shown and
+  // can be chosen (selOpen, the rule of tables)
   function ilHolds(box) { return box.classList.contains('mat-itemlist') || !!$('.mat-itemlist', box); }
   function ilSelection(box) {
     updateSelection(box);
-    var checks = $$('input[data-select-row]', box);
-    checks.forEach(function (c) { var r = c.closest('.mat-item'); if (r) { r.classList.toggle('is-selected', c.checked); } });
-    var shown = checks.filter(function (c) { var r = c.closest('.mat-item'); return !(r && r.hidden); });
-    var all = $('input[data-select-all]', box);
-    var n = shown.filter(function (c) { return c.checked; }).length;
-    if (all) { all.checked = shown.length > 0 && n === shown.length; all.indeterminate = n > 0 && n < shown.length; }
+    $$('input[data-select-row]', box).forEach(function (c) { var r = c.closest('.mat-item'); if (r) { r.classList.toggle('is-selected', c.checked); } });
   }
   doc.addEventListener('change', function (e) {
     var t = e.target;
     var box = t.closest && t.closest('[data-selectable]');
     if (!box || !t.matches || !ilHolds(box) || !t.matches('input[data-select-all], input[data-select-row]')) { return; }
-    // the handler of tables would count the rows that are hidden by a filter: this one is for lists
+    // a list marks its .mat-item rows too: this handler is for lists, the one of tables does not run
     e.stopImmediatePropagation();
     if (t.matches('input[data-select-all]')) {
-      $$('input[data-select-row]', box).forEach(function (c) { var r = c.closest('.mat-item'); if (!(r && r.hidden)) { c.checked = t.checked; } });
+      $$('input[data-select-row]', box).forEach(function (c) { if (selOpen(box, c)) { c.checked = t.checked; } });
     }
     ilSelection(box);
   });
@@ -1618,15 +1615,28 @@
   // An element with data-selectable holds a table, a gallery or a list of cards with a checkbox per item (data-select-row), maybe one that selects all of them
   // (data-select-all) and a bulk bar ([data-bulk-bar] with [data-bulk-count]) that is shown only while something is selected. The item of a ticked check is marked
   // is-selected: its table row, its .mat-tile, or the nearest element with data-select-item (a card, the row of a list of the app's own).
+  // The check for all acts on the checks that are open: shown (no element between it and the box is hidden, so a row a filter hid is left alone) and not disabled
+  // (an item that cannot be chosen, one in use); it is ticked when all of them are, in between when some are. The count is what a form sends: the ticked checks
+  // that are not disabled.
+  function selOpen(box, check) {
+    if (check.disabled) { return false; }
+    for (var el = check.parentElement; el && el !== box; el = el.parentElement) { if (el.hidden) { return false; } }
+    return true;
+  }
   function updateSelection(box) {
     var rows = $$('input[data-select-row]', box);
     var all = $('input[data-select-all]', box);
-    var selected = rows.filter(function (r) { return r.checked; }).length;
+    var selected = rows.filter(function (r) { return r.checked && !r.disabled; }).length;
     rows.forEach(function (r) {
       var item = r.closest('tr, .mat-tile, [data-select-item]');
       if (item && box.contains(item)) { item.classList.toggle('is-selected', r.checked); }
     });
-    if (all) { all.checked = rows.length > 0 && selected === rows.length; all.indeterminate = selected > 0 && selected < rows.length; }
+    if (all) {
+      var open = rows.filter(function (r) { return selOpen(box, r); });
+      var ticked = open.filter(function (r) { return r.checked; }).length;
+      all.checked = open.length > 0 && ticked === open.length;
+      all.indeterminate = ticked > 0 && ticked < open.length;
+    }
     var bar = $('[data-bulk-bar]', box);
     if (bar) {
       bar.hidden = selected === 0;
@@ -1639,7 +1649,7 @@
     var box = t.closest && t.closest('[data-selectable]');
     if (!box || !t.matches) { return; }
     if (t.matches('input[data-select-all]')) {
-      $$('input[data-select-row]', box).forEach(function (r) { r.checked = t.checked; });
+      $$('input[data-select-row]', box).forEach(function (r) { if (selOpen(box, r)) { r.checked = t.checked; } });
       updateSelection(box);
     } else if (t.matches('input[data-select-row]')) {
       updateSelection(box);
@@ -8115,7 +8125,7 @@
   if (doc.readyState === 'loading') { doc.addEventListener('DOMContentLoaded', init); } else { init(); }
 
   window.MatUi = {
-    version: '0.9.2',
+    version: '0.9.3',
     dialog: { open: openDialog, close: closeDialog },
     confirm: confirmDialog,
     alert: alertDialog,
