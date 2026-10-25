@@ -11,7 +11,7 @@ terminal and real backups. One container, no cloud, no agents on the hosts.
 
 </div>
 
-![The dashboard: environment usage, top containers and recent activity](docs/images/dashboard.png)
+![The dashboard: environments, stacks, updates and running containers at the top, the apps with their status below](docs/images/dashboard.png)
 
 ---
 
@@ -131,77 +131,93 @@ All screenshots show a demo installation with invented hosts and stacks.
 
 ### Stacks – expandable to the containers, with aggregated resources
 
-![Stacks list with expanded container cards](docs/images/stacks.png)
+![Stacks of two environments; the gitea row is expanded to its db and gitea containers, the staging stack is stopped](docs/images/stacks.png)
 
-Managed and discovered Compose projects in one list. A row expands to show its containers as
-cards – each with status, ports and start/stop/restart/logs/shell – and the row itself sums up
-the stack's CPU and RAM.
+Managed and discovered Compose projects of every environment in one list. A row expands to show its containers as
+cards – each with status, ports and logs/shell/restart/stop – and the row itself sums up the stack's CPU and RAM,
+with its actions (redeploy, stop, edit, images, containers, volumes, down, delete) at the end.
 
 ### Containers – status, ports and resources at a glance
 
-![Container list with status, port tags and resources](docs/images/containers.png)
+![Container list of both environments with status, port tags, RAM and CPU, a checkbox per row and the actions on the right](docs/images/containers.png)
 
 Short status with the full text on hover, published ports as tags that open the app in a new
-tab, and CPU + RAM as one compact column. Open, shell, logs, volumes and lifecycle actions per
-row; the list refreshes itself while it is open.
+tab, and CPU + RAM as one compact column. Shell, logs, volumes, restart, pause, stop and remove per
+row, several rows at once through the checkboxes, *Remove stopped* below; the list refreshes itself while it is open.
+
+### One container in detail
+
+![Container detail of gitea-gitea-1: actions on top, tabs for environment, networks, mounts, processes and inspect, the overview below](docs/images/container-detail.png)
+
+Status, image, stack, ports, resources, restart policy, command and limits of one container – with restart, logs,
+events, shell, files, duplicate, stop and remove on top and the environment variables (secrets masked), networks,
+mounts, processes and the raw inspect in the tabs.
 
 ### Images: layers and vulnerabilities
 
-![Image detail with the findings of a Trivy scan](docs/images/image-scan.png)
+![The vulnerabilities of gitea/gitea:1.22 after a Trivy scan: counts per severity, then CVE, package, installed and fixed version](docs/images/image-scan.png)
 
 Tags, digest, platform and layers of every image, and a Trivy scan on the image's own host – the list shows the
 critical and high findings of the last scan, a schedule scans the running images and reports new ones.
 
 ### Networks: who can reach whom
 
-![Network map: networks on the left, containers on the right](docs/images/network-map.png)
+![Network map of homelab: gitea_default and proxy on the left, the containers on the right; gitea-gitea-1 is on both](docs/images/network-map.png)
 
-Every network with its containers; a container on several networks is how services of different networks meet.
+Every network with its containers; a container on several networks (thick border) is how services of different
+networks meet.
 
 ### Volumes: migration, backups and a file explorer
 
 | File explorer | Volumes |
 |---|---|
-| ![Volume file explorer](docs/images/files.png) | ![Volume list](docs/images/volumes.png) |
+| ![File explorer in the volume gitea_gitea-data with its folders git, gitea and ssh](docs/images/files.png) | ![Volume list of both environments with mount point and used/unused](docs/images/volumes.png) |
 
 Browse a volume like a folder – edit, preview, upload and download – switch volumes from the
 dropdown, or migrate a whole volume to another host.
 
 ### Backups you can actually restore
 
-![Backup targets with archives and restore](docs/images/backups-targets.png)
+![The archives at a restic target "NAS (restic)": stack bundles and their volume archives, each with restore, download and delete](docs/images/backups-targets.png)
 
-Every archive present at a target – including ones written by an older or a different MatDock
+Every archive present at a target – local, SMB or restic, including ones written by an older or a different MatDock
 instance to the same NAS – ready to restore. Whole stacks are backed up as a bundle (volumes +
 compose + image references) and come back as a running stack.
 
 ### Live logs
 
-![Live log viewer with search](docs/images/logs.png)
+![Live logs of the whole gitea stack (db and gitea) with the search "Starting" highlighted, hit 1 of 6](docs/images/logs.png)
 
 `docker logs -f` in the browser – of one container or a whole stack: follow, pause, timestamps, filter to matching
 lines, and search with highlighting and next/previous.
+
+### Updates
+
+![Updates of every stack: the rule (Notify or Auto in a window 03–05 h), the result of the last check and when it was checked](docs/images/updates.png)
+
+Which stacks have newer images, under which rule (off, notify, automatic in a time window, with backup and rollback),
+checked per stack or all at once; *Update all* takes every stack with a pending update.
 
 ### Schedules and the activity log
 
 | Schedules | Activity |
 |---|---|
-| ![Schedules: updates, scans, prune, alerts](docs/images/schedules.png) | ![Activity log](docs/images/activity.png) |
+| ![Schedules: alerts on events, nightly stack backups, prune, a weekly vulnerability scan and image updates](docs/images/schedules.png) | ![Activity log: container restarts by a user and stack changes through the API](docs/images/activity.png) |
 
-Updates with a health gate, vulnerability scans, prune, backups and alerts on crashed or unhealthy containers; every
-action of a user and every API call is in the activity log.
+Updates with a health gate, vulnerability scans, prune, backups and alerts on crashed containers, restart loops or a
+host over a limit; every action of a user and every API call is in the activity log.
 
 ### Apps and environments
 
 | Apps | Environments |
 |---|---|
-| ![App templates](docs/images/apps.png) | ![Environments](docs/images/environments.png) |
+| ![The app store: templates for Gitea, Jellyfin, Nextcloud, Paperless-ngx, Uptime Kuma and Vaultwarden to install as a stack](docs/images/apps.png) | ![Environments as a list: two Docker API hosts with status, RAM/CPU/disk, containers and Docker version](docs/images/environments.png) |
 
 ### Dark theme and narrow screens
 
 | Dark | Phone | Menu |
 |---|---|---|
-| ![Dark dashboard](docs/images/dashboard-dark.png) ![Dark stacks](docs/images/stacks-dark.png) | ![Containers on a phone](docs/images/mobile-containers.png) | ![Sidebar as an overlay](docs/images/mobile-nav.png) |
+| ![Dashboard in the dark theme](docs/images/dashboard-dark.png) ![Stacks in the dark theme](docs/images/stacks-dark.png) | ![Containers on a phone: every row as a card](docs/images/mobile-containers.png) | ![The sidebar as an overlay on a phone](docs/images/mobile-nav.png) |
 
 ## Quick start
 
