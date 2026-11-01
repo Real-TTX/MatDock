@@ -120,24 +120,7 @@ public static class BackupsApi
         }
 
         var envId = env.Id;
-        var operation = operations.Start("backup", name, StacksApi.LockKey(envId, name), async ctx =>
-        {
-            var ct = ctx.CancellationToken;
-            var target = body.TargetId is { } id ? await ctx.Services.GetRequiredService<BackupTargetService>().GetAsync(id, ct) : null;
-            var environment = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(envId, ct);
-            if (environment is null)
-            {
-                return OperationOutcome.Failure("Environment not found.");
-            }
-
-            ctx.Log($"==> Bundle backup of {name} to {target?.Name ?? "Local"}{(body.StopContainers ? " (containers stopped)" : string.Empty)}");
-            var result = await ctx.Services.GetRequiredService<BundleBackupService>().CreateBundleAsync(
-                environment, name, target, body.StopContainers, StackBackupKind.Manual, body.Note, ct: ct);
-            ctx.Log(result.Message);
-            return result.Ok
-                ? OperationOutcome.Success(new { backupId = result.BackupId })
-                : OperationOutcome.Failure(result.Message, new { backupId = result.BackupId });
-        });
+        var operation = StackOperations.Backup(operations, envId, name, body.TargetId, body.StopContainers, body.Note);
 
         return ApiResults.Accepted(new { operationId = operation.Id });
     }
@@ -207,21 +190,7 @@ public static class BackupsApi
 
         var envId = env.Id;
         var backupCurrentFirst = body?.BackupCurrentFirst ?? false;
-        var operation = operations.Start("restore", record.StackName, StacksApi.LockKey(envId, record.StackName), async ctx =>
-        {
-            var ct = ctx.CancellationToken;
-            var environment = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(envId, ct);
-            if (environment is null)
-            {
-                return OperationOutcome.Failure("Environment not found.");
-            }
-
-            var (ok, message, safetyId) = await ctx.Services.GetRequiredService<BundleBackupService>()
-                .RestoreAsync(id, environment, backupCurrentFirst, ctx.Log, ct);
-            ctx.Log(message);
-            var result = new { backupId = id, safetyBackupId = safetyId };
-            return ok ? OperationOutcome.Success(result) : OperationOutcome.Failure(message, result);
-        });
+        var operation = StackOperations.Restore(operations, envId, record, backupCurrentFirst);
 
         return ApiResults.Accepted(new { operationId = operation.Id });
     }

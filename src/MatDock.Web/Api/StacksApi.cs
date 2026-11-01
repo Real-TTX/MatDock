@@ -42,7 +42,7 @@ public sealed class UpdateActionBody
 public static class StacksApi
 {
     public const int MaxManagedByLength = 100;
-    public static readonly string[] Actions = ["start", "stop", "restart", "pull", "redeploy", "update"];
+    public static readonly string[] Actions = StackOperations.Actions;
 
     private const string InvalidName = "Invalid stack name: lowercase a-z, 0-9, '_' and '-', starting with a letter or digit, at most 63 characters.";
 
@@ -58,7 +58,7 @@ public static class StacksApi
     }
 
     /// <summary>Operations on one stack never overlap (a delete waits for a running deploy).</summary>
-    public static string LockKey(long environmentId, string name) => $"stack:{environmentId}:{name}";
+    public static string LockKey(long environmentId, string name) => StackOperations.LockKey(environmentId, name);
 
     private static async Task<IResult> ListAsync(HttpContext http, string? managedBy,
         EnvironmentService environments, StackService stacks, ContainerService containers)
@@ -106,7 +106,9 @@ public static class StacksApi
         var live = await ProjectContainersAsync(containers, env, name, http.RequestAborted);
         if (stack is not null)
         {
-            return ApiResults.Ok(StackViews.ToDetail(stack, live ?? [], live is null ? StackViews.UnknownState : null));
+            // The .env holds the secrets of the stack: only a key that may change it sees it, never a read key.
+            var detail = StackViews.ToDetail(stack, live ?? [], live is null ? StackViews.UnknownState : null);
+            return ApiResults.Ok(ApiCaller.Of(http).CanWrite ? detail : detail with { EnvContent = null });
         }
 
         return live is { Count: > 0 }
@@ -154,7 +156,7 @@ public static class StacksApi
             return ApiResults.Ok(new { stack = view, created });
         }
 
-        var operation = StartDeploy(operations, env.Id, stack.Id, name, body.Pull);
+        var operation = StackOperations.Deploy(operations, env.Id, stack.Id, name, body.Pull);
         return ApiResults.Accepted(new { stack = view, created, operationId = operation.Id });
     }
 
@@ -200,17 +202,6 @@ public static class StacksApi
             return $"composeYaml is not valid YAML: {ex.Message}";
         }
     }
-
-    private static Operation StartDeploy(OperationRegistry operations, long environmentId, long stackId, string name, bool pull)
-        => operations.Start("deploy", name, LockKey(environmentId, name), async ctx =>
-        {
-            var stacks = ctx.Services.GetRequiredService<StackService>();
-            ctx.Log(pull ? "==> docker compose pull && docker compose up -d" : "==> docker compose up -d");
-            var (ok, output) = pull
-                ? await stacks.UpdateAsync(stackId, ctx.CancellationToken)
-                : await stacks.DeployAsync(stackId, ctx.CancellationToken);
-            return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"Deploy failed: {LastLine(output)}");
-        });
 
     /// <summary>Makes MatDock run another image for a service than the compose file names (the file stays as it is); takes effect with the next deploy or update.</summary>
     private static async Task<IResult> SetImageAsync(HttpContext http, string name, string service,
@@ -285,86 +276,18 @@ public static class StacksApi
                 return ApiResults.Conflict($"Stack '{name}' is not managed by MatDock; only start, stop and restart are possible.");
             }
 
-            var projectOp = operations.Start(action, name, LockKey(envId, name), async ctx =>
-            {
-                var target = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(envId, ctx.CancellationToken);
-                if (target is null)
-                {
-                    return OperationOutcome.Failure("Environment not found.");
-                }
-
-                var svc = ctx.Services.GetRequiredService<StackService>();
-                var (ok, output) = action switch
-                {
-                    "start" => await svc.ProjectStartAsync(target, name, ctx.CancellationToken),
-                    "stop" => await svc.ProjectStopAsync(target, name, ctx.CancellationToken),
-                    _ => await svc.ProjectRestartAsync(target, name, ctx.CancellationToken),
-                };
-                return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"{action} failed: {LastLine(output)}");
-            });
+            var projectOp = StackOperations.ProjectAction(operations, envId, name, action);
             return ApiResults.Accepted(new { operationId = projectOp.Id });
         }
 
         var stackId = stack.Id;
         var backupFirst = body?.BackupFirst ?? false;
         var operation = action == "update"
-            ? StartUpdate(operations, envId, stackId, name, backupFirst)
-            : operations.Start(action, name, LockKey(envId, name), async ctx =>
-            {
-                var svc = ctx.Services.GetRequiredService<StackService>();
-                var ct = ctx.CancellationToken;
-                ctx.Log(action == "redeploy" ? "==> docker compose up -d" : $"==> docker compose {action}");
-                var (ok, output) = action switch
-                {
-                    "start" => await svc.StartAsync(stackId, ct),
-                    "stop" => await svc.StopAsync(stackId, ct),
-                    "restart" => await svc.RestartAsync(stackId, ct),
-                    "pull" => await svc.PullAsync(stackId, ct),
-                    _ => await svc.DeployAsync(stackId, ct),
-                };
-                return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"{action} failed: {LastLine(output)}");
-            });
+            ? StackOperations.Update(operations, envId, stackId, name, backupFirst, trigger: "api")
+            : StackOperations.Action(operations, envId, stackId, name, action);
 
         return ApiResults.Accepted(new { operationId = operation.Id });
     }
-
-    /// <summary>
-    /// <c>update</c>: report the registry digests, then the UpdateService run (optional bundle backup, pull, re-create
-    /// only what changed). The result is <c>{"changed": bool}</c>.
-    /// </summary>
-    private static Operation StartUpdate(OperationRegistry operations, long environmentId, long stackId, string name, bool backupFirst)
-        => operations.Start("update", name, LockKey(environmentId, name), async ctx =>
-        {
-            var ct = ctx.CancellationToken;
-            var updates = ctx.Services.GetRequiredService<UpdateService>();
-            var env = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(environmentId, ct);
-            if (env is null)
-            {
-                return OperationOutcome.Failure("Environment not found.", new { changed = false });
-            }
-
-            ctx.Log("==> Checking the registries for newer images");
-            var report = await updates.CheckStackAsync(env, name, ct);
-            if (report.Error is not null)
-            {
-                ctx.Log($"    (check failed: {report.Error})");
-            }
-
-            foreach (var image in report.Images)
-            {
-                var state = image.UpdateAvailable ? "newer image available" : image.Note ?? "up to date";
-                ctx.Log($"    {image.Service}: {image.Image} ({state})");
-            }
-
-            var outcome = await updates.RunUpdateAsync(stackId, backupFirst, null, ct, ctx.Log, trigger: "api");
-            if (!outcome.Ok)
-            {
-                return OperationOutcome.Failure(LastLine(outcome.Message), new { changed = false });
-            }
-
-            ctx.Log(outcome.Changed ? "Containers were re-created with newer images." : "Nothing changed.");
-            return OperationOutcome.Success(new { changed = outcome.Changed });
-        });
 
     private static async Task<IResult> DeleteAsync(HttpContext http, string name, bool? volumes,
         EnvironmentService environments, StackService stacks, OperationRegistry operations)
@@ -386,23 +309,7 @@ public static class StacksApi
             return ApiResults.NotFound($"Stack '{name}' is not managed by MatDock.");
         }
 
-        var stackId = stack.Id;
-        var removeVolumes = volumes ?? false;
-        var operation = operations.Start("delete", name, LockKey(env.Id, name), async ctx =>
-        {
-            var svc = ctx.Services.GetRequiredService<StackService>();
-            ctx.Log(removeVolumes ? "==> docker compose down --volumes" : "==> docker compose down");
-            var (ok, output) = await svc.DownAsync(stackId, removeVolumes, ctx.CancellationToken);
-            if (!ok)
-            {
-                return OperationOutcome.Failure($"compose down failed, the stack is kept: {LastLine(output)}");
-            }
-
-            await svc.DeleteAsync(stackId, ctx.CancellationToken);
-            ctx.Log("Stack removed from MatDock.");
-            return OperationOutcome.Success(new { removed = true, volumesRemoved = removeVolumes });
-        });
-
+        var operation = StackOperations.Delete(operations, env.Id, stack.Id, name, volumes ?? false);
         return ApiResults.Accepted(new { operationId = operation.Id });
     }
 
@@ -477,9 +384,5 @@ public static class StacksApi
     }
 
     /// <summary>The last non-empty line of a command output (compose prints its error last).</summary>
-    public static string LastLine(string? output)
-    {
-        var line = (output ?? string.Empty).Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.Length > 0);
-        return line ?? "unknown error";
-    }
+    public static string LastLine(string? output) => StackOperations.LastLine(output);
 }

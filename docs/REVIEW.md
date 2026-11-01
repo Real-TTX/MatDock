@@ -282,3 +282,12 @@ rights per object, LDAP/generic OIDC, 2FA in MatDock). Image build stays open un
 | 15 | An events page (one or all environments) with filters: window, type, problems, container, text | done |
 | 16 | Selecting several items of a list for one action (containers, images, volumes, networks) | done |
 | 17 | A search of the whole app in the header bar (/ or Ctrl+K), every result on /Search | done |
+
+## 10. MCP server (November 2026)
+
+MatDock can be driven remotely by an AI client: `/mcp` (streamable HTTP, stateless, `ModelContextProtocol.AspNetCore` 2.3.0) with 45 tools over the same
+services as the pages and the REST API. The key check is the one of `/api/v1` (`ApiKeys.AuthenticateAsync`): a read key gets only the tools marked read-only
+(the list is filtered and a call of another one is refused), a full key all of them; every call of a tool that changes something is written to the activity
+log with the key's name (source `mcp`). The long actions of stacks and backups moved into `StackOperations`, shared by REST and MCP.
+
+Found on the way: `GET /api/v1/stacks/{name}` handed the `.env` of a stack (its secrets) to a read key. A read key now gets `envContent: null`, in REST and MCP.

@@ -75,7 +75,7 @@
         <div class="mat-card__head"><icon name="plus" /><h2 class="mat-card__title">New key</h2></div>
         <div class="mat-card__body">
             <form method="post" asp-page-handler="Create" class="mat-form">
-                <p class="mat-hint">For /api/v1 (<a href="/api/v1/openapi.json">description</a>) and /metrics: as the header X-Api-Key or as Authorization: Bearer.@(Model.HasEngineKey ? " The engine key of the configuration works as well." : string.Empty)</p>
+                <p class="mat-hint">For /api/v1 (<a href="/api/v1/openapi.json">description</a>), /metrics and the MCP server /mcp (an AI client such as Claude Code; a read key gets only the tools that change nothing): as the header X-Api-Key or as Authorization: Bearer.@(Model.HasEngineKey ? " The engine key of the configuration works as well." : string.Empty)</p>
                 <div class="mat-form__grid">
                     <mat-field label="Name" for-id="key-name">
                         <input id="key-name" name="name" class="mat-input" maxlength="100" required placeholder="e.g. Prometheus" autocomplete="off" />

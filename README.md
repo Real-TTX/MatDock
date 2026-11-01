@@ -102,6 +102,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   target, environment and result, searchable, kept for 90 days
 - A **search** in the header bar (`/` or `Ctrl+K`): containers, stacks, images, volumes, networks, environments and pages
 - **Metrics**: hosts and containers every 5 minutes in the database (30 days, hourly after two days), `/metrics` for Prometheus
+- **MCP server** at `/mcp`: an AI client (Claude Code, Claude Desktop) looks at and runs the hosts with an API key; a read key gets only the tools that change nothing (see [MCP](#mcp-matdock-for-an-ai-client))
 - **Backup of MatDock itself** (System → MatDock backup): the database and the keys in one file encrypted with a passphrase
   (AES-256-GCM), as a download or a schedule; a restore takes its place at the next start and keeps what it replaced
 
@@ -368,6 +369,35 @@ answers the last reading of the sampler (every 5 minutes): `matdock_environment_
 
 **Redeploy webhook:** `POST /webhooks/stacks/{token}` (switched on per stack on its Updates page; the address is the secret)
 pulls and redeploys the stack with the backup and the health check of its update rule.
+
+## MCP: MatDock for an AI client
+
+MatDock is an **MCP server** at `/mcp` (streamable HTTP, stateless), so an AI client such as Claude Code or Claude Desktop can look at and run
+your Docker hosts with the same keys as the API. Make a key under System → API keys (*Read* for looking only, *Everything* to act), then:
+
+```bash
+claude mcp add --transport http matdock https://matdock.example.com/mcp --header "Authorization: Bearer mdk_…"
+```
+
+- **Rights:** a *Read* key sees and calls only the tools that change nothing; a call of another one is refused. The engine key `MatDock__Api__Key`
+  works as a full key. Without a key `/mcp` answers `401`.
+- **Audit:** every call of a tool that changes something is in the activity log (System → Activity, marked *MCP*) with the key's name, its target,
+  environment and result.
+- **Environment:** every tool that works on a host takes `environment` (id or name); with only one enabled environment it may be left out, with
+  several it has to be named, so nothing lands on the wrong host.
+- **Long actions** (deploy, stack actions, backups, restores) wait up to `waitSeconds` (default 120) and answer the output; one that still runs
+  answers an operation id for `get_operation`.
+- **Secrets:** environment variables of containers are masked as on the pages; the `.env` of a stack reaches only a full key (the REST API
+  `GET /api/v1/stacks/{name}` keeps it from a read key too).
+- Serve it over **HTTPS** (a reverse proxy): the key travels in a header.
+
+| Tools that read | Tools that change |
+|---|---|
+| `get_status`, `get_engine_info`, `list_events`, `get_metrics`, `test_environment` | `set_environment_enabled`, `cleanup_engine` (never volumes) |
+| `list_containers`, `inspect_container`, `container_logs`, `container_processes` | `container_action` (start, stop, restart, pause, unpause, kill), `remove_container`, `run_container`, `update_container`, `recreate_container`, `exec_in_container` |
+| `list_images`, `list_volumes`, `list_networks` | `pull_image`, `remove_image`, `create_volume`, `remove_volume` (not while in use), `create_network`, `remove_network`, `connect_network` |
+| `list_stacks`, `get_stack`, `stack_logs`, `check_stack_updates` | `deploy_stack`, `stack_action` (start, stop, restart, pull, redeploy, update), `stack_service_action` (incl. scale), `set_stack_image`, `remove_stack` |
+| `get_operation`, `list_backups`, `list_schedules`, `list_update_rules`, `list_activity` | `backup_stack`, `restore_backup`, `run_schedule`, `set_update_rule` |
 
 ## Platform API and sign-in through MatIdentity
 

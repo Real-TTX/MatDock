@@ -3,6 +3,7 @@ using MatDock.Core.Configuration;
 using MatDock.Core.Data;
 using MatDock.Core.Entities;
 using MatDock.Web.Api;
+using MatDock.Web.Mcp;
 using MatDock.Web.Infrastructure;
 using MatDock.Web.Platform;
 using MatPlatform;
@@ -79,6 +80,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddScoped<MatDock.Web.Search.GlobalSearch>();
+// MatDock as an MCP server (/mcp) for an AI client, with the keys of the API (a read key sees only the tools that change nothing).
+builder.Services.AddMatDockMcp();
 // The description of the machine API (/api/v1 only, not the platform endpoints or the pages).
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -296,6 +299,8 @@ app.MapPost("/webhooks/stacks/{token}", MatDock.Web.Sync.WebhookStackEndpoint.Ha
 // Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
 // (MatDock__Api__Key) is the guard; without a configured key every call answers 503.
 app.MapMatDockApi();
+// The MCP server: every request needs a key (Authorization: Bearer or X-Api-Key), checked before the endpoint.
+app.MapMatDockMcp();
 // What /api/v1 offers, for a client generator or a person: open, it holds no data.
 app.MapOpenApi("/api/v1/openapi.json").AllowAnonymous();
 

@@ -95,6 +95,26 @@ public static partial class ContainerCommands
     public static string Top(string dockerHead, string id)
         => VolumeCommands.PathPrefix + $"{dockerHead} top '{Checked(id)}' 2>&1";
 
+    /// <summary>
+    /// A command in a running container without a terminal (<c>docker exec … sh -c</c>), its output and errors together. The command is one quoted argument of
+    /// the shell inside the container; <paramref name="user"/> runs it as another user (a name or <c>uid[:gid]</c>).
+    /// </summary>
+    public static string Exec(string dockerHead, string id, string command, string? user = null)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            throw new ArgumentException("A command is required.", nameof(command));
+        }
+
+        var asUser = string.IsNullOrWhiteSpace(user) ? string.Empty
+            : UserRegex().IsMatch(user.Trim()) ? " --user " + VolumeFileCommands.ShellQuote(user.Trim())
+            : throw new ArgumentException($"Invalid user: '{user}'.", nameof(user));
+        return VolumeCommands.PathPrefix + $"{dockerHead} exec{asUser} '{Checked(id)}' sh -c {VolumeFileCommands.ShellQuote(command)} 2>&1";
+    }
+
+    [GeneratedRegex(@"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}(:[A-Za-z0-9_][A-Za-z0-9_.-]{0,31})?\z")]
+    private static partial Regex UserRegex();
+
     /// <summary>Removes a container; <paramref name="force"/> stops a running one first, <paramref name="volumes"/> also removes its anonymous volumes
     /// (named volumes are never removed by Docker here).</summary>
     public static string Remove(string dockerHead, string id, bool force, bool volumes)

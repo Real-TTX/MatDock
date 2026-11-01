@@ -6,9 +6,21 @@ using Microsoft.Extensions.Options;
 
 namespace MatDock.Web.Api;
 
+/// <summary>Who called with a key: its name (null = the engine key) and whether it may change anything. Kept in <c>HttpContext.Items</c> for the request.</summary>
+public sealed record ApiCaller(string? KeyName, bool CanWrite)
+{
+    public const string ItemKey = "matdock.api-caller";
+
+    /// <summary>The caller of this request; a request no key let in may only read (a fallback that never widens anything).</summary>
+    public static ApiCaller Of(HttpContext http) => http.Items[ItemKey] as ApiCaller ?? new ApiCaller(null, false);
+
+    /// <summary>How the activity log names it.</summary>
+    public string Actor => KeyName is null ? "API" : $"API key {KeyName}";
+}
+
 /// <summary>
-/// The key of a machine caller: the header <c>X-Api-Key</c>, or a bearer token (<c>Authorization: Bearer …</c>, what a Prometheus scrape job sends).
-/// The engine key (<c>MatDock__Api__Key</c>) may do everything; a named key (System → API keys) everything or only read.
+/// The key of a machine caller: the header <c>X-Api-Key</c>, or a bearer token (<c>Authorization: Bearer …</c>, what a Prometheus scrape job or an MCP
+/// client sends). The engine key (<c>MatDock__Api__Key</c>) may do everything; a named key (System → API keys) everything or only read.
 /// </summary>
 public static class ApiKeys
 {
@@ -29,36 +41,52 @@ public static class ApiKeys
     }
 
     /// <summary>
-    /// The answer for a request without a fitting key (<paramref name="write"/>: one that changes something), or null when it may pass: 503 when no key
-    /// exists at all, 401 for a wrong or missing one, 403 for a key that may only read. A key that passes stands for the system: a session cookie that
-    /// came along plays no role (its user's limits do not apply); a named key gives the audit its name.
+    /// The caller of a request, or the answer for one without a fitting key: 503 when no key exists at all, 401 for a wrong or missing one. A key that
+    /// passes stands for the system: a session cookie that came along plays no role (its user's limits do not apply); a named key gives the audit its name.
+    /// The caller is kept for the request (<see cref="ApiCaller.Of"/>).
     /// </summary>
-    public static async Task<IResult?> CheckAsync(HttpContext http, bool write)
+    public static async Task<(ApiCaller? Caller, IResult? Denied)> AuthenticateAsync(HttpContext http)
     {
         var configured = http.RequestServices.GetRequiredService<IOptions<MatDockOptions>>().Value.Api.Key;
         var presented = Presented(http.Request);
+        ApiCaller? caller = null;
         if (!string.IsNullOrWhiteSpace(configured) && !string.IsNullOrWhiteSpace(presented) && ApiKeyFilter.KeysMatch(configured.Trim(), presented))
         {
+            caller = new ApiCaller(null, true);
             http.User = new ClaimsPrincipal(new ClaimsIdentity());
-            return null;
         }
 
         // Without the service (a host that has no database) there are no named keys.
         var keys = http.RequestServices.GetService<ApiKeyService>();
-        if (keys is not null && await keys.FindAsync(presented, http.RequestAborted) is { } key)
+        if (caller is null && keys is not null && await keys.FindAsync(presented, http.RequestAborted) is { } key)
         {
-            if (write && key.Scope != ApiKeyScope.Full)
-            {
-                return ApiResults.Error(StatusCodes.Status403Forbidden, $"The key '{key.Name}' may only read.");
-            }
-
-            http.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, $"API key {key.Name}")], Scheme));
-            return null;
+            caller = new ApiCaller(key.Name, key.Scope == ApiKeyScope.Full);
+            http.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, caller.Actor)], Scheme));
         }
 
-        return string.IsNullOrWhiteSpace(configured) && (keys is null || !await keys.AnyAsync(http.RequestAborted))
+        if (caller is not null)
+        {
+            http.Items[ApiCaller.ItemKey] = caller;
+            return (caller, null);
+        }
+
+        return (null, string.IsNullOrWhiteSpace(configured) && (keys is null || !await keys.AnyAsync(http.RequestAborted))
             ? ApiKeyFilter.Disabled()
-            : ApiKeyFilter.Unauthorized();
+            : ApiKeyFilter.Unauthorized());
+    }
+
+    /// <summary>The answer for a request without a fitting key (<paramref name="write"/>: one that changes something; 403 for a read key), or null when it may pass.</summary>
+    public static async Task<IResult?> CheckAsync(HttpContext http, bool write)
+    {
+        var (caller, denied) = await AuthenticateAsync(http);
+        if (denied is not null)
+        {
+            return denied;
+        }
+
+        return write && !caller!.CanWrite
+            ? ApiResults.Error(StatusCodes.Status403Forbidden, $"The key '{caller.KeyName}' may only read.")
+            : null;
     }
 
     /// <summary>A request that changes something (everything but GET and HEAD).</summary>
