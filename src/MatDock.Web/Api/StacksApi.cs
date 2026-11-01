@@ -156,7 +156,7 @@ public static class StacksApi
             return ApiResults.Ok(new { stack = view, created });
         }
 
-        var operation = StackOperations.Deploy(operations, env.Id, stack.Id, name, body.Pull);
+        var operation = StackOperations.Deploy(operations, env.Id, stack.Id, name, new DeployRequest(Trigger: DeployTrigger.Api, Actor: ApiCaller.Of(http).Actor), body.Pull);
         return ApiResults.Accepted(new { stack = view, created, operationId = operation.Id });
     }
 
@@ -284,7 +284,7 @@ public static class StacksApi
         var backupFirst = body?.BackupFirst ?? false;
         var operation = action == "update"
             ? StackOperations.Update(operations, envId, stackId, name, backupFirst, trigger: "api")
-            : StackOperations.Action(operations, envId, stackId, name, action);
+            : StackOperations.Action(operations, envId, stackId, name, action, new DeployRequest(Trigger: DeployTrigger.Api, Actor: ApiCaller.Of(http).Actor));
 
         return ApiResults.Accepted(new { operationId = operation.Id });
     }

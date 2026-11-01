@@ -43,6 +43,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
     public DbSet<StackUpdateRun> StackUpdateRuns => Set<StackUpdateRun>();
+    public DbSet<StackDeployment> StackDeployments => Set<StackDeployment>();
     public DbSet<UpdatePolicy> UpdatePolicies => Set<UpdatePolicy>();
     public DbSet<UpdateNotice> UpdateNotices => Set<UpdateNotice>();
 
@@ -164,6 +165,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.ManagedBy).HasMaxLength(100);
             e.Property(x => x.PinnedServices).HasMaxLength(1000);
             e.Property(x => x.WebhookToken).HasMaxLength(100);
+            e.Property(x => x.DeployOptionsJson).HasMaxLength(500);
             e.HasIndex(x => x.WebhookToken);
             e.HasIndex(x => x.SyncJobId);
             e.Ignore(x => x.IsGitBacked);
@@ -350,6 +352,20 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Outcome).HasConversion<int>();
             e.Property(x => x.Message).HasMaxLength(1000);
             e.HasIndex(x => new { x.StackId, x.CreateDate });
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<StackDeployment>(e =>
+        {
+            e.ToTable("StackDeployment");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.StackName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Trigger).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Actor).HasMaxLength(200);
+            e.Property(x => x.Options).HasMaxLength(200);
+            e.Property(x => x.CommitSha).HasMaxLength(64);
+            e.Property(x => x.Summary).HasMaxLength(500);
+            e.HasIndex(x => new { x.StackId, x.StartedAt });
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

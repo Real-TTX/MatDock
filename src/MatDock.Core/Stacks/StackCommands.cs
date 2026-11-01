@@ -85,28 +85,42 @@ public static partial class StackCommands
     /// <summary>
     /// Writes the stack's files from stdin (<see cref="FilesOnStdin"/>) and runs <c>compose up -d</c>. Output merged (2&gt;&amp;1).
     /// </summary>
-    public static string Deploy(string dockerHead, string name)
-    {
-        Require(name);
-        // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
-        // single quotes, so it reaches the remote sh verbatim. The files arrive on stdin.
-        var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
-                   + WriteFiles + "cd \"$dir\"; " + InlineFiles + dockerHead + " compose -p \"$name\" $cf up -d";
-        return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
-    }
+    public static string Deploy(string dockerHead, string name) => Deploy(dockerHead, name, DeployOptions.None);
 
     /// <summary>
     /// Writes the stack's files from stdin, pulls newer images (not those of <paramref name="pinned"/> services), then runs
     /// <c>compose up -d</c>, which leaves a service alone whose image did not change.
     /// </summary>
     public static string Update(string dockerHead, string name, IReadOnlyCollection<string>? pinned = null)
+        => Deploy(dockerHead, name, new DeployOptions { Pull = true }, pinned);
+
+    /// <summary>
+    /// Writes the stack's files from stdin (<see cref="FilesOnStdin"/>), then with <paramref name="options"/>: pulls (not the <paramref name="pinned"/>
+    /// services), builds, and runs <c>compose up -d</c> with its flags. Output merged (2&gt;&amp;1).
+    /// </summary>
+    public static string Deploy(string dockerHead, string name, DeployOptions options, IReadOnlyCollection<string>? pinned = null)
     {
         Require(name);
+        // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
+        // single quotes, so it reaches the remote sh verbatim. The files arrive on stdin.
+        const string args = "-p \"$name\" $cf";
         var script = "set -e; name=" + name + "; dir=\"" + StacksDir + "/$name\"; mkdir -p \"$dir\"; "
                    + WriteFiles + "cd \"$dir\"; " + InlineFiles
-                   + PullStep(dockerHead, "-p \"$name\" $cf", pinned) + dockerHead + " compose -p \"$name\" $cf up -d";
+                   + (options.Pull ? PullStep(dockerHead, args, pinned) : string.Empty)
+                   + BuildStep(dockerHead, args, options)
+                   + dockerHead + " compose " + args + Up(options);
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
+
+    /// <summary><c>compose build</c> when the options ask for it (with <c>--pull</c>, <c>--no-cache</c>), nothing otherwise.</summary>
+    private static string BuildStep(string dockerHead, string composeArgs, DeployOptions options)
+        => options.Builds
+            ? dockerHead + " compose " + composeArgs + " build" + (options.PullBase ? " --pull" : string.Empty) + (options.NoCache ? " --no-cache" : string.Empty) + "; "
+            : string.Empty;
+
+    /// <summary><c> up -d</c> with the flags of the options.</summary>
+    private static string Up(DeployOptions options)
+        => " up -d" + (options.ForceRecreate ? " --force-recreate" : string.Empty) + (options.RemoveOrphans ? " --remove-orphans" : string.Empty);
 
     // A compose service name: what compose accepts for a key, kept to a safe set (no quotes, spaces or shell characters).
     [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}\z")]
@@ -320,15 +334,20 @@ public static partial class StackCommands
     /// all shell-quoted args, not embedded.
     /// </summary>
     public static string GitSync(string dockerHead, string name, string composePath, bool pull = false, IReadOnlyCollection<string>? pinned = null, string? overrideYaml = null)
+        => GitSync(dockerHead, name, composePath, new DeployOptions { Pull = pull }, pinned, overrideYaml);
+
+    /// <summary>The Git deploy with the deploy options: pull (not the <paramref name="pinned"/> services), build and the flags of <c>up</c>.</summary>
+    public static string GitSync(string dockerHead, string name, string composePath, DeployOptions options, IReadOnlyCollection<string>? pinned = null, string? overrideYaml = null)
     {
         Require(name);
+        const string args = "-p \"$1\" -f \"$2\" $ov";
         // Optionally pull first so :latest images are refreshed before the (idempotent) up -d; pinned services are not pulled.
-        var pullStep = pull ? PullStep(dockerHead, "-p \"$1\" -f \"$2\" $ov", pinned) : string.Empty;
+        var steps = (options.Pull ? PullStep(dockerHead, args, pinned) : string.Empty) + BuildStep(dockerHead, args, options);
         var script = "set -e; dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
                    + "tar -C \"$dir\" -xf -; cd \"$dir\"; "
                    + "if [ -n \"$3\" ]; then printf %s \"$3\" | base64 -d > \"" + ImageOverrides.FileName + "\"; else rm -f \"" + ImageOverrides.FileName + "\"; fi; "
-                   + OverrideFile + pullStep
-                   + dockerHead + " compose -p \"$1\" -f \"$2\" $ov up -d";
+                   + OverrideFile + steps
+                   + dockerHead + " compose " + args + Up(options);
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
              + " " + VolumeFileCommands.ShellQuote(ImageOverrides.Base64Of(overrideYaml)) + " 2>&1";

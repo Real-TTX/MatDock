@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Backups.BackupTargetService>();
         services.AddScoped<Backups.BundleBackupService>();
         services.AddScoped<Containers.ContainerService>();
+        services.AddScoped<Stacks.DeploymentHistory>();
         services.AddScoped<Stacks.StackService>();
         services.AddScoped<Templates.StackTemplateService>();
         services.AddScoped<Git.GitCredentialService>();

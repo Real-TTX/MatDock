@@ -160,7 +160,8 @@ public sealed class SyncJobRunner
                     continue;
                 }
 
-                var (deployOk, output) = await _stacks.DeployFromWorkDirAsync(stack!, scan.WorkDir, job.PullImages, ct);
+                var request = new DeployRequest(DeployOptions.FromJson(stack!.DeployOptionsJson).Union(new DeployOptions { Pull = job.PullImages }), DeployTrigger.Sync, $"Sync job {job.Name}");
+                var (deployOk, output) = await _stacks.DeployFromWorkDirAsync(stack!, scan.WorkDir, request, scan.CommitSha, ct);
                 item.StackId = stack!.Id;
                 item.LastStatus = deployOk ? "Deployed" : Trunc(output);
                 if (deployOk)

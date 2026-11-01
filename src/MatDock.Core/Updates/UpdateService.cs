@@ -248,7 +248,7 @@ public sealed class UpdateService
     /// <param name="trigger">Who started it, for the history: "manual", "schedule" or "api".</param>
     public async Task<StackUpdateOutcome> RunUpdateAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null, string trigger = "manual")
     {
-        var trace = new RunTrace();
+        var trace = new RunTrace { Trigger = trigger };
         var outcome = await RunUpdateCoreAsync(stackId, preBackup, safety, ct, log, trace);
         await RecordRunAsync(stackId, trigger, outcome, trace);
         return outcome;
@@ -262,6 +262,9 @@ public sealed class UpdateService
         public IReadOnlyList<(string Service, string Reference, string ImageId)>? Before { get; set; }
         public IReadOnlyList<(string Service, string Reference, string ImageId)>? After { get; set; }
         public bool RolledBack { get; set; }
+
+        /// <summary>What started the run (manual, schedule, api, webhook), for the deploy history.</summary>
+        public string Trigger { get; set; } = "manual";
     }
 
     private async Task<StackUpdateOutcome> RunUpdateCoreAsync(long stackId, bool preBackup, UpdateSafety? safety, CancellationToken ct, Action<string>? log, RunTrace trace)
@@ -300,7 +303,7 @@ public sealed class UpdateService
         var kept = safety is { Rollback: true } ? await KeepImagesAsync(env, stack.Name, ct) : null;
         log?.Invoke("==> docker compose pull && docker compose up -d");
         var before = await ContainerIdsAsync(env, stack.Name, ct);
-        var (ok, output) = await _stacks.UpdateAsync(stackId, ct);
+        var (ok, output) = await _stacks.UpdateAsync(stackId, new DeployRequest(Trigger: DeployTrigger.Update, Actor: DeployTrigger.Label(trace.Trigger)), ct);
         if (!ok)
         {
             await ForgetKeptAsync(env, kept, ct);
@@ -464,7 +467,8 @@ public sealed class UpdateService
             }
         }
 
-        var (deployed, output) = await _stacks.DeployAsync(stackId, ct);
+        // The images kept from before the update, as they are: no pull, no build.
+        var (deployed, output) = await _stacks.DeployAsync(stackId, new DeployRequest(DeployOptions.None, DeployTrigger.Rollback, DeployTrigger.Label(trace.Trigger)), ct);
         return deployed && errors.Count == 0
             ? "Rolled back to the images from before the update."
             : $"The rollback did not complete: {string.Join("; ", errors.Append(deployed ? string.Empty : output.Trim()).Where(e => e.Length > 0))}";

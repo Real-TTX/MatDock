@@ -5,6 +5,16 @@
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
 }
 
+@if (Model.IsEdit)
+{
+    <partial name="_StackTabs" model="Model.Input.Id!.Value" />
+}
+
+@if (Model.Console is not null)
+{
+    <partial name="_OperationConsole" model="Model.Console" />
+}
+
 @if (!string.IsNullOrEmpty(Model.FromTemplateName))
 {
     <div class="mat-alert mat-alert--info">
@@ -161,6 +171,19 @@
                 </div>
             </div>
 
+            <details class="md-deploy-options" open="@(Model.Input.Options.IsNone ? null : "open")">
+                <summary><icon name="sliders" /><span>Deploy options</span>@if (!Model.Input.Options.IsNone) { <span class="mat-muted">@Model.Input.Options.Describe()</span> }</summary>
+                <div class="mat-checks">
+                    <label class="mat-check"><input asp-for="Input.OptPull" type="checkbox" /><span>Pull images first</span></label>
+                    <label class="mat-check"><input asp-for="Input.OptBuild" type="checkbox" /><span>Build images (services with <code>build:</code>)</span></label>
+                    <label class="mat-check"><input asp-for="Input.OptPullBase" type="checkbox" /><span>Pull newer base images when building</span></label>
+                    <label class="mat-check"><input asp-for="Input.OptNoCache" type="checkbox" /><span>Build without the cache</span></label>
+                    <label class="mat-check"><input asp-for="Input.OptForceRecreate" type="checkbox" /><span>Re-create all containers</span></label>
+                    <label class="mat-check"><input asp-for="Input.OptRemoveOrphans" type="checkbox" /><span>Remove containers of services no longer in the file</span></label>
+                </div>
+                <p class="mat-hint">Saved with the stack: the list, webhook, Git sync and schedules deploy with them too.</p>
+            </details>
+
             <mat-form-buttons>
                 <button type="submit" asp-page-handler="SaveDeploy" class="mat-btn mat-btn--primary"><icon name="check-circle" /><span>Save &amp; Deploy</span></button>
                 <button type="submit" asp-page-handler="Save" class="mat-btn mat-btn--secondary"><icon name="save" /><span>Save</span></button>
@@ -182,4 +205,8 @@
 
 @section Scripts {
     <script src="~/js/stack-forms.js" asp-append-version="true"></script>
+    @if (Model.Console is not null)
+    {
+        <script src="~/js/console.js" asp-append-version="true"></script>
+    }
 }

@@ -1,0 +1,34 @@
+@model MatDock.Web.Support.OperationConsoleModel
+@{
+    var op = Model.Operation;
+    var running = !op.IsFinished;
+    var state = running ? "Running…" : op.Error is null ? "Done" : "Failed";
+}
+<section class="mat-card md-log md-console" id="console" data-console="@MatDock.Web.Support.OperationConsoleEndpoint.Path/@op.Id"
+         data-console-running="@(running ? "true" : "false")" data-console-file="@Model.FileName" aria-label="@Model.Title">
+    <div class="mat-card__head">
+        <icon name="terminal" />
+        <h2 class="mat-card__title">@Model.Title</h2>
+        <span class="mat-pill @(running ? "mat-pill--busy" : op.Error is null ? "mat-pill--ok" : "mat-pill--error")" data-console-state role="status">@state</span>
+    </div>
+    <div class="mat-card__body mat-stack">
+        @if (op.Error is not null)
+        {
+            <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
+        }
+        <div class="mat-toolbar" role="toolbar" aria-label="Console tools">
+            <div class="mat-input-icon md-log__search">
+                <icon name="search" />
+                <input type="search" class="mat-input mat-input--sm" data-console-search placeholder="Search…" aria-label="Search the output" autocomplete="off" />
+            </div>
+            <span class="mat-toolbar__info md-log__matches" data-console-matches aria-live="polite"></span>
+            <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-console-prev title="Previous match" aria-label="Previous match"><icon name="chevron-up" /></button>
+            <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-console-next title="Next match" aria-label="Next match"><icon name="chevron-down" /></button>
+            <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm is-active" data-console-follow aria-pressed="true" title="Scroll to the newest line"><icon name="arrow-down" /><span>Follow</span></button>
+            <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-console-wrap aria-pressed="false" title="Wrap long lines"><icon name="menu" /><span>Wrap</span></button>
+            <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-console-copy title="Copy" aria-label="Copy the output"><icon name="copy" /></button>
+            <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-console-download title="Download" aria-label="Download the output"><icon name="download" /></button>
+        </div>
+        <div class="md-log__pane md-console__pane" data-console-pane><div class="md-log__lines" data-console-lines></div></div>
+    </div>
+</section>

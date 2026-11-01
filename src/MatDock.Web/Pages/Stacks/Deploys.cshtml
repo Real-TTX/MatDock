@@ -1,0 +1,73 @@
+@page
+@model MatDock.Web.Pages.Stacks.DeploysModel
+@using MatDock.Core.Stacks
+@{
+    ViewData["Title"] = "Deploys";
+    ViewData["Heading"] = $"Deploys · {Model.Stack!.Name}";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
+}
+
+<partial name="_StackTabs" model="Model.Stack.Id" />
+
+@if (Model.Deploys.Count == 0)
+{
+    <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="rocket" /></div><p class="mat-empty__title">No deploys yet</p></div>
+}
+else
+{
+    <div class="mat-grid mat-grid--3">
+        <div class="mat-card md-stat"><span class="md-stat__icon"><icon name="rocket" /></span><span class="mat-stat"><span class="mat-stat__value">@Model.Deploys.Count</span><span class="mat-stat__label">Deploys</span></span></div>
+        <div class="mat-card md-stat"><span class="md-stat__icon md-stat__icon--ok"><icon name="check-circle" /></span><span class="mat-stat"><span class="mat-stat__value">@Model.Succeeded</span><span class="mat-stat__label">Succeeded</span></span></div>
+        <div class="mat-card md-stat"><span class="md-stat__icon @(Model.Failed > 0 ? "md-stat__icon--warn" : null)"><icon name="x-circle" /></span><span class="mat-stat"><span class="mat-stat__value">@Model.Failed</span><span class="mat-stat__label">Failed</span></span></div>
+    </div>
+
+    @if (Model.Shown is { } shown)
+    {
+        <section class="mat-card" id="log">
+            <div class="mat-card__head">
+                <icon name="terminal" />
+                <h2 class="mat-card__title">@shown.StartedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</h2>
+                <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="?id=@Model.Stack.Id" title="Close" aria-label="Close the log"><icon name="x" /></a>
+            </div>
+            <div class="mat-card__body">
+                <pre class="mat-code md-output md-output--tall">@(string.IsNullOrEmpty(shown.Log) ? "(no output)" : shown.Log)</pre>
+            </div>
+        </section>
+    }
+
+    <mat-table>
+        <mat-table-body>
+            <div class="mat-table-wrap">
+                <table class="mat-table">
+                    <thead><tr><th>Status</th><th>Started</th><th>Duration</th><th>Trigger</th><th>By</th><th>Options</th><th>Commit</th><th>Result</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr></thead>
+                    <tbody>
+                        @foreach (var d in Model.Deploys)
+                        {
+                            var (tone, label) = d.Ok switch
+                            {
+                                true => ("mat-pill--ok", "Done"),
+                                false => ("mat-pill--error", "Failed"),
+                                _ => d.FinishedAt is null && d.StartedAt > DateTime.UtcNow.AddHours(-2) ? ("mat-pill--busy", "Running") : ("mat-pill--plain", "Unknown"),
+                            };
+                            <tr class="@(Model.Shown?.Id == d.Id ? "is-selected" : null)">
+                                <td data-label="Status"><span class="mat-pill @tone">@label</span></td>
+                                <td data-label="Started" class="mat-nowrap">@d.StartedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                <td data-label="Duration" class="mat-nowrap">@DeploysModel.Duration(d)</td>
+                                <td data-label="Trigger">@DeployTrigger.Label(d.Trigger)</td>
+                                <td data-label="By">@(d.Actor ?? "–")</td>
+                                <td data-label="Options" class="mat-muted">@(string.IsNullOrEmpty(d.Options) ? "–" : d.Options)</td>
+                                <td data-label="Commit" class="mat-mono">@(string.IsNullOrEmpty(d.CommitSha) ? "–" : d.CommitSha[..Math.Min(8, d.CommitSha.Length)])</td>
+                                <td data-label="Result" title="@d.Summary">@(d.Summary is { Length: > 90 } s ? s[..89] + "…" : d.Summary ?? "–")</td>
+                                <td class="mat-table__cell-actions">
+                                    <div class="mat-table__actions">
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="?id=@Model.Stack.Id&show=@d.Id#log" title="Log" aria-label="Show the log"><icon name="file-text" /></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </mat-table-body>
+    </mat-table>
+}

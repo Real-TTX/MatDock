@@ -905,6 +905,10 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("CreateUserId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("DeployOptionsJson")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EnvContent")
                         .HasColumnType("TEXT");
 
@@ -1058,6 +1062,78 @@ namespace MatDock.Core.Data.Migrations
                     b.HasIndex("EnvironmentId", "StackName");
 
                     b.ToTable("StackBackup", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.StackDeployment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Actor")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommitSha")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EnvironmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Log")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("Ok")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Options")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("StackId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StackName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StackId", "StartedAt");
+
+                    b.ToTable("StackDeployment", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.StackTemplate", b =>

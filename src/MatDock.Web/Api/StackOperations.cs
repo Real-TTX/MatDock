@@ -19,15 +19,22 @@ public static class StackOperations
     /// <summary>A delete waits for a running deploy of the same stack, and so on.</summary>
     public static string LockKey(long environmentId, string name) => $"stack:{environmentId}:{name}";
 
-    /// <summary><c>docker compose up -d</c> (with <paramref name="pull"/>: pull first).</summary>
+    /// <summary><c>docker compose up -d</c> (with <paramref name="pull"/>: pull first), recorded as started by the API.</summary>
     public static Operation Deploy(OperationRegistry operations, long environmentId, long stackId, string name, bool pull)
+        => Deploy(operations, environmentId, stackId, name, new DeployRequest(Trigger: DeployTrigger.Api), pull);
+
+    /// <summary>
+    /// A deploy of a managed stack as an operation: with <paramref name="update"/> a pull and <c>up -d</c> (plus the options the request names), else
+    /// <c>up -d</c> with the options of the request (null = the stack's own). Its trigger and actor go into the deploy history.
+    /// </summary>
+    public static Operation Deploy(OperationRegistry operations, long environmentId, long stackId, string name, DeployRequest request, bool update = false)
         => operations.Start("deploy", name, LockKey(environmentId, name), async ctx =>
         {
             var stacks = ctx.Services.GetRequiredService<StackService>();
-            ctx.Log(pull ? "==> docker compose pull && docker compose up -d" : "==> docker compose up -d");
-            var (ok, output) = pull
-                ? await stacks.UpdateAsync(stackId, ctx.CancellationToken)
-                : await stacks.DeployAsync(stackId, ctx.CancellationToken);
+            ctx.Log(update ? $"==> Updating {name}: docker compose pull && docker compose up -d" : $"==> Deploying {name}");
+            var (ok, output) = update
+                ? await stacks.UpdateAsync(stackId, request, ctx.CancellationToken)
+                : await stacks.DeployAsync(stackId, request, ctx.CancellationToken);
             return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"Deploy failed: {LastLine(output)}");
         });
 
@@ -70,7 +77,7 @@ public static class StackOperations
         });
 
     /// <summary>start, stop, restart, pull or redeploy of a managed stack (update has its own, <see cref="Update"/>).</summary>
-    public static Operation Action(OperationRegistry operations, long environmentId, long stackId, string name, string action)
+    public static Operation Action(OperationRegistry operations, long environmentId, long stackId, string name, string action, DeployRequest? request = null)
         => operations.Start(action, name, LockKey(environmentId, name), async ctx =>
         {
             var svc = ctx.Services.GetRequiredService<StackService>();
@@ -82,7 +89,7 @@ public static class StackOperations
                 "stop" => await svc.StopAsync(stackId, ct),
                 "restart" => await svc.RestartAsync(stackId, ct),
                 "pull" => await svc.PullAsync(stackId, ct),
-                _ => await svc.DeployAsync(stackId, ct),
+                _ => await svc.DeployAsync(stackId, request ?? new DeployRequest(Trigger: DeployTrigger.Api), ct),
             };
             return ok ? OperationOutcome.Success() : OperationOutcome.Failure($"{action} failed: {LastLine(output)}");
         });

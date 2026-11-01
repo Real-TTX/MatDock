@@ -86,7 +86,7 @@ public static class StackTools
     }
 
     [McpServerTool(Name = "deploy_stack", ReadOnly = false), Description("Creates or changes a managed stack from a compose file (and an optional .env) and deploys it (docker compose up -d; with pull the images are pulled first). deploy=false only saves it. A stack that comes from Git cannot be changed this way.")]
-    public static async Task<object> DeployStack(EnvironmentService environments, StackService stacks, OperationRegistry operations,
+    public static async Task<object> DeployStack(EnvironmentService environments, StackService stacks, OperationRegistry operations, IHttpContextAccessor http,
         [Description(StackHelp)] string name,
         [Description("The compose file (YAML).")] string composeYaml,
         [Description(EnvironmentHelp)] string? environment = null,
@@ -114,12 +114,12 @@ public static class StackTools
             return new { stack = name, created, deployed = false, message };
         }
 
-        var operation = StackOperations.Deploy(operations, env.Id, stack.Id, name, pull);
+        var operation = StackOperations.Deploy(operations, env.Id, stack.Id, name, new DeployRequest(Trigger: DeployTrigger.Mcp, Actor: McpScope.Caller(http).Actor), pull);
         return new { stack = name, created, deploy = await McpScope.WaitAsync(operations, operation, waitSeconds, ct) };
     }
 
     [McpServerTool(Name = "stack_action", ReadOnly = false), Description("start, stop, restart, pull, redeploy or update a stack. update asks the registries, pulls and re-creates only what changed (optionally after a bundle backup), with the health check and rollback of its update rule. A stack MatDock does not manage can only be started, stopped and restarted.")]
-    public static async Task<object> StackAction(EnvironmentService environments, StackService stacks, ContainerService containers, OperationRegistry operations,
+    public static async Task<object> StackAction(EnvironmentService environments, StackService stacks, ContainerService containers, OperationRegistry operations, IHttpContextAccessor http,
         [Description(StackHelp)] string name,
         [Description("start, stop, restart, pull, redeploy or update.")] string action,
         [Description(EnvironmentHelp)] string? environment = null,
@@ -154,7 +154,7 @@ public static class StackTools
         {
             operation = action == "update"
                 ? StackOperations.Update(operations, env.Id, stack.Id, name, backupFirst, trigger: "mcp")
-                : StackOperations.Action(operations, env.Id, stack.Id, name, action);
+                : StackOperations.Action(operations, env.Id, stack.Id, name, action, new DeployRequest(Trigger: DeployTrigger.Mcp, Actor: McpScope.Caller(http).Actor));
         }
 
         return await McpScope.WaitAsync(operations, operation, waitSeconds, ct);

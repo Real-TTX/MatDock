@@ -351,7 +351,7 @@ public sealed class BundleBackupService
                 await _stackService.RestoreImageOverridesAsync(stackId, manifest.ImageOverrides, ct);
             }
 
-            var (dok, dout) = await _stackService.DeployAsync(stackId, ct);
+            var (dok, dout) = await _stackService.DeployAsync(stackId, new DeployRequest(Trigger: DeployTrigger.Restore), ct);
             deployOk = dok;
             deployMsg = dok ? "stack deployed (images pulled)" : $"deploy failed: {FirstLine(dout)}";
         }

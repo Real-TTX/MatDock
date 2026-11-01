@@ -21,10 +21,13 @@ public class IndexModel : PageModel
     private readonly BundleBackupService _bundleService;
     private readonly BackupTargetService _targetService;
     private readonly IMemoryCache _cache;
+    private readonly MatDock.Core.Operations.OperationRegistry _operations;
 
     public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService,
-        IEnvironmentConnectionService connectionService, BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache)
+        IEnvironmentConnectionService connectionService, BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache,
+        MatDock.Core.Operations.OperationRegistry operations)
     {
+        _operations = operations;
         _stackService = stackService;
         _environmentService = environmentService;
         _containerService = containerService;
@@ -50,6 +53,12 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Type { get; set; }
 
+    /// <summary>A deploy started from this list (<c>?op=</c>), followed in the console above it.</summary>
+    [BindProperty(SupportsGet = true)]
+    public string? Op { get; set; }
+
+    public MatDock.Web.Support.OperationConsoleModel? Console { get; private set; }
+
     public List<StackRow> Rows { get; private set; } = new();
     public int TotalCount { get; private set; }
     public List<string> LoadErrors { get; private set; } = new();
@@ -74,6 +83,12 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         EnvId = EnvSelection.Resolve(HttpContext) ?? 0;
+        if (!string.IsNullOrEmpty(Op) && _operations.Get(Op) is { } started)
+        {
+            Console = new MatDock.Web.Support.OperationConsoleModel(started,
+                started.IsFinished ? $"Deploy of {started.Target}" : $"Deploying {started.Target}…", $"deploy-{started.Target}");
+        }
+
 
         var allEnvs = await _environmentService.GetAllAsync(HttpContext.RequestAborted);
         var envById = allEnvs.ToDictionary(e => e.Id);
@@ -253,13 +268,20 @@ public class IndexModel : PageModel
     private static bool IsCleanExit(DockerContainer c)
         => string.Equals(c.State, "exited", StringComparison.OrdinalIgnoreCase) && c.Status.Contains("(0)", StringComparison.Ordinal);
 
+    /// <summary>Deploys with the stack's own options in the background; the list follows it in its console.</summary>
     public async Task<IActionResult> OnPostDeployAsync(long id)
     {
-        var (ok, output) = await _stackService.DeployAsync(id, HttpContext.RequestAborted);
-        StatusMessage = ok ? "Stack deployed." : "Deploy failed.";
-        IsError = !ok;
-        Output = output;
-        return RedirectToPage();
+        var stack = await _stackService.GetAsync(id, HttpContext.RequestAborted);
+        if (stack is null)
+        {
+            StatusMessage = "Stack not found.";
+            IsError = true;
+            return RedirectToPage();
+        }
+
+        var operation = MatDock.Web.Api.StackOperations.Deploy(_operations, stack.EnvironmentId, stack.Id, stack.Name,
+            new DeployRequest(Trigger: DeployTrigger.Manual, Actor: User.Identity?.Name));
+        return RedirectToPage(new { view = View, Q, Status, Type, op = operation.Id });
     }
 
     public async Task<IActionResult> OnPostDownAsync(long id)

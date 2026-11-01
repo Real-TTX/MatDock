@@ -1,0 +1,17 @@
+@model long
+@{
+    var path = Context.Request.Path.Value ?? string.Empty;
+    bool On(string target) => path.Equals(target, StringComparison.OrdinalIgnoreCase);
+    var tabs = new (string Target, string Icon, string Label)[]
+    {
+        ("/Stacks/Edit", "code", "Compose"),
+        ("/Stacks/Deploys", "rocket", "Deploys"),
+        ("/Stacks/Update", "refresh", "Updates"),
+    };
+}
+<nav class="mat-tabs" aria-label="Stack">
+    @foreach (var (target, icon, label) in tabs)
+    {
+        <a class="mat-tab @(On(target) ? "is-active" : "")" href="@target?id=@Model" aria-current="@(On(target) ? "page" : null)"><icon name="@icon" /><span>@label</span></a>
+    }
+</nav>

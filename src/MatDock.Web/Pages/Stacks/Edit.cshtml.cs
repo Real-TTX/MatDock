@@ -2,8 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Git;
+using MatDock.Core.Operations;
 using MatDock.Core.Stacks;
 using MatDock.Core.Templates;
+using MatDock.Web.Api;
+using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -16,14 +19,17 @@ public class EditModel : PageModel
     private readonly StackTemplateService _templateService;
     private readonly GitCredentialService _gitCredentialService;
     private readonly GitRepoService _gitRepoService;
+    private readonly OperationRegistry _operations;
 
     public EditModel(
         StackService stackService,
         EnvironmentService environmentService,
         StackTemplateService templateService,
         GitCredentialService gitCredentialService,
-        GitRepoService gitRepoService)
+        GitRepoService gitRepoService,
+        OperationRegistry operations)
     {
+        _operations = operations;
         _stackService = stackService;
         _environmentService = environmentService;
         _templateService = templateService;
@@ -49,6 +55,9 @@ public class EditModel : PageModel
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
     public string? DeployOutput { get; private set; }
+
+    /// <summary>The deploy started from this page (<c>?op=</c>), shown in the console.</summary>
+    public OperationConsoleModel? Console { get; private set; }
 
     public sealed class InputModel
     {
@@ -76,9 +85,27 @@ public class EditModel : PageModel
         public string? GitReference { get; set; }
         public string? GitComposePath { get; set; }
         public long? GitCredentialId { get; set; }
+
+        // Deploy options: the stack's defaults, changed per deploy here and kept on save.
+        public bool OptPull { get; set; }
+        public bool OptBuild { get; set; }
+        public bool OptPullBase { get; set; }
+        public bool OptNoCache { get; set; }
+        public bool OptForceRecreate { get; set; }
+        public bool OptRemoveOrphans { get; set; }
+
+        public DeployOptions Options => new()
+        {
+            Pull = OptPull, Build = OptBuild, PullBase = OptPullBase, NoCache = OptNoCache, ForceRecreate = OptForceRecreate, RemoveOrphans = OptRemoveOrphans,
+        };
+
+        public void SetOptions(DeployOptions o)
+        {
+            OptPull = o.Pull; OptBuild = o.Build; OptPullBase = o.PullBase; OptNoCache = o.NoCache; OptForceRecreate = o.ForceRecreate; OptRemoveOrphans = o.RemoveOrphans;
+        }
     }
 
-    public async Task<IActionResult> OnGetAsync(long? id, long? templateId, string? source)
+    public async Task<IActionResult> OnGetAsync(long? id, long? templateId, string? source, string? op)
     {
         await LoadListsAsync();
 
@@ -105,6 +132,12 @@ public class EditModel : PageModel
                 GitComposePath = stack.GitComposePath,
                 GitCredentialId = stack.GitCredentialId,
             };
+            Input.SetOptions(DeployOptions.FromJson(stack.DeployOptionsJson));
+
+            if (!string.IsNullOrEmpty(op) && _operations.Get(op) is { } running)
+            {
+                Console = new OperationConsoleModel(running, running.IsFinished ? $"Deploy of {stack.Name}" : $"Deploying {stack.Name}…", $"deploy-{stack.Name}");
+            }
         }
         else if (templateId is > 0)
         {
@@ -166,18 +199,18 @@ public class EditModel : PageModel
             return Page();
         }
 
-        var (ok, output) = await _stackService.DeployAsync(result.Id, HttpContext.RequestAborted);
-        Input.Id = result.Id;
-        Overrides = MatDock.Core.Stacks.ImageOverrides.Of((await _stackService.GetAsync(result.Id, HttpContext.RequestAborted))!);
-        // Tag helpers render posted ModelState values over model values; clear it so the (now saved)
-        // hidden Id and readonly name reflect the new state instead of the original create-POST values.
-        ModelState.Clear();
-        // What the save said about an image override that the edit made obsolete comes first.
+        // The deploy runs in the background; the page follows it in its console.
+        var operation = StackOperations.Deploy(_operations, Input.EnvironmentId, result.Id, Input.Name.Trim(),
+            new DeployRequest(Input.Options, DeployTrigger.Manual, User.Identity?.Name));
+        // What the save said about an image override that the edit made obsolete stays visible.
         const string saved = "Stack saved. ";
-        DeployOutput = result.Message.StartsWith(saved, StringComparison.Ordinal) ? result.Message[saved.Length..] + "\n" + output : output;
-        StatusMessage = ok ? "Stack saved & deployed." : "Saved, but deploy failed.";
-        IsError = !ok;
-        return Page();
+        if (result.Message.StartsWith(saved, StringComparison.Ordinal))
+        {
+            StatusMessage = result.Message;
+            IsError = false;
+        }
+
+        return RedirectToPage(new { id = result.Id, op = operation.Id });
     }
 
     /// <summary>Lets compose on the chosen environment check the compose file and the .env, without saving or deploying.</summary>
@@ -236,13 +269,23 @@ public class EditModel : PageModel
             GitCredentialId = isGit ? Input.GitCredentialId : null,
         };
 
+        (bool Ok, string Message, long Id) result;
         if (IsEdit)
         {
             var (ok, message) = await _stackService.UpdateAsync(Input.Id!.Value, input, HttpContext.RequestAborted);
-            return (ok, message, Input.Id!.Value);
+            result = (ok, message, Input.Id!.Value);
+        }
+        else
+        {
+            result = await _stackService.CreateAsync(input, HttpContext.RequestAborted);
         }
 
-        return await _stackService.CreateAsync(input, HttpContext.RequestAborted);
+        if (result.Ok)
+        {
+            await _stackService.SetDeployOptionsAsync(result.Id, Input.Options, HttpContext.RequestAborted);
+        }
+
+        return result;
     }
 
     /// <summary>Removes the stack from MatDock (as on the list); its containers keep running.</summary>

@@ -43,6 +43,10 @@ public class Stack : AuditableEntity
     /// <summary>The secret of the redeploy webhook of this stack (<c>POST /webhooks/stacks/{token}</c>: pull and redeploy, for a CI after a push); null = off.</summary>
     public string? WebhookToken { get; set; }
 
+    /// <summary>The stack's default deploy options (<see cref="Stacks.DeployOptions"/>) as JSON: used by the list, the webhook, a sync and a
+    /// schedule, and preset in the editor. Null = a plain <c>up -d</c>.</summary>
+    public string? DeployOptionsJson { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }

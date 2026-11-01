@@ -258,3 +258,8 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-limits { margin-top: var(--mat-space-5); padding-top: var(--mat-space-4); border-top: 1px solid var(--mat-border); }
 .md-connect-ip { max-width: 14rem; }
 .md-scale-input { width: 5rem; }
+
+/* Deploy console (a running operation) and the deploy options of the stack editor. */
+.md-console__pane { min-height: 6rem; max-height: 28rem; }
+.md-deploy-options > summary { display: flex; align-items: center; gap: var(--mat-space-2); cursor: pointer; font-weight: 600; }
+.md-deploy-options > .mat-checks { margin-top: var(--mat-space-3); }

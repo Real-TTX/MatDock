@@ -97,6 +97,10 @@
 {
     <pre class="mat-code md-output">@Model.Output</pre>
 }
+@if (Model.Console is not null)
+{
+    <partial name="_OperationConsole" model="Model.Console" />
+}
 @foreach (var err in Model.LoadErrors)
 {
     <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@err</div></div>
@@ -429,3 +433,10 @@
         <a href="@ViewUrl(Model.View)" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>
+
+@section Scripts {
+    @if (Model.Console is not null)
+    {
+        <script src="~/js/console.js" asp-append-version="true"></script>
+    }
+}

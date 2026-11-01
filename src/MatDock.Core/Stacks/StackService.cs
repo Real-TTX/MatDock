@@ -32,6 +32,7 @@ public sealed class StackService
     private readonly IScheduleEventBus _events;
     private readonly MatDockOptions _options;
     private readonly ILogger<StackService> _logger;
+    private readonly DeploymentHistory? _history;
 
     public StackService(
         MatDockDbContext db,
@@ -42,8 +43,10 @@ public sealed class StackService
         RegistryService registries,
         IScheduleEventBus events,
         IOptions<MatDockOptions> options,
-        ILogger<StackService> logger)
+        ILogger<StackService> logger,
+        DeploymentHistory? history = null)
     {
+        _history = history;
         _db = db;
         _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
@@ -253,6 +256,7 @@ public sealed class StackService
         var copy = await _db.Stacks.FirstAsync(s => s.Id == copyId, ct);
         copy.ImageOverridesJson = source.ImageOverridesJson;
         copy.PinnedServices = source.PinnedServices;
+        copy.DeployOptionsJson = source.DeployOptionsJson;
         if (source.IsGitBacked)
         {
             copy.ComposeYaml = source.ComposeYaml; // the cache of the repo's compose file, so overrides can be checked before the first deploy
@@ -264,7 +268,7 @@ public sealed class StackService
             return (true, $"Copied to '{name}'. Its volumes are not copied.", copyId);
         }
 
-        var (deployed, output) = await DeployAsync(copyId, ct);
+        var (deployed, output) = await DeployAsync(copyId, new DeployRequest(Trigger: DeployTrigger.Copy), ct);
         return deployed
             ? (true, $"Copied to '{name}' and deployed. Its volumes are not copied.", copyId)
             : (false, $"Copied to '{name}', but the deploy failed: {output.Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim()}", copyId);
@@ -416,7 +420,15 @@ public sealed class StackService
         return true;
     }
 
-    public async Task<(bool Ok, string Output)> DeployAsync(long id, CancellationToken ct = default)
+    /// <summary>Deploys the stack with its own default options, as a manual deploy.</summary>
+    public Task<(bool Ok, string Output)> DeployAsync(long id, CancellationToken ct = default)
+        => DeployAsync(id, DeployRequest.Default, ct);
+
+    /// <summary>
+    /// Deploys the stack (<c>compose up -d</c>) with the options of the request (null = the stack's own) and records it in the deploy history with its
+    /// trigger and actor. With an ambient output sink (an operation) compose's output is forwarded as it arrives.
+    /// </summary>
+    public async Task<(bool Ok, string Output)> DeployAsync(long id, DeployRequest request, CancellationToken ct = default)
     {
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
@@ -424,19 +436,64 @@ public sealed class StackService
             return (false, "Stack not found.");
         }
 
-        return stack.IsGitBacked ? await GitDeployAsync(stack, pull: false, ct) : await InlineDeployAsync(stack, pull: false, ct);
+        var options = request.Options ?? DeployOptions.FromJson(stack.DeployOptionsJson);
+        return await RecordedAsync(stack, request, options, async () => stack.IsGitBacked
+            ? await GitDeployAsync(stack, options, ct)
+            : (await InlineDeployAsync(stack, options, ct), null));
     }
 
     /// <summary>Pulls newer images and redeploys the stack (manual update). Same paths as deploy, but with a pull.</summary>
-    public async Task<(bool Ok, string Output)> UpdateAsync(long id, CancellationToken ct = default)
+    public Task<(bool Ok, string Output)> UpdateAsync(long id, CancellationToken ct = default)
+        => UpdateAsync(id, new DeployRequest(Trigger: DeployTrigger.Update), ct);
+
+    /// <summary>An update: pull and <c>up -d</c>, plus the options the request names (not the stack's own defaults: an update stays a pull).</summary>
+    public Task<(bool Ok, string Output)> UpdateAsync(long id, DeployRequest request, CancellationToken ct = default)
+        => DeployAsync(id, request with { Options = (request.Options ?? DeployOptions.None).Union(new DeployOptions { Pull = true }) }, ct);
+
+    /// <summary>Stores the stack's default deploy options.</summary>
+    public async Task<bool> SetDeployOptionsAsync(long id, DeployOptions options, CancellationToken ct = default)
     {
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
         {
-            return (false, "Stack not found.");
+            return false;
         }
 
-        return stack.IsGitBacked ? await GitDeployAsync(stack, pull: true, ct) : await InlineDeployAsync(stack, pull: true, ct);
+        stack.DeployOptionsJson = options.ToJson();
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>Runs a deploy and keeps it in the history (start, end, output, commit). The history never changes the result.</summary>
+    private async Task<(bool Ok, string Output)> RecordedAsync(
+        Stack stack, DeployRequest request, DeployOptions options, Func<Task<((bool Ok, string Output) Result, string? Commit)>> deploy)
+    {
+        var row = _history is null ? null : await _history.StartAsync(stack, request, options);
+        var described = options.Describe();
+        if (CommandOutput.Current is { } sink && described.Length > 0)
+        {
+            try { sink($"Options: {described}\n"); } catch { /* the sink never breaks a deploy */ }
+        }
+
+        (bool Ok, string Output) result = (false, "Deploy failed.");
+        string? commit = null;
+        try
+        {
+            (result, commit) = await deploy();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result = (false, ex is OperationCanceledException ? "Cancelled." : $"Error: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            if (_history is not null)
+            {
+                await _history.FinishAsync(row, result.Ok, result.Output, commit);
+            }
+        }
     }
 
     public Task<(bool Ok, string Output)> DownAsync(long id, CancellationToken ct = default)
@@ -649,7 +706,7 @@ public sealed class StackService
         }
     }
 
-    private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, bool pull, CancellationToken ct)
+    private async Task<(bool Ok, string Output)> InlineDeployAsync(Stack stack, DeployOptions options, CancellationToken ct)
     {
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
@@ -662,22 +719,20 @@ public sealed class StackService
         // The compose file may have changed an image since the override was made: then the compose wins.
         var notes = ReconcileOverrides(stack, stack.ComposeYaml);
         var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent, ImageOverrides.Render(ImageOverrides.Of(stack)));
-        var command = pull
-            ? StackCommands.Update(prep.Head!, stack.Name, PinnedOf(stack))
-            : StackCommands.Deploy(prep.Head!, stack.Name);
+        var command = StackCommands.Deploy(prep.Head!, stack.Name, options, PinnedOf(stack));
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
         return (ok, WithNotes((ok, output), notes));
     }
 
-    private async Task<(bool Ok, string Output)> GitDeployAsync(Stack stack, bool pull, CancellationToken ct)
+    private async Task<((bool Ok, string Output) Result, string? Commit)> GitDeployAsync(Stack stack, DeployOptions options, CancellationToken ct)
     {
         // Early exit before cloning if the environment is unavailable.
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
         {
-            return (false, prep.Message);
+            return ((false, prep.Message), null);
         }
 
         GitCredentialSecret? secret = null;
@@ -690,26 +745,27 @@ public sealed class StackService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Stack {Name}: git credential decrypt failed.", stack.Name);
-                return (false, "Git credentials could not be decrypted (Data Protection key?).");
+                return ((false, "Git credentials could not be decrypted (Data Protection key?)."), null);
             }
 
             if (secret is null)
             {
-                return (false, "The assigned Git credentials were not found.");
+                return ((false, "The assigned Git credentials were not found."), null);
             }
         }
 
         string? workDir = null;
         try
         {
-            workDir = await _gitRepo.CloneToTempAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
-            return await DeployFromWorkDirAsync(stack, workDir, pull, ct);
+            var clone = await _gitRepo.CloneAndScanAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
+            workDir = clone.WorkDir;
+            return (await DeployWorkDirAsync(stack, workDir, options, ct), clone.CommitSha);
         }
         catch (GitOperationException ex)
         {
             stack.LastStatus = "Git error";
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
-            return (false, ex.Message);
+            return ((false, ex.Message), null);
         }
         finally
         {
@@ -725,7 +781,20 @@ public sealed class StackService
     /// sync jobs that clone a repo once and deploy many compose files from the same tree. The caller
     /// owns <paramref name="workDir"/> and is responsible for deleting it.
     /// </summary>
-    public async Task<(bool Ok, string Output)> DeployFromWorkDirAsync(Stack stack, string workDir, bool pull, CancellationToken ct = default)
+    public Task<(bool Ok, string Output)> DeployFromWorkDirAsync(Stack stack, string workDir, bool pull, CancellationToken ct = default)
+        => DeployFromWorkDirAsync(stack, workDir, new DeployRequest(new DeployOptions { Pull = pull }, DeployTrigger.Sync), null, ct);
+
+    /// <summary>
+    /// <see cref="DeployFromWorkDirAsync(Stack, string, bool, CancellationToken)"/> with a request (null options = the stack's own) and the commit of the
+    /// clone, kept in the deploy history.
+    /// </summary>
+    public Task<(bool Ok, string Output)> DeployFromWorkDirAsync(Stack stack, string workDir, DeployRequest request, string? commitSha, CancellationToken ct = default)
+    {
+        var options = request.Options ?? DeployOptions.FromJson(stack.DeployOptionsJson);
+        return RecordedAsync(stack, request, options, async () => (await DeployWorkDirAsync(stack, workDir, options, ct), commitSha));
+    }
+
+    private async Task<(bool Ok, string Output)> DeployWorkDirAsync(Stack stack, string workDir, DeployOptions options, CancellationToken ct)
     {
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
@@ -750,7 +819,7 @@ public sealed class StackService
         var localDir = workDir;
         // The repo may have changed an image since the override was made: then the repo wins.
         var notes = ReconcileOverrides(stack, composeContent);
-        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, pull, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)));
+        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, options, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)));
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
             ct, beforePersist: s =>

@@ -9,6 +9,11 @@
     ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
 }
 
+@if (Model.Stack is not null)
+{
+    <partial name="_StackTabs" model="Model.Stack.Id" />
+}
+
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
     if (Model.IsError)
