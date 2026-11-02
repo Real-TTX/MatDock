@@ -946,6 +946,9 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Icon")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImageOverridesJson")
                         .HasColumnType("TEXT");
 
@@ -974,6 +977,10 @@ namespace MatDock.Core.Data.Migrations
 
                     b.Property<long?>("SyncJobId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Tags")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdateDate")
                         .HasColumnType("TEXT");
@@ -1401,6 +1408,46 @@ namespace MatDock.Core.Data.Migrations
                     b.HasIndex("SyncJobId");
 
                     b.ToTable("SyncJobItem", (string)null);
+                });
+
+            modelBuilder.Entity("MatDock.Core.Entities.Tag", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(7)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("CreateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("UpdateDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdateState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("\"UpdateState\" <> 0");
+
+                    b.ToTable("Tag", (string)null);
                 });
 
             modelBuilder.Entity("MatDock.Core.Entities.UpdateNotice", b =>

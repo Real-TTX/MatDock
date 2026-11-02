@@ -260,6 +260,8 @@ public sealed class StackService
         copy.PinnedServices = source.PinnedServices;
         copy.DeployOptionsJson = source.DeployOptionsJson;
         copy.SecretsJson = source.SecretsJson;
+        copy.Tags = source.Tags;
+        copy.Icon = source.Icon;
         if (source.IsGitBacked)
         {
             copy.ComposeYaml = source.ComposeYaml; // the cache of the repo's compose file, so overrides can be checked before the first deploy
@@ -359,7 +361,7 @@ public sealed class StackService
             return (false, "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).", 0);
         }
 
-        var gitError = ValidateGit(input);
+        var gitError = Validate(input);
         if (gitError is not null)
         {
             return (false, gitError, 0);
@@ -385,7 +387,7 @@ public sealed class StackService
             return (false, "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).");
         }
 
-        var gitError = ValidateGit(input);
+        var gitError = Validate(input);
         if (gitError is not null)
         {
             return (false, gitError);
@@ -1511,6 +1513,16 @@ public sealed class StackService
             stack.ManagedBy = string.IsNullOrWhiteSpace(input.ManagedBy) ? null : input.ManagedBy.Trim();
         }
 
+        if (input.Tags is not null)
+        {
+            stack.Tags = TagService.Join(TagService.Parse(input.Tags));
+        }
+
+        if (input.Icon is not null)
+        {
+            stack.Icon = string.IsNullOrWhiteSpace(input.Icon) ? null : input.Icon.Trim();
+        }
+
         var repo = string.IsNullOrWhiteSpace(input.GitRepoUrl) ? null : input.GitRepoUrl.Trim();
         stack.GitRepoUrl = repo;
 
@@ -1538,6 +1550,9 @@ public sealed class StackService
             stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
     }
+
+    /// <summary>The icon and the Git source of an input; null when both are valid.</summary>
+    private static string? Validate(StackInput input) => StackIcons.Problem(input.Icon) ?? ValidateGit(input);
 
     /// <summary>Validates the optional git source. Returns null when valid (or inline).</summary>
     private static string? ValidateGit(StackInput input)

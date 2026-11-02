@@ -43,7 +43,7 @@ public sealed class AppLaunchpadService
         var scope = envId is > 0 ? envId.Value : 0;
         // allEnvs holds only what the current user may see, so stacks of other environments drop out here.
         var managed = (await _stacks.GetAllAsync(ct))
-            .Where(s => !string.IsNullOrWhiteSpace(s.AppMetaJson) && (scope <= 0 || s.EnvironmentId == scope) && envById.ContainsKey(s.EnvironmentId))
+            .Where(s => (!string.IsNullOrWhiteSpace(s.AppMetaJson) || !string.IsNullOrWhiteSpace(s.Icon)) && (scope <= 0 || s.EnvironmentId == scope) && envById.ContainsKey(s.EnvironmentId))
             .ToList();
         if (managed.Count == 0)
         {
@@ -85,7 +85,8 @@ public sealed class AppLaunchpadService
         var tiles = new List<AppTile>();
         foreach (var stack in managed)
         {
-            var meta = AppMetadataParser.FromJson(stack.AppMetaJson);
+            // The icon chosen in MatDock wins over the compose file's.
+            var meta = AppMetadataParser.FromJson(AppMetadataParser.WithIcon(stack.AppMetaJson, stack.Icon));
             if (meta is null || meta.IsEmpty)
             {
                 continue;

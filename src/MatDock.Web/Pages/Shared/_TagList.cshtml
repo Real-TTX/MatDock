@@ -1,0 +1,10 @@
+@model (IReadOnlyList<string>? Tags, IReadOnlyDictionary<string, string?> Colors, string Filter)
+@* The tags of a row: a link each that filters the list by it (Filter is the address without the tag), with the colour of the catalog. *@
+@if (Model.Tags is { Count: > 0 } tags)
+{
+    foreach (var t in tags)
+    {
+        var colour = Model.Colors.TryGetValue(t, out var c) ? c : null;
+        <a class="mat-tag" href="@Model.Filter@Uri.EscapeDataString(t)" data-colour="@colour" title="Only stacks tagged @t">@t</a>
+    }
+}

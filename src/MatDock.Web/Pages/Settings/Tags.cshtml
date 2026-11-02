@@ -1,0 +1,81 @@
+@page
+@model MatDock.Web.Pages.Settings.TagsModel
+@{
+    ViewData["Title"] = "Tags";
+}
+
+<partial name="_SystemTabs" />
+
+<partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
+
+<div class="mat-stack md-narrow">
+    <mat-table>
+        <mat-table-body>
+            @if (Model.Tags.Count == 0)
+            {
+                <div class="mat-empty"><div class="mat-empty__icon"><icon name="tag" /></div><p class="mat-empty__title">No tags</p></div>
+            }
+            else
+            {
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead><tr><th>Tag</th><th>Colour</th><th>Stacks</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr></thead>
+                        <tbody>
+                            @foreach (var t in Model.Tags)
+                            {
+                                <tr>
+                                    <td data-label="Tag">
+                                        <form method="post" asp-page-handler="Rename" class="md-tag-rename">
+                                            <input type="hidden" name="id" value="@t.Id" />
+                                            <input name="name" value="@t.Name" class="mat-input mat-input--sm" maxlength="32" required aria-label="Name of @t.Name" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Rename" aria-label="Rename @t.Name"><icon name="save" /></button>
+                                        </form>
+                                    </td>
+                                    <td data-label="Colour">
+                                        <form method="post" asp-page-handler="Save" class="md-tag-rename">
+                                            <input type="hidden" name="name" value="@t.Name" />
+                                            <div class="mat-picker" data-picker="colour">
+                                                <input class="mat-picker__input" id="colour-@t.Id" name="color" value="@t.Color" aria-label="Colour of @t.Name" />
+                                            </div>
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Save the colour" aria-label="Save the colour of @t.Name"><icon name="save" /></button>
+                                        </form>
+                                    </td>
+                                    <td data-label="Stacks"><a href="/Stacks?view=list&Tag=@Uri.EscapeDataString(t.Name)">@(Model.Usage.TryGetValue(t.Name, out var n) ? n : 0)</a></td>
+                                    <td class="mat-table__cell-actions">
+                                        <div class="mat-table__actions">
+                                            <form method="post" asp-page-handler="Delete" data-confirm="Delete the tag '@t.Name'? The stacks lose it.">
+                                                <input type="hidden" name="id" value="@t.Id" />
+                                                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Delete" aria-label="Delete @t.Name"><icon name="trash" /></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </mat-table-body>
+    </mat-table>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="plus" /><h2 class="mat-card__title">New tag</h2></div>
+        <div class="mat-card__body">
+            <form method="post" asp-page-handler="Save" class="mat-form">
+                <div class="mat-form__grid">
+                    <mat-field label="Name" for-id="tag-name">
+                        <input id="tag-name" name="name" class="mat-input" maxlength="32" required placeholder="e.g. production" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Colour" for-id="tag-colour">
+                        <div class="mat-picker" data-picker="colour">
+                            <input class="mat-picker__input" id="tag-colour" name="color" />
+                        </div>
+                    </mat-field>
+                </div>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="tag" /><span>Add tag</span></button>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+</div>

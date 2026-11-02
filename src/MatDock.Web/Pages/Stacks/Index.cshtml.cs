@@ -22,11 +22,13 @@ public class IndexModel : PageModel
     private readonly BackupTargetService _targetService;
     private readonly IMemoryCache _cache;
     private readonly MatDock.Core.Operations.OperationRegistry _operations;
+    private readonly TagService _tags;
 
     public IndexModel(StackService stackService, EnvironmentService environmentService, ContainerService containerService,
         IEnvironmentConnectionService connectionService, BundleBackupService bundleService, BackupTargetService targetService, IMemoryCache cache,
-        MatDock.Core.Operations.OperationRegistry operations)
+        MatDock.Core.Operations.OperationRegistry operations, TagService tags)
     {
+        _tags = tags;
         _operations = operations;
         _stackService = stackService;
         _environmentService = environmentService;
@@ -53,6 +55,13 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Type { get; set; }
 
+    /// <summary>Only the stacks with this tag.</summary>
+    [BindProperty(SupportsGet = true)]
+    public string? Tag { get; set; }
+
+    /// <summary>The tags of the catalog (their colours) and the ones the stacks of the list carry.</summary>
+    public IReadOnlyDictionary<string, string?> TagColors { get; private set; } = new Dictionary<string, string?>();
+
     /// <summary>A deploy started from this list (<c>?op=</c>), followed in the console above it.</summary>
     [BindProperty(SupportsGet = true)]
     public string? Op { get; set; }
@@ -71,7 +80,7 @@ public class IndexModel : PageModel
         long? ManagedId, long EnvId, string EnvName, string Name, bool Managed, bool Discovered,
         bool GitBacked, int Running, int Total, DateTime? LastDeployedAt, string? LastStatus,
         IReadOnlyList<DockerContainer> Containers, string? EnvHost, string? AppMetaJson, int VolumeCount = 0,
-        string? ManagedBy = null)
+        string? ManagedBy = null, IReadOnlyList<string>? Tags = null)
     {
         public bool IsRunning => Total > 0 && Running == Total;
         public bool IsPartial => Total > 0 && Running > 0 && Running < Total;
@@ -217,7 +226,8 @@ public class IndexModel : PageModel
                 Managed: true, Discovered: false, GitBacked: s.IsGitBacked,
                 live.Running, live.Total, s.LastDeployedAt, s.LastStatus,
                 live.Containers ?? (IReadOnlyList<DockerContainer>)Array.Empty<DockerContainer>(),
-                HostFor(envById, s.EnvironmentId), s.AppMetaJson, VolCount(s.EnvironmentId, s.Name), s.ManagedBy));
+                HostFor(envById, s.EnvironmentId), MatDock.Core.Apps.AppMetadataParser.WithIcon(s.AppMetaJson, s.Icon), VolCount(s.EnvironmentId, s.Name), s.ManagedBy,
+                TagsOf(MatDock.Core.Stacks.TagService.Parse(s.Tags), live.Containers)));
         }
 
         foreach (var ((envId, project), d) in discovered)
@@ -229,10 +239,11 @@ public class IndexModel : PageModel
 
             rows.Add(new StackRow(null, envId, EnvName(envById, envId), project,
                 Managed: false, Discovered: true, GitBacked: false, d.Running, d.Total, null, null, d.Containers,
-                HostFor(envById, envId), null, VolCount(envId, project)));
+                HostFor(envById, envId), null, VolCount(envId, project), Tags: TagsOf([], d.Containers)));
         }
 
         rows = rows.OrderBy(r => r.EnvName).ThenByDescending(r => r.Managed).ThenBy(r => r.Name).ToList();
+        TotalTags = rows.SelectMany(r => r.Tags ?? []).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
         TotalCount = rows.Count;
 
         // ---- Client-invisible server-side filtering (search + status + type) ----
@@ -247,6 +258,11 @@ public class IndexModel : PageModel
             rows = rows.Where(r => string.Equals(r.StatusKind, Status, Ic)).ToList();
         }
 
+        if (!string.IsNullOrWhiteSpace(Tag))
+        {
+            rows = rows.Where(r => r.Tags?.Contains(Tag.Trim(), StringComparer.OrdinalIgnoreCase) == true).ToList();
+        }
+
         if (string.Equals(Type, "managed", Ic))
         {
             rows = rows.Where(r => r.Managed).ToList();
@@ -257,10 +273,24 @@ public class IndexModel : PageModel
         }
 
         Rows = rows;
+        var colors = (await _tags.GetAllAsync(HttpContext.RequestAborted)).ToDictionary(t => t.Name, t => t.Color, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in TotalTags)
+        {
+            colors.TryAdd(name, null);
+        }
+
+        TagColors = colors;
     }
 
     private static string EnvName(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
         => byId.TryGetValue(id, out var e) ? e.Name : $"#{id}";
+
+    /// <summary>The tags of a stack: its own and those its containers name in their labels.</summary>
+    private static IReadOnlyList<string> TagsOf(IReadOnlyList<string> own, IReadOnlyList<DockerContainer>? containers)
+        => own.Concat((containers ?? []).SelectMany(c => c.Tags)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>Every tag the stacks of the page carry (before the filters), for the tag filter.</summary>
+    public IReadOnlyList<string> TotalTags { get; private set; } = [];
 
     private static string? HostFor(IReadOnlyDictionary<long, DockerEnvironment> byId, long id)
         => byId.TryGetValue(id, out var e) ? MatDock.Web.Support.OpenUrls.PortLinkHost(e) : null;

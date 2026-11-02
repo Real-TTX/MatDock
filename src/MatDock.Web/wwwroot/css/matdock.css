@@ -278,3 +278,11 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 
 /* The commit a Git stack runs, beside its "Sync now". */
 .md-git-state { display: flex; align-items: center; gap: var(--mat-space-2); flex-wrap: wrap; }
+
+/* The icon of a stack in its editor: preview, toolkit icon, app logo, upload. */
+.md-icon-pick { display: flex; align-items: center; gap: var(--mat-space-2); flex-wrap: wrap; }
+.md-icon-pick__preview { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px dashed var(--mat-border); border-radius: var(--mat-radius); }
+.md-icon-pick__logo { flex: 0 1 12rem; min-width: 8rem; }
+
+/* A tag's inline rename and colour forms in System > Tags. */
+.md-tag-rename { display: flex; align-items: center; gap: var(--mat-space-1); }

@@ -68,6 +68,13 @@ public class Stack : AuditableEntity
     /// schedule, and preset in the editor. Null = a plain <c>up -d</c>.</summary>
     public string? DeployOptionsJson { get; set; }
 
+    /// <summary>The tags of the stack (names of the catalog, <see cref="Tag"/>), comma-separated; null = none.</summary>
+    public string? Tags { get; set; }
+
+    /// <summary>The icon chosen in MatDock (a toolkit icon name, an emoji, an https address or a data URL of an uploaded or fetched logo); it wins over the
+    /// icon of the compose file's <c>x-matdock</c> block. Null = the compose file's.</summary>
+    public string? Icon { get; set; }
+
     public DateTime? LastDeployedAt { get; set; }
 
     public string? LastStatus { get; set; }

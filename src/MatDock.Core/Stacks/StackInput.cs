@@ -22,6 +22,12 @@ public sealed class StackInput
     /// <summary>The cron of the automatic sync (Git stacks); null or empty = none.</summary>
     public string? GitSyncCron { get; set; }
 
+    /// <summary>The tags (comma-separated names); null keeps the stored ones, empty removes them.</summary>
+    public string? Tags { get; set; }
+
+    /// <summary>The icon chosen in MatDock (<see cref="StackIcons"/>); null keeps the stored one, empty removes it.</summary>
+    public string? Icon { get; set; }
+
     /// <summary>Owner of an externally managed stack (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so a
     /// save from MatDock's own editor never drops it; an empty string clears it.</summary>
     public string? ManagedBy { get; set; }

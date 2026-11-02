@@ -139,6 +139,69 @@
         runLint();
     }
 
+    /* The icon of a stack: a toolkit icon, the logo of a known app (fetched by the server, Stacks/Edit?handler=Logo) or an uploaded image (256 KB at most)
+       goes into the hidden field; the preview shows it, an empty field the compose file's icon. */
+    var iconPick = document.querySelector("[data-icon-pick]");
+    if (iconPick) {
+        var iconValue = iconPick.querySelector("[data-icon-value]");
+        var iconPreview = iconPick.querySelector("[data-icon-preview]");
+        var iconChoice = iconPick.querySelector("[data-icon-choice]");
+        var iconMessage = iconPick.parentElement.querySelector("[data-icon-message]");
+        var say = function (text) { if (iconMessage) { iconMessage.textContent = text || ""; } };
+        var showIcon = function (icon) {
+            iconPreview.textContent = "";
+            var value = icon || iconPreview.getAttribute("data-compose-icon") || "";
+            if (!value) { return; }
+            if (/^(data:|https:\/\/)/i.test(value)) {
+                var img = document.createElement("img");
+                img.className = "md-app-icon";
+                img.alt = "";
+                img.src = value;
+                iconPreview.appendChild(img);
+                return;
+            }
+            var span = document.createElement("span");
+            span.className = "md-app-icon md-app-icon--glyph";
+            if (/^[a-z0-9-]+$/.test(value)) {
+                var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute("class", "mat-icon");
+                svg.setAttribute("aria-hidden", "true");
+                var use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+                use.setAttribute("href", "#mat-i-" + value);
+                svg.appendChild(use);
+                span.appendChild(svg);
+            } else {
+                span.textContent = value;
+            }
+            iconPreview.appendChild(span);
+        };
+        var setIcon = function (icon) { iconValue.value = icon || ""; showIcon(icon); };
+
+        iconChoice.addEventListener("change", function () { setIcon(iconChoice.value); say(""); });
+        iconPick.querySelector("[data-icon-clear]").addEventListener("click", function () { iconChoice.value = ""; setIcon(""); say(""); });
+        iconPick.querySelector("[data-icon-fetch]").addEventListener("click", function () {
+            var name = iconPick.querySelector("[data-icon-logo]").value.trim();
+            if (!name) { say("Type the name of an app first."); return; }
+            say("Fetching …");
+            post("Logo", { name: name }).then(function (r) {
+                return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+            }).then(function (res) {
+                if (!res.ok || !res.d.icon) { say(res.d.error || "No logo found."); return; }
+                iconChoice.value = "";
+                setIcon(res.d.icon);
+                say("Logo of " + name + ".");
+            }).catch(function () { say("The logo could not be fetched."); });
+        });
+        iconPick.querySelector("[data-icon-upload]").addEventListener("change", function (e) {
+            var file = e.target.files && e.target.files[0];
+            if (!file) { return; }
+            if (file.size > 256 * 1024) { say("The image is larger than 256 KB."); return; }
+            var reader = new FileReader();
+            reader.onload = function () { iconChoice.value = ""; setIcon(String(reader.result)); say(file.name); };
+            reader.readAsDataURL(file);
+        });
+    }
+
     /* The App Store picker of a new stack: the search narrows the apps; a pick fills the name and the compose file
        and switches the source to the editor. */
     var appList = document.getElementById("app-list");

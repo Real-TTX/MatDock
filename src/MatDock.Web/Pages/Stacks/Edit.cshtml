@@ -94,6 +94,44 @@
                 </mat-field>
             </div>
 
+            <div class="mat-form__grid">
+                <mat-field label="Tags" for-id="stack-tags" hint="New names join the catalog (System → Tags).">
+                    <div class="mat-picker" data-picker="tags">
+                        <input class="mat-picker__input" id="stack-tags" name="Input.Tags" value="@Model.Input.Tags" />
+                        <div class="mat-picker__options">
+                            @foreach (var t in Model.TagCatalog)
+                            {
+                                <div class="mat-picker__option" data-value="@t.Name">@t.Name</div>
+                            }
+                        </div>
+                    </div>
+                </mat-field>
+
+                <mat-field label="Icon" for-id="stack-icon-choice" hint="An icon, the logo of a known app, or an image of your own (256 KB at most).">
+                    <div class="md-icon-pick" data-icon-pick>
+                        <span class="md-icon-pick__preview" data-icon-preview data-compose-icon="@Model.ComposeIcon">
+                            @if (!string.IsNullOrEmpty(Model.Input.Icon ?? Model.ComposeIcon))
+                            {
+                                <partial name="_AppIcon" model="new MatDock.Core.Apps.AppMetadata { Icon = Model.Input.Icon ?? Model.ComposeIcon }" />
+                            }
+                        </span>
+                        <select id="stack-icon-choice" class="mat-select mat-w-auto" data-icon-choice aria-label="Toolkit icon">
+                            <option value="">@(string.IsNullOrEmpty(Model.ComposeIcon) ? "No icon" : "From the compose file")</option>
+                            @foreach (var name in MatDock.Web.Support.Toolkit.Names.Where(n => !n.StartsWith("mat-")).Order())
+                            {
+                                <option value="@name" selected="@(Model.Input.Icon == name ? "selected" : null)">@name</option>
+                            }
+                        </select>
+                        <input class="mat-input mat-input--sm md-icon-pick__logo" data-icon-logo placeholder="App logo, e.g. nextcloud" aria-label="Name of an app whose logo to fetch" autocomplete="off" />
+                        <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-icon-fetch title="Fetch the logo from the selfh.st collection"><icon name="download" /><span>Logo</span></button>
+                        <label class="mat-btn mat-btn--secondary mat-btn--sm" title="Upload an image"><icon name="upload" /><span>Upload</span><input type="file" class="mat-sr-only" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" data-icon-upload /></label>
+                        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-icon-clear title="No icon of its own" aria-label="Remove the icon"><icon name="x" /></button>
+                        <input type="hidden" name="Input.Icon" value="@Model.Input.Icon" data-icon-value />
+                    </div>
+                    <span class="mat-hint" data-icon-message role="status"></span>
+                </mat-field>
+            </div>
+
             <div class="mat-stack" data-show-if="#Source" data-show-value="store">
                 @if (Model.Apps.Count == 0)
                 {

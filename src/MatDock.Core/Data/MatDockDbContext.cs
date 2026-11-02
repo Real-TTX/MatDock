@@ -44,6 +44,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ImageScan> ImageScans => Set<ImageScan>();
     public DbSet<StackUpdateRun> StackUpdateRuns => Set<StackUpdateRun>();
     public DbSet<StackDeployment> StackDeployments => Set<StackDeployment>();
+    public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<UpdatePolicy> UpdatePolicies => Set<UpdatePolicy>();
     public DbSet<UpdateNotice> UpdateNotices => Set<UpdateNotice>();
 
@@ -168,6 +169,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.DeployOptionsJson).HasMaxLength(500);
             e.Property(x => x.GitEnvFile).HasMaxLength(500);
             e.Property(x => x.GitSyncCron).HasMaxLength(100);
+            e.Property(x => x.Tags).HasMaxLength(1000);
             e.Property(x => x.GitLastCommit).HasMaxLength(64);
             e.Property(x => x.GitTreeHash).HasMaxLength(64);
             e.HasIndex(x => x.WebhookToken);
@@ -356,6 +358,16 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Outcome).HasConversion<int>();
             e.Property(x => x.Message).HasMaxLength(1000);
             e.HasIndex(x => new { x.StackId, x.CreateDate });
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<Tag>(e =>
+        {
+            e.ToTable("Tag");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(32).IsRequired().UseCollation("NOCASE");
+            e.Property(x => x.Color).HasMaxLength(7);
+            e.HasIndex(x => x.Name).IsUnique().HasFilter("\"UpdateState\" <> 0");
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

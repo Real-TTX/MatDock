@@ -8,7 +8,11 @@
     string ViewUrl(string v) => $"/Stacks?view={v}"
         + $"&Q={Uri.EscapeDataString(Model.Q ?? string.Empty)}"
         + $"&Status={Uri.EscapeDataString(Model.Status ?? string.Empty)}"
-        + $"&Type={Uri.EscapeDataString(Model.Type ?? string.Empty)}";
+        + $"&Type={Uri.EscapeDataString(Model.Type ?? string.Empty)}"
+        + $"&Tag={Uri.EscapeDataString(Model.Tag ?? string.Empty)}";
+
+    // The address of the list filtered by a tag (the tag name is appended).
+    var TagFilter = $"/Stacks?view={Uri.EscapeDataString(Model.View)}&Tag=";
 
     string StatusPill(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
         => r.StatusKind switch { "running" => "mat-pill--ok", "partial" => "mat-pill--warn", _ => "mat-pill--plain" };
@@ -129,6 +133,17 @@
             <option value="managed" selected="@(Model.Type == "managed")">Managed</option>
             <option value="external" selected="@(Model.Type == "external")">External</option>
         </select>
+        @if (Model.TotalTags.Count > 0)
+        {
+            <label class="mat-sr-only" for="filter-tag">Tag</label>
+            <select id="filter-tag" name="Tag" form="stack-filter" class="mat-select mat-w-auto">
+                <option value="">All tags</option>
+                @foreach (var t in Model.TotalTags)
+                {
+                    <option value="@t" selected="@(string.Equals(Model.Tag, t, StringComparison.OrdinalIgnoreCase))">@t</option>
+                }
+            </select>
+        }
         <span class="mat-toolbar__spacer"></span>
         <span class="mat-toolbar__info" aria-live="polite">@(Model.Rows.Count != Model.TotalCount ? $"{Model.Rows.Count} of {Model.TotalCount} stacks" : $"{Model.Rows.Count} stacks")</span>
         <div class="mat-toolbar__end">
@@ -180,6 +195,7 @@
                                         <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
                                     }
                                     <managed-badge value="@r.ManagedBy" />
+                                    <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
                                     @if (r.Discovered)
                                     {
                                         <span class="mat-tag" title="Running on the host, not managed by MatDock">External</span>
@@ -320,6 +336,7 @@
                                             <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
                                         }
                                         <managed-badge value="@r.ManagedBy" />
+                                        <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
                                     </div>
                                 </td>
                                 <td data-label="Source">

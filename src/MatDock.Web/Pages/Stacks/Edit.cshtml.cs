@@ -24,6 +24,8 @@ public class EditModel : PageModel
     private readonly MatDock.Core.Containers.ContainerService _containers;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
     private readonly GitSyncSchedules _gitSync;
+    private readonly TagService _tags;
+    private readonly AppLogos _logos;
 
     public EditModel(
         StackService stackService,
@@ -34,8 +36,12 @@ public class EditModel : PageModel
         OperationRegistry operations,
         MatDock.Core.Containers.ContainerService containers,
         Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
-        GitSyncSchedules gitSync)
+        GitSyncSchedules gitSync,
+        TagService tags,
+        AppLogos logos)
     {
+        _tags = tags;
+        _logos = logos;
         _gitSync = gitSync;
         _containers = containers;
         _cache = cache;
@@ -71,6 +77,12 @@ public class EditModel : PageModel
 
     /// <summary>The commit of the repository the last deploy or sync of a Git stack saw.</summary>
     public string? LastCommit { get; private set; }
+
+    /// <summary>The icon of the compose file's <c>x-matdock</c> block (shown when MatDock has none of its own).</summary>
+    public string? ComposeIcon { get; private set; }
+
+    /// <summary>The tags of the catalog, as suggestions.</summary>
+    public List<Tag> TagCatalog { get; private set; } = new();
 
     /// <summary>One secret variable of the form: a stored one (<see cref="Existing"/>: an empty value keeps it) or a new one.</summary>
     public sealed class SecretRow
@@ -113,6 +125,12 @@ public class EditModel : PageModel
 
         /// <summary>The secret variables: the stored ones (their value only when it changes) and new ones.</summary>
         public List<SecretRow> Secrets { get; set; } = new();
+
+        /// <summary>The tags, comma-separated.</summary>
+        public string? Tags { get; set; }
+
+        /// <summary>The icon chosen in MatDock (empty = the compose file's).</summary>
+        public string? Icon { get; set; }
 
         /// <summary>The automatic sync of a Git stack: off, 5, 15, 60 (minutes), daily, or custom (<see cref="GitSyncCron"/>).</summary>
         public string GitSync { get; set; } = "off";
@@ -192,7 +210,10 @@ public class EditModel : PageModel
                 GitCredentialId = stack.GitCredentialId,
                 GitEnvFile = stack.GitEnvFile,
                 Secrets = StackSecrets.Names(stack.SecretsJson).Select(n => new SecretRow { Key = n, Existing = true }).ToList(),
+                Tags = stack.Tags,
+                Icon = stack.Icon,
             };
+            ComposeIcon = MatDock.Core.Apps.AppMetadataParser.FromJson(stack.AppMetaJson)?.Icon;
             Input.SetOptions(DeployOptions.FromJson(stack.DeployOptionsJson));
             Input.SetSync(stack.GitSyncCron);
             LastCommit = stack.GitLastCommit;
@@ -335,6 +356,8 @@ public class EditModel : PageModel
             GitCredentialId = isGit ? Input.GitCredentialId : null,
             GitEnvFile = isGit ? Input.GitEnvFile : null,
             GitSyncCron = isGit ? Input.SyncCron : null,
+            Tags = Input.Tags ?? string.Empty,
+            Icon = Input.Icon ?? string.Empty,
         };
 
         // The secrets are checked before anything is saved.
@@ -361,6 +384,8 @@ public class EditModel : PageModel
             if (await _stackService.GetAsync(result.Id, HttpContext.RequestAborted) is { } saved)
             {
                 await _gitSync.ApplyAsync(saved, HttpContext.RequestAborted);
+                // A new tag name joins the catalog (without a colour; System > Tags gives it one).
+                await _tags.EnsureAsync(TagService.Parse(saved.Tags), HttpContext.RequestAborted);
             }
             if (set.Count > 0 || remove.Count > 0)
             {
@@ -447,6 +472,15 @@ public class EditModel : PageModel
                 fixLabel = f.FixLabel,
             }),
         });
+    }
+
+    /// <summary>The logo of an app from the selfh.st collection as a data URL (<c>stack-forms.js</c> puts it into the icon field), 404 when there is none.</summary>
+    public async Task<IActionResult> OnPostLogoAsync(string? name)
+    {
+        var icon = await _logos.FetchAsync(name ?? string.Empty, HttpContext.RequestAborted);
+        return icon is null
+            ? NotFound(new { error = $"No logo for '{name}' in the collection (names as on selfh.st/icons, e.g. nextcloud, uptime-kuma)." })
+            : new JsonResult(new { icon });
     }
 
     /// <summary>Applies a fix of the live check to the text and answers the new text (400 when it does not fit any more).</summary>
@@ -539,6 +573,7 @@ public class EditModel : PageModel
         GitCredentials = await _gitCredentialService.GetAllAsync(HttpContext.RequestAborted);
         SavedRepos = await _gitRepoService.GetAllAsync(HttpContext.RequestAborted);
         Apps = await _templateService.GetAllAsync(HttpContext.RequestAborted);
+        TagCatalog = await _tags.GetAllAsync(HttpContext.RequestAborted);
         if (Input.Id is > 0)
         {
             ManagedBy = (await _stackService.GetAsync(Input.Id.Value, HttpContext.RequestAborted))?.ManagedBy;

@@ -19,6 +19,12 @@ public sealed class DockerContainer
     /// <summary>The networks the container is attached to (by name).</summary>
     public IReadOnlyList<string> Networks { get; init; } = Array.Empty<string>();
 
+    /// <summary>All labels of the container (from <c>docker ps</c>; values with commas kept whole, <see cref="ContainerService.ParseLabels"/>).</summary>
+    public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The tags its labels name (<c>matdock.tags</c>, else <c>dockhand.tags</c>).</summary>
+    public IReadOnlyList<string> Tags => Stacks.TagService.FromLabels(Labels);
+
     /// <summary>Per-container "open in browser" URL override (label <c>matdock.openurl</c>); may be unvalidated.</summary>
     public string? OpenUrlOverride { get; init; }
 

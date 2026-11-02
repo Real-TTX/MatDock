@@ -91,6 +91,22 @@ public static class AppMetadataParser
         }
     }
 
+    /// <summary>
+    /// The stored metadata of a stack with the icon chosen in MatDock on top (<see cref="Entities.Stack.Icon"/>): a stack without metadata but with an icon gets
+    /// metadata of just that icon. Null when there is neither.
+    /// </summary>
+    public static string? WithIcon(string? json, string? icon)
+    {
+        if (string.IsNullOrWhiteSpace(icon))
+        {
+            return json;
+        }
+
+        var meta = FromJson(json) ?? new AppMetadata();
+        meta.Icon = icon;
+        return ToJson(meta);
+    }
+
     /// <summary>Overlays the non-empty fields of <paramref name="overlay"/> onto <paramref name="baseMeta"/>.</summary>
     public static AppMetadata? Merge(AppMetadata? baseMeta, AppMetadata? overlay)
     {

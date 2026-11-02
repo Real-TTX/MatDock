@@ -82,6 +82,7 @@ builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddScoped<MatDock.Web.Search.GlobalSearch>();
 // MatDock as an MCP server (/mcp) for an AI client, with the keys of the API (a read key sees only the tools that change nothing).
 builder.Services.AddMatDockMcp();
+builder.Services.AddSingleton<MatDock.Web.Support.AppLogos>();
 // The description of the machine API (/api/v1 only, not the platform endpoints or the pages).
 builder.Services.AddOpenApi("v1", options =>
 {

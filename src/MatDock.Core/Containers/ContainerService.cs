@@ -687,6 +687,7 @@ public sealed class ContainerService
                     Project = ExtractLabel(labels, "com.docker.compose.project"),
                     Service = ExtractLabel(labels, "com.docker.compose.service"),
                     OpenUrlOverride = ExtractLabel(labels, "matdock.openurl"),
+                    Labels = ParseLabels(labels),
                     Networks = (Get("Networks") ?? string.Empty)
                         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 });
@@ -901,6 +902,32 @@ public sealed class ContainerService
         return double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)
             ? v
             : null;
+    }
+
+    /// <summary>
+    /// The labels of <c>docker ps</c>'s comma-joined column as a map. A value may hold commas itself (<c>matdock.tags=prod,web</c>, a Traefik rule): a
+    /// piece without <c>=</c> belongs to the value before it.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> ParseLabels(string? labels)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        string? last = null;
+        foreach (var piece in (labels ?? string.Empty).Split(','))
+        {
+            var eq = piece.IndexOf('=');
+            var key = eq > 0 ? piece[..eq].Trim() : null;
+            if (key is { Length: > 0 } && !key.Contains(' '))
+            {
+                map[key] = piece[(eq + 1)..];
+                last = key;
+            }
+            else if (last is not null)
+            {
+                map[last] += "," + piece;
+            }
+        }
+
+        return map;
     }
 
     private static string? ExtractLabel(string labels, string key)
