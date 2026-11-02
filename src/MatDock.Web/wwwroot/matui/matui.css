@@ -1,4 +1,4 @@
-/* MatUi 0.9.3 (f2c1e45a14) - build local-20261025 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
+/* MatUi 0.11.0 (bf57b86663) - build local-20261101 - bundled from matui.tokens.css, matui.base.css, matui.shell.css, matui.controls.css, matui.forms.css, matui.pickers.css, matui.lists.css, matui.dialogs.css, matui.layout.css, matui.apps.css */
 /* ==========================================================================
    MatUi · tokens
    The single source of the look of every Mat app. Components use only these custom properties, never a raw colour.
@@ -145,6 +145,29 @@
     --mat-control-h: 44px;
     --mat-control-h-sm: 36px;
     --mat-control-h-lg: 52px;
+  }
+}
+
+
+/* ---- Density (data-density on <html>) ----
+   Opt-in: <html data-density="compact">. Absent or any other value is the look above. For an app whose pages are dense - a back
+   office with a long menu, many fields, long tables (MatCMS, Matmon) - where the default air is made for a sparse page. It
+   changes sizes only: the menu is narrower, the top bar lower, the body type 14 px and the page padding smaller; with a MOUSE the
+   controls are 34 px, the menu rows 32 px and the table cells tighter (those two as rules in matui.shell.css / matui.lists.css,
+   so the component properties stay the app's to set). A touch screen keeps the 44 px targets above (MOBILE-04)
+   and its 16 px field type (MOBILE-06); nothing is ever under 32 px. The rules for the menu's own spacing are in matui.shell.css. */
+:root[data-density="compact"] {
+  --mat-nav-w: 236px;
+  --mat-topbar-h: 52px;
+  --mat-content-pad: 28px;
+  --mat-fs-md: .875rem;
+}
+@media (max-width: 1199px) { :root[data-density="compact"] { --mat-content-pad: 24px; } }
+@media (max-width: 899px) { :root[data-density="compact"] { --mat-content-pad: 16px; } }
+@media (pointer: fine) {
+  :root[data-density="compact"] {
+    --mat-control-h: 34px;
+    --mat-control-h-lg: 40px;
   }
 }
 
@@ -1106,6 +1129,9 @@ html.mat-lock { overflow: hidden; }
   border: 1px solid var(--mat-border);
   border-radius: var(--mat-radius-lg);
 }
+/* The wide card of an assistant (FORM-26): 760 px at most, more air at the sides from 600 px. */
+.mat-auth__card--wide { width: min(760px, 100%); }
+@media (min-width: 600px) { .mat-auth__card--wide { padding-inline: var(--mat-space-8); } }
 .mat-auth__brand { display: flex; flex-direction: column; align-items: center; gap: var(--mat-space-3); text-align: center; }
 .mat-auth__brand .mat-logo { width: 56px; height: 56px; }
 
@@ -1115,6 +1141,25 @@ html.mat-lock { overflow: hidden; }
   .mat-crumbs a { display: block; min-width: 44px; line-height: 44px; text-align: center; }
   .mat-footer__links { row-gap: 0; }
   .mat-footer__links a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+}
+
+/* ---- Density compact (data-density="compact", the tokens are in matui.tokens.css): the menu's own spacing, which has no
+   property of its own yet ---- */
+:root[data-density="compact"] .mat-nav__brand { padding: 14px 14px 10px; }
+:root[data-density="compact"] .mat-nav__scroll { padding: 0 8px 8px; }
+:root[data-density="compact"] .mat-nav__group { padding: 14px 10px 4px; font-size: var(--mat-fs-xs); }
+:root[data-density="compact"] .mat-nav__list > li:first-child.mat-nav__group { padding-top: 4px; }
+:root[data-density="compact"] .mat-nav__foot { padding: 8px 8px calc(8px + var(--mat-safe-bottom)); gap: 4px; }
+:root[data-density="compact"] .mat-user { min-height: var(--mat-control-h); padding: 4px 8px; gap: 10px; }
+:root[data-density="compact"] .mat-avatar { width: 28px; height: 28px; font-size: var(--mat-fs-xs); }
+:root[data-density="compact"] .mat-page { padding-top: var(--mat-space-5); }
+/* the rows of the menu with a mouse - :where() keeps the weight of .mat-nav__item, so an app's --mat-nav-item-* still applies */
+@media (pointer: fine) {
+  :where(:root[data-density="compact"]) .mat-nav__item {
+    gap: var(--mat-nav-item-gap, 10px);
+    min-height: var(--mat-nav-item-height, 32px);
+    padding: 0 var(--mat-nav-item-pad-x, 10px);
+  }
 }
 
 /* ==========================================================================
@@ -1411,6 +1456,28 @@ a.mat-card:hover, .mat-card--link:hover { border-color: var(--mat-text-faint); b
 .mat-steps li.is-done { background: color-mix(in srgb, var(--mat-accent) 55%, transparent); }
 .mat-steps li.is-active { background: var(--mat-accent); }
 
+/* ---- Wizard (FORM-26): an assistant that leads through steps. The card is .mat-auth__card.mat-auth__card--wide (a page without the menu) or any card. In order: the head (logo, title, "Step 3 of 5: label"),
+   the bar above (.mat-steps), the step shown (title with an accent icon, text, fields) and the row of buttons: Continue, Skip, Back, a spacer, and at the end the way out. All of it flat, the space is generous. ---- */
+.mat-wizard { display: flex; flex-direction: column; gap: var(--mat-space-6); min-width: 0; }
+.mat-auth__card.mat-wizard { gap: var(--mat-space-6); }
+.mat-wizard__head { display: flex; flex-direction: column; align-items: center; gap: var(--mat-space-3); text-align: center; }
+.mat-wizard__head > h1, .mat-wizard__head > p { margin: 0; }
+/* One step: its title, its text and its fields one below another. A step that is not shown is hidden (the script) and takes no room. */
+.mat-wizard__step { display: flex; flex-direction: column; gap: var(--mat-space-4); min-width: 0; }
+.mat-wizard__step[hidden] { display: none; }
+.mat-wizard__title { display: flex; align-items: center; gap: var(--mat-space-2); margin: 0; font-size: var(--mat-fs-lg); }
+.mat-wizard__title > .mat-icon { flex: none; color: var(--mat-accent-text); }
+.mat-wizard__text { margin: 0; }
+/* The buttons (.mat-btn-row puts Continue first, the way out last): more air above them, and the ones the script hides (Back on the first step) take no room. */
+.mat-wizard__actions { margin-top: 0; padding-top: var(--mat-space-6); }
+.mat-wizard__actions > [hidden] { display: none; }
+/* Phones: Continue (and the final submit) on a line of its own, Skip and Back share the next one, the way out is the last line. */
+@media (max-width: 600px) {
+  .mat-wizard__actions > .mat-btn { flex: 1 1 auto; }
+  .mat-wizard__actions > .mat-btn--primary, .mat-wizard__actions > .mat-btn--end { flex-basis: 100%; }
+  .mat-wizard__actions > .mat-btn-row__spacer { display: none; }
+}
+
 /* Tooltip for icon buttons: [data-tip="Edit"]. Real information never lives only in a tooltip.
    A tip that is not shown takes no room (display: none, not only transparent): a button at the end of a table row or of the header bar would otherwise let
    its scrolling box scroll sideways by the width of a tip nobody sees. It fades in from @starting-style.
@@ -1534,6 +1601,52 @@ a.mat-listgroup__item:hover, button.mat-listgroup__item:hover { background: var(
 .mat-stat__delta--up { color: var(--mat-success-text); }
 .mat-stat__delta--down { color: var(--mat-danger-text); }
 .mat-stat__delta .mat-icon { font-size: 1em; }
+
+/* A strip of key figures (mat-stats): each child .mat-stat is a compact tile of its own, no card around it. The tiles share one row while
+   they fit (at least 8.5rem each, so five or six sit side by side on a desktop), two per row on a phone (MOBILE-02; an odd last tile takes
+   the whole row), one only below 340 px. A tone tints the tile and draws a bar at its start; the label and the delta still say what the
+   colour means (COLOR-04). An <a class="mat-stat"> is a linked tile. A .mat-stat inside a card is as before. */
+.mat-stats { display: grid; gap: var(--mat-space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); }
+.mat-stats > .mat-stat {
+  position: relative;
+  min-width: 0;
+  gap: 1px;
+  padding: var(--mat-space-3) var(--mat-space-4);
+  overflow: hidden;
+  background: var(--mat-surface);
+  border: 1px solid var(--mat-border);
+  border-radius: var(--mat-radius);
+  box-shadow: var(--mat-shadow-1);
+  color: var(--mat-text);
+}
+.mat-stats > .mat-stat > .mat-stat__label { overflow: hidden; font-size: var(--mat-fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
+.mat-stats > .mat-stat > .mat-stat__value { font-size: var(--mat-fs-xl); line-height: var(--mat-lh-tight); overflow-wrap: anywhere; }
+.mat-stats > .mat-stat > .mat-stat__delta { font-weight: 500; }
+.mat-stats > .mat-stat > .mat-stat__icon { position: absolute; top: var(--mat-space-3); right: var(--mat-space-3); font-size: 1.05rem; color: var(--mat-text-faint); }
+.mat-stats > .mat-stat:has(> .mat-stat__icon) > .mat-stat__label { padding-right: var(--mat-space-6); }
+.mat-stat--danger { --mat-stat-tone: var(--mat-danger); --mat-stat-tint: var(--mat-danger-bg); --mat-stat-text: var(--mat-danger-text); }
+.mat-stat--warning { --mat-stat-tone: var(--mat-warning); --mat-stat-tint: var(--mat-warning-bg); --mat-stat-text: var(--mat-warning-text); }
+.mat-stat--success { --mat-stat-tone: var(--mat-success); --mat-stat-tint: var(--mat-success-bg); --mat-stat-text: var(--mat-success-text); }
+.mat-stat--info { --mat-stat-tone: var(--mat-info); --mat-stat-tint: var(--mat-info-bg); --mat-stat-text: var(--mat-info-text); }
+.mat-stat--accent { --mat-stat-tone: var(--mat-accent); --mat-stat-tint: var(--mat-accent-soft); --mat-stat-text: var(--mat-accent-text); }
+.mat-stats > .mat-stat:is(.mat-stat--danger, .mat-stat--warning, .mat-stat--success, .mat-stat--info, .mat-stat--accent) {
+  border-color: color-mix(in srgb, var(--mat-stat-tone) 32%, var(--mat-border));
+  background: linear-gradient(color-mix(in srgb, var(--mat-stat-tint) 70%, transparent), color-mix(in srgb, var(--mat-stat-tint) 70%, transparent)), var(--mat-surface);
+}
+.mat-stats > .mat-stat:is(.mat-stat--danger, .mat-stat--warning, .mat-stat--success, .mat-stat--info, .mat-stat--accent)::before { content: ""; position: absolute; inset-block: 0; left: 0; width: 3px; background: var(--mat-stat-tone); }
+.mat-stats > .mat-stat:is(.mat-stat--danger, .mat-stat--warning, .mat-stat--success, .mat-stat--info, .mat-stat--accent) > :is(.mat-stat__value, .mat-stat__icon) { color: var(--mat-stat-text); }
+.mat-stats > a.mat-stat { text-decoration: none; transition: border-color var(--mat-dur) var(--mat-ease), background-color var(--mat-dur) var(--mat-ease); }
+.mat-stats > a.mat-stat:hover { border-color: var(--mat-border-strong); background-color: var(--mat-surface-2); text-decoration: none; }
+.mat-stats > a.mat-stat:is(.mat-stat--danger, .mat-stat--warning, .mat-stat--success, .mat-stat--info, .mat-stat--accent):hover { border-color: color-mix(in srgb, var(--mat-stat-tone) 60%, var(--mat-border)); }
+.mat-stats > a.mat-stat:focus-visible { border-radius: var(--mat-radius); box-shadow: var(--mat-focus-ring); }
+@media (max-width: 600px) {
+  .mat-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mat-stats > .mat-stat:last-child:nth-child(odd) { grid-column-end: span 2; }
+}
+@media (max-width: 340px) {
+  .mat-stats { grid-template-columns: minmax(0, 1fr); }
+  .mat-stats > .mat-stat:last-child:nth-child(odd) { grid-column-end: auto; }
+}
 
 /* ---- Timeline: what happened, newest first ---- */
 .mat-timeline { list-style: none; display: flex; flex-direction: column; }
@@ -2344,6 +2457,10 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
 .mat-picker__all[aria-checked="mixed"] .mat-picker__check::after { content: ""; width: 10px; height: 2px; border-radius: 1px; background: currentColor; }
 .mat-picker__empty { padding: var(--mat-space-5) var(--mat-space-4); text-align: center; color: var(--mat-text-muted); }
 .mat-picker__empty[hidden] { display: none; }
+/* a list from the server (data-source-url): how much is shown, Show more, Try again */
+.mat-picker__source { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--mat-space-2); padding: var(--mat-space-2) var(--mat-space-3); }
+.mat-picker__source:not(:has(> :not([hidden]))) { display: none; }
+.mat-picker__source .mat-picker__status { min-height: 0; text-align: center; }
 @media (max-width: 640px) {
   .mat-picker__panel--list { width: 100%; }
   .mat-picker__panel--list .mat-picker__body { padding: 0; }
@@ -2821,6 +2938,11 @@ fieldset.mat-rating:not(.is-ready) > .mat-hint, fieldset.mat-rating:not(.is-read
   white-space: nowrap;
 }
 .mat-table td { padding: var(--mat-table-pad-y, var(--mat-space-3)) var(--mat-table-pad-x, var(--mat-space-4)); border-top: 1px solid var(--mat-border); vertical-align: middle; }
+/* Density compact with a mouse (data-density="compact", the tokens are in matui.tokens.css): tighter cells. :where() keeps the weight of the rule
+   above, so a table variant (mat-table--compact) still wins and an app's --mat-table-pad-* still applies. */
+@media (pointer: fine) {
+  :where(:root[data-density="compact"]) .mat-table :is(caption, th, td) { padding: var(--mat-table-pad-y, 9px) var(--mat-table-pad-x, 14px); }
+}
 .mat-table tbody tr:hover { background: var(--mat-surface-2); }
 .mat-table tbody tr.is-selected { background: var(--mat-accent-soft-strong); }
 .mat-table th.mat-num { text-align: right; }
@@ -4232,6 +4354,7 @@ dialog.mat-dialog--start[open] { animation-name: mat-panel-in-start; }
 [data-app="matplay"]     { --mat-app-accent: #00819b; }
 [data-app="matsplit"]    { --mat-app-accent: #bf5610; }
 [data-app="matmon"]      { --mat-app-accent: #295cff; }
+[data-app="schulio"]     { --mat-app-accent: #2d5fb8; }
 [data-app="matcms"]      { --mat-app-accent: #2563eb; }
 [data-app="matdo"]       { --mat-app-accent: #d03d33; }
 [data-app="matstat"]     { --mat-app-accent: #2563eb; }

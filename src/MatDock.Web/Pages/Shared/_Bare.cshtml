@@ -6,7 +6,7 @@
     var title = ViewData["Title"] as string;
 }
 <!DOCTYPE html>
-<html lang="en" data-app="@Ui.App.Id">
+<html lang="en" data-app="@Ui.App.Id" data-density="compact">
 <partial name="_Head" model="@(string.IsNullOrEmpty(title) ? Ui.App.Name : $"{title} · {Ui.App.Name}")" />
 <body>
     <a class="mat-skip" href="#main">Skip to the content</a>

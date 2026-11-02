@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Version 0.9.3 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
+   Version 0.11.0 of the toolkit MatUi (what changed in each version: CHANGELOG.md; how to update an app: docs/VERSIONING.md).
    `node tools/bump.js` writes the version here, in matui.boot.js and in MatUiVersion (Directory.Build.props); window.MatUi.version has it.
    MatUi · behaviour
    Dependency-free. Everything is wired by delegated listeners and data-attributes, so server-rendered and dynamically added
@@ -68,6 +68,8 @@
                                             for a text that is not an option; data-create-label is its text) and data-suggest-url="/y" (GET, the answer [ { value } | { name } ] or { items }:
                                             "Suggestions" above "All" while nothing is chosen). MatUi.picker.set(wrapper, value), .addOption(wrapper, { value, name, description, tags })
                                             and .suggest(wrapper, items) do the same from code.
+                                            A list too long for the page (FORM-25): data-source-url="/x" asks GET /x?q=<text>&page=<n> when the panel opens and as the text changes,
+                                            the answer { items: [ { value, name, description? } ], more, total? }; "Show more" fetches the next page. The options in the markup are the chosen ones; data-source-with="name, ..." sends those fields of the form along.
      data-calendar                         a calendar that is always shown (FORM-18); the real input inside is .mat-calendar__input and posts 2026-10-10, a period
                                             2026-10-10..2026-10-14 or several dates 2026-10-10,2026-10-12. data-mode="single|range|multiple", data-min / data-max (a date,
                                             today, tomorrow, +2d, -1w, +3m, +1y), data-disabled ("2026-10-14,2026-10-20..2026-10-24"), data-disabled-weekdays ("0,6", 0 is Sunday),
@@ -131,6 +133,11 @@
                                             that another element has as data-shortcut stays that element's). In the header bar (.mat-topbar__search, SHELL-20) a phone gets an icon button; on a phone
                                             the focused field is a full-screen panel with an X. Events: mat:search-select (cancelable), mat:search-results. API: MatUi.search.init / setItems /
                                             open / close / clear / focus / value. The texts: data-sr-<name> on <html>
+     data-wizard                            an assistant that leads through steps in one page (FORM-26): <form class="mat-form mat-wizard" data-wizard novalidate> of several .mat-wizard__step, the bar
+                                            .mat-steps, [data-wizard-status] ("Step 3 of 5: Contact") and the buttons [data-wizard-next], [data-wizard-back], [data-wizard-skip] and [data-wizard-submit]. The script shows
+                                            one step, checks it before Continue (FORM-05), marks the bar, moves the focus to the title of the step and says the step in a live region. data-optional on a step offers
+                                            Skip, data-label names it, data-start="2" is the first one shown (a step with an error is shown first). A wizard of one page per step is plain markup and needs no
+                                            script. Event: mat:wizard-step (cancelable). API: MatUi.wizard.init / go / next / back / current. The texts: data-wz-<name> on <html>
 
    Events (CustomEvents named after the control and what happened; this is all of them, docs/ADOPTING.md section 3b has the same list as a table and a test holds both to the code).
    Each is sent on the element it is about and bubbles, so one listener on document hears them all, except the first four: they are sent on <html> and do not bubble
@@ -158,6 +165,7 @@
      mat:upload-refused   .mat-upload      { refused, source }: files that were not taken, each with its reason
      mat:search-results   .mat-search      { query, count, source }: suggestions were drawn (source: local, server or error)
      mat:search-select    .mat-search      { item, group, query, source }: an option was chosen (source: result, recent or all); cancelable: preventDefault means the app takes over, nothing is followed
+     mat:wizard-step      .mat-wizard      { wizard, from, to, direction }: another step is about to be shown (steps count from 1, direction: forward or back); cancelable: preventDefault keeps the wizard on its step
    ========================================================================== */
 (function () {
   'use strict';
@@ -1311,19 +1319,25 @@
     }
     box.hidden = bad.length === 0;
   }
+  // The fields of `scope` (the whole form, or one step of a wizard) are checked: a wrong one gets its message and an entry in the summary, a right one loses its message.
+  // The wrong ones come back (a group of radio buttons once); the first of them is for the focus.
+  function validateFields(form, scope) {
+    var fields = $$('input, select, textarea', scope);
+    var bad = fields.filter(function (i) { return !i.disabled && !i.checkValidity(); });
+    fields.forEach(function (i) { if (!bad.includes(i)) { showError(i, ''); } });
+    bad = bad.filter(function (i, n) { return i.type !== 'radio' || !i.name || bad.findIndex(function (o) { return o.type === 'radio' && o.name === i.name; }) === n; });
+    summarize(form, bad);
+    bad.forEach(function (i) { showError(i, messageFor(i)); });
+    return bad;
+  }
   doc.addEventListener('submit', function (e) {
     var form = e.target;
     if (!form.matches || !form.matches('form.mat-form, form[data-validate]') || e.defaultPrevented) { return; }
     // A submit button with formnovalidate (Delete, Save as draft) sends the form as it is, like the browser does: nothing is checked and no message is written.
     if (e.submitter && e.submitter.hasAttribute('formnovalidate')) { return; }
-    var bad = $$('input, select, textarea', form).filter(function (i) { return !i.disabled && !i.checkValidity(); });
-    $$('input, select, textarea', form).forEach(function (i) { if (!bad.includes(i)) { showError(i, ''); } });
-    // a group of radio buttons has one message
-    bad = bad.filter(function (i, n) { return i.type !== 'radio' || !i.name || bad.findIndex(function (o) { return o.type === 'radio' && o.name === i.name; }) === n; });
-    summarize(form, bad);
+    var bad = validateFields(form, form);
     if (bad.length) {
       e.preventDefault();
-      bad.forEach(function (i) { showError(i, messageFor(i)); });
       bad[0].focus();
     }
   }, true);
@@ -1973,7 +1987,8 @@
       from: 'From', to: 'To', hour: 'Hour', minute: 'Minute', ampm: 'AM or PM', typeTime: 'Type a time', nextDay: 'next day', durHM: '{0} h {1} min', durH: '{0} h', durM: '{0} min',
       colours: 'Colours', hue: 'Hue', area: 'Saturation and brightness', areaValue: 'Saturation {0}%, brightness {1}%', hex: 'Hex colour',
       whiteText: 'White text', darkText: 'Dark text', lvAAA: 'AAA', lvAA: 'AA', lvLarge: 'large text only', lvLow: 'too low',
-      phTags: 'Add a tag', removeTag: 'Remove tag {0}', tagRemoved: 'Removed {0}', tagDuplicate: '{0} is already there', tagMax: 'At most {0} tags', tagStrict: 'Choose one of the suggestions', suggestions: 'Suggestions'
+      phTags: 'Add a tag', removeTag: 'Remove tag {0}', tagRemoved: 'Removed {0}', tagDuplicate: '{0} is already there', tagMax: 'At most {0} tags', tagStrict: 'Choose one of the suggestions', suggestions: 'Suggestions',
+      loading: 'Loading …', loadFailed: 'The list could not be loaded.', retry: 'Try again', showMore: 'Show more', shownOf: '{0} of {1} shown', typeToSearch: 'Type to search.'
     },
     de: {
       apply: 'Übernehmen', cancel: 'Abbrechen', clear: 'Löschen', close: 'Schließen', done: 'Fertig', today: 'Heute', now: 'Jetzt',
@@ -1989,7 +2004,8 @@
       from: 'Von', to: 'Bis', hour: 'Stunde', minute: 'Minute', ampm: 'Vor- oder nachmittags', typeTime: 'Uhrzeit eintippen', nextDay: 'am nächsten Tag', durHM: '{0} Std. {1} Min.', durH: '{0} Std.', durM: '{0} Min.',
       colours: 'Farben', hue: 'Farbton', area: 'Sättigung und Helligkeit', areaValue: 'Sättigung {0} %, Helligkeit {1} %', hex: 'Hex-Farbe',
       whiteText: 'Weiße Schrift', darkText: 'Dunkle Schrift', lvAAA: 'AAA', lvAA: 'AA', lvLarge: 'nur große Schrift', lvLow: 'zu niedrig',
-      phTags: 'Tag hinzufügen', removeTag: 'Tag {0} entfernen', tagRemoved: '{0} entfernt', tagDuplicate: '{0} ist schon vorhanden', tagMax: 'Höchstens {0} Tags', tagStrict: 'Bitte einen Vorschlag wählen', suggestions: 'Vorschläge'
+      phTags: 'Tag hinzufügen', removeTag: 'Tag {0} entfernen', tagRemoved: '{0} entfernt', tagDuplicate: '{0} ist schon vorhanden', tagMax: 'Höchstens {0} Tags', tagStrict: 'Bitte einen Vorschlag wählen', suggestions: 'Vorschläge',
+      loading: 'Wird geladen …', loadFailed: 'Die Liste ließ sich nicht laden.', retry: 'Erneut versuchen', showMore: 'Mehr anzeigen', shownOf: '{0} von {1} angezeigt', typeToSearch: 'Zum Suchen tippen.'
     }
   };
   var PK_SWATCHES = ['#dc2626', '#ea580c', '#d97706', '#ca8a04', '#65a30d', '#16a34a', '#0d9488', '#0891b2', '#0284c7', '#2563eb', '#4f46e5', '#7c3aed', '#a21caf', '#db2777', '#e11d48', '#475569', '#1f2937', '#78716c'];
@@ -2647,6 +2663,90 @@
     return wrap._matPicker || null;
   }
 
+  // ---- select: the options come from the server (data-source-url, FORM-25)
+  // For a list that is too long to put into the page (accounts, customers, instances): the panel always has the search field and asks
+  // GET <url>?q=<text>&page=<n> (n from 1) as the text changes (after a short pause) and when it opens; the answer is { "items": [ { "value", "name",
+  // "description"? } ], "more": true|false, "total"?: n } (or a bare array). The first page replaces the list, "Show more" appends the next one. The options that
+  // the page wrote into the wrapper are the chosen values, so the closed field can name them before anything was asked; they stay in the list, hidden while
+  // a search does not find them. An answer that arrives after a newer question is thrown away.
+  function sourceOption(p, item) {
+    var o = doc.createElement('button');
+    o.type = 'button';
+    o.className = 'mat-picker__option';
+    o.setAttribute('data-value', String(item.value));
+    o.setAttribute('role', 'option');
+    o.setAttribute('aria-selected', 'false');
+    o.tabIndex = -1;
+    var text = doc.createElement('span');
+    text.className = 'mat-picker__text';
+    var name = doc.createElement('span');
+    name.className = 'mat-picker__name';
+    name.textContent = typeof item.name === 'string' && item.name ? item.name : String(item.value);
+    text.appendChild(name);
+    if (typeof item.description === 'string' && item.description) {
+      var desc = doc.createElement('span');
+      desc.className = 'mat-picker__desc';
+      desc.textContent = item.description;
+      text.appendChild(desc);
+    }
+    o.appendChild(text);
+    o.insertAdjacentHTML('beforeend', '<span class="mat-picker__check" aria-hidden="true">' + icon('check') + '</span>');
+    return o;
+  }
+  function sourceStatus(p, state) {
+    p.sourceState = state;
+    var shown = shownReal(p).length;
+    p.sourceMoreBtn.hidden = state !== 'done' || !p.sourceMore;
+    p.sourceRetry.hidden = state !== 'failed';
+    p.sourceInfo.textContent = state === 'loading' ? pkTextOf(p, 'loading')
+      : state === 'failed' ? pkTextOf(p, 'loadFailed')
+      : p.sourceMore && typeof p.sourceTotal === 'number' ? pkTextOf(p, 'shownOf', shown, p.sourceTotal) : '';
+    p.sourceInfo.hidden = !p.sourceInfo.textContent;
+    p.empty.hidden = state !== 'done' || shown > 0;
+    p.wrap.classList.toggle('is-loading', state === 'loading');
+    if (pickerOpen === p) { p.relayout(); }
+  }
+  function sourceFetch(p, page) {
+    var q = p.search.value.trim();
+    var seq = p.sourceSeq = (p.sourceSeq || 0) + 1;
+    clearTimeout(p.sourceTimer);
+    sourceStatus(p, 'loading');
+    var url = p.sourceUrl + (p.sourceUrl.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(q) + '&page=' + page;
+    // data-source-with="customer, region": the values of those fields of the form go along, so a list can depend on another choice
+    var form = p.wrap.closest('form');
+    (p.wrap.getAttribute('data-source-with') || '').split(',').map(function (n) { return n.trim(); }).filter(Boolean).forEach(function (n) {
+      var field = form && form.elements.namedItem(n);
+      if (field && field.length !== undefined && !field.tagName) { field = Array.prototype.filter.call(field, function (x) { return x.checked; })[0] || field[0]; }
+      url += '&' + encodeURIComponent(n) + '=' + encodeURIComponent(field && !field.disabled ? field.value || '' : '');
+    });
+    fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(function (res) { if (!res.ok) { throw new Error('source: ' + res.status); } return res.json(); })
+      .then(function (data) { if (seq === p.sourceSeq) { sourceRender(p, data, page, q); } })
+      .catch(function () { if (seq === p.sourceSeq) { p.sourceFailedPage = page; sourceStatus(p, 'failed'); } });
+  }
+  function sourceRender(p, data, page, q) {
+    var items = Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : [];
+    var vals = selValues(p);
+    if (page === 1) {
+      // a new question: what is not chosen goes, what is chosen stays (for the closed field) but only shows when this answer has it
+      realOptions(p).forEach(function (o) { if (vals.indexOf(o.getAttribute('data-value') || '') >= 0) { o.hidden = true; } else { o.remove(); } });
+    }
+    items.forEach(function (item) {
+      if (!item || typeof item !== 'object' || item.value === undefined || item.value === null || String(item.value) === '') { return; }
+      var known = optionByValue(p, String(item.value));
+      var o = known || sourceOption(p, item);
+      o.hidden = false;
+      p.list.appendChild(o); // in the order of the answer
+    });
+    p.sourcePage = page;
+    p.sourceQuery = q;
+    p.sourceMore = !!(data && !Array.isArray(data) && data.more);
+    p.sourceTotal = data && !Array.isArray(data) && typeof data.total === 'number' ? data.total : null;
+    p.empty.textContent = q ? pkTextOf(p, 'noResults') : pkTextOf(p, 'noResults');
+    syncPicker(p.wrap);
+    sourceStatus(p, 'done');
+  }
+
   KINDS.select = {
     icon: 'chevron-down',
     init: function (p) {
@@ -2655,6 +2755,7 @@
       p.createUrl = p.wrap.getAttribute('data-create-url') || '';
       p.create = !!p.createUrl;
       p.suggestUrl = p.wrap.getAttribute('data-suggest-url') || '';
+      p.sourceUrl = p.wrap.getAttribute('data-source-url') || '';
       p.list = $('.mat-picker__options', p.wrap) || doc.createElement('div');
       var panel = pkPanel(p);
       panel.classList.add('mat-picker__panel--list');
@@ -2670,7 +2771,7 @@
         if (!$('.mat-picker__check', o)) { o.insertAdjacentHTML('beforeend', '<span class="mat-picker__check" aria-hidden="true">' + icon('check') + '</span>'); }
       });
       // creating needs the text that is typed, so a select that can create always has the search field
-      if (p.wrap.hasAttribute('data-search') || p.create) {
+      if (p.wrap.hasAttribute('data-search') || p.create || p.sourceUrl) {
         var search = doc.createElement('div');
         search.className = 'mat-picker__search';
         search.innerHTML = icon('search') + '<input type="search" class="mat-input" autocomplete="off" aria-label="' + esc(pkText('search')) + '" placeholder="' + esc(pkText('search')) + '">';
@@ -2694,6 +2795,30 @@
       p.empty.hidden = true;
       p.empty.textContent = pkText('noResults');
       p.body.appendChild(p.empty);
+      if (p.sourceUrl) {
+        // under the list: how much of it is shown (or that it is loading, or failed), "Show more" and "Try again"
+        var foot = doc.createElement('div');
+        foot.className = 'mat-picker__source';
+        p.sourceInfo = doc.createElement('p');
+        p.sourceInfo.className = 'mat-picker__status';
+        p.sourceInfo.setAttribute('role', 'status');
+        p.sourceInfo.setAttribute('aria-live', 'polite');
+        p.sourceInfo.hidden = true;
+        p.sourceMoreBtn = doc.createElement('button');
+        p.sourceMoreBtn.type = 'button';
+        p.sourceMoreBtn.className = 'mat-btn mat-btn--ghost mat-btn--sm mat-picker__more';
+        p.sourceMoreBtn.textContent = pkTextOf(p, 'showMore');
+        p.sourceMoreBtn.hidden = true;
+        p.sourceRetry = doc.createElement('button');
+        p.sourceRetry.type = 'button';
+        p.sourceRetry.className = 'mat-btn mat-btn--secondary mat-btn--sm mat-picker__retry';
+        p.sourceRetry.textContent = pkTextOf(p, 'retry');
+        p.sourceRetry.hidden = true;
+        foot.appendChild(p.sourceInfo);
+        foot.appendChild(p.sourceMoreBtn);
+        foot.appendChild(p.sourceRetry);
+        p.body.appendChild(foot);
+      }
       if (p.create) {
         // the row that creates, the message that says why it did not work (read aloud when it changes) and the place where the result is announced
         p.createMsg = doc.createElement('p');
@@ -2741,7 +2866,7 @@
       if (p.multiple) {
         // the names while there are one or two of them, "All selected" when every one of more than two is chosen, else the count
         var names = chosen.map(optionName);
-        out.textContent = chosen.length === all.length && all.length > 2 ? pkText('allSelected') : chosen.length <= 2 ? names.join(', ') : pkText('selectedCount', chosen.length);
+        out.textContent = !p.sourceUrl && chosen.length === all.length && all.length > 2 ? pkText('allSelected') : chosen.length <= 2 ? names.join(', ') : pkText('selectedCount', chosen.length);
         return;
       }
       var img = $('.mat-picker__img', chosen[0]);
@@ -2761,7 +2886,8 @@
     },
     open: function (p) {
       if (p.createMsg) { createError(p, ''); }
-      if (p.search) { p.search.value = ''; filterOptions(p, ''); }
+      if (p.sourceUrl) { p.search.value = ''; sourceFetch(p, 1); }
+      else if (p.search) { p.search.value = ''; filterOptions(p, ''); }
       selAllSync(p);
       // suggestions are fetched when the panel is opened for the first time with nothing chosen (and asked for again if that failed)
       if (p.suggestUrl && !p.suggestLoaded && !p.suggestLoading && !selValues(p).length) { fetchSuggestions(p); }
@@ -2773,6 +2899,8 @@
     },
     click: function (p, t) {
       if (p.all && t.closest('.mat-picker__all')) { selToggleAll(p); return; }
+      if (p.sourceUrl && t.closest('.mat-picker__more')) { sourceFetch(p, (p.sourcePage || 0) + 1); return; }
+      if (p.sourceUrl && t.closest('.mat-picker__retry')) { sourceFetch(p, p.sourceFailedPage || 1); return; }
       var o = t.closest('.mat-picker__option');
       if (!o || o.disabled) { return; }
       if (o === p.createRow) { pkCreate(p, p.createName); return; }
@@ -2785,7 +2913,12 @@
       // a suggested row goes away once something is chosen: the focus stays on the option itself
       focusOption(p, isReal(o) ? o : optionByValue(p, v) || o);
     },
-    input: function (p, t) { if (t === p.search) { if (p.createMsg) { createError(p, ''); } filterOptions(p, t.value); } },
+    input: function (p, t) {
+      if (t !== p.search) { return; }
+      if (p.sourceUrl) { clearTimeout(p.sourceTimer); p.sourceTimer = setTimeout(function () { sourceFetch(p, 1); }, 250); return; }
+      if (p.createMsg) { createError(p, ''); }
+      filterOptions(p, t.value);
+    },
     // Arrow keys, Home and End walk the rows ("Select all" first); Space (or Enter) on a row is the click of its button, so it toggles the option
     keys: function (p, e) {
       var t = e.target, opts = visibleOptions(p), rows = selRows(p), o = t.closest('.mat-picker__option'), onAll = !!p.all && t === p.all;
@@ -8060,6 +8193,159 @@
   }
   var search = { init: initSearches, setItems: srSetItems, open: srApiOpen, close: srApiClose, clear: srApiClear, focus: function (ref) { var s = srOf(ref); if (s) { srFocus(s); } }, value: srApiValue };
 
+  // ------------------------------------------------------------------------------------------------ wizard (FORM-26, matui.controls.css)
+  // An assistant that leads through steps. There are two ways to build one. Server-driven, one page per step, it is plain markup (.mat-wizard, the bar .mat-steps, one .mat-wizard__step, the
+  // buttons as links) and needs no script. All in one page it is <form class="mat-form mat-wizard" data-wizard novalidate> with several .mat-wizard__step; this is the script that makes it
+  // one: it shows one step at a time (the others are hidden, their fields stay in the form), draws the bar (is-done, is-active with aria-current="step", the hidden text of every step),
+  // writes "Step 3 of 5: Contact" into [data-wizard-status], and moves the focus to the title of the step that comes up. The live region says the same politely. Continue
+  // ([data-wizard-next]) checks the fields of the step that is shown, like a form is checked when it is sent (FORM-05), and stays where it is when one is wrong. Back ([data-wizard-back])
+  // never checks. Skip ([data-wizard-skip]) is offered on a step that has data-optional and does not check. Enter in a field is Continue until the last step; the last step shows the real
+  // submit button ([data-wizard-submit]), which sends the form (and takes the person back to a step whose field is wrong, if one of the earlier ones is). The buttons start hidden in the
+  // markup (without the script every step is shown, one under the other, and only the submit button works). A step the server sends back with an error is the one that is shown first;
+  // otherwise data-start="2" or the first one. A step is named by its data-label, or else by the text of its title. Every move sends mat:wizard-step (cancelable: the wizard stays).
+  // The words the script writes (the bar, the status, the announcement) are WZ_TEXT, English and German; data-wz-<name> on <html> changes one. API: MatUi.wizard.init / go / next / back / current,
+  // a step is a number from 1.
+  var WZ_TEXT = {
+    en: { progress: 'Setup progress', step: 'Step {0}', stepNamed: 'Step {0}, {1}', done: 'done', current: 'current', status: 'Step {0} of {1}', statusNamed: 'Step {0} of {1}: {2}' },
+    de: { progress: 'Fortschritt der Einrichtung', step: 'Schritt {0}', stepNamed: 'Schritt {0}, {1}', done: 'erledigt', current: 'aktuell', status: 'Schritt {0} von {1}', statusNamed: 'Schritt {0} von {1}: {2}' }
+  };
+
+  function wzText(key, a, b, c) {
+    var table = WZ_TEXT[(root.lang || 'en').slice(0, 2).toLowerCase()] || WZ_TEXT.en;
+    var s = root.getAttribute('data-wz-' + key.toLowerCase()) || table[key] || WZ_TEXT.en[key] || key;
+    // a function as the replacement: a label may hold a "$&"
+    return s.replace('{0}', function () { return a === undefined ? '' : a; }).replace('{1}', function () { return b === undefined ? '' : b; }).replace('{2}', function () { return c === undefined ? '' : c; });
+  }
+  function wzOf(ref) {
+    var el = typeof ref === 'string' ? (doc.getElementById(ref) || $(ref)) : ref;
+    var r = el && el.closest ? el.closest('[data-wizard]') : null;
+    return r && r._matWizard ? r._matWizard : null;
+  }
+  function wzLabel(step) {
+    var own = step.getAttribute('data-label');
+    if (own) { return own; }
+    var title = $('.mat-wizard__title', step);
+    return title ? title.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+  function wzStatus(w) {
+    var n = w.steps.length, label = wzLabel(w.steps[w.index]);
+    return label ? wzText('statusNamed', w.index + 1, n, label) : wzText('status', w.index + 1, n);
+  }
+  // the bar: an existing ol.mat-steps is kept, one is made when there is none, and it has one item for every step
+  function wzBar(w) {
+    var bar = $('.mat-steps', w.root);
+    if (!bar) {
+      bar = doc.createElement('ol');
+      bar.className = 'mat-steps';
+      bar.setAttribute('aria-label', wzText('progress'));
+      w.steps[0].parentNode.insertBefore(bar, w.steps[0]);
+    }
+    while (bar.children.length < w.steps.length) { bar.appendChild(doc.createElement('li')); }
+    while (bar.children.length > w.steps.length) { bar.removeChild(bar.lastElementChild); }
+    return bar;
+  }
+  function wzRender(w, announce) {
+    var n = w.steps.length, cur = w.index, last = cur === n - 1;
+    w.steps.forEach(function (s, i) { s.hidden = i !== cur; });
+    $$('li', wzBar(w)).forEach(function (li, i) {
+      li.classList.toggle('is-done', i < cur);
+      li.classList.toggle('is-active', i === cur);
+      if (i === cur) { li.setAttribute('aria-current', 'step'); } else { li.removeAttribute('aria-current'); }
+      var hidden = $('.mat-sr-only', li);
+      if (!hidden) { hidden = doc.createElement('span'); hidden.className = 'mat-sr-only'; li.appendChild(hidden); }
+      var label = wzLabel(w.steps[i]);
+      var text = label ? wzText('stepNamed', i + 1, label) : wzText('step', i + 1);
+      hidden.textContent = i < cur ? text + ', ' + wzText('done') : (i === cur ? text + ', ' + wzText('current') : text);
+    });
+    var status = wzStatus(w);
+    if (w.status) { w.status.textContent = status; }
+    if (w.next) { w.next.hidden = last; }
+    if (w.submit) { w.submit.hidden = !last; }
+    if (w.back) { w.back.hidden = cur === 0; }
+    if (w.skip) { w.skip.hidden = last || !w.steps[cur].hasAttribute('data-optional'); }
+    if (announce) { w.live.textContent = status; }
+  }
+  // to a step (1 to the number of steps); false when it is the one that is shown, or when mat:wizard-step was cancelled. silent = true sends no event (an app that answers it itself)
+  function wzGo(ref, step, silent) {
+    var w = wzOf(ref);
+    var to = Math.round(Number(step)) - 1;
+    if (!w || !(to >= 0 && to < w.steps.length) || to === w.index) { return false; }
+    if (silent !== true && !w.root.dispatchEvent(new CustomEvent('mat:wizard-step', { bubbles: true, cancelable: true, detail: { wizard: w.root, from: w.index + 1, to: to + 1, direction: to > w.index ? 'forward' : 'back' } }))) { return false; }
+    w.index = to;
+    wzRender(w, true);
+    var title = $('.mat-wizard__title', w.steps[to]) || w.steps[to];
+    if (!title.hasAttribute('tabindex')) { title.setAttribute('tabindex', '-1'); }
+    title.focus();
+    return true;
+  }
+  function wzNext(ref) {
+    var w = wzOf(ref);
+    if (!w || w.index >= w.steps.length - 1) { return false; }
+    var bad = validateFields(w.form || w.root, w.steps[w.index]);
+    if (bad.length) { bad[0].focus(); return false; }
+    return wzGo(w.root, w.index + 2);
+  }
+  function wzBack(ref) { var w = wzOf(ref); return w ? wzGo(w.root, w.index) : false; }
+  function wzSkip(ref) { var w = wzOf(ref); return w && w.index < w.steps.length - 1 ? wzGo(w.root, w.index + 2) : false; }
+
+  function wzInit(el) {
+    var steps = $$('.mat-wizard__step', el).filter(function (s) { return s.closest('[data-wizard]') === el; });
+    if (!steps.length) { return; }
+    var w = el._matWizard;
+    var first = !w;
+    if (first) {
+      w = el._matWizard = { root: el, index: 0 };
+      w.live = doc.createElement('div');
+      w.live.className = 'mat-sr-only';
+      w.live.setAttribute('role', 'status');
+      w.live.setAttribute('aria-live', 'polite');
+      el.appendChild(w.live);
+    }
+    w.steps = steps;
+    w.form = el.matches('form') ? el : (el.closest('form') || $('form', el));
+    if (w.form) { w.form._matWizard = w; }
+    w.status = $('[data-wizard-status]', el);
+    w.next = $('[data-wizard-next]', el);
+    w.back = $('[data-wizard-back]', el);
+    w.skip = $('[data-wizard-skip]', el);
+    w.submit = $('[data-wizard-submit]', el);
+    if (first) {
+      var start = parseInt(el.getAttribute('data-start'), 10) - 1;
+      steps.some(function (s, i) { if ($('[aria-invalid="true"], .is-invalid', s)) { start = i; return true; } return false; });
+      w.index = start >= 0 && start < steps.length ? start : 0;
+    }
+    w.index = Math.min(w.index, steps.length - 1);
+    wzRender(w, false);
+  }
+  function initWizards(scope) {
+    if (scope && scope.matches && scope.matches('[data-wizard]')) { wzInit(scope); }
+    $$('[data-wizard]', scope).forEach(wzInit);
+  }
+  doc.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-wizard-next], [data-wizard-back], [data-wizard-skip]') : null;
+    var w = b && wzOf(b);
+    if (!w) { return; }
+    e.preventDefault();
+    if (b.hasAttribute('data-wizard-next')) { wzNext(w.root); } else if (b.hasAttribute('data-wizard-back')) { wzBack(w.root); } else { wzSkip(w.root); }
+  });
+  // Sending the form before the last step (Enter in a field) is Continue. This listener is on the window, so it runs before the check of the form, which is not made then.
+  window.addEventListener('submit', function (e) {
+    var w = e.target && e.target._matWizard;
+    if (!w || w.index >= w.steps.length - 1 || (e.submitter && e.submitter.hasAttribute('formnovalidate'))) { return; }
+    e.preventDefault();
+    e.stopPropagation();
+    wzNext(w.root);
+  }, true);
+  // Sent from the last step and refused by the check of the form: a field of an earlier step is wrong, so that step is shown (the check ran first: this listener was added after it)
+  doc.addEventListener('submit', function (e) {
+    var w = e.target && e.target._matWizard;
+    if (!w || !e.defaultPrevented) { return; }
+    var field = $$('input, select, textarea', e.target).filter(function (i) { return i.getAttribute('aria-invalid') === 'true' && i.closest('.mat-wizard__step'); })[0];
+    var at = field ? w.steps.indexOf(field.closest('.mat-wizard__step')) : -1;
+    if (at >= 0 && at !== w.index && wzGo(w.root, at + 1)) { field.focus(); }
+  }, true);
+  var wizard = { init: initWizards, go: wzGo, next: wzNext, back: wzBack, current: function (ref) { var w = wzOf(ref); return w ? w.index + 1 : 0; } };
+
   // ------------------------------------------------------------------------------------------------------- init
   // a meter is filled by data: <div class="mat-meter__fill" data-value="63"> (no inline style in the markup)
   function fillMeters(scope) {
@@ -8099,6 +8385,7 @@
     initTrees();
     initUploads();
     initSearches();
+    initWizards();
     // the saved state of the submenus is applied without animating them
     root.classList.add('mat-nav-init');
     restoreBranches();
@@ -8125,7 +8412,7 @@
   if (doc.readyState === 'loading') { doc.addEventListener('DOMContentLoaded', init); } else { init(); }
 
   window.MatUi = {
-    version: '0.9.3',
+    version: '0.11.0',
     dialog: { open: openDialog, close: closeDialog },
     confirm: confirmDialog,
     alert: alertDialog,
@@ -8148,6 +8435,7 @@
     tree: tree,
     upload: { init: initUploads, files: upFiles, add: upAddFiles, remove: upRemoveFile, clear: upClearFiles, setProgress: upSetProgress, setError: upSetError },
     search: search,
-    refresh: function (scope) { refreshDependents(scope); fillMeters(scope); initForms(scope); applyColours(scope); initPickers(scope); initOtps(scope); initCalendars(scope); initCarousels(scope); initSchedules(scope); initItemLists(scope); initRatings(scope); initTables(scope); initTrees(scope); initUploads(scope); initSearches(scope); restoreGroups(scope); }
+    wizard: wizard,
+    refresh: function (scope) { refreshDependents(scope); fillMeters(scope); initForms(scope); applyColours(scope); initPickers(scope); initOtps(scope); initCalendars(scope); initCarousels(scope); initSchedules(scope); initItemLists(scope); initRatings(scope); initTables(scope); initTrees(scope); initUploads(scope); initSearches(scope); initWizards(scope); restoreGroups(scope); }
   };
 })();
