@@ -392,6 +392,7 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Scope).HasConversion<int>();
             e.Property(x => x.Mode).HasConversion<int?>();
             e.Property(x => x.Strategy).HasConversion<int?>();
+            e.Property(x => x.VulnerabilityGate).HasConversion<int?>();
             e.Property(x => x.ServiceStrategiesJson).HasMaxLength(4000);
             // One rule per scope among the non-deleted ones.
             e.HasIndex(x => new { x.Scope, x.ScopeId }).IsUnique().HasFilter("\"UpdateState\" <> 0");

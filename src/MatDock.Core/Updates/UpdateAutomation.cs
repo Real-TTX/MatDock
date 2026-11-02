@@ -42,6 +42,7 @@ public sealed class UpdateAutomation
     private readonly UpdateAutomationState _state;
     private readonly MatDockDbContext _db;
     private readonly ILogger<UpdateAutomation> _logger;
+    private readonly Images.ImageScanService? _scans;
 
     public UpdateAutomation(
         EnvironmentService environments,
@@ -51,8 +52,10 @@ public sealed class UpdateAutomation
         INotificationService notifications,
         UpdateAutomationState state,
         MatDockDbContext db,
-        ILogger<UpdateAutomation> logger)
+        ILogger<UpdateAutomation> logger,
+        Images.ImageScanService? scans = null)
     {
+        _scans = scans;
         _environments = environments;
         _stacks = stacks;
         _updates = updates;
@@ -135,8 +138,63 @@ public sealed class UpdateAutomation
         UpdateNotice? Notice(PlannedUpdate item) => notices.FirstOrDefault(n => n.Service == item.Service && n.Target == item.Target);
 
         var applicable = plan.Items.Where(i => Notice(i) is not { Failed: true }).ToList();
-        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(localNow) && applicable.Count > 0;
         var lines = new List<string>();
+
+        // A new image waits its minimum age (since MatDock first saw it) before MatDock applies it by itself.
+        var waiting = new List<PlannedUpdate>();
+        if (policy.Mode == UpdateMode.Auto && policy.MinAgeHours > 0)
+        {
+            var minAge = TimeSpan.FromHours(policy.MinAgeHours);
+            waiting = applicable.Where(i => Notice(i) is not { } n || utcNow - (n.FirstSeenUtc ?? n.CreateDate) < minAge).ToList();
+            applicable = applicable.Except(waiting).ToList();
+            if (waiting.Count > 0)
+            {
+                lines.Add($"{stack.Name}: {waiting.Count} new image(s) wait for their minimum age of {policy.MinAgeHours} h.");
+            }
+        }
+
+        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(localNow) && applicable.Count > 0;
+        if (willApply && policy.VulnerabilityGate != VulnerabilityGate.Off && _scans is not null)
+        {
+            // The new images are scanned before they are pulled; one that fails the check is held back (and not tried again until a newer one comes).
+            var held = await GateAsync(env, applicable, policy.VulnerabilityGate, ct);
+            foreach (var (item, reason) in held)
+            {
+                applicable.Remove(item);
+                if (Notice(item) is { } row)
+                {
+                    row.Failed = true;
+                    row.NotifiedUtc ??= utcNow;
+                }
+                else
+                {
+                    notices.Add(AddNotice(stack.Id, item, failed: true, utcNow, notified: true));
+                }
+
+                lines.Add($"{stack.Name}: {item.Service} held back: {reason}");
+            }
+
+            if (held.Count > 0 && policy.NotifyResult)
+            {
+                await NotifyAsync($"Update held back: {stack.Name} on {env.Name}",
+                    string.Join("\n", held.Select(h => $"{h.Item.Service} → {h.Item.Target}: {h.Reason}")), ct);
+            }
+
+            willApply = applicable.Count > 0;
+            if (!willApply)
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        // The images that wait start their clock now (recorded once; when nothing is applied the branch below records and announces them).
+        if (willApply)
+        {
+            foreach (var item in waiting.Where(i => Notice(i) is null))
+            {
+                notices.Add(AddNotice(stack.Id, item, failed: false, utcNow, notified: false));
+            }
+        }
         int announced = 0, applied = 0, failed = 0;
 
         // What is new and not said yet is said now, unless MatDock applies it right away (then the result is what there is to say).
@@ -309,8 +367,74 @@ public sealed class UpdateAutomation
         return (updated, failed);
     }
 
-    private void AddNotice(long stackId, PlannedUpdate item, bool failed, DateTime utcNow, bool notified)
-        => _db.UpdateNotices.Add(new UpdateNotice { StackId = stackId, Service = item.Service, Target = Truncate(item.Target, 200), Failed = failed, NotifiedUtc = notified ? utcNow : null });
+    /// <summary>
+    /// The planned updates whose new image fails the vulnerability check, with the reason. The new image is scanned by its exact reference (the version, or the
+    /// repository with the new digest) before anything is pulled; one that cannot be scanned is held back too (it cannot be shown to be fine).
+    /// </summary>
+    internal async Task<List<(PlannedUpdate Item, string Reason)>> GateAsync(DockerEnvironment env, IReadOnlyList<PlannedUpdate> items, VulnerabilityGate gate, CancellationToken ct)
+    {
+        var held = new List<(PlannedUpdate, string)>();
+        foreach (var item in items)
+        {
+            if (string.IsNullOrEmpty(item.ScanRef))
+            {
+                held.Add((item, "the new image cannot be named for a scan."));
+                continue;
+            }
+
+            var (ok, message, summary) = await _scans!.ScanAsync(env, item.ScanRef, ct);
+            if (!ok || summary is null)
+            {
+                held.Add((item, $"the scan failed ({message})."));
+                continue;
+            }
+
+            var refused = gate switch
+            {
+                VulnerabilityGate.Any => summary.Total > 0,
+                VulnerabilityGate.CriticalHigh => summary.Critical + summary.High > 0,
+                VulnerabilityGate.Critical => summary.Critical > 0,
+                VulnerabilityGate.MoreThanCurrent => await IsWorseAsync(env, item.Current, summary, ct),
+                _ => false,
+            };
+            if (refused)
+            {
+                held.Add((item, $"{Images.ImageScanService.Describe(summary)} ({GateText(gate)})."));
+            }
+        }
+
+        return held;
+    }
+
+    /// <summary>Whether the new image has more critical and high vulnerabilities than the one that runs now (its last scan, or a scan now).</summary>
+    private async Task<bool> IsWorseAsync(DockerEnvironment env, string current, Images.ImageScanSummary candidate, CancellationToken ct)
+    {
+        var known = await _scans!.GetAsync(env.Id, current, ct);
+        int? before = known is { Error: null } ? known.Critical + known.High : null;
+        if (before is null)
+        {
+            var (ok, _, summary) = await _scans.ScanAsync(env, current, ct);
+            before = ok && summary is not null ? summary.Critical + summary.High : 0;
+        }
+
+        return candidate.Critical + candidate.High > before;
+    }
+
+    public static string GateText(VulnerabilityGate gate) => gate switch
+    {
+        VulnerabilityGate.Any => "any known vulnerability blocks",
+        VulnerabilityGate.CriticalHigh => "a critical or high one blocks",
+        VulnerabilityGate.Critical => "a critical one blocks",
+        VulnerabilityGate.MoreThanCurrent => "more critical or high ones than now block",
+        _ => "not checked",
+    };
+
+    private UpdateNotice AddNotice(long stackId, PlannedUpdate item, bool failed, DateTime utcNow, bool notified)
+    {
+        var notice = new UpdateNotice { StackId = stackId, Service = item.Service, Target = Truncate(item.Target, 200), Failed = failed, NotifiedUtc = notified ? utcNow : null, FirstSeenUtc = utcNow };
+        _db.UpdateNotices.Add(notice);
+        return notice;
+    }
 
     private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 

@@ -3,6 +3,9 @@ namespace MatDock.Core.Updates;
 /// <summary>Update status of one image used by a stack: local vs. registry digest.</summary>
 /// <param name="Pinned">The service is pinned: updates skip it.</param>
 /// <param name="NewerTag">A newer version tag in the registry (<c>1.2.3</c> → <c>1.3.0</c>); only a hint, nothing changes by itself.</param>
+/// <param name="TagInclude">The pattern of the version tags that count, from the container's labels (<see cref="UpdateLabels"/>).</param>
+/// <param name="TagExclude">The pattern of the version tags that never count.</param>
+/// <param name="Changelog">Where the release notes of the image are.</param>
 public sealed record ImageUpdateStatus(
     string Service,
     string Image,
@@ -11,7 +14,10 @@ public sealed record ImageUpdateStatus(
     bool UpdateAvailable,
     string? Note,
     bool Pinned = false,
-    string? NewerTag = null);
+    string? NewerTag = null,
+    string? TagInclude = null,
+    string? TagExclude = null,
+    string? Changelog = null);
 
 /// <summary>Result of an update run: success, the compose output and whether any container was re-created.</summary>
 /// <param name="RolledBack">The new containers were not healthy and the old images were put back.</param>
@@ -34,8 +40,8 @@ public enum PlannedKind
     Version,
 }
 
-/// <summary>One service with a newer image: what runs now and what the rule makes of it. <paramref name="Target"/> is the new image (a version) or the short registry digest.</summary>
-public sealed record PlannedUpdate(string Service, string Current, string Target, PlannedKind Kind);
+/// <summary>One service with a newer image: what runs now and what the rule makes of it. <paramref name="Target"/> is the new image (a version) or the short registry digest. <paramref name="ScanRef"/> names the new image so that a scan reads exactly it (the version, or the repository with the new digest).</summary>
+public sealed record PlannedUpdate(string Service, string Current, string Target, PlannedKind Kind, string? ScanRef = null);
 
 /// <summary>What the rule of a stack would update now.</summary>
 public sealed record StackUpdatePlan(IReadOnlyList<PlannedUpdate> Items, string? Error);

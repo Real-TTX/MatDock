@@ -101,6 +101,21 @@
                         <option value="false">No</option>
                     </select>
                 </mat-field>
+
+                <mat-field label="Minimum age of a new image (hours)" asp-for="Input.MinAgeHours" hint="@Wider(inherited.MinAgeHours == 0 ? "none" : $"{inherited.MinAgeHours} h") · automatic updates wait so long after MatDock first saw it">
+                    <input asp-for="Input.MinAgeHours" type="number" min="0" max="720" class="mat-input" />
+                </mat-field>
+
+                <mat-field label="Hold back new images with vulnerabilities" asp-for="Input.VulnerabilityGate" hint="Automatic updates scan the new image with Trivy before they pull it.">
+                    <select asp-for="Input.VulnerabilityGate" class="mat-select">
+                        <option value="">@Wider(MatDock.Core.Updates.UpdateAutomation.GateText(inherited.VulnerabilityGate))</option>
+                        <option value="Off">No</option>
+                        <option value="Any">Any known vulnerability</option>
+                        <option value="CriticalHigh">A critical or high one</option>
+                        <option value="Critical">A critical one</option>
+                        <option value="MoreThanCurrent">More critical or high ones than now</option>
+                    </select>
+                </mat-field>
             </div>
 
             @if (Model.Scope == UpdatePolicyScope.Stack && Model.Services.Count > 0)

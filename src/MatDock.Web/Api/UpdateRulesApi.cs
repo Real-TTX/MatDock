@@ -17,6 +17,12 @@ public sealed class UpdateRuleBody
     public bool? NotifyAvailable { get; set; }
     public bool? NotifyResult { get; set; }
 
+    /// <summary>Hours a new image waits (since MatDock first saw it) before an automatic update applies it, 0-720.</summary>
+    public int? MinAgeHours { get; set; }
+
+    /// <summary>Which new images an automatic update refuses because of known vulnerabilities.</summary>
+    public VulnerabilityGate? VulnerabilityGate { get; set; }
+
     /// <summary>For a stack rule: the strategy per service.</summary>
     public Dictionary<string, UpdateStrategy>? ServiceStrategies { get; set; }
 }
@@ -44,6 +50,8 @@ public static class UpdateRulesApi
         p.Rollback,
         p.NotifyAvailable,
         p.NotifyResult,
+        p.MinAgeHours,
+        vulnerabilityGate = p.VulnerabilityGate,
         serviceStrategies = UpdatePolicies.ServiceStrategies(p.ServiceStrategiesJson),
     };
 
@@ -80,6 +88,7 @@ public static class UpdateRulesApi
         {
             Scope = s, ScopeId = id, Mode = body.Mode, Strategy = body.Strategy, WindowStartHour = body.WindowStartHour, WindowEndHour = body.WindowEndHour,
             CheckEveryHours = body.CheckEveryHours, PreBackup = body.PreBackup, Rollback = body.Rollback, NotifyAvailable = body.NotifyAvailable, NotifyResult = body.NotifyResult,
+            MinAgeHours = body.MinAgeHours, VulnerabilityGate = body.VulnerabilityGate,
             ServiceStrategiesJson = body.ServiceStrategies is { Count: > 0 } map && s == UpdatePolicyScope.Stack ? UpdatePolicies.SerializeServiceStrategies(map) : null,
         }, http.RequestAborted);
         return ok ? ApiResults.Ok(new { ok, message }) : ApiResults.BadRequest(message);

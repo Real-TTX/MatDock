@@ -101,6 +101,14 @@
                                 {
                                     <span class="mat-pill mat-pill--info" title="A newer version tag exists. Enter it in the image field to run it.">Newer: @img.NewerTag</span>
                                 }
+                                @if (img.Changelog is { } notes)
+                                {
+                                    <a class="mat-tag" href="@notes" target="_blank" rel="noopener noreferrer" title="The release notes of the image"><icon name="external" /> Release notes</a>
+                                }
+                                @if (img.TagInclude is not null || img.TagExclude is not null)
+                                {
+                                    <span class="mat-tag" title="Version tags from the container's labels: @(img.TagInclude is null ? string.Empty : $"only {img.TagInclude}") @(img.TagExclude is null ? string.Empty : $"never {img.TagExclude}")"><icon name="filter" /> Tag filter</span>
+                                }
                             </td>
                             <td data-label="Local" class="mat-mono mat-muted" title="@img.LocalDigest">@Short(img.LocalDigest)</td>
                             <td data-label="Registry" class="mat-mono mat-muted" title="@img.RegistryDigest">@Short(img.RegistryDigest)</td>

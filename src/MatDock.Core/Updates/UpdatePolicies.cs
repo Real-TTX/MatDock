@@ -14,7 +14,9 @@ public sealed record EffectiveUpdatePolicy(
     bool PreBackup,
     bool Rollback,
     bool NotifyAvailable,
-    bool NotifyResult)
+    bool NotifyResult,
+    int MinAgeHours = 0,
+    VulnerabilityGate VulnerabilityGate = VulnerabilityGate.Off)
 {
     /// <summary>What a stack gets when no rule says anything: nothing happens by itself, and what MatDock does is careful.</summary>
     public static readonly EffectiveUpdatePolicy Default = new(
@@ -41,6 +43,7 @@ public static class UpdatePolicies
 {
     public const int MinCheckHours = 1;
     public const int MaxCheckHours = 168;
+    public const int MaxAgeHours = 720;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -66,7 +69,9 @@ public static class UpdatePolicies
             Pick(p => p.PreBackup, d.PreBackup),
             Pick(p => p.Rollback, d.Rollback),
             Pick(p => p.NotifyAvailable, d.NotifyAvailable),
-            Pick(p => p.NotifyResult, d.NotifyResult));
+            Pick(p => p.NotifyResult, d.NotifyResult),
+            Math.Clamp(Pick(p => p.MinAgeHours, d.MinAgeHours), 0, MaxAgeHours),
+            Pick(p => p.VulnerabilityGate, d.VulnerabilityGate));
     }
 
     /// <summary>The per-service strategies of a stack rule (entries with a bad name or value are left out).</summary>
@@ -119,6 +124,16 @@ public static class UpdatePolicies
             return $"Looking for updates every {MinCheckHours} to {MaxCheckHours} hours.";
         }
 
+        if (policy.MinAgeHours is { } age && age is < 0 or > MaxAgeHours)
+        {
+            return $"The minimum age of a new image is 0 to {MaxAgeHours} hours.";
+        }
+
+        if (policy.VulnerabilityGate is { } gate && !Enum.IsDefined(gate))
+        {
+            return "Unknown vulnerability check.";
+        }
+
         if (policy.Mode is { } m && !Enum.IsDefined(m) || policy.Strategy is { } st && !Enum.IsDefined(st))
         {
             return "Unknown mode or strategy.";
@@ -141,5 +156,6 @@ public static class UpdatePolicies
     public static bool IsEmpty(UpdatePolicy p)
         => p.Mode is null && p.Strategy is null && p.WindowStartHour is null && p.WindowEndHour is null && p.CheckEveryHours is null
            && p.PreBackup is null && p.Rollback is null && p.NotifyAvailable is null && p.NotifyResult is null
+           && p.MinAgeHours is null && p.VulnerabilityGate is null
            && ServiceStrategies(p.ServiceStrategiesJson).Count == 0;
 }

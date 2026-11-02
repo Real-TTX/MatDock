@@ -128,6 +128,8 @@ public static class AdminTools
         [Description("Put the old images back when the containers are not healthy after an update.")] bool? rollback = null,
         [Description("Say when a new version is there.")] bool? notifyAvailable = null,
         [Description("Say how an automatic update ended.")] bool? notifyResult = null,
+        [Description("Hours a new image waits (since MatDock first saw it) before an automatic update applies it (0-720).")] int? minAgeHours = null,
+        [Description("Hold back new images with vulnerabilities: off, any, criticalhigh, critical or morethancurrent.")] string? vulnerabilityGate = null,
         CancellationToken ct = default)
     {
         UpdatePolicyScope s = scope.Trim().ToLowerInvariant() switch
@@ -142,6 +144,7 @@ public static class AdminTools
             Scope = s, ScopeId = id, Mode = Parse<UpdateMode>(mode, "mode"), Strategy = Parse<UpdateStrategy>(strategy, "strategy"),
             WindowStartHour = windowStartHour, WindowEndHour = windowEndHour, CheckEveryHours = checkEveryHours,
             PreBackup = preBackup, Rollback = rollback, NotifyAvailable = notifyAvailable, NotifyResult = notifyResult,
+            MinAgeHours = minAgeHours, VulnerabilityGate = Parse<VulnerabilityGate>(vulnerabilityGate, "vulnerabilityGate"),
         };
         var (ok, message) = await rules.SaveAsync(policy, ct);
         return ok ? message : throw new McpException(message);

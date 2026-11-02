@@ -48,6 +48,8 @@ public class RulesModel : PageModel
         public string? Rollback { get; set; }
         public string? NotifyAvailable { get; set; }
         public string? NotifyResult { get; set; }
+        public int? MinAgeHours { get; set; }
+        public string? VulnerabilityGate { get; set; }
         public Dictionary<string, string?> ServiceStrategies { get; set; } = new();
     }
 
@@ -72,6 +74,8 @@ public class RulesModel : PageModel
                 Rollback = Flag(row.Rollback),
                 NotifyAvailable = Flag(row.NotifyAvailable),
                 NotifyResult = Flag(row.NotifyResult),
+                MinAgeHours = row.MinAgeHours,
+                VulnerabilityGate = row.VulnerabilityGate?.ToString(),
                 ServiceStrategies = UpdatePolicies.ServiceStrategies(row.ServiceStrategiesJson).ToDictionary(s => s.Key, s => (string?)s.Value.ToString()),
             };
         }
@@ -99,6 +103,8 @@ public class RulesModel : PageModel
             Rollback = Bool(Input.Rollback),
             NotifyAvailable = Bool(Input.NotifyAvailable),
             NotifyResult = Bool(Input.NotifyResult),
+            MinAgeHours = Input.MinAgeHours,
+            VulnerabilityGate = Enum<VulnerabilityGate>(Input.VulnerabilityGate),
         };
         if (Scope == UpdatePolicyScope.Stack)
         {

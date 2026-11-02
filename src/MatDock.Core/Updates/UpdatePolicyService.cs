@@ -58,6 +58,8 @@ public sealed class UpdatePolicyService
         existing.Rollback = input.Rollback;
         existing.NotifyAvailable = input.NotifyAvailable;
         existing.NotifyResult = input.NotifyResult;
+        existing.MinAgeHours = input.MinAgeHours;
+        existing.VulnerabilityGate = input.VulnerabilityGate;
         existing.ServiceStrategiesJson = UpdatePolicies.SerializeServiceStrategies(UpdatePolicies.ServiceStrategies(input.ServiceStrategiesJson));
         await _db.SaveChangesAsync(ct);
         return (true, "Rule saved.");

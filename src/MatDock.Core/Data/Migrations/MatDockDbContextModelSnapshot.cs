@@ -1465,6 +1465,9 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<bool>("Failed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("FirstSeenUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("NotifiedUtc")
                         .HasColumnType("TEXT");
 
@@ -1514,6 +1517,9 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("CreateUserId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("MinAgeHours")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("Mode")
                         .HasColumnType("INTEGER");
 
@@ -1549,6 +1555,9 @@ namespace MatDock.Core.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<long?>("UpdateUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("VulnerabilityGate")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("WindowEndHour")

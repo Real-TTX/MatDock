@@ -29,6 +29,25 @@ public enum UpdateStrategy
     Pinned = 3,
 }
 
+/// <summary>Which new image an automatic update refuses because of its known vulnerabilities (the new image is scanned before it is pulled).</summary>
+public enum VulnerabilityGate
+{
+    /// <summary>Never: the scan is not made.</summary>
+    Off = 0,
+
+    /// <summary>Any known vulnerability.</summary>
+    Any = 1,
+
+    /// <summary>A critical or a high one.</summary>
+    CriticalHigh = 2,
+
+    /// <summary>A critical one.</summary>
+    Critical = 3,
+
+    /// <summary>More critical or high ones than the image that runs now.</summary>
+    MoreThanCurrent = 4,
+}
+
 /// <summary>Where a rule applies; the narrowest one that sets a value decides it.</summary>
 public enum UpdatePolicyScope
 {
@@ -79,6 +98,13 @@ public class UpdatePolicy : AuditableEntity
     /// <summary>Say how an update that MatDock applied ended.</summary>
     public bool? NotifyResult { get; set; }
 
+    /// <summary>How old a new image must be (hours since MatDock first saw it, 0-720) before MatDock applies it by itself; a newer one starts the clock again.
+    /// Manual updates do not wait.</summary>
+    public int? MinAgeHours { get; set; }
+
+    /// <summary>Which new images an automatic update refuses because of their known vulnerabilities.</summary>
+    public VulnerabilityGate? VulnerabilityGate { get; set; }
+
     /// <summary>For a stack rule: the strategy per service, as JSON <c>{"web":"Minor","db":"Pinned"}</c>. A service that is not listed has <see cref="Strategy"/>.</summary>
     public string? ServiceStrategiesJson { get; set; }
 }
@@ -101,4 +127,7 @@ public class UpdateNotice : AuditableEntity
 
     /// <summary>When it was announced; null when it was only recorded (an update that was applied without an announcement).</summary>
     public DateTime? NotifiedUtc { get; set; }
+
+    /// <summary>When MatDock first saw this new image (the clock of the minimum age, <see cref="UpdatePolicy.MinAgeHours"/>); null for a row of an older MatDock.</summary>
+    public DateTime? FirstSeenUtc { get; set; }
 }

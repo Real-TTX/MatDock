@@ -144,12 +144,17 @@ public sealed class UpdateService
                 ? "Registry unreachable or requires credentials."
                 : string.IsNullOrEmpty(localDigest) ? "Local digest unknown (pull once)." : null;
 
+            // The labels of the container narrow the version tags and name the release notes.
+            var include = UpdateLabels.Include(c.Labels);
+            var exclude = UpdateLabels.Exclude(c.Labels);
+
             // A plain version tag (1.2.3): say so when the registry has a newer one. Informational — nothing changes by itself.
             var newer = newerTags && TagVersion.TryParse(iref.Tag) is not null
-                ? TagVersion.Newest(iref.Tag, await TagsAsync(iref, ct))
+                ? TagVersion.Newest(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct), include, exclude))
                 : null;
 
-            statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note, NewerTag: newer));
+            statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note, NewerTag: newer,
+                TagInclude: include, TagExclude: exclude, Changelog: UpdateLabels.Changelog(c.Labels)));
         }
 
         var report = new StackUpdateReport(statuses, null);
@@ -182,7 +187,11 @@ public sealed class UpdateService
             {
                 if (image.UpdateAvailable)
                 {
-                    items.Add(new PlannedUpdate(image.Service, image.Image, ShortDigest(image.RegistryDigest), PlannedKind.Digest));
+                    // The new image by its digest, so a scan reads it from the registry and not the old one with the same tag.
+                    var scanRef = ImageRef.TryParse(image.Image) is { } digestRef && image.RegistryDigest is { } digest
+                        ? (digestRef.Host == "docker.io" ? string.Empty : digestRef.Host + "/") + digestRef.Repository + "@" + digest
+                        : null;
+                    items.Add(new PlannedUpdate(image.Service, image.Image, ShortDigest(image.RegistryDigest), PlannedKind.Digest, scanRef));
                 }
 
                 continue;
@@ -193,10 +202,10 @@ public sealed class UpdateService
                 continue;
             }
 
-            var target = TagVersion.Pick(iref.Tag, await TagsAsync(iref, ct), sameMajor: strategy == UpdateStrategy.Minor);
+            var target = TagVersion.Pick(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct), image.TagInclude, image.TagExclude), sameMajor: strategy == UpdateStrategy.Minor);
             if (target is not null && ImageRef.WithTag(image.Image, target) is { } targetImage && ImageCommands.IsValidImageRef(targetImage))
             {
-                items.Add(new PlannedUpdate(image.Service, image.Image, targetImage, PlannedKind.Version));
+                items.Add(new PlannedUpdate(image.Service, image.Image, targetImage, PlannedKind.Version, targetImage));
             }
         }
 
