@@ -55,6 +55,7 @@ else
                             {
                                 MatDock.Core.Entities.BackupTargetType.Smb => $"\\\\{t.SmbHost}\\{t.SmbShare}\\{t.SmbDirectory}",
                                 MatDock.Core.Entities.BackupTargetType.Restic => MatDock.Core.Backups.ResticSettings.Redact(t.ResticRepository),
+                                MatDock.Core.Entities.BackupTargetType.WebDav => t.WebDavUrl ?? "",
                                 _ => "",
                             };
                             <tr>
@@ -91,7 +92,7 @@ else
         </mat-table-body>
 
         <mat-table-actions>
-            <a href="/Settings/BackupTargetEdit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New backup target (NAS/SMB)</span></a>
+            <a href="/Settings/BackupTargetEdit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New backup target</span></a>
         </mat-table-actions>
     </mat-table>
 }

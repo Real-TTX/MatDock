@@ -52,6 +52,9 @@ public sealed class BackupTargetService
                 if (string.IsNullOrEmpty(input.ResticPassword) && !hasStoredResticPassword) { return "Enter the repository password: restic encrypts the backups with it. Keep it safe, without it they cannot be restored."; }
                 return ResticSettings.ParseEnv(input.ResticEnv).Error;
 
+            case BackupTargetType.WebDav:
+                return WebDavBackupStorage.Problem(input.WebDavUrl);
+
             default:
                 return null;
         }
@@ -147,6 +150,7 @@ public sealed class BackupTargetService
             {
                 BackupTargetType.Smb => $"Connected to \\\\{target.SmbHost}\\{target.SmbShare}.",
                 BackupTargetType.Restic => "The restic repository is reachable and the password is right.",
+                BackupTargetType.WebDav => $"The WebDAV folder {target.WebDavUrl} is writable.",
                 _ => "Local storage is writable.",
             });
         }
@@ -169,11 +173,18 @@ public sealed class BackupTargetService
             SmbUsername = input.SmbUsername,
             SmbDomain = input.SmbDomain,
             ResticRepository = input.ResticRepository?.Trim(),
+            WebDavUrl = input.WebDavUrl?.Trim(),
+            WebDavUsername = input.WebDavUsername?.Trim(),
         };
 
         try
         {
             var stored = existingId is { } id ? await GetAsync(id, ct) : null;
+
+            var webDavPassword = string.IsNullOrEmpty(input.WebDavPassword) && stored is not null
+                ? _secrets.UnprotectNullable(stored.EncryptedWebDavPassword)
+                : input.WebDavPassword;
+            probe.EncryptedWebDavPassword = string.IsNullOrEmpty(webDavPassword) ? null : _secrets.Protect(webDavPassword);
 
             var password = input.SmbPassword;
             if (string.IsNullOrEmpty(password) && stored is not null)
@@ -346,6 +357,25 @@ public sealed class BackupTargetService
             target.ResticRepository = null;
             target.EncryptedResticPassword = null;
             target.EncryptedResticEnv = null;
+        }
+
+        if (input.Type == BackupTargetType.WebDav)
+        {
+            target.WebDavUrl = input.WebDavUrl?.Trim();
+            target.WebDavUsername = string.IsNullOrWhiteSpace(input.WebDavUsername) ? null : input.WebDavUsername.Trim();
+            // Blank keeps what is stored (the form never shows the password back).
+            if (!string.IsNullOrEmpty(input.WebDavPassword))
+            {
+                target.EncryptedWebDavPassword = _secrets.Protect(input.WebDavPassword);
+            }
+            else if (isCreate)
+            {
+                target.EncryptedWebDavPassword = null;
+            }
+        }
+        else
+        {
+            target.WebDavUrl = target.WebDavUsername = target.EncryptedWebDavPassword = null;
         }
     }
 }

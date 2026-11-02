@@ -31,7 +31,7 @@
             {
                 @* The type is fixed: the backups at this target were written that way. *@
                 <input type="hidden" asp-for="Input.Type" id="Input_Type" />
-                <dl class="mat-kv"><dt>Type</dt><dd>@(Model.Input.Type == MatDock.Core.Entities.BackupTargetType.Restic ? "restic repository" : "NAS (SMB/CIFS share)")</dd></dl>
+                <dl class="mat-kv"><dt>Type</dt><dd>@(Model.Input.Type switch { MatDock.Core.Entities.BackupTargetType.Restic => "restic repository", MatDock.Core.Entities.BackupTargetType.WebDav => "WebDAV folder", _ => "NAS (SMB/CIFS share)" })</dd></dl>
             }
             else
             {
@@ -39,6 +39,7 @@
                     <select asp-for="Input.Type" id="Input_Type" class="mat-select">
                         <option value="Smb">NAS (SMB/CIFS share)</option>
                         <option value="Restic">restic repository (encrypted, deduplicated)</option>
+                        <option value="WebDav">WebDAV folder (Nextcloud, ownCloud, NAS)</option>
                     </select>
                 </mat-field>
             }
@@ -76,6 +77,20 @@
                 <mat-field label="Access keys" asp-for="Input.ResticEnv" hint="@keyHint">
                     <textarea asp-for="Input.ResticEnv" class="mat-textarea mat-mono" rows="4" spellcheck="false" autocomplete="off" placeholder="AWS_ACCESS_KEY_ID=…&#10;AWS_SECRET_ACCESS_KEY=…"></textarea>
                 </mat-field>
+            </div>
+
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="WebDav">
+                <mat-field label="Folder address" asp-for="Input.WebDavUrl" hint="Created when missing. Nextcloud: https://host/remote.php/dav/files/USER/Backups">
+                    <input asp-for="Input.WebDavUrl" class="mat-input mat-mono" placeholder="https://cloud.example.com/remote.php/dav/files/me/Backups" autocomplete="off" />
+                </mat-field>
+                <div class="mat-form__grid">
+                    <mat-field label="User" asp-for="Input.WebDavUsername">
+                        <input asp-for="Input.WebDavUsername" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="Password" asp-for="Input.WebDavPassword" hint="@(pwHint ?? "Nextcloud: better an app password (Settings → Security).")">
+                        <input asp-for="Input.WebDavPassword" type="password" class="mat-input" autocomplete="new-password" />
+                    </mat-field>
+                </div>
             </div>
 
             <label class="mat-check">

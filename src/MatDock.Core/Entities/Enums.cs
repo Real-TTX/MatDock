@@ -172,5 +172,8 @@ public enum BackupTargetType
     Smb = 1,
 
     /// <summary>A restic repository: encrypted, deduplicated, on S3/B2/Azure/GCS, a REST server or a path.</summary>
-    Restic = 2
+    Restic = 2,
+
+    /// <summary>A folder on a WebDAV server (Nextcloud, ownCloud, a NAS, Apache or nginx with WebDAV).</summary>
+    WebDav = 3
 }

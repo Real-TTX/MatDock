@@ -24,4 +24,11 @@ public sealed class BackupTargetInput
 
     /// <summary><c>NAME=value</c> lines; kept as stored when blank on edit.</summary>
     public string? ResticEnv { get; set; }
+
+    // WebDAV
+    public string? WebDavUrl { get; set; }
+    public string? WebDavUsername { get; set; }
+
+    /// <summary>Plaintext here; kept as stored when blank on edit.</summary>
+    public string? WebDavPassword { get; set; }
 }

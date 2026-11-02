@@ -104,7 +104,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 
 **Backups**
 - **Scheduled jobs** (cron) with retention, plus a full **history**
-- **Targets**: the local data volume, a **NAS via SMB** or a **restic repository** (encrypted, deduplicated, on S3/B2/Azure/GCS, a REST server or a path) – browse the archives actually present
+- **Targets**: the local data volume, a **NAS via SMB**, a **WebDAV folder** (Nextcloud, ownCloud, a NAS; streamed, the folder is made when missing) or a **restic repository** (encrypted, deduplicated, on S3/B2/Azure/GCS, a REST server or a path) – browse the archives actually present
   at a target and **restore even backups written by another/older MatDock**
 - **Full stack bundles**: all volumes **+ the compose definition + image references** in one
   backup, restored as a running stack (images are pulled again on restore)

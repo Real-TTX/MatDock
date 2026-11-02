@@ -39,4 +39,14 @@ public class BackupTarget : AuditableEntity
 
     /// <summary>The access keys of the repository's backend as <c>NAME=value</c> lines (<c>AWS_ACCESS_KEY_ID</c>, <c>B2_ACCOUNT_KEY</c>, …), protected at rest.</summary>
     public string? EncryptedResticEnv { get; set; }
+
+    // --- WebDAV ---
+
+    /// <summary>The address of the folder on the WebDAV server (Nextcloud: <c>https://host/remote.php/dav/files/USER/Backups</c>); created when missing.</summary>
+    public string? WebDavUrl { get; set; }
+
+    public string? WebDavUsername { get; set; }
+
+    /// <summary>The password (or app password) of the WebDAV user, protected at rest.</summary>
+    public string? EncryptedWebDavPassword { get; set; }
 }

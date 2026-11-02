@@ -333,3 +333,9 @@ Found on the way and fixed:
 
 Tests: 1037 → 1108 on Windows; the shell tests (secrets on stdin, env files, the packing of the clone) also pass in the Linux SDK container.
 Migrations: `AddStackDeployments`, `AddStackSecretsAndEnvFile`, `AddStackGitSync`, `AddTagsAndIcons`, `AddUpdateAgeAndScanGate`.
+
+**WebDAV as a backup target (November 2026).** Besides the local volume, SMB and restic, a backup target can be a folder on a WebDAV server
+(`WebDavBackupStorage`: `PUT` streamed with chunked transfer, so nothing is spooled to disk; `GET`, `DELETE`, `PROPFIND` for the list, `MKCOL` for the
+folder and its parents; Basic sign-in, the password stored encrypted). Every kind of backup uses it like the others (volumes, stack bundles, MatDock's own
+backup, retention). Tried for real against `rclone serve webdav`: test connection (made the nested folder), a stack bundle with a 5 MB volume, the list of
+the target, a restore after the data was deleted, the delete of the backup removing its files on the server. Migration `AddWebDavTarget`.

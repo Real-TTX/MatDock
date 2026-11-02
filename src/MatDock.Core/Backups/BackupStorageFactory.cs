@@ -41,6 +41,12 @@ public sealed class BackupStorageFactory : IBackupStorageFactory
             return new ResticBackupStorage(repo, _options.ResticPath, Path.Combine(_paths.DataPath, "restic-cache"));
         }
 
+        if (target.Type == BackupTargetType.WebDav)
+        {
+            return new WebDavBackupStorage(new WebDavConnectionInfo(
+                target.WebDavUrl ?? string.Empty, target.WebDavUsername, _secrets.UnprotectNullable(target.EncryptedWebDavPassword)));
+        }
+
         var info = new SmbConnectionInfo(
             target.SmbHost ?? string.Empty,
             target.SmbShare ?? string.Empty,

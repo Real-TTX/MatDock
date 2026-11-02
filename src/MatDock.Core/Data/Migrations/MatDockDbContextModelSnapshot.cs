@@ -257,6 +257,9 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<string>("EncryptedSmbPassword")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EncryptedWebDavPassword")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsDefault")
                         .HasColumnType("INTEGER");
 
@@ -298,6 +301,14 @@ namespace MatDock.Core.Data.Migrations
 
                     b.Property<long?>("UpdateUserId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("WebDavUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebDavUsername")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 

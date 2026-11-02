@@ -65,6 +65,16 @@ public class BackupTargetEditModel : PageModel
 
         [Display(Name = "Access keys")]
         public string? ResticEnv { get; set; }
+
+        [Display(Name = "Folder address")]
+        public string? WebDavUrl { get; set; }
+
+        [Display(Name = "User")]
+        public string? WebDavUsername { get; set; }
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string? WebDavPassword { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -82,7 +92,7 @@ public class BackupTargetEditModel : PageModel
                 Id = t.Id,
                 Name = t.Name,
                 IsDefault = t.IsDefault,
-                Type = t.Type == BackupTargetType.Restic ? BackupTargetType.Restic : BackupTargetType.Smb,
+                Type = t.Type is BackupTargetType.Restic or BackupTargetType.WebDav ? t.Type : BackupTargetType.Smb,
                 SmbHost = t.SmbHost,
                 SmbShare = t.SmbShare,
                 SmbDirectory = t.SmbDirectory,
@@ -90,6 +100,8 @@ public class BackupTargetEditModel : PageModel
                 SmbDomain = t.SmbDomain,
                 // The repository is not a secret; the password and the keys are never sent back.
                 ResticRepository = t.ResticRepository,
+                WebDavUrl = t.WebDavUrl,
+                WebDavUsername = t.WebDavUsername,
             };
         }
 
@@ -144,7 +156,7 @@ public class BackupTargetEditModel : PageModel
     /// <summary>The attributes first, then what depends on the type (host/share for SMB, repository/password/keys for restic).</summary>
     private async Task<bool> IsValidAsync()
     {
-        if (Input.Type is not (BackupTargetType.Smb or BackupTargetType.Restic))
+        if (Input.Type is not (BackupTargetType.Smb or BackupTargetType.Restic or BackupTargetType.WebDav))
         {
             ModelState.AddModelError(string.Empty, "Choose a target type.");
         }
@@ -180,5 +192,8 @@ public class BackupTargetEditModel : PageModel
         ResticRepository = Input.ResticRepository,
         ResticPassword = Input.ResticPassword,
         ResticEnv = Input.ResticEnv,
+        WebDavUrl = Input.WebDavUrl,
+        WebDavUsername = Input.WebDavUsername,
+        WebDavPassword = Input.WebDavPassword,
     };
 }
