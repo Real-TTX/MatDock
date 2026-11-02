@@ -1,0 +1,107 @@
+@page
+@model MatDock.Web.Pages.Stacks.ImportModel
+@{
+    ViewData["Title"] = "Import stacks";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Stacks", "/Stacks") };
+}
+
+@if (Model.Error is not null)
+{
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+}
+
+@if (Model.Results.Count > 0)
+{
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="check-circle" /><h2 class="mat-card__title">Imported</h2></div>
+        <div class="mat-card__body">
+            <div class="mat-stack">
+                @foreach (var (path, ok, message) in Model.Results)
+                {
+                    <div><span class="mat-pill @(ok ? "mat-pill--ok" : "mat-pill--error")">@(ok ? "Done" : "Failed")</span> <span class="mat-mono">@path</span>: @message</div>
+                }
+            </div>
+            <p class="mat-hint">The stacks are not deployed: open one, check it, then deploy.</p>
+        </div>
+    </section>
+}
+
+<section class="mat-card">
+    <div class="mat-card__body">
+        <form method="post" asp-page-handler="Scan" class="mat-form">
+            <div class="mat-form__grid">
+                <mat-field label="Environment" for-id="import-env">
+                    <select id="import-env" name="EnvironmentId" class="mat-select">
+                        @foreach (var e in Model.Environments)
+                        {
+                            <option value="@e.Id" selected="@(e.Id == Model.EnvironmentId ? "selected" : null)">@e.Name</option>
+                        }
+                    </select>
+                </mat-field>
+                <mat-field label="Folder on the host" for-id="import-folder" hint="Compose files up to four folders deep.">
+                    <input id="import-folder" name="Folder" value="@Model.Folder" class="mat-input mat-mono" placeholder="/opt/stacks" required />
+                </mat-field>
+            </div>
+            <mat-form-buttons>
+                <button type="submit" class="mat-btn mat-btn--primary"><icon name="search" /><span>Scan</span></button>
+                <a href="/Stacks" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+            </mat-form-buttons>
+        </form>
+    </div>
+</section>
+
+@if (Model.Scanned)
+{
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="folder" /></div><p class="mat-empty__title">No compose files</p></div>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Import">
+            <input type="hidden" name="EnvironmentId" value="@Model.EnvironmentId" />
+            <input type="hidden" name="Folder" value="@Model.Folder" />
+            <mat-table>
+                <mat-table-body>
+                    <div class="mat-table-wrap">
+                        <table class="mat-table">
+                            <thead><tr><th class="mat-table__select"><span class="mat-sr-only">Import</span></th><th>Name</th><th>File</th><th>State</th></tr></thead>
+                            <tbody>
+                                @for (var i = 0; i < Model.Rows.Count; i++)
+                                {
+                                    var r = Model.Rows[i];
+                                    <tr>
+                                        <td class="mat-table__select">
+                                            <input type="checkbox" name="Rows[@i].Selected" value="true" checked="@(r.Selected ? "checked" : null)" disabled="@(r.Managed ? "disabled" : null)" aria-label="Import @r.Path" />
+                                            <input type="hidden" name="Rows[@i].Path" value="@r.Path" />
+                                            <input type="hidden" name="Rows[@i].Managed" value="@(r.Managed ? "true" : "false")" />
+                                        </td>
+                                        <td data-label="Name"><input name="Rows[@i].Name" value="@r.Name" class="mat-input mat-input--sm mat-mono" aria-label="Stack name for @r.Path" disabled="@(r.Managed ? "disabled" : null)" /></td>
+                                        <td data-label="File" class="mat-mono">@r.Path</td>
+                                        <td data-label="State">
+                                            @if (r.Managed)
+                                            {
+                                                <span class="mat-pill mat-pill--plain">In MatDock</span>
+                                            }
+                                            else if (r.Running)
+                                            {
+                                                <span class="mat-pill mat-pill--warn" title="A project of this name runs: importing it does not touch its containers">Running</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="mat-pill mat-pill--info">New</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </mat-table-body>
+                <mat-table-actions>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="download" /><span>Import selected</span></button>
+                </mat-table-actions>
+            </mat-table>
+        </form>
+    }
+}

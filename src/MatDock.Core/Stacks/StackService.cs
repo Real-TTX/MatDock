@@ -673,13 +673,162 @@ public sealed class StackService
             return (false, DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
         }
 
+        // The project folder is where compose resolved the relative paths; MatDock's stack folder is another one.
+        var projectDir = IsAbsoluteHostPath(workingDir ?? string.Empty) && !workingDir!.Contains("..", StringComparison.Ordinal) ? workingDir : dir;
+        var (absolute, changed) = ComposeRelocate.Absolutize(yaml, projectDir.Replace('\\', '/'));
+        var env2 = await ReadOptionalFileAsync(settings, head, projectDir, ".env", timeout, ct);
+
         var (created, message, _) = await CreateAsync(new StackInput
         {
             Name = project,
             EnvironmentId = env.Id,
-            ComposeYaml = yaml,
+            ComposeYaml = absolute,
+            EnvContent = env2,
         }, ct);
-        return (created, created ? $"Imported '{project}' as a managed stack. Review it before deploying." : message);
+        var notes = (changed > 0 ? $" {changed} relative path(s) now point to {projectDir}." : string.Empty) + (env2 is null ? string.Empty : " Its .env came along.");
+        return (created, created ? $"Imported '{project}' as a managed stack.{notes} Review it before deploying." : message);
+    }
+
+    /// <summary>A small file of a host folder (read through the helper container), or null when it is not there.</summary>
+    private async Task<string?> ReadOptionalFileAsync(SshConnectionSettings settings, string head, string dir, string fileName, TimeSpan timeout, CancellationToken ct)
+    {
+        try
+        {
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.ReadProjectFile(head, dir, fileName, _options.HelperImage), null, timeout, ct, stream: false);
+            return ok && !string.IsNullOrWhiteSpace(output) ? output : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The compose files below a folder of an environment's host (four levels deep): their path, the name a stack would get (the file's <c>name:</c>, else
+    /// its folder), whether such a project runs already and whether MatDock manages a stack of that name.
+    /// </summary>
+    public async Task<(IReadOnlyList<FoundCompose> Found, string? Error)> ScanFolderAsync(DockerEnvironment env, string folder, CancellationToken ct = default)
+    {
+        if (ImportFolderProblem(folder) is { } problem)
+        {
+            return ([], problem);
+        }
+
+        if (!env.IsEnabled)
+        {
+            return ([], "Environment not available (disabled).");
+        }
+
+        var root = folder.Trim().TrimEnd('/');
+        var settings = _environmentService.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.SshTimeoutSeconds));
+        string listing;
+        string projects;
+        try
+        {
+            var (ok, output) = await ExecOnHostAsync(settings, StackCommands.ScanFolder(head, root, _options.HelperImage), null, timeout, ct, stream: false);
+            if (!ok && string.IsNullOrWhiteSpace(output))
+            {
+                return ([], $"The folder {root} could not be read on the host.");
+            }
+
+            listing = output;
+            projects = (await ExecOnHostAsync(settings, StackCommands.ComposeProjects(head), null, timeout, ct, stream: false)).Output;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ([], DockerErrorMessages.IsSshError(ex) ? DockerErrorMessages.DescribeSshError(ex) : $"Error: {ex.Message}");
+        }
+
+        var running = projects.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
+        var managed = (await _db.Stacks.AsNoTracking().Where(s => s.EnvironmentId == env.Id).Select(s => s.Name).ToListAsync(ct)).ToHashSet(StringComparer.Ordinal);
+        var found = new List<FoundCompose>();
+        foreach (var line in listing.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!line.StartsWith("/scan/", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var relative = line["/scan/".Length..];
+            var fileName = relative[(relative.LastIndexOf('/') + 1)..];
+            if (!IsComposeFileName(fileName) || relative.Split('/').Any(p => p is "node_modules" or ".git"))
+            {
+                continue;
+            }
+
+            var dir = relative.Contains('/') ? root + "/" + relative[..relative.LastIndexOf('/')] : root;
+            var name = StackCommands.Slugify(dir[(dir.LastIndexOf('/') + 1)..]);
+            found.Add(new FoundCompose(root + "/" + relative, dir, fileName, name, running.Contains(name), managed.Contains(name)));
+        }
+
+        return (found.OrderBy(f => f.Path, StringComparer.Ordinal).ToList(), null);
+    }
+
+    /// <summary>
+    /// Takes compose files of a host folder over as stacks (not deployed): each file with its folder's <c>.env</c>, its relative paths pointing to the
+    /// original folder (<see cref="ComposeRelocate"/>), named by the file's <c>name:</c> or <paramref name="names"/>. One line per file.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Path, bool Ok, string Message)>> ImportAsync(DockerEnvironment env, IReadOnlyList<(string Path, string Name)> files, CancellationToken ct = default)
+    {
+        var results = new List<(string, bool, string)>();
+        var settings = _environmentService.BuildSettings(env);
+        var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
+        var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.SshTimeoutSeconds));
+        foreach (var (path, wanted) in files)
+        {
+            var slash = path.LastIndexOf('/');
+            var dir = slash > 0 ? path[..slash] : "/";
+            var fileName = path[(slash + 1)..];
+            if (ImportFolderProblem(dir) is not null || !IsComposeFileName(fileName))
+            {
+                results.Add((path, false, "Not a compose file in a project folder."));
+                continue;
+            }
+
+            var yaml = await ReadOptionalFileAsync(settings, head, dir, fileName, timeout, ct);
+            if (yaml is null)
+            {
+                results.Add((path, false, "The file could not be read."));
+                continue;
+            }
+
+            var name = StackCommands.IsValidName(wanted) ? wanted : StackCommands.Slugify(ComposeName(yaml) ?? dir[(dir.LastIndexOf('/') + 1)..]);
+            var (absolute, changed) = ComposeRelocate.Absolutize(yaml, dir);
+            var envContent = await ReadOptionalFileAsync(settings, head, dir, ".env", timeout, ct);
+            var (created, message, _) = await CreateAsync(new StackInput { Name = name, EnvironmentId = env.Id, ComposeYaml = absolute, EnvContent = envContent }, ct);
+            results.Add((path, created, created
+                ? $"'{name}' imported{(changed > 0 ? $", {changed} relative path(s) point to {dir}" : string.Empty)}{(envContent is null ? string.Empty : ", with its .env")}."
+                : $"'{name}': {message}"));
+        }
+
+        return results;
+    }
+
+    /// <summary>Why a folder cannot be scanned or imported from (relative, the root, ".."), or null.</summary>
+    public static string? ImportFolderProblem(string? folder)
+    {
+        var f = folder?.Trim().TrimEnd('/') ?? string.Empty;
+        if (!f.StartsWith('/') || f.Length < 2)
+        {
+            return "An absolute folder on the host, not the root (e.g. /opt/stacks).";
+        }
+
+        return f.Split('/').Contains("..") || f.Any(c => c is '\n' or '\r' or '\0') ? "The folder must not contain \"..\"." : null;
+    }
+
+    /// <summary>The names compose looks for in a project folder (and their override and environment variants).</summary>
+    public static bool IsComposeFileName(string fileName)
+        => System.Text.RegularExpressions.Regex.IsMatch(fileName, @"^(docker-)?compose([.][\w.-]+)?\.ya?ml$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+           && !fileName.Contains(".override.", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The top-level <c>name:</c> of a compose file, or null.</summary>
+    public static string? ComposeName(string yaml)
+    {
+        var line = yaml.Replace("\r\n", "\n").Split('\n').FirstOrDefault(l => l.StartsWith("name:", StringComparison.Ordinal));
+        var value = line?["name:".Length..].Trim().Trim('"', '\'');
+        return string.IsNullOrWhiteSpace(value) || value.Contains('$') ? null : value;
     }
 
     private static bool IsAbsoluteHostPath(string p)

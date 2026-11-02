@@ -333,6 +333,21 @@ public static partial class StackCommands
              + " " + VolumeFileCommands.ShellQuote(helperImage);
     }
 
+    /// <summary>
+    /// Lists the YAML files below a folder of the host (at most four levels deep) by mounting the folder read-only into the helper container, so it works for a
+    /// local and a remote daemon alike. $1 = folder, $2 = helper image. One path per line, relative to the folder.
+    /// </summary>
+    public static string ScanFolder(string dockerHead, string folder, string helperImage)
+    {
+        var script = dockerHead + " run --rm -v \"$1\":/scan:ro \"$2\" find /scan -maxdepth 4 -type f -name \"*.y*ml\" 2>/dev/null";
+        return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
+             + " sh " + VolumeFileCommands.ShellQuote(folder) + " " + VolumeFileCommands.ShellQuote(helperImage);
+    }
+
+    /// <summary>The compose project of every container (one per line), to tell which found compose files already run.</summary>
+    public static string ComposeProjects(string dockerHead)
+        => VolumeCommands.PathPrefix + dockerHead + " ps -a --format \"{{.Label \\\"com.docker.compose.project\\\"}}\" 2>/dev/null";
+
     private static string ProjectDocker(string dockerHead, string project, bool allContainers, string verb)
     {
         Require(project); // a compose project name follows the same rules as a stack name

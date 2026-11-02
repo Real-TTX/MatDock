@@ -148,6 +148,7 @@
                 @if (Model.TotalCount == 0)
                 {
                     <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New stack</span></a>
+        <a href="/Stacks/Import" class="mat-btn mat-btn--secondary"><icon name="folder-open" /><span>Import</span></a>
                 }
             </div>
         }
@@ -430,6 +431,7 @@
 
     <mat-table-actions>
         <a href="/Stacks/Edit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>New stack</span></a>
+        <a href="/Stacks/Import" class="mat-btn mat-btn--secondary"><icon name="folder-open" /><span>Import</span></a>
         <a href="@ViewUrl(Model.View)" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Refresh</span></a>
     </mat-table-actions>
 </mat-table>

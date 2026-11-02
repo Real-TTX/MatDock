@@ -26,3 +26,7 @@ public sealed class StackInput
     /// save from MatDock's own editor never drops it; an empty string clears it.</summary>
     public string? ManagedBy { get; set; }
 }
+
+/// <summary>A compose file found in a folder of a host (<see cref="StackService.ScanFolderAsync"/>): where, the stack name it would get, whether such a
+/// project runs already and whether MatDock manages a stack of that name.</summary>
+public sealed record FoundCompose(string Path, string Folder, string FileName, string Name, bool Running, bool Managed);
