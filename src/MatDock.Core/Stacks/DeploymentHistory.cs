@@ -95,18 +95,71 @@ public sealed partial class DeploymentHistory
             row.Summary = Short(Summarize(ok, output), 500);
             row.CommitSha = Short(commitSha, 64) ?? row.CommitSha;
             await SaveAsync(CancellationToken.None);
-
-            var stale = await _db.StackDeployments.Where(d => d.StackId == row.StackId)
-                .OrderByDescending(d => d.StartedAt).ThenByDescending(d => d.Id).Skip(Keep).ToListAsync(CancellationToken.None);
-            if (stale.Count > 0)
-            {
-                _db.StackDeployments.RemoveRange(stale);
-                await SaveAsync(CancellationToken.None);
-            }
+            await TrimAsync(row.StackId);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Stack {Name}: the end of a deploy could not be recorded.", row.StackName);
+        }
+    }
+
+    /// <summary>The summary of a deploy of MatDock's own stack while the helper container finishes it (<see cref="SelfHandover"/>).</summary>
+    public const string HandedOverSummary = "Handed over: MatDock restarts itself, a helper container finishes the deploy.";
+
+    /// <summary>
+    /// Records that a deploy of MatDock's own stack was handed to the helper container: it stays open (no end, no result) with what ran so far, until
+    /// <see cref="CompleteHandoverAsync"/> after the restart adds what the helper said.
+    /// </summary>
+    public async Task HandOverAsync(StackDeployment? row, string? output, string? commitSha = null)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        try
+        {
+            row.Log = Tail(output);
+            row.Summary = HandedOverSummary;
+            row.CommitSha = Short(commitSha, 64) ?? row.CommitSha;
+            await SaveAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Stack {Name}: the handover of a deploy could not be recorded.", row.StackName);
+        }
+    }
+
+    /// <summary>The deploys handed to a helper container that have no result yet.</summary>
+    public Task<List<StackDeployment>> HandedOverAsync(CancellationToken ct = default)
+        => _db.StackDeployments.Where(d => d.Ok == null && d.Summary == HandedOverSummary).OrderBy(d => d.StartedAt).ToListAsync(ct);
+
+    /// <summary>Ends a handed-over deploy with the helper's result (<paramref name="helperOutput"/> is compose's output in the helper; null = none came).</summary>
+    public async Task CompleteHandoverAsync(StackDeployment row, bool ok, string? helperOutput)
+    {
+        try
+        {
+            row.FinishedAt = DateTime.UtcNow;
+            row.Ok = ok;
+            row.Log = Tail((row.Log ?? string.Empty) + "\n\n--- helper container ---\n" + (helperOutput ?? "(no output)"));
+            row.Summary = Short(helperOutput is null ? "The helper container left no result." : Summarize(ok, helperOutput), 500);
+            await SaveAsync(CancellationToken.None);
+            await TrimAsync(row.StackId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Stack {Name}: the end of a handed-over deploy could not be recorded.", row.StackName);
+        }
+    }
+
+    private async Task TrimAsync(long stackId)
+    {
+        var stale = await _db.StackDeployments.Where(d => d.StackId == stackId)
+            .OrderByDescending(d => d.StartedAt).ThenByDescending(d => d.Id).Skip(Keep).ToListAsync(CancellationToken.None);
+        if (stale.Count > 0)
+        {
+            _db.StackDeployments.RemoveRange(stale);
+            await SaveAsync(CancellationToken.None);
         }
     }
 

@@ -85,6 +85,12 @@
                     return;
                 }
                 state.done = true;
+                if (data.ok && window.MatDockRestart && state.text.indexOf(window.MatDockRestart.marker) >= 0) {
+                    // MatDock's own stack: a helper container restarts it in a moment; the page loads again once it is back.
+                    setState("Restarting…", "busy");
+                    window.MatDockRestart.wait();
+                    return;
+                }
                 setState(data.ok ? "Done" : "Failed", data.ok ? "ok" : "error");
                 if (wasRunning) {
                     // The lists of the page still show the state from before the operation.

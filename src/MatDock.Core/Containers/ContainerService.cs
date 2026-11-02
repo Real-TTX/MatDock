@@ -18,17 +18,55 @@ public sealed class ContainerService
     private readonly EnvironmentService _environmentService;
     private readonly MatDockOptions _options;
     private readonly ILogger<ContainerService> _logger;
+    private readonly SelfContainer? _self;
 
     public ContainerService(
         IHostSessionFactory hostSessionFactory,
         EnvironmentService environmentService,
         IOptions<MatDockOptions> options,
-        ILogger<ContainerService> logger)
+        ILogger<ContainerService> logger,
+        SelfContainer? self = null)
     {
         _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _options = options.Value;
         _logger = logger;
+        _self = self;
+    }
+
+    /// <summary>What stopping, pausing, removing or re-creating MatDock's own container answers.</summary>
+    public const string SelfRefusal =
+        "This container is MatDock itself: stopped, paused, removed or re-created from here, nobody could start it again. Do it on the host.";
+
+    /// <summary>Whether <paramref name="id"/> (an id or a name) is MatDock's own container (<see cref="SelfContainer"/>).</summary>
+    public async Task<bool> IsSelfAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+    {
+        if (_self?.Id is null || !ContainerCommands.IsValidId(id))
+        {
+            return false;
+        }
+
+        if (_self.Is(id))
+        {
+            return true;
+        }
+
+        if (id.All(Uri.IsHexDigit))
+        {
+            return false; // an id, not ours
+        }
+
+        // A name: what it stands for.
+        try
+        {
+            var (ok, output) = await RunAsync(environment, head => VolumeCommands.PathPrefix + head + " inspect -f \"{{.Id}}\" " + VolumeFileCommands.ShellQuote(id), ct);
+            return ok && _self.Is(output.Trim());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Could not tell whether {Id} is MatDock's container.", id);
+            return false;
+        }
     }
 
     public async Task<IReadOnlyList<DockerContainer>> ListAsync(DockerEnvironment environment, CancellationToken ct = default, bool includeStats = true)
@@ -318,10 +356,32 @@ public sealed class ContainerService
 
         try
         {
+            var command = ContainerCommands.Action(head, action, id);
+            if (action is ContainerAction.Stop or ContainerAction.Kill or ContainerAction.Pause or ContainerAction.Restart && await IsSelfAsync(environment, id, ct))
+            {
+                if (action != ContainerAction.Restart)
+                {
+                    return (false, SelfRefusal);
+                }
+
+                // A restart stops this process too: a helper container does it a few seconds later.
+                if (Stacks.SelfHandover.For(settings, _self!.Id!) is not { } handover)
+                {
+                    return (false, Stacks.SelfHandover.NoHandover);
+                }
+
+                command = handover.Restart(head);
+            }
+
             using var client = _hostSessionFactory.Create(settings);
             await ConnectAsync(client, settings, ct);
 
-            var result = await RunCommandAsync(client, ContainerCommands.Action(head, action, id), ct);
+            var result = await RunCommandAsync(client, command, ct);
+            if (result.ExitStatus == 0 && Stacks.SelfHandover.HandedOver(result.StdOut))
+            {
+                return (true, result.StdOut.Trim());
+            }
+
             return result.ExitStatus == 0
                 ? (true, $"{action}: OK")
                 : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
@@ -364,6 +424,11 @@ public sealed class ContainerService
         if (!ContainerCommands.IsValidId(id))
         {
             return (false, "Invalid container ID.");
+        }
+
+        if (await IsSelfAsync(environment, id, ct))
+        {
+            return (false, SelfRefusal);
         }
 
         try
@@ -464,6 +529,11 @@ public sealed class ContainerService
     /// </summary>
     public async Task<(bool Success, string Message)> RecreateAsync(DockerEnvironment environment, string id, bool pull, Action<string>? log = null, CancellationToken ct = default)
     {
+        if (await IsSelfAsync(environment, id, ct))
+        {
+            return (false, SelfRefusal);
+        }
+
         var read = await GetRunSpecAsync(environment, id, ct);
         if (read is not { } found)
         {

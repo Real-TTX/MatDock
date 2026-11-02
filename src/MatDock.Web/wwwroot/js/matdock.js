@@ -294,6 +294,54 @@
         if (navigator.onLine === false) { show(); }
     })();
 
+    /* ---------------- MatDock restarts itself ----------------
+       A deploy, an update or a restart of MatDock's own stack or container ends with "MatDock restarts itself now" (a helper container
+       does it a few seconds later). Then a notice stands at the top of the content, /api/health is asked until MatDock was away and
+       answers again, and the page loads anew (without ?op=, whose output the restart did not keep). The console calls it too. */
+    var RESTART_MARKER = "MatDock restarts itself now";
+    window.MatDockRestart = (function () {
+        var waiting = false;
+
+        function wait(onBack) {
+            if (waiting) { return; }
+            waiting = true;
+            var main = document.getElementById("main");
+            var notice = document.createElement("div");
+            notice.className = "mat-alert mat-alert--info md-offline";
+            notice.setAttribute("role", "status");
+            notice.innerHTML = '<svg class="mat-icon" aria-hidden="true" focusable="false"><use href="#mat-i-refresh"></use></svg><div class="mat-alert__body"></div>';
+            notice.querySelector(".mat-alert__body").textContent = "MatDock restarts itself if anything changed. This page loads again once it is back.";
+            if (main) { main.insertBefore(notice, main.firstChild); }
+
+            var wasAway = false, started = Date.now();
+            function back() {
+                if (onBack) { onBack(); return; }
+                var u = new URL(window.location.href);
+                u.searchParams.delete("op");
+                window.location.href = u.toString();
+            }
+            function ask() {
+                fetch("/api/health", { cache: "no-store", credentials: "same-origin" })
+                    .then(function (r) {
+                        if (r.ok && wasAway) { back(); return; }
+                        if (!r.ok) { wasAway = true; }
+                        // When compose changed nothing MatDock is not restarted; it may also have been away between two questions.
+                        // Either way the page loads anyway after 25 seconds.
+                        if (Date.now() - started > 25000) { back(); return; }
+                        window.setTimeout(ask, 1500);
+                    })
+                    .catch(function () { wasAway = true; window.setTimeout(ask, 1500); });
+            }
+            window.setTimeout(ask, 1500);
+        }
+
+        return { marker: RESTART_MARKER, wait: wait };
+    })();
+    document.querySelectorAll("[data-toast], .mat-alert__body").forEach(function (el) {
+        var text = el.getAttribute("data-toast") || el.textContent || "";
+        if (text.indexOf(RESTART_MARKER) >= 0) { window.MatDockRestart.wait(); }
+    });
+
     /* ---------------- Network map: hovering a network or a container lights its lines ---------------- */
     document.querySelectorAll(".md-netmap__svg").forEach(function (svg) {
         function light(node, on) {

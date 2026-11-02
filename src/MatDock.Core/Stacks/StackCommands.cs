@@ -98,7 +98,8 @@ public static partial class StackCommands
     /// Writes the stack's files from stdin (<see cref="FilesOnStdin"/>), then with <paramref name="options"/>: pulls (not the <paramref name="pinned"/>
     /// services), builds, and runs <c>compose up -d</c> with its flags. Output merged (2&gt;&amp;1).
     /// </summary>
-    public static string Deploy(string dockerHead, string name, DeployOptions options, IReadOnlyCollection<string>? pinned = null)
+    /// <param name="self">For the stack that runs MatDock itself: <c>up</c> goes to a helper container (<see cref="SelfHandover"/>).</param>
+    public static string Deploy(string dockerHead, string name, DeployOptions options, IReadOnlyCollection<string>? pinned = null, SelfHandover? self = null)
     {
         Require(name);
         // name is validated (no shell metachars); the whole sh -c body is single-quoted and contains no
@@ -108,7 +109,7 @@ public static partial class StackCommands
                    + WriteFiles + "cd \"$dir\"; " + InlineFiles
                    + (options.Pull ? PullStep(dockerHead, args, pinned) : string.Empty)
                    + BuildStep(dockerHead, args, options)
-                   + dockerHead + " compose " + args + Up(options);
+                   + UpStep(dockerHead, args, options, self);
         return VolumeCommands.PathPrefix + "sh -c '" + script + "' 2>&1";
     }
 
@@ -117,6 +118,10 @@ public static partial class StackCommands
         => options.Builds
             ? dockerHead + " compose " + composeArgs + " build" + (options.PullBase ? " --pull" : string.Empty) + (options.NoCache ? " --no-cache" : string.Empty) + "; "
             : string.Empty;
+
+    /// <summary><c>compose up -d</c> with the flags of the options, or for MatDock's own stack its handover to the helper.</summary>
+    private static string UpStep(string dockerHead, string composeArgs, DeployOptions options, SelfHandover? self)
+        => self is null ? dockerHead + " compose " + composeArgs + Up(options) : self.Compose(dockerHead, composeArgs, Up(options).Trim());
 
     /// <summary><c> up -d</c> with the flags of the options.</summary>
     private static string Up(DeployOptions options)
@@ -395,7 +400,7 @@ public static partial class StackCommands
     /// the first line on stdin is the exports (<see cref="ExportsLine"/>), the tar follows. $4 = env file, $5 = .env, $6 = the exports flag.
     /// </summary>
     public static string GitSync(string dockerHead, string name, string composePath, DeployOptions options, IReadOnlyCollection<string>? pinned = null,
-        string? overrideYaml = null, string? envFile = null, string? dotEnv = null, bool exportsOnStdin = false)
+        string? overrideYaml = null, string? envFile = null, string? dotEnv = null, bool exportsOnStdin = false, SelfHandover? self = null)
     {
         Require(name);
         if (!string.IsNullOrEmpty(envFile) && (!IsSafeEnvFilePath(envFile) || !IsSafeEnvFilePath(dotEnv)))
@@ -412,7 +417,7 @@ public static partial class StackCommands
                    + "ef=\"\"; if [ -n \"$4\" ]; then if [ -f \"$5\" ]; then ef=\"--env-file $5\"; fi; ef=\"$ef --env-file $4\"; fi; "
                    + "if [ -n \"$ef\" ]; then printf %s \"$ef\" > \"" + EnvFilesName + "\"; else rm -f \"" + EnvFilesName + "\"; fi; "
                    + OverrideFile + steps
-                   + dockerHead + " compose " + args + Up(options);
+                   + UpStep(dockerHead, args, options, self);
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
              + " " + VolumeFileCommands.ShellQuote(ImageOverrides.Base64Of(overrideYaml))

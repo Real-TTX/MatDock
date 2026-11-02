@@ -3,7 +3,7 @@ using MatDock.Core.Execution;
 namespace MatDock.Core.Containers;
 
 /// <summary>Outcome of a stop phase: which containers were stopped and whether quiescing was complete.</summary>
-public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int RunningFound, bool ListFailed)
+public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int RunningFound, bool ListFailed, bool SelfKept = false)
 {
     public static readonly QuiesceResult None = new(Array.Empty<string>(), 0, false);
 
@@ -13,6 +13,8 @@ public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int Running
     /// <summary>A user-facing warning when the snapshot may not be consistent, otherwise null.</summary>
     public string? Warning => !Incomplete
         ? null
+        : SelfKept
+            ? "MatDock itself uses this volume and keeps running - snapshot may be inconsistent."
         : ListFailed
             ? "Containers could not be determined - snapshot may be inconsistent."
             : $"{RunningFound - StoppedIds.Count} of {RunningFound} containers could not be stopped - snapshot may be inconsistent.";
@@ -26,8 +28,11 @@ public sealed record QuiesceResult(IReadOnlyList<string> StoppedIds, int Running
 /// </summary>
 public static class ContainerQuiesce
 {
-    /// <summary>Stops the running containers mounting <paramref name="volume"/>. Never throws.</summary>
-    public static QuiesceResult StopRunning(IHostSession client, string dockerHead, string volume, int timeoutSeconds)
+    /// <summary>
+    /// Stops the running containers mounting <paramref name="volume"/>, except MatDock's own (<paramref name="keepRunning"/>, <see cref="SelfContainer.Id"/>):
+    /// stopped, it would stop the backup with it and nobody would start it again. Never throws.
+    /// </summary>
+    public static QuiesceResult StopRunning(IHostSession client, string dockerHead, string volume, int timeoutSeconds, string? keepRunning = null)
     {
         var list = Run(client, ContainerCommands.ListByVolume(dockerHead, volume, runningOnly: true), timeoutSeconds);
         if (list.ExitStatus != 0)
@@ -40,8 +45,15 @@ public static class ContainerQuiesce
         var running = ContainerService.ParseContainers(list.StdOut).Where(c => c.Id.Length > 0).ToList();
 
         var stopped = new List<string>();
+        var selfKept = false;
         foreach (var c in running)
         {
+            if (new SelfContainer(keepRunning).Is(c.Id))
+            {
+                selfKept = true;
+                continue;
+            }
+
             var result = Run(client, ContainerCommands.Action(dockerHead, ContainerAction.Stop, c.Id), timeoutSeconds);
             if (result.ExitStatus == 0)
             {
@@ -49,7 +61,7 @@ public static class ContainerQuiesce
             }
         }
 
-        return new QuiesceResult(stopped, running.Count, ListFailed: false);
+        return new QuiesceResult(stopped, running.Count, ListFailed: false, selfKept);
     }
 
     /// <summary>Restarts the previously-stopped containers. Never throws.</summary>

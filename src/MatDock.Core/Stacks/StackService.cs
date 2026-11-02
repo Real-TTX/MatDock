@@ -33,6 +33,7 @@ public sealed class StackService
     private readonly MatDockOptions _options;
     private readonly ILogger<StackService> _logger;
     private readonly DeploymentHistory? _history;
+    private readonly SelfContainer? _self;
 
     public StackService(
         MatDockDbContext db,
@@ -44,9 +45,11 @@ public sealed class StackService
         IScheduleEventBus events,
         IOptions<MatDockOptions> options,
         ILogger<StackService> logger,
-        DeploymentHistory? history = null)
+        DeploymentHistory? history = null,
+        SelfContainer? self = null)
     {
         _history = history;
+        _self = self;
         _db = db;
         _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
@@ -168,8 +171,24 @@ public sealed class StackService
 
         try
         {
-            var (ok, output) = await ExecOnHostAsync(prep.Settings!, StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas, exportsOnStdin: true),
-                ExportsWriter(stack), prep.Timeout, ct, stream: false);
+            var command = StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas, exportsOnStdin: true);
+            if (action != StackCommands.ServiceAction.Start && await SelfPlaceAsync(stack, prep, ct) is { } self && string.Equals(self.Service, service, StringComparison.Ordinal))
+            {
+                if (action != StackCommands.ServiceAction.Restart)
+                {
+                    return (false, SelfServiceRefusal);
+                }
+
+                if (SelfHandover.For(prep.Settings!, _self!.Id!) is not { } handover)
+                {
+                    return (false, SelfHandover.NoHandover);
+                }
+
+                var (handed, said) = await ExecOnHostAsync(prep.Settings!, handover.Restart(prep.Head!), null, prep.Timeout, ct, stream: false);
+                return handed ? (true, said.Trim()) : (false, string.IsNullOrWhiteSpace(said) ? "Failed." : said.Trim());
+            }
+
+            var (ok, output) = await ExecOnHostAsync(prep.Settings!, command, ExportsWriter(stack), prep.Timeout, ct, stream: false);
             var done = action switch
             {
                 StackCommands.ServiceAction.Scale => $"{service} runs with {replicas} container(s).",
@@ -496,7 +515,17 @@ public sealed class StackService
         {
             if (_history is not null)
             {
-                await _history.FinishAsync(row, result.Ok, result.Output, commit);
+                // MatDock's own stack: the helper container finishes it (after the restart, or in this process when compose changed nothing),
+                // and then the row gets its result.
+                if (result.Ok && SelfHandover.HandedOver(result.Output))
+                {
+                    await _history.HandOverAsync(row, result.Output, commit);
+                    _self?.NoteHandover();
+                }
+                else
+                {
+                    await _history.FinishAsync(row, result.Ok, result.Output, commit);
+                }
             }
         }
     }
@@ -507,18 +536,39 @@ public sealed class StackService
     /// <summary><c>compose down</c>: stops and removes the stack's containers (and with <paramref name="removeVolumes"/>
     /// its named volumes). The stack definition stays in MatDock.</summary>
     public Task<(bool Ok, string Output)> DownAsync(long id, bool removeVolumes, CancellationToken ct = default)
-        => LifecycleAsync(id, (head, name, path) => StackCommands.Down(head, name, path, removeVolumes, exportsOnStdin: true), null, null, ct);
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Down(head, name, path, removeVolumes, exportsOnStdin: true), null, null, ct, SelfStep.Refuse);
 
     /// <summary><c>compose restart</c>: restarts the stack's containers without re-creating them.</summary>
     public Task<(bool Ok, string Output)> RestartAsync(long id, CancellationToken ct = default)
-        => LifecycleAsync(id, (head, name, path) => StackCommands.Restart(head, name, path, exportsOnStdin: true), "Restarted", "Restart failed", ct);
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Restart(head, name, path, exportsOnStdin: true), "Restarted", "Restart failed", ct, SelfStep.HandOver);
 
     /// <summary><c>compose pull</c>: fetches newer images; the running containers are not touched.</summary>
     public Task<(bool Ok, string Output)> PullAsync(long id, CancellationToken ct = default)
         => LifecycleAsync(id, (head, name, path) => StackCommands.Pull(head, name, path, exportsOnStdin: true), "Pulled", "Pull failed", ct);
 
+    /// <summary><c>compose stop</c>: stops the stack's containers but keeps them (fast restart).</summary>
+    public Task<(bool Ok, string Output)> StopAsync(long id, CancellationToken ct = default)
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Stop(head, name, path, exportsOnStdin: true), "Stopped", "Stop failed", ct, SelfStep.Refuse);
+
+    /// <summary><c>compose start</c>: starts the stack's previously-stopped containers.</summary>
+    public Task<(bool Ok, string Output)> StartAsync(long id, CancellationToken ct = default)
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Start(head, name, path, exportsOnStdin: true), "Started", "Start failed", ct);
+
+    /// <summary>What a step does to the stack that runs MatDock itself.</summary>
+    private enum SelfStep
+    {
+        /// <summary>The same as to any stack (it leaves the containers running).</summary>
+        Same,
+
+        /// <summary>It would stop MatDock: refused.</summary>
+        Refuse,
+
+        /// <summary>A restart: through the helper container.</summary>
+        HandOver,
+    }
+
     private async Task<(bool Ok, string Output)> LifecycleAsync(
-        long id, Func<string, string, string, string> build, string? successStatus, string? failureStatus, CancellationToken ct)
+        long id, Func<string, string, string, string> build, string? successStatus, string? failureStatus, CancellationToken ct, SelfStep self = SelfStep.Same)
     {
         var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (stack is null)
@@ -533,48 +583,25 @@ public sealed class StackService
         }
 
         var command = build(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
+        Func<Stream, CancellationToken, Task>? writeStdin = ExportsWriter(stack);
+        if (self != SelfStep.Same && await SelfPlaceAsync(stack, prep, ct) is not null)
+        {
+            if (self == SelfStep.Refuse)
+            {
+                return (false, SelfRefusal);
+            }
+
+            if (SelfHandover.For(prep.Settings!, _self!.Id!) is not { } handover)
+            {
+                return (false, SelfHandover.NoHandover);
+            }
+
+            command = handover.Restart(prep.Head!, stack.Name);
+            writeStdin = null;
+        }
+
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin, ct,
             successStatus: successStatus, failureStatus: failureStatus);
-    }
-
-    /// <summary><c>compose stop</c>: stops the stack's containers but keeps them (fast restart).</summary>
-    public async Task<(bool Ok, string Output)> StopAsync(long id, CancellationToken ct = default)
-    {
-        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
-        if (stack is null)
-        {
-            return (false, "Stack not found.");
-        }
-
-        var prep = await PrepareHostAsync(stack, ct);
-        if (!prep.Ok)
-        {
-            return (false, prep.Message);
-        }
-
-        var command = StackCommands.Stop(prep.Head!, stack.Name, EffectiveComposePath(stack), exportsOnStdin: true);
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
-            successStatus: "Stopped", failureStatus: "Stop failed");
-    }
-
-    /// <summary><c>compose start</c>: starts the stack's previously-stopped containers.</summary>
-    public async Task<(bool Ok, string Output)> StartAsync(long id, CancellationToken ct = default)
-    {
-        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
-        if (stack is null)
-        {
-            return (false, "Stack not found.");
-        }
-
-        var prep = await PrepareHostAsync(stack, ct);
-        if (!prep.Ok)
-        {
-            return (false, prep.Message);
-        }
-
-        var command = StackCommands.Start(prep.Head!, stack.Name, EffectiveComposePath(stack), exportsOnStdin: true);
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
-            successStatus: "Started", failureStatus: "Start failed");
     }
 
     // ---- Discovered (external) stacks: lifecycle by compose project label (no managed record) ----
@@ -583,10 +610,10 @@ public sealed class StackService
         => ProjectActionAsync(env, project, StackCommands.ProjectStart, ct);
 
     public Task<(bool Ok, string Output)> ProjectStopAsync(DockerEnvironment env, string project, CancellationToken ct = default)
-        => ProjectActionAsync(env, project, StackCommands.ProjectStop, ct);
+        => ProjectActionAsync(env, project, StackCommands.ProjectStop, ct, SelfStep.Refuse);
 
     public Task<(bool Ok, string Output)> ProjectRestartAsync(DockerEnvironment env, string project, CancellationToken ct = default)
-        => ProjectActionAsync(env, project, StackCommands.ProjectRestart, ct);
+        => ProjectActionAsync(env, project, StackCommands.ProjectRestart, ct, SelfStep.HandOver);
 
     /// <summary>
     /// Adopts a discovered (external) compose project into MatDock management: reads the project's compose
@@ -836,7 +863,8 @@ public sealed class StackService
     private static bool IsAbsoluteHostPath(string p)
         => p.StartsWith('/') || (p.Length >= 2 && char.IsLetter(p[0]) && p[1] == ':');
 
-    private async Task<(bool Ok, string Output)> ProjectActionAsync(DockerEnvironment env, string project, Func<string, string, string> build, CancellationToken ct)
+    private async Task<(bool Ok, string Output)> ProjectActionAsync(DockerEnvironment env, string project, Func<string, string, string> build, CancellationToken ct,
+        SelfStep self = SelfStep.Same)
     {
         if (!StackCommands.IsValidName(project))
         {
@@ -852,6 +880,18 @@ public sealed class StackService
         var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.MigrationTimeoutSeconds));
         try
         {
+            if (self != SelfStep.Same && await SelfPlaceAsync(env.Id, project, settings, head, ct) is not null)
+            {
+                if (self == SelfStep.Refuse)
+                {
+                    return (false, SelfRefusal);
+                }
+
+                return SelfHandover.For(settings, _self!.Id!) is { } handover
+                    ? await ExecOnHostAsync(settings, handover.Restart(head, project), writeStdin: null, timeout, ct)
+                    : (false, SelfHandover.NoHandover);
+            }
+
             return await ExecOnHostAsync(settings, build(head, project), writeStdin: null, timeout, ct);
         }
         catch (Exception ex)
@@ -868,12 +908,18 @@ public sealed class StackService
             return (false, prep.Message);
         }
 
+        var (self, refusal) = await HandoverOfAsync(stack, prep, ct);
+        if (refusal is not null)
+        {
+            return (false, refusal);
+        }
+
         await LoginRegistriesAsync(prep, ct);
 
         // The compose file may have changed an image since the override was made: then the compose wins.
         var notes = ReconcileOverrides(stack, stack.ComposeYaml);
         var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent, ImageOverrides.Render(ImageOverrides.Of(stack)), StackSecrets.Exports(stack.SecretsJson));
-        var command = StackCommands.Deploy(prep.Head!, stack.Name, options, PinnedOf(stack));
+        var command = StackCommands.Deploy(prep.Head!, stack.Name, options, PinnedOf(stack), self);
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
             beforePersist: s => s.AppMetaJson = BuildAppMetaJson(s.ComposeYaml, null, null));
@@ -966,6 +1012,11 @@ public sealed class StackService
         }
 
         var composeContent = await File.ReadAllTextAsync(composeFull, ct);
+        var (self, refusal) = await HandoverOfAsync(stack, prep, ct);
+        if (refusal is not null)
+        {
+            return (false, refusal);
+        }
 
         await LoginRegistriesAsync(prep, ct);
 
@@ -975,7 +1026,7 @@ public sealed class StackService
         var notes = ReconcileOverrides(stack, composeContent);
         var (envFile, dotEnv) = GitEnvFiles(stack, composePath);
         var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, options, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)),
-            envFile, dotEnv, exportsOnStdin: true);
+            envFile, dotEnv, exportsOnStdin: true, self);
         var exports = StackCommands.ExportsLine(ExportsOf(stack));
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             async (s, c) =>
@@ -1167,6 +1218,135 @@ public sealed class StackService
     }
 
     private sealed record HostPrep(bool Ok, string Message, SshConnectionSettings? Settings, string? Head, TimeSpan Timeout);
+
+    /// <summary>What a stop or a removal of MatDock's own stack answers.</summary>
+    public const string SelfRefusal =
+        "This stack runs MatDock itself: stopped or removed from here, nobody could start it again. Do it on the host (docker compose stop / down).";
+
+    /// <summary>What a stop, re-creation or scaling of MatDock's own service answers.</summary>
+    public const string SelfServiceRefusal =
+        "This service is MatDock itself: stopped, re-created or scaled from here, it would stop MatDock. Deploy or update the stack instead "
+        + "(MatDock hands its restart to a helper container), or do it on the host.";
+
+    /// <summary>
+    /// Where MatDock's own container is when it belongs to <paramref name="stack"/> (its compose project on the stack's environment), else null. The
+    /// answer per environment is kept (one <c>docker inspect</c> per environment and connection); an unclear failure is asked again next time.
+    /// </summary>
+    private async Task<SelfPlace?> SelfPlaceAsync(Stack stack, HostPrep prep, CancellationToken ct)
+        => await SelfPlaceAsync(stack.EnvironmentId, stack.Name, prep.Settings!, prep.Head!, ct);
+
+    private async Task<SelfPlace?> SelfPlaceAsync(long environmentId, string project, SshConnectionSettings settings, string head, CancellationToken ct)
+    {
+        if (_self?.Id is not { } id)
+        {
+            return null;
+        }
+
+        var key = SelfContainer.PlaceKey(environmentId, settings);
+        if (!_self.TryGetPlace(key, out var place))
+        {
+            try
+            {
+                var (ok, output) = await ExecOnHostAsync(settings, SelfHandover.Inspect(head, id), null, TimeSpan.FromSeconds(30), ct, stream: false);
+                place = SelfContainer.ParsePlace(ok, output, out var certain);
+                if (certain)
+                {
+                    _self.SetPlace(key, place);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogDebug(ex, "Could not tell whether MatDock runs on environment {Env}.", environmentId);
+                return null;
+            }
+        }
+
+        return place is not null && place.Project.Length > 0 && string.Equals(place.Project, project, StringComparison.Ordinal) ? place : null;
+    }
+
+    /// <summary>Whether the stack runs MatDock itself (for the page: a mark, and no stop or removal).</summary>
+    public async Task<bool> IsSelfAsync(Stack stack, CancellationToken ct = default)
+    {
+        if (_self?.Id is null)
+        {
+            return false;
+        }
+
+        var prep = await PrepareHostAsync(stack, ct);
+        return prep.Ok && await SelfPlaceAsync(stack, prep, ct) is not null;
+    }
+
+    /// <summary>Whether the compose project <paramref name="project"/> on <paramref name="env"/> runs MatDock itself.</summary>
+    public async Task<bool> IsSelfProjectAsync(DockerEnvironment env, string project, CancellationToken ct = default)
+    {
+        if (_self?.Id is null || !StackCommands.IsValidName(project))
+        {
+            return false;
+        }
+
+        var settings = _environmentService.BuildSettings(env);
+        return await SelfPlaceAsync(env.Id, project, settings, VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost), ct) is not null;
+    }
+
+    /// <summary>
+    /// Gives the handed-over deploys of MatDock's own stack their result (after its restart): what the helper container left beside the stack's files.
+    /// Answers how many are still waiting for it; one older than <paramref name="giveUpAfter"/> ends as failed without a result.
+    /// </summary>
+    public async Task<int> CompleteHandoversAsync(TimeSpan giveUpAfter, CancellationToken ct = default)
+    {
+        if (_history is null)
+        {
+            return 0;
+        }
+
+        var waiting = 0;
+        foreach (var row in await _history.HandedOverAsync(ct))
+        {
+            var stack = await _db.Stacks.AsNoTracking().FirstOrDefaultAsync(s => s.Id == row.StackId, ct);
+            var prep = stack is null ? null : await PrepareHostAsync(stack, ct);
+            string? output = null;
+            if (stack is not null && prep is { Ok: true })
+            {
+                try
+                {
+                    var (done, said) = await ExecOnHostAsync(prep.Settings!, SelfHandover.ReadResult(stack.Name), null, TimeSpan.FromSeconds(30), ct, stream: false);
+                    output = done ? said : null;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogDebug(ex, "Stack {Name}: the result of the helper container could not be read yet.", row.StackName);
+                }
+            }
+
+            if (output is not null)
+            {
+                var firstBreak = output.IndexOf('\n');
+                var code = (firstBreak < 0 ? output : output[..firstBreak]).Trim();
+                await _history.CompleteHandoverAsync(row, code == "0", firstBreak < 0 ? string.Empty : output[(firstBreak + 1)..].TrimEnd());
+            }
+            else if (DateTime.UtcNow - row.StartedAt > giveUpAfter)
+            {
+                await _history.CompleteHandoverAsync(row, false, null);
+            }
+            else
+            {
+                waiting++;
+            }
+        }
+
+        return waiting;
+    }
+
+    /// <summary>For MatDock's own stack the handover of its last step (<see cref="SelfHandover"/>), or why it cannot be done here; nothing for any other stack.</summary>
+    private async Task<(SelfHandover? Handover, string? Refusal)> HandoverOfAsync(Stack stack, HostPrep prep, CancellationToken ct)
+    {
+        if (await SelfPlaceAsync(stack, prep, ct) is null)
+        {
+            return (null, null);
+        }
+
+        return SelfHandover.For(prep.Settings!, _self!.Id!) is { } handover ? (handover, null) : (null, SelfHandover.NoHandover);
+    }
 
     private async Task<HostPrep> PrepareHostAsync(Stack stack, CancellationToken ct)
     {

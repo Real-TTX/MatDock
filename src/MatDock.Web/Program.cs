@@ -103,6 +103,7 @@ builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 builder.Services.AddHostedService<ContainerAlertMonitor>();
 builder.Services.AddHostedService<UpdateAutomationService>();
 builder.Services.AddHostedService<HostMetricsSampler>();
+builder.Services.AddHostedService<SelfHandoverCompletion>();
 
 // ---------------------------------------------------------------------------
 // The Mat platform contract (MatDesign docs/PLATFORM.md): /api, /api/health, /api/state, /api/configure, /api/actions

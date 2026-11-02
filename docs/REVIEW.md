@@ -339,3 +339,17 @@ Migrations: `AddStackDeployments`, `AddStackSecretsAndEnvFile`, `AddStackGitSync
 folder and its parents; Basic sign-in, the password stored encrypted). Every kind of backup uses it like the others (volumes, stack bundles, MatDock's own
 backup, retention). Tried for real against `rclone serve webdav`: test connection (made the nested folder), a stack bundle with a 5 MB volume, the list of
 the target, a restore after the data was deleted, the delete of the backup removing its files on the server. Migration `AddWebDavTarget`.
+
+**MatDock updates itself (November 2026).** Adding MatDock's own stack to MatDock and pressing *Update* left it down: compose stops the
+old container to replace it, and with it the process that ran compose, so the new one was never made. MatDock now knows its own
+container (`SelfContainer`, from `/proc/self/mountinfo`) and, per environment, its compose project and service (one `docker inspect`, kept).
+For that stack the last step of a deploy, an update or a restart goes to a short-lived helper container from MatDock's own image
+(`SelfHandover`): `--volumes-from` MatDock locally (the socket and the stack's files), the socket and the stack's folder over SSH; the
+secrets by name only (`-e NAME`). It waits five seconds, runs compose, writes its output and exit code beside the files and, when compose
+fails, starts the old container again. The deploy stays open in the history ("Restarting") until the result is read, after the restart or
+in the same process when compose changed nothing. The update skips its health gate and rollback there, which this process would not
+see. The page waits for `/api/health` and loads again. Stop, down, pause, kill, remove and re-create of MatDock's own stack or container
+are refused, with a disabled button and the *This MatDock* mark. A backup that stops the containers of a volume leaves MatDock running and
+says so. A restore into a volume MatDock uses is refused. Over a Docker API connection (tcp) there is no handover, and the deploy is
+refused rather than leaving MatDock down. Tried for real: a MatDock as compose project `mdself` deployed itself with a changed setting and a
+secret (recreated in 12 s, the secret in the new container, the history *Done, 1 recreated*), and rolled itself onto a newly built image.

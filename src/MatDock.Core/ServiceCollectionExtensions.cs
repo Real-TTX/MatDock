@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StackSecretsInterceptor>();
         services.AddSingleton<ISshClientFactory, SshNetClientFactory>();
         services.AddSingleton<Execution.IHostSessionFactory, Execution.HostSessionFactory>();
+        services.AddSingleton(_ => new Execution.SelfContainer());
         services.AddSingleton<Backups.IBackupStorageFactory, Backups.BackupStorageFactory>();
 
         // Per-request services (depend on the scoped DbContext).

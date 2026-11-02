@@ -1,9 +1,13 @@
 @page
 @model MatDock.Web.Pages.Stacks.IndexModel
 @inject MatDock.Core.Updates.UpdateCheckCache UpdateChecks
+@inject MatDock.Core.Execution.SelfContainer Self
 @{
     ViewData["Title"] = "Stacks";
     var isGallery = !string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
+    // MatDock runs in this stack: no stop or down from here (StackService refuses them too).
+    bool IsSelf(MatDock.Web.Pages.Stacks.IndexModel.StackRow r) => r.Containers.Any(c => Self.Is(c.Id));
+    const string SelfTitle = "MatDock runs in this stack: stop or remove it on the host";
 
     string ViewUrl(string v) => $"/Stacks?view={v}"
         + $"&Q={Uri.EscapeDataString(Model.Q ?? string.Empty)}"
@@ -62,14 +66,22 @@
                                 {
                                     <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@r.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
                                 }
-                                <form method="post" asp-page-handler="ContainerAction">
+                                var itself = Self.Is(c.Id);
+                                <form method="post" asp-page-handler="ContainerAction" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
                                     <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                                     <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
                                 </form>
-                                <form method="post" asp-page-handler="ContainerAction" data-confirm="Stop container '@c.Name'?">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
-                                    <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                </form>
+                                @if (itself)
+                                {
+                                    <button type="button" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" disabled title="This container is MatDock itself: stop it on the host" aria-label="Stop"><icon name="stop" /></button>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="ContainerAction" data-confirm="Stop container '@c.Name'?">
+                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
+                                        <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
+                                    </form>
+                                }
                             }
                             else
                             {
@@ -175,6 +187,7 @@
                     var app = MatDock.Web.Support.AppView.Parse(r.AppMetaJson);
                     var appPort = app is null ? (int?)null : MatDock.Web.Support.AppView.PrimaryPort(r.Containers);
                     var agg = Agg(r);
+                    var self = IsSelf(r);
                     <details class="mat-card md-stack" open="@(Model.Rows.Count <= 3)">
                         <summary class="mat-card__head md-stack__head">
                             <icon name="chevron-right" class="md-stack__chev" />
@@ -193,6 +206,10 @@
                                     @if (updates.Count > 0 && r.ManagedId is { } uid)
                                     {
                                         <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
+                                    }
+                                    @if (self)
+                                    {
+                                        <span class="mat-pill mat-pill--accent" title="MatDock runs in this stack">This MatDock</span>
                                     }
                                     <managed-badge value="@r.ManagedBy" />
                                     <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
@@ -236,7 +253,7 @@
                             }
                             @if (r.Managed && r.ManagedId is { } mid)
                             {
-                                <form method="post" asp-page-handler="Deploy" data-confirm="@(r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
+                                <form method="post" asp-page-handler="Deploy" data-confirm="@(self ? "Redeploy MatDock itself? It restarts and is away for a few seconds." : r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
                                     <input type="hidden" name="id" value="@mid" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")"><icon name="@(r.GitBacked ? "git" : "refresh")" /><span>Redeploy</span></button>
                                 </form>
@@ -247,7 +264,11 @@
                                         <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Start (compose start)" aria-label="Start"><icon name="play" /></button>
                                     </form>
                                 }
-                                @if (r.Running > 0)
+                                @if (r.Running > 0 && self)
+                                {
+                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
+                                }
+                                else if (r.Running > 0)
                                 {
                                     <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?">
                                         <input type="hidden" name="id" value="@mid" />
@@ -266,11 +287,18 @@
                             }
                             @if (r.Discovered && r.Running > 0)
                             {
-                                <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                </form>
-                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="Restart stack '@r.Name'?">
+                                @if (self)
+                                {
+                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
+                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
+                                    </form>
+                                }
+                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="@(self ? "Restart MatDock itself? It is away for a few seconds." : $"Restart stack '{r.Name}'?")">
                                     <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
                                 </form>
@@ -292,10 +320,17 @@
                             @if (r.Managed && r.ManagedId is { } did)
                             {
                                 <span class="mat-btn-row__spacer"></span>
-                                <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
-                                    <input type="hidden" name="id" value="@did" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
-                                </form>
+                                @if (self)
+                                {
+                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" disabled title="@SelfTitle" aria-label="Down"><icon name="x-circle" /></button>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
+                                        <input type="hidden" name="id" value="@did" />
+                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
+                                    </form>
+                                }
                                 <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running.">
                                     <input type="hidden" name="id" value="@did" />
                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Remove from MatDock" aria-label="Remove from MatDock"><icon name="trash" /></button>
@@ -317,6 +352,7 @@
                         @foreach (var r in Model.Rows)
                         {
                             var agg = Agg(r);
+                            var self = IsSelf(r);
                             <tr>
                                 <td data-label="Environment">@r.EnvName</td>
                                 <td data-label="Name">
@@ -334,6 +370,10 @@
                                         @if (updates.Count > 0 && r.ManagedId is { } uid)
                                         {
                                             <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
+                                        }
+                                        @if (self)
+                                        {
+                                            <span class="mat-pill mat-pill--accent" title="MatDock runs in this stack">This MatDock</span>
                                         }
                                         <managed-badge value="@r.ManagedBy" />
                                         <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
@@ -375,7 +415,7 @@
                                     <div class="mat-table__actions md-actions-wrap">
                                         @if (r.Managed && r.ManagedId is { } id)
                                         {
-                                            <form method="post" asp-page-handler="Deploy" data-confirm="@(r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
+                                            <form method="post" asp-page-handler="Deploy" data-confirm="@(self ? "Redeploy MatDock itself? It restarts and is away for a few seconds." : r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
                                                 <input type="hidden" name="id" value="@id" />
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary mat-btn--icon" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")" aria-label="Redeploy"><icon name="@(r.GitBacked ? "git" : "refresh")" /></button>
                                             </form>
@@ -386,7 +426,11 @@
                                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Start (compose start)" aria-label="Start"><icon name="play" /></button>
                                                 </form>
                                             }
-                                            @if (r.Running > 0)
+                                            @if (r.Running > 0 && self)
+                                            {
+                                                <button type="button" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
+                                            }
+                                            else if (r.Running > 0)
                                             {
                                                 <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?">
                                                     <input type="hidden" name="id" value="@id" />
@@ -397,10 +441,17 @@
                                             <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Stacks/Update?id=@id" title="Check for image updates" aria-label="Updates"><icon name="image" /></a>
                                             <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers" aria-label="Containers"><icon name="box" /></a>
                                             <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack" aria-label="Volumes"><icon name="volume" /></a>
-                                            <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
-                                                <input type="hidden" name="id" value="@id" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
-                                            </form>
+                                            @if (self)
+                                            {
+                                                <button type="button" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" disabled title="@SelfTitle" aria-label="Down"><icon name="x-circle" /></button>
+                                            }
+                                            else
+                                            {
+                                                <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
+                                                    <input type="hidden" name="id" value="@id" />
+                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
+                                                </form>
+                                            }
                                             <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running.">
                                                 <input type="hidden" name="id" value="@id" />
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Remove from MatDock" aria-label="Remove from MatDock"><icon name="trash" /></button>
@@ -417,11 +468,18 @@
                                             }
                                             @if (r.Running > 0)
                                             {
-                                                <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
-                                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                                </form>
-                                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="Restart stack '@r.Name'?">
+                                                @if (self)
+                                                {
+                                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
+                                                }
+                                                else
+                                                {
+                                                    <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
+                                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
+                                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
+                                                    </form>
+                                                }
+                                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="@(self ? "Restart MatDock itself? It is away for a few seconds." : $"Restart stack '{r.Name}'?")">
                                                     <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
                                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
                                                 </form>

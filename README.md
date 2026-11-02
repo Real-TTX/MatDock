@@ -296,6 +296,15 @@ docker run -d --name matdock -p 4455:4455 \
   ghcr.io/real-ttx/matdock:release
 ```
 
+**Updating MatDock from MatDock.** MatDock can manage the stack it runs in: adopt it (*Stacks*, the external stack `matdock`)
+or add it with the same name, and *Update* or *Redeploy* it like any other. MatDock knows its own container (it is marked
+*This MatDock*), so the last step does not run in MatDock itself, where `compose up` would stop the process that runs it
+and leave MatDock down. A short-lived helper container from MatDock's own image runs it a few seconds later, once the page has
+answered. The page waits and loads again when MatDock is back, and the deploy history gets the helper's result after
+the restart. A restart goes the same way. Stop, down and remove of MatDock's own stack or container are refused, because
+nobody could start it again: do those on the host. This works through the local socket and over SSH, but not over a Docker
+API connection (tcp). A MatDock started with a plain `docker run` (no compose) can be restarted from MatDock, but not re-created.
+
 ### 2. Add your hosts
 
 MatDock reaches your servers over SSH – nothing to install there. In the UI:

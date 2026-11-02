@@ -1,6 +1,7 @@
 @page
 @using MatDock.Core.Containers
 @model MatDock.Web.Pages.Containers.ContainerDetailModel
+@inject MatDock.Core.Execution.SelfContainer Self
 @{
     var c = Model.Container;
     var i = Model.Inspect;
@@ -12,6 +13,9 @@
     string HealthPill(string? s) => s switch { "healthy" => "mat-pill--ok", "unhealthy" => "mat-pill--error", "starting" => "mat-pill--warn", _ => "mat-pill--plain" };
     var hasHealth = i?.HealthStatus is not null;
     var running = c?.IsRunning == true;
+    // MatDock itself: a restart goes through a helper container; stop, re-create and remove would leave nobody to start it again.
+    var itself = c is not null && Self.Is(c.Id);
+    const string SelfTitle = "This container is MatDock itself: do it on the host";
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -35,9 +39,13 @@ else if (c is not null)
     var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, Model.Environment?.BaseUrl);
     var canControl = User.CanControl();
     <div class="mat-actions md-actions">
+        @if (itself)
+        {
+            <span class="mat-pill mat-pill--accent" title="A restart goes through a short-lived helper container; stop, re-create and remove it on the host">This MatDock</span>
+        }
         @if (running && canControl)
         {
-            <form method="post" asp-page-handler="Action">
+            <form method="post" asp-page-handler="Action" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                 <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Restart</span></button>
             </form>
@@ -60,7 +68,11 @@ else if (c is not null)
             <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
             <a class="mat-btn mat-btn--secondary" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
         }
-        @if (running && canControl)
+        @if (running && canControl && itself)
+        {
+            <button type="button" class="mat-btn mat-btn--danger" disabled title="@SelfTitle"><icon name="stop" /><span>Stop</span></button>
+        }
+        else if (running && canControl)
         {
             <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
                 <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
@@ -71,7 +83,7 @@ else if (c is not null)
         {
             <a class="mat-btn mat-btn--secondary" href="/Containers/Create?from=@Uri.EscapeDataString(c.Id)&envId=@Model.EnvId"><icon name="copy" /><span>Duplicate</span></a>
             <a class="mat-btn mat-btn--secondary" href="/Stacks/FromContainer?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="A compose file for this container, to copy or to keep as a stack"><icon name="code" /><span>Compose</span></a>
-            @if (i is not null && i.Project is null)
+            @if (i is not null && i.Project is null && !itself)
             {
                 <form method="post" asp-page-handler="Recreate" data-confirm="Recreate '@c.Name' with the newest image of @i.Image? It keeps its settings and volumes; it is stopped for a moment.">
                     <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="pull" value="true" />
@@ -79,10 +91,17 @@ else if (c is not null)
                 </form>
             }
             <span class="mat-btn-row__spacer"></span>
-            <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'?@(running ? " It is stopped first." : string.Empty) Its anonymous volumes go too; named volumes stay.@(i?.Project is { } p ? $" It belongs to the stack '{p}' and comes back with its next deploy." : string.Empty)">
-                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove</span></button>
-            </form>
+            @if (itself)
+            {
+                <button type="button" class="mat-btn mat-btn--danger" disabled title="@SelfTitle"><icon name="trash" /><span>Remove</span></button>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'?@(running ? " It is stopped first." : string.Empty) Its anonymous volumes go too; named volumes stay.@(i?.Project is { } p ? $" It belongs to the stack '{p}' and comes back with its next deploy." : string.Empty)">
+                    <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                    <button type="submit" class="mat-btn mat-btn--danger"><icon name="trash" /><span>Remove</span></button>
+                </form>
+            }
         }
     </div>
 

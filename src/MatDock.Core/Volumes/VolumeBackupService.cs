@@ -25,6 +25,7 @@ public sealed class VolumeBackupService
     private readonly IBackupStorageFactory _storageFactory;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeBackupService> _logger;
+    private readonly SelfContainer? _self;
 
     public VolumeBackupService(
         MatDockDbContext db,
@@ -32,7 +33,8 @@ public sealed class VolumeBackupService
         EnvironmentService environmentService,
         IBackupStorageFactory storageFactory,
         IOptions<MatDockOptions> options,
-        ILogger<VolumeBackupService> logger)
+        ILogger<VolumeBackupService> logger,
+        SelfContainer? self = null)
     {
         _db = db;
         _hostSessionFactory = hostSessionFactory;
@@ -40,6 +42,7 @@ public sealed class VolumeBackupService
         _storageFactory = storageFactory;
         _options = options.Value;
         _logger = logger;
+        _self = self;
     }
 
     public Task<List<VolumeBackup>> GetAllAsync(CancellationToken ct = default)
@@ -131,7 +134,7 @@ public sealed class VolumeBackupService
 
             // Optionally quiesce the volume's containers so the archive is a consistent snapshot.
             var quiesce = stopContainers
-                ? Containers.ContainerQuiesce.StopRunning(client, head, volumeName, _options.SshTimeoutSeconds)
+                ? Containers.ContainerQuiesce.StopRunning(client, head, volumeName, _options.SshTimeoutSeconds, _self?.Id)
                 : Containers.QuiesceResult.None;
 
             long bytes = 0;
@@ -267,8 +270,14 @@ public sealed class VolumeBackupService
 
             // Optionally stop the target volume's containers so the wipe/extract is not fought by writers.
             var quiesce = stopContainers
-                ? Containers.ContainerQuiesce.StopRunning(client, head, targetVolume, _options.SshTimeoutSeconds)
+                ? Containers.ContainerQuiesce.StopRunning(client, head, targetVolume, _options.SshTimeoutSeconds, _self?.Id)
                 : Containers.QuiesceResult.None;
+            if (quiesce.SelfKept)
+            {
+                // Its data written over under it would break the running MatDock.
+                Containers.ContainerQuiesce.Start(client, head, quiesce.StoppedIds, _options.SshTimeoutSeconds);
+                return RestoreResult.Fail($"MatDock itself uses the volume '{targetVolume}': restore it on the host while MatDock is stopped.");
+            }
 
             long bytes = 0;
             try

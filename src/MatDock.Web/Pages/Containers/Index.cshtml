@@ -1,6 +1,7 @@
 @page
 @using MatDock.Core.Containers
 @model MatDock.Web.Pages.Containers.IndexModel
+@inject MatDock.Core.Execution.SelfContainer Self
 @{
     ViewData["Title"] = "Containers";
     var isGallery = string.Equals(Model.View, "gallery", StringComparison.OrdinalIgnoreCase);
@@ -45,6 +46,17 @@
             return;
         }
         var paused = string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
+        @if (c.IsRunning && Self.Is(c.Id))
+        {
+            // MatDock itself: a restart goes through a helper container, the rest would leave nobody to start it again.
+            <form method="post" asp-page-handler="Action" data-confirm="Restart MatDock itself? It is away for a few seconds.">
+                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <input type="hidden" name="action" value="Restart" />
+                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
+            </form>
+            <button type="button" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" disabled title="This container is MatDock itself: stop it on the host" aria-label="Stop"><icon name="stop" /></button>
+            return;
+        }
         @if (c.IsRunning)
         {
             <form method="post" asp-page-handler="Action">
@@ -162,6 +174,10 @@
                         <div class="mat-card__head">
                             <div class="md-tile__title">
                                 <a class="mat-card__title" href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
+                                @if (Self.Is(c.Id))
+                                {
+                                    <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span>
+                                }
                                 <span class="mat-card__sub mat-mono" title="@c.Image">@c.Image</span>
                             </div>
                             <container-status state="@c.State" status="@c.Status" />
@@ -209,6 +225,10 @@
                                     <div class="mat-table__name">
                                         <span>
                                             <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
+                                            @if (Self.Is(c.Id))
+                                            {
+                                                <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span>
+                                            }
                                             @if (!string.IsNullOrEmpty(c.Project))
                                             {
                                                 <small class="mat-mono">@c.Project@(string.IsNullOrEmpty(c.Service) ? "" : " / " + c.Service)</small>

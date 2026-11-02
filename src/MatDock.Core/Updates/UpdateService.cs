@@ -320,6 +320,14 @@ public sealed class UpdateService
         }
 
         _cache.Clear(env.Id, stack.Name);
+        if (Stacks.SelfHandover.HandedOver(output))
+        {
+            // MatDock's own stack: a helper container runs compose once this MatDock answered, and stops it on the way. There is nothing to wait for
+            // here, and no rollback that this process could still do; the deploy history gets the helper's result after the restart.
+            await ForgetKeptAsync(env, kept, ct);
+            return new StackUpdateOutcome(true, output, true);
+        }
+
         trace.After = await ImagesAsync(env, stack.Name, ct);
         var after = await ContainerIdsAsync(env, stack.Name, ct);
         // When the containers cannot be listed, report a change rather than hide one.

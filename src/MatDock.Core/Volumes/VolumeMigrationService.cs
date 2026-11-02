@@ -19,17 +19,20 @@ public sealed class VolumeMigrationService
     private readonly VolumeBackupService _backupService;
     private readonly MatDockOptions _options;
     private readonly ILogger<VolumeMigrationService> _logger;
+    private readonly SelfContainer? _self;
 
     public VolumeMigrationService(
         IHostSessionFactory hostSessionFactory,
         VolumeBackupService backupService,
         IOptions<MatDockOptions> options,
-        ILogger<VolumeMigrationService> logger)
+        ILogger<VolumeMigrationService> logger,
+        SelfContainer? self = null)
     {
         _hostSessionFactory = hostSessionFactory;
         _backupService = backupService;
         _options = options.Value;
         _logger = logger;
+        _self = self;
     }
 
     public async Task<VolumeMigrationResult> MigrateAsync(VolumeMigrationRequest request, CancellationToken cancellationToken = default)
@@ -90,7 +93,7 @@ public sealed class VolumeMigrationService
 
             // 3) Optionally quiesce the source volume's containers so the archive is consistent.
             var quiesce = request.StopContainers
-                ? Containers.ContainerQuiesce.StopRunning(source, sourceHead, request.SourceVolume, _options.SshTimeoutSeconds)
+                ? Containers.ContainerQuiesce.StopRunning(source, sourceHead, request.SourceVolume, _options.SshTimeoutSeconds, _self?.Id)
                 : Containers.QuiesceResult.None;
             if (quiesce.StoppedIds.Count > 0)
             {

@@ -47,6 +47,7 @@ else
                             {
                                 true => ("mat-pill--ok", "Done"),
                                 false => ("mat-pill--error", "Failed"),
+                                _ when d.Summary == DeploymentHistory.HandedOverSummary => ("mat-pill--busy", "Restarting"),
                                 _ => d.FinishedAt is null && d.StartedAt > DateTime.UtcNow.AddHours(-2) ? ("mat-pill--busy", "Running") : ("mat-pill--plain", "Unknown"),
                             };
                             <tr class="@(Model.Shown?.Id == d.Id ? "is-selected" : null)">
