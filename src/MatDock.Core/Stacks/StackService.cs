@@ -247,6 +247,7 @@ public sealed class StackService
             GitReference = source.GitReference,
             GitComposePath = source.GitComposePath,
             GitEnvFile = source.GitEnvFile,
+            GitSyncCron = source.GitSyncCron,
             GitCredentialId = source.GitCredentialId,
         }, ct);
         if (!created)
@@ -761,7 +762,7 @@ public sealed class StackService
         {
             var clone = await _gitRepo.CloneAndScanAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
             workDir = clone.WorkDir;
-            return (await DeployWorkDirAsync(stack, workDir, options, ct), clone.CommitSha);
+            return (await DeployWorkDirAsync(stack, workDir, options, ct, clone.CommitSha), clone.CommitSha);
         }
         catch (GitOperationException ex)
         {
@@ -793,10 +794,10 @@ public sealed class StackService
     public Task<(bool Ok, string Output)> DeployFromWorkDirAsync(Stack stack, string workDir, DeployRequest request, string? commitSha, CancellationToken ct = default)
     {
         var options = request.Options ?? DeployOptions.FromJson(stack.DeployOptionsJson);
-        return RecordedAsync(stack, request, options, async () => (await DeployWorkDirAsync(stack, workDir, options, ct), commitSha));
+        return RecordedAsync(stack, request, options, async () => (await DeployWorkDirAsync(stack, workDir, options, ct, commitSha), commitSha));
     }
 
-    private async Task<(bool Ok, string Output)> DeployWorkDirAsync(Stack stack, string workDir, DeployOptions options, CancellationToken ct)
+    private async Task<(bool Ok, string Output)> DeployWorkDirAsync(Stack stack, string workDir, DeployOptions options, CancellationToken ct, string? commitSha = null)
     {
         var prep = await PrepareHostAsync(stack, ct);
         if (!prep.Ok)
@@ -837,6 +838,14 @@ public sealed class StackService
                 s.ComposeYaml = composeContent;
                 s.AppMetaJson = BuildAppMetaJson(composeContent, localDir, composePath);
             });
+        if (ok)
+        {
+            // The baseline of the next sync: which commit and which files of the compose folder run now.
+            stack.GitTreeHash = ComposeTreeHash(workDir, composePath);
+            stack.GitLastCommit = commitSha ?? stack.GitLastCommit;
+            try { await _db.SaveChangesAsync(ct); } catch (Exception ex) { _logger.LogWarning(ex, "Stack {Name}: the sync baseline was not saved.", stack.Name); }
+        }
+
         return (ok, WithNotes((ok, output), notes));
     }
 
@@ -1178,6 +1187,129 @@ public sealed class StackService
         return all.ToString();
     }
 
+    /// <summary>
+    /// A sync of a Git stack (schedule, webhook, "Sync now"): asks the repository for its newest commit; with no new commit nothing happens. With one, the
+    /// clone's compose folder is compared with what the last deploy ran (<see cref="Stack.GitTreeHash"/>): only a change there deploys. With
+    /// <paramref name="force"/> it deploys anyway.
+    /// </summary>
+    public async Task<GitSyncResult> SyncGitAsync(long id, DeployRequest request, bool force = false, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return new GitSyncResult(GitSyncOutcome.Failed, "Stack not found.");
+        }
+
+        if (!stack.IsGitBacked)
+        {
+            return new GitSyncResult(GitSyncOutcome.Failed, "The stack is not deployed from a Git repository.");
+        }
+
+        GitCredentialSecret? secret = null;
+        if (stack.GitCredentialId is > 0)
+        {
+            try
+            {
+                secret = await _gitCredentials.ResolveAsync(stack.GitCredentialId.Value, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return new GitSyncResult(GitSyncOutcome.Failed, "Git credentials could not be decrypted (Data Protection key?).");
+            }
+        }
+
+        if (!force)
+        {
+            var head = await _gitRepo.GetRemoteHeadShaAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
+            if (head is not null && string.Equals(head, stack.GitLastCommit, StringComparison.OrdinalIgnoreCase))
+            {
+                return new GitSyncResult(GitSyncOutcome.Skipped, $"No new commits ({Short(head)}).", head);
+            }
+        }
+
+        string? workDir = null;
+        try
+        {
+            var clone = await _gitRepo.CloneAndScanAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
+            workDir = clone.WorkDir;
+            var hash = ComposeTreeHash(workDir, EffectiveComposePath(stack));
+            if (!force && stack.GitTreeHash is not null && string.Equals(hash, stack.GitTreeHash, StringComparison.Ordinal))
+            {
+                stack.GitLastCommit = clone.CommitSha ?? stack.GitLastCommit;
+                await _db.SaveChangesAsync(ct);
+                return new GitSyncResult(GitSyncOutcome.Skipped, $"New commit {Short(clone.CommitSha)}, but nothing changed in the compose file's folder.", clone.CommitSha);
+            }
+
+            var (ok, output) = await DeployFromWorkDirAsync(stack, workDir, request, clone.CommitSha, ct);
+            return new GitSyncResult(ok ? GitSyncOutcome.Deployed : GitSyncOutcome.Failed, output, clone.CommitSha);
+        }
+        catch (GitOperationException ex)
+        {
+            return new GitSyncResult(GitSyncOutcome.Failed, ex.Message);
+        }
+        finally
+        {
+            if (workDir is not null)
+            {
+                GitRepositoryService.TryDelete(workDir);
+            }
+        }
+    }
+
+    /// <summary>The newest commit of a Git stack's branch in the repository (a cheap lookup, no clone); null when it cannot be read.</summary>
+    public async Task<string?> RemoteHeadAsync(long id, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is not { IsGitBacked: true })
+        {
+            return null;
+        }
+
+        try
+        {
+            var secret = stack.GitCredentialId is > 0 ? await _gitCredentials.ResolveAsync(stack.GitCredentialId.Value, ct) : null;
+            return await _gitRepo.GetRemoteHeadShaAsync(stack.GitRepoUrl!, stack.GitReference, secret, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogInformation(ex, "Stack {Name}: the newest commit could not be read.", stack.Name);
+            return null;
+        }
+    }
+
+    private static string Short(string? sha) => string.IsNullOrEmpty(sha) ? "?" : sha[..Math.Min(8, sha.Length)];
+
+    /// <summary>
+    /// A hash of the files in the folder of the compose file inside a clone (relative path and content of each, in a fixed order; <c>.git</c> left out):
+    /// equal hashes mean a deploy would ship the same files for this stack.
+    /// </summary>
+    public static string ComposeTreeHash(string workDir, string composePath)
+    {
+        var folder = Path.GetFullPath(workDir);
+        var slash = composePath.LastIndexOf('/');
+        if (slash > 0)
+        {
+            folder = RepoFile(workDir, Path.Combine(workDir, composePath[..slash].Replace('/', Path.DirectorySeparatorChar))) ?? folder;
+        }
+
+        using var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        if (Directory.Exists(folder))
+        {
+            var files = Directory.EnumerateFiles(folder, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 })
+                .Select(f => (Full: f, Rel: Path.GetRelativePath(folder, f).Replace('\\', '/')))
+                .Where(f => !f.Rel.StartsWith(".git/", StringComparison.Ordinal) && f.Rel != ".git")
+                .OrderBy(f => f.Rel, StringComparer.Ordinal);
+            foreach (var (full, rel) in files)
+            {
+                sha.AppendData(Encoding.UTF8.GetBytes(rel + "\n"));
+                sha.AppendData(File.ReadAllBytes(full));
+                sha.AppendData([0]);
+            }
+        }
+
+        return Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant();
+    }
+
     /// <summary>What the commands of a stack hand to compose as environment variables: its secrets, and for a Git stack its variables (they override the
     /// repository's <c>.env</c>). Null when there are none.</summary>
     private static string? ExportsOf(Stack stack) => StackSecrets.Exports(stack.SecretsJson, stack.IsGitBacked ? stack.EnvContent : null);
@@ -1240,6 +1372,7 @@ public sealed class StackService
             stack.GitComposePath = null;
             stack.GitCredentialId = null;
             stack.GitEnvFile = null;
+            stack.GitSyncCron = null;
             stack.ComposeYaml = input.ComposeYaml ?? string.Empty;
             stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
@@ -1251,6 +1384,7 @@ public sealed class StackService
             stack.GitComposePath = string.IsNullOrWhiteSpace(input.GitComposePath) ? null : input.GitComposePath.Trim();
             stack.GitCredentialId = input.GitCredentialId is > 0 ? input.GitCredentialId : null;
             stack.GitEnvFile = string.IsNullOrWhiteSpace(input.GitEnvFile) ? null : input.GitEnvFile.Trim();
+            stack.GitSyncCron = string.IsNullOrWhiteSpace(input.GitSyncCron) ? null : input.GitSyncCron.Trim();
             // The repository's .env stays its own; these variables override it (handed to compose at deploy, not written over the file).
             stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
@@ -1284,6 +1418,11 @@ public sealed class StackService
             {
                 return "Invalid env file: a path beside the compose file (letters, digits, . _ - and /, no \"..\").";
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(input.GitSyncCron) && !Backups.CronSchedule.IsValid(input.GitSyncCron.Trim()))
+        {
+            return "Invalid cron for the automatic sync (five fields, e.g. */15 * * * *).";
         }
 
         return null;

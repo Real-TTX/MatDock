@@ -275,3 +275,6 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-secrets__row { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(10rem, 1fr) auto; gap: var(--mat-space-2); align-items: center; }
 .md-secrets__name { overflow-wrap: anywhere; }
 @media (max-width: 40rem) { .md-secrets__row { grid-template-columns: 1fr auto; } }
+
+/* The commit a Git stack runs, beside its "Sync now". */
+.md-git-state { display: flex; align-items: center; gap: var(--mat-space-2); flex-wrap: wrap; }

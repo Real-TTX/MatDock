@@ -112,7 +112,11 @@ public enum ScheduleAction
     ResticMaintenance = 11,
 
     /// <summary>A backup of MatDock itself (database and key ring, encrypted with a passphrase) to a backup target.</summary>
-    SelfBackup = 12
+    SelfBackup = 12,
+
+    /// <summary>Asks the repository of a Git stack for new commits and deploys when the files of its compose folder changed
+    /// (<see cref="Entities.Stack.GitSyncCron"/>; the task is the stack's own, <c>SourceKind</c> "gitsync").</summary>
+    GitSync = 13
 }
 
 /// <summary>Why a stack bundle was taken.</summary>

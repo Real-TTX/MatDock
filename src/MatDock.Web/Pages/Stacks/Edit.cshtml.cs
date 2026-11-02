@@ -23,6 +23,7 @@ public class EditModel : PageModel
     private readonly OperationRegistry _operations;
     private readonly MatDock.Core.Containers.ContainerService _containers;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+    private readonly GitSyncSchedules _gitSync;
 
     public EditModel(
         StackService stackService,
@@ -32,8 +33,10 @@ public class EditModel : PageModel
         GitRepoService gitRepoService,
         OperationRegistry operations,
         MatDock.Core.Containers.ContainerService containers,
-        Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+        Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
+        GitSyncSchedules gitSync)
     {
+        _gitSync = gitSync;
         _containers = containers;
         _cache = cache;
         _operations = operations;
@@ -65,6 +68,9 @@ public class EditModel : PageModel
 
     /// <summary>The deploy started from this page (<c>?op=</c>), shown in the console.</summary>
     public OperationConsoleModel? Console { get; private set; }
+
+    /// <summary>The commit of the repository the last deploy or sync of a Git stack saw.</summary>
+    public string? LastCommit { get; private set; }
 
     /// <summary>One secret variable of the form: a stored one (<see cref="Existing"/>: an empty value keeps it) or a new one.</summary>
     public sealed class SecretRow
@@ -107,6 +113,37 @@ public class EditModel : PageModel
 
         /// <summary>The secret variables: the stored ones (their value only when it changes) and new ones.</summary>
         public List<SecretRow> Secrets { get; set; } = new();
+
+        /// <summary>The automatic sync of a Git stack: off, 5, 15, 60 (minutes), daily, or custom (<see cref="GitSyncCron"/>).</summary>
+        public string GitSync { get; set; } = "off";
+
+        /// <summary>The cron of a custom automatic sync.</summary>
+        public string? GitSyncCron { get; set; }
+
+        /// <summary>The cron the choice stands for, null for none.</summary>
+        public string? SyncCron => GitSync switch
+        {
+            "5" => "*/5 * * * *",
+            "15" => "*/15 * * * *",
+            "60" => "0 * * * *",
+            "daily" => "0 4 * * *",
+            "custom" => string.IsNullOrWhiteSpace(GitSyncCron) ? null : GitSyncCron.Trim(),
+            _ => null,
+        };
+
+        public void SetSync(string? cron)
+        {
+            GitSync = cron switch
+            {
+                null or "" => "off",
+                "*/5 * * * *" => "5",
+                "*/15 * * * *" => "15",
+                "0 * * * *" => "60",
+                "0 4 * * *" => "daily",
+                _ => "custom",
+            };
+            GitSyncCron = GitSync == "custom" ? cron : null;
+        }
 
         // Deploy options: the stack's defaults, changed per deploy here and kept on save.
         public bool OptPull { get; set; }
@@ -157,10 +194,13 @@ public class EditModel : PageModel
                 Secrets = StackSecrets.Names(stack.SecretsJson).Select(n => new SecretRow { Key = n, Existing = true }).ToList(),
             };
             Input.SetOptions(DeployOptions.FromJson(stack.DeployOptionsJson));
+            Input.SetSync(stack.GitSyncCron);
+            LastCommit = stack.GitLastCommit;
 
             if (!string.IsNullOrEmpty(op) && _operations.Get(op) is { } running)
             {
-                Console = new OperationConsoleModel(running, running.IsFinished ? $"Deploy of {stack.Name}" : $"Deploying {stack.Name}…", $"deploy-{stack.Name}");
+                var verb = running.Kind == "sync" ? ("Sync", "Syncing") : ("Deploy", "Deploying");
+                Console = new OperationConsoleModel(running, running.IsFinished ? $"{verb.Item1} of {stack.Name}" : $"{verb.Item2} {stack.Name}…", $"{verb.Item1.ToLowerInvariant()}-{stack.Name}");
             }
         }
         else if (templateId is > 0)
@@ -294,6 +334,7 @@ public class EditModel : PageModel
             GitComposePath = isGit ? Input.GitComposePath : null,
             GitCredentialId = isGit ? Input.GitCredentialId : null,
             GitEnvFile = isGit ? Input.GitEnvFile : null,
+            GitSyncCron = isGit ? Input.SyncCron : null,
         };
 
         // The secrets are checked before anything is saved.
@@ -317,6 +358,10 @@ public class EditModel : PageModel
         if (result.Ok)
         {
             await _stackService.SetDeployOptionsAsync(result.Id, Input.Options, HttpContext.RequestAborted);
+            if (await _stackService.GetAsync(result.Id, HttpContext.RequestAborted) is { } saved)
+            {
+                await _gitSync.ApplyAsync(saved, HttpContext.RequestAborted);
+            }
             if (set.Count > 0 || remove.Count > 0)
             {
                 var (ok, message) = await _stackService.SetSecretsAsync(result.Id, set, remove, HttpContext.RequestAborted);
@@ -455,9 +500,37 @@ public class EditModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {
         var deleted = await _stackService.DeleteAsync(id, HttpContext.RequestAborted);
+        if (deleted)
+        {
+            await _gitSync.RemoveAsync(id, HttpContext.RequestAborted);
+        }
+
         StatusMessage = deleted ? "Stack removed from MatDock." : "Stack not found.";
         IsError = !deleted;
         return RedirectToPage("Index");
+    }
+
+    /// <summary>Syncs a Git stack now (in the background, followed in the console): deploys only when the compose folder changed.</summary>
+    public async Task<IActionResult> OnPostSyncNowAsync(long id)
+    {
+        var stack = await _stackService.GetAsync(id, HttpContext.RequestAborted);
+        if (stack is not { IsGitBacked: true })
+        {
+            StatusMessage = "Only a Git stack syncs.";
+            IsError = true;
+            return RedirectToPage(new { id });
+        }
+
+        var actor = User.Identity?.Name;
+        var operation = _operations.Start("sync", stack.Name, StackOperations.LockKey(stack.EnvironmentId, stack.Name), async ctx =>
+        {
+            ctx.Log($"==> Syncing {stack.Name} from {stack.GitRepoUrl}");
+            var result = await ctx.Services.GetRequiredService<StackService>()
+                .SyncGitAsync(id, new DeployRequest(Trigger: DeployTrigger.Sync, Actor: actor), ct: ctx.CancellationToken);
+            ctx.Log(GitSyncAction.Describe(result));
+            return result.Outcome == GitSyncOutcome.Failed ? OperationOutcome.Failure("The sync failed.") : OperationOutcome.Success();
+        });
+        return RedirectToPage(new { id, op = operation.Id });
     }
 
     private async Task LoadListsAsync()

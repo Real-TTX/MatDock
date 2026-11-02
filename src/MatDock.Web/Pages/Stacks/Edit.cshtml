@@ -176,7 +176,30 @@
                     <mat-field label="Env file in repo" asp-for="Input.GitEnvFile" hint="Optional, beside the compose file, read after its .env.">
                         <input asp-for="Input.GitEnvFile" class="mat-input" placeholder=".env.production" />
                     </mat-field>
+
+                    <mat-field label="Auto-sync" asp-for="Input.GitSync" hint="Deploys only when the compose file's folder changed.">
+                        <select asp-for="Input.GitSync" id="GitSync" class="mat-select">
+                            <option value="off">Off</option>
+                            <option value="5">Every 5 minutes</option>
+                            <option value="15">Every 15 minutes</option>
+                            <option value="60">Every hour</option>
+                            <option value="daily">Daily (04:00 UTC)</option>
+                            <option value="custom">Custom cron</option>
+                        </select>
+                    </mat-field>
+
+                    <mat-field label="Cron (UTC)" asp-for="Input.GitSyncCron" data-show-if="#GitSync" data-show-value="custom">
+                        <input asp-for="Input.GitSyncCron" class="mat-input mat-mono" placeholder="*/10 * * * *" />
+                    </mat-field>
                 </div>
+                @if (Model.IsEdit && Model.Input.Source == "git")
+                {
+                    <div class="md-git-state">
+                        <span class="mat-muted">Deployed commit</span>
+                        <span class="mat-mono">@(string.IsNullOrEmpty(Model.LastCommit) ? "–" : Model.LastCommit[..Math.Min(12, Model.LastCommit.Length)])</span>
+                        <button type="submit" form="sync-form" class="mat-btn mat-btn--secondary mat-btn--sm" title="Ask the repository for new commits and deploy when the compose folder changed"><icon name="git" /><span>Sync now</span></button>
+                    </div>
+                }
                 <mat-field label="Variables" for-id="git-env" hint="Override the repository's .env; never written into the repository.">
                     <textarea id="git-env" name="Input.EnvContent" class="mat-textarea" data-code="env" rows="4" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin">@Model.Input.EnvContent</textarea>
                 </mat-field>
@@ -244,6 +267,7 @@
         @if (Model.IsEdit)
         {
             <form method="post" asp-page-handler="Delete" id="delete-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
+            <form method="post" asp-page-handler="SyncNow" id="sync-form"><input type="hidden" name="id" value="@Model.Input.Id" /></form>
         }
     </div>
 </div>

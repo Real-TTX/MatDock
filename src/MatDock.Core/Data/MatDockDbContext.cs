@@ -167,6 +167,9 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.WebhookToken).HasMaxLength(100);
             e.Property(x => x.DeployOptionsJson).HasMaxLength(500);
             e.Property(x => x.GitEnvFile).HasMaxLength(500);
+            e.Property(x => x.GitSyncCron).HasMaxLength(100);
+            e.Property(x => x.GitLastCommit).HasMaxLength(64);
+            e.Property(x => x.GitTreeHash).HasMaxLength(64);
             e.HasIndex(x => x.WebhookToken);
             e.HasIndex(x => x.SyncJobId);
             e.Ignore(x => x.IsGitBacked);

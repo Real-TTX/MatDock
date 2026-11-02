@@ -926,12 +926,24 @@ namespace MatDock.Core.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("GitLastCommit")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GitReference")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("GitRepoUrl")
                         .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GitSyncCron")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GitTreeHash")
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ImageOverridesJson")

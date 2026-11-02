@@ -19,6 +19,9 @@ public sealed class StackInput
     /// <summary>An env file of the repository besides its <c>.env</c>, relative to the compose file's folder (Git stacks).</summary>
     public string? GitEnvFile { get; set; }
 
+    /// <summary>The cron of the automatic sync (Git stacks); null or empty = none.</summary>
+    public string? GitSyncCron { get; set; }
+
     /// <summary>Owner of an externally managed stack (e.g. <c>mattiverse</c>). <c>null</c> keeps the stored value, so a
     /// save from MatDock's own editor never drops it; an empty string clears it.</summary>
     public string? ManagedBy { get; set; }

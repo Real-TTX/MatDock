@@ -117,3 +117,18 @@ public sealed record DeployRequest(DeployOptions? Options = null, string Trigger
 {
     public static readonly DeployRequest Default = new();
 }
+
+/// <summary>How a sync of a Git stack ended.</summary>
+public enum GitSyncOutcome
+{
+    /// <summary>The compose folder changed: the stack was deployed.</summary>
+    Deployed,
+
+    /// <summary>No new commit, or one that changed nothing in the compose folder: nothing was deployed.</summary>
+    Skipped,
+
+    Failed,
+}
+
+/// <summary>What a sync of a Git stack did (<see cref="StackService.SyncGitAsync"/>), with the commit it saw.</summary>
+public sealed record GitSyncResult(GitSyncOutcome Outcome, string Message, string? Commit = null);

@@ -11,9 +11,11 @@ public class CopyModel : PageModel
 {
     private readonly StackService _stacks;
     private readonly EnvironmentService _environments;
+    private readonly GitSyncSchedules _gitSync;
 
-    public CopyModel(StackService stacks, EnvironmentService environments)
+    public CopyModel(StackService stacks, EnvironmentService environments, GitSyncSchedules gitSync)
     {
+        _gitSync = gitSync;
         _stacks = stacks;
         _environments = environments;
     }
@@ -53,6 +55,12 @@ public class CopyModel : PageModel
         {
             ModelState.AddModelError(string.Empty, message);
             return Page();
+        }
+
+        // A copied Git stack syncs like its original.
+        if (await _stacks.GetAsync(copyId, HttpContext.RequestAborted) is { } copy)
+        {
+            await _gitSync.ApplyAsync(copy, HttpContext.RequestAborted);
         }
 
         StatusMessage = message;

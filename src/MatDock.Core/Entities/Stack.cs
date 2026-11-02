@@ -39,6 +39,17 @@ public class Stack : AuditableEntity
     /// it after the <c>.env</c>. Null = only the <c>.env</c>.</summary>
     public string? GitEnvFile { get; set; }
 
+    /// <summary>When set, the Git stack syncs on this cron (UTC): MatDock asks the repository for new commits and deploys only when the files of the
+    /// compose file's folder changed (<see cref="GitTreeHash"/>). Null = no automatic sync.</summary>
+    public string? GitSyncCron { get; set; }
+
+    /// <summary>The commit of the repository the last deploy or sync check saw.</summary>
+    public string? GitLastCommit { get; set; }
+
+    /// <summary>A hash of the files of the compose file's folder at the last deploy (path and content of each), so a new commit that changed only other
+    /// parts of the repository deploys nothing.</summary>
+    public string? GitTreeHash { get; set; }
+
     /// <summary>Optional <see cref="GitCredential"/> for private repos; null = anonymous/public.</summary>
     public long? GitCredentialId { get; set; }
 

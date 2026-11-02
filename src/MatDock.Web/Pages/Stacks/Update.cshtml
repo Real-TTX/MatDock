@@ -196,11 +196,18 @@
 @if (Model.Stack is not null)
 {
     <section class="mat-card">
-        <div class="mat-card__head"><icon name="link" /><h2 class="mat-card__title">Redeploy webhook</h2></div>
+        <div class="mat-card__head"><icon name="link" /><h2 class="mat-card__title">@(Model.Stack.IsGitBacked ? "Push webhook" : "Redeploy webhook")</h2></div>
         <div class="mat-card__body mat-stack">
             @if (Model.WebhookUrl is { } url)
             {
-                <p class="mat-hint">A POST to this address pulls and redeploys the stack with the backup and the health check of its rule, for example from a CI after it pushed a new image. The address is the secret.</p>
+                if (Model.Stack.IsGitBacked)
+                {
+                    <p class="mat-hint">Add it as the push webhook of the repository (GitHub, Gitea, Forgejo, GitLab): a push syncs the stack, it deploys only when the compose file's folder changed. As the webhook's secret use the last part of the address.</p>
+                }
+                else
+                {
+                    <p class="mat-hint">A POST to this address pulls and redeploys the stack with the backup and the health check of its rule, for example from a CI after it pushed a new image. The address is the secret.</p>
+                }
                 <div class="md-image-form">
                     <input class="mat-input mat-mono md-image-input" value="@url" readonly aria-label="Webhook address" id="webhook-url" />
                     <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-copy="#webhook-url" title="Copy" aria-label="Copy the address"><icon name="copy" /></button>

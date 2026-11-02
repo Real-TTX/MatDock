@@ -71,6 +71,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.ScanImagesAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.ResticMaintenanceAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.SelfBackupAction>();
+        services.AddScoped<Schedules.IScheduleAction, Stacks.GitSyncAction>();
+        services.AddScoped<Stacks.GitSyncSchedules>();
         services.AddScoped<Backups.SelfBackupService>();
         services.AddScoped<Schedules.ScheduleService>();
         services.AddScoped<Schedules.ScheduleUnificationMigrator>();
