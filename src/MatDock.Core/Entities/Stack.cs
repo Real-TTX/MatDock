@@ -16,9 +16,15 @@ public class Stack : AuditableEntity
     public string ComposeYaml { get; set; } = string.Empty;
 
     /// <summary>Optional <c>.env</c> file contents for the inline stack (variable substitution + defaults).
-    /// Written to <c>&lt;stacks dir&gt;/&lt;name&gt;/.env</c> on deploy; null/empty removes it. Git-backed
-    /// stacks manage their own <c>.env</c> from the repo, so this stays null for them.</summary>
+    /// Written to <c>&lt;stacks dir&gt;/&lt;name&gt;/.env</c> on deploy; null/empty removes it. For a Git-backed stack the repository brings its
+    /// own <c>.env</c>: these variables then override it (handed to compose as environment variables, not written over the repository's file).</summary>
     public string? EnvContent { get; set; }
+
+    /// <summary>
+    /// The secret variables of the stack (<see cref="Stacks.StackSecrets"/>) as a JSON object: encrypted in the database like <see cref="EnvContent"/>,
+    /// never written to the host — a deploy hands them to compose as environment variables. Null = none.
+    /// </summary>
+    public string? SecretsJson { get; set; }
 
     /// <summary>When set, the stack is git-backed: the compose (and any bind-mounted files) come from this repo.</summary>
     public string? GitRepoUrl { get; set; }
@@ -28,6 +34,10 @@ public class Stack : AuditableEntity
 
     /// <summary>Repo-relative path to the compose file; null/empty = <c>docker-compose.yml</c>.</summary>
     public string? GitComposePath { get; set; }
+
+    /// <summary>An env file of the repository besides its <c>.env</c> (e.g. <c>.env.production</c>), relative to the compose file's folder; compose reads
+    /// it after the <c>.env</c>. Null = only the <c>.env</c>.</summary>
+    public string? GitEnvFile { get; set; }
 
     /// <summary>Optional <see cref="GitCredential"/> for private repos; null = anonymous/public.</summary>
     public long? GitCredentialId { get; set; }

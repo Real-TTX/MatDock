@@ -9,6 +9,7 @@ using MatDock.Web.Api;
 using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MatDock.Web.Pages.Stacks;
 
@@ -20,6 +21,8 @@ public class EditModel : PageModel
     private readonly GitCredentialService _gitCredentialService;
     private readonly GitRepoService _gitRepoService;
     private readonly OperationRegistry _operations;
+    private readonly MatDock.Core.Containers.ContainerService _containers;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
     public EditModel(
         StackService stackService,
@@ -27,8 +30,12 @@ public class EditModel : PageModel
         StackTemplateService templateService,
         GitCredentialService gitCredentialService,
         GitRepoService gitRepoService,
-        OperationRegistry operations)
+        OperationRegistry operations,
+        MatDock.Core.Containers.ContainerService containers,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
+        _containers = containers;
+        _cache = cache;
         _operations = operations;
         _stackService = stackService;
         _environmentService = environmentService;
@@ -59,6 +66,15 @@ public class EditModel : PageModel
     /// <summary>The deploy started from this page (<c>?op=</c>), shown in the console.</summary>
     public OperationConsoleModel? Console { get; private set; }
 
+    /// <summary>One secret variable of the form: a stored one (<see cref="Existing"/>: an empty value keeps it) or a new one.</summary>
+    public sealed class SecretRow
+    {
+        public string? Key { get; set; }
+        public string? Value { get; set; }
+        public bool Existing { get; set; }
+        public bool Remove { get; set; }
+    }
+
     public sealed class InputModel
     {
         public long? Id { get; set; }
@@ -85,6 +101,12 @@ public class EditModel : PageModel
         public string? GitReference { get; set; }
         public string? GitComposePath { get; set; }
         public long? GitCredentialId { get; set; }
+
+        /// <summary>An env file of the repository besides its .env, relative to the compose file (Git stacks).</summary>
+        public string? GitEnvFile { get; set; }
+
+        /// <summary>The secret variables: the stored ones (their value only when it changes) and new ones.</summary>
+        public List<SecretRow> Secrets { get; set; } = new();
 
         // Deploy options: the stack's defaults, changed per deploy here and kept on save.
         public bool OptPull { get; set; }
@@ -131,6 +153,8 @@ public class EditModel : PageModel
                 GitReference = stack.GitReference,
                 GitComposePath = stack.GitComposePath,
                 GitCredentialId = stack.GitCredentialId,
+                GitEnvFile = stack.GitEnvFile,
+                Secrets = StackSecrets.Names(stack.SecretsJson).Select(n => new SecretRow { Key = n, Existing = true }).ToList(),
             };
             Input.SetOptions(DeployOptions.FromJson(stack.DeployOptionsJson));
 
@@ -225,7 +249,9 @@ public class EditModel : PageModel
             return Page();
         }
 
-        var (ok, output) = await _stackService.CheckComposeAsync(Input.EnvironmentId, Input.ComposeYaml, Input.EnvContent, HttpContext.RequestAborted);
+        // With the stored secrets, so compose resolves the variables as a deploy will.
+        var secrets = IsEdit ? (await _stackService.GetAsync(Input.Id!.Value, HttpContext.RequestAborted))?.SecretsJson : null;
+        var (ok, output) = await _stackService.CheckComposeAsync(Input.EnvironmentId, Input.ComposeYaml, Input.EnvContent, secrets, HttpContext.RequestAborted);
         DeployOutput = output.Trim();
         StatusMessage = ok ? "Compose accepts the file." : "Compose found a problem.";
         IsError = !ok;
@@ -262,12 +288,20 @@ public class EditModel : PageModel
             Name = Input.Name,
             EnvironmentId = Input.EnvironmentId,
             ComposeYaml = isGit ? string.Empty : (Input.ComposeYaml ?? string.Empty),
-            EnvContent = isGit ? null : Input.EnvContent,
+            EnvContent = Input.EnvContent,
             GitRepoUrl = isGit ? Input.GitRepoUrl : null,
             GitReference = isGit ? Input.GitReference : null,
             GitComposePath = isGit ? Input.GitComposePath : null,
             GitCredentialId = isGit ? Input.GitCredentialId : null,
+            GitEnvFile = isGit ? Input.GitEnvFile : null,
         };
+
+        // The secrets are checked before anything is saved.
+        var (set, remove, problem) = SecretChanges();
+        if (problem is not null)
+        {
+            return (false, problem, 0);
+        }
 
         (bool Ok, string Message, long Id) result;
         if (IsEdit)
@@ -283,9 +317,138 @@ public class EditModel : PageModel
         if (result.Ok)
         {
             await _stackService.SetDeployOptionsAsync(result.Id, Input.Options, HttpContext.RequestAborted);
+            if (set.Count > 0 || remove.Count > 0)
+            {
+                var (ok, message) = await _stackService.SetSecretsAsync(result.Id, set, remove, HttpContext.RequestAborted);
+                if (!ok)
+                {
+                    return (false, message, result.Id);
+                }
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// What the form changes of the secrets: a stored one with a value gets it, one marked to remove goes, a new row with a name is added (its value
+    /// may be empty). The problem of the first invalid one, or null.
+    /// </summary>
+    private (Dictionary<string, string> Set, List<string> Remove, string? Problem) SecretChanges()
+    {
+        var set = new Dictionary<string, string>(StringComparer.Ordinal);
+        var remove = new List<string>();
+        foreach (var row in Input.Secrets)
+        {
+            var key = row.Key?.Trim();
+            if (string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
+
+            if (row.Remove)
+            {
+                remove.Add(key);
+                continue;
+            }
+
+            if (row.Existing && string.IsNullOrEmpty(row.Value))
+            {
+                continue; // unchanged
+            }
+
+            var value = row.Value ?? string.Empty;
+            if (StackSecrets.Problem(key, value) is { } problem)
+            {
+                return (set, remove, problem);
+            }
+
+            set[key] = value;
+        }
+
+        return (set, remove, null);
+    }
+
+    /// <summary>
+    /// The live check of the editor (<c>stack-forms.js</c>): the rules of <see cref="ComposeLint"/> for the text as it is typed, with the variables of the
+    /// .env and the secrets, and the host ports the rest of the environment publishes (read at most every 30 seconds).
+    /// </summary>
+    public async Task<IActionResult> OnPostLintAsync(string? yaml, string? env, long? environmentId, long? id, string? secretKeys, string? source)
+    {
+        var defined = new HashSet<string>(StackVariables.ParseEnv(env).Keys, StringComparer.Ordinal);
+        string? stackName = null;
+        if (id is > 0 && await _stackService.GetAsync(id.Value, HttpContext.RequestAborted) is { } stack)
+        {
+            stackName = stack.Name;
+            defined.UnionWith(StackSecrets.Names(stack.SecretsJson));
+        }
+
+        foreach (var key in (secretKeys ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            defined.Add(key);
+        }
+
+        var ports = environmentId is > 0 ? await OtherPortsAsync(environmentId.Value, stackName) : [];
+        var findings = ComposeLint.Check(yaml, source == "git" ? null : defined, ports);
+        return new JsonResult(new
+        {
+            findings = findings.Select(f => new
+            {
+                code = f.Code,
+                severity = f.Severity.ToString().ToLowerInvariant(),
+                message = f.Message,
+                line = f.Line,
+                fix = f.Fix,
+                fixLabel = f.FixLabel,
+            }),
+        });
+    }
+
+    /// <summary>Applies a fix of the live check to the text and answers the new text (400 when it does not fit any more).</summary>
+    public IActionResult OnPostFix(string? yaml, string? fix)
+    {
+        if (string.IsNullOrEmpty(yaml) || string.IsNullOrEmpty(fix) || ComposeLint.ApplyFix(yaml, fix) is not { } fixedYaml)
+        {
+            return BadRequest(new { error = "The fix does not fit the text any more." });
+        }
+
+        return new JsonResult(new { yaml = fixedYaml });
+    }
+
+    /// <summary>The host ports the containers of an environment publish, except those of the stack itself.</summary>
+    private async Task<IReadOnlyCollection<HostPortUse>> OtherPortsAsync(long environmentId, string? stackName)
+    {
+        var all = await _cache.GetOrCreateAsync($"lint:ports:{environmentId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+            var env = await _environmentService.GetAsync(environmentId, HttpContext.RequestAborted);
+            if (env is not { IsEnabled: true })
+            {
+                return new List<(HostPortUse Use, string? Project)>();
+            }
+
+            try
+            {
+                var containers = await _containers.ListAsync(env, HttpContext.RequestAborted, includeStats: false);
+                return containers.SelectMany(c => PublishedPorts(c.Ports).Select(p =>
+                    (Use: new HostPortUse(p.Port, p.Protocol, string.IsNullOrEmpty(c.Project) ? $"container '{c.Name}'" : $"stack '{c.Project}'"), Project: c.Project))).ToList();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return new List<(HostPortUse Use, string? Project)>();
+            }
+        }) ?? [];
+
+        return all.Where(p => p.Project is null || p.Project != stackName).Select(p => p.Use).DistinctBy(p => (p.Port, p.Protocol)).ToList();
+    }
+
+    /// <summary>The host ports of a container's port column ("0.0.0.0:8080->80/tcp, [::]:8080->80/tcp").</summary>
+    internal static IEnumerable<(int Port, string Protocol)> PublishedPorts(string? ports)
+    {
+        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(ports ?? string.Empty, @":(\d+)->\d+(?:-\d+)?/(tcp|udp|sctp)"))
+        {
+            yield return (int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), m.Groups[2].Value);
+        }
     }
 
     /// <summary>Removes the stack from MatDock (as on the list); its containers keep running.</summary>

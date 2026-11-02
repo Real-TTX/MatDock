@@ -22,6 +22,9 @@ public sealed class UpsertStackBody
 
     /// <summary>With <see cref="Deploy"/>: pull the images first.</summary>
     public bool Pull { get; set; }
+
+    /// <summary>Secret variables to set (a name with a value) or remove (a name with null); the others stay. The answer names them, never their values.</summary>
+    public Dictionary<string, string?>? Secrets { get; set; }
 }
 
 /// <summary>Body of <c>PUT /api/v1/stacks/{name}/images/{service}</c>.</summary>
@@ -147,6 +150,18 @@ public static class StacksApi
         if (!ok || stack is null)
         {
             return stack is { IsGitBacked: true } ? ApiResults.Conflict(message) : ApiResults.BadRequest(message);
+        }
+
+        if (body.Secrets is { Count: > 0 } changes)
+        {
+            var set = changes.Where(c => c.Value is not null).ToDictionary(c => c.Key, c => c.Value!, StringComparer.Ordinal);
+            var (secretsOk, secretsMessage) = await stacks.SetSecretsAsync(stack.Id, set, changes.Where(c => c.Value is null).Select(c => c.Key), http.RequestAborted);
+            if (!secretsOk)
+            {
+                return ApiResults.BadRequest(secretsMessage);
+            }
+
+            stack = await stacks.GetAsync(stack.Id, http.RequestAborted) ?? stack;
         }
 
         var live = await ProjectContainersAsync(containers, env, name, http.RequestAborted);

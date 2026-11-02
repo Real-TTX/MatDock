@@ -157,10 +157,43 @@ public static partial class StackCommands
     /// the command line (where <c>ps</c> on the host would show it) and is readable by its owner only.
     /// </summary>
     private const string WriteFiles =
-        "IFS= read -r envb64 || true; IFS= read -r ovb64 || true; "
+        "IFS= read -r envb64 || true; IFS= read -r ovb64 || true; IFS= read -r xb64 || true; "
         + "if [ -n \"$envb64\" ]; then (umask 077; printf %s \"$envb64\" | base64 -d > \"$dir/.env\"); else rm -f \"$dir/.env\"; fi; "
         + "if [ -n \"$ovb64\" ]; then printf %s \"$ovb64\" | base64 -d > \"$dir/" + ImageOverrides.FileName + "\"; else rm -f \"$dir/" + ImageOverrides.FileName + "\"; fi; "
+        + ExportVars + "rm -f \"$dir/" + EnvFilesName + "\"; "
         + "cat > \"$dir/docker-compose.yml\"; ";
+
+    /// <summary>
+    /// Exports the variables of <c>$xb64</c> (base64 of <c>NAME=value</c> lines, <see cref="StackSecrets.Exports"/>) into the environment of the script, so
+    /// compose resolves <c>${NAME}</c> with them; nothing is written to a file. Globbing is off while the lines are split, so a value with <c>*</c> stays.
+    /// No single quote: the fragment sits inside single-quoted script bodies.
+    /// </summary>
+    private const string ExportVars =
+        "if [ -n \"$xb64\" ]; then xs=$(printf %s \"$xb64\" | base64 -d); set -f; nl=$(printf \"\\n_\"); nl=${nl%_}; oifs=$IFS; IFS=$nl; "
+        + "for kv in $xs; do export \"$kv\"; done; IFS=$oifs; set +f; fi; ";
+
+    /// <summary>Reads the exports line from stdin and exports it, when the flag argument <paramref name="flag"/> says it was sent.</summary>
+    private static string ReadExports(string flag) => "if [ \"" + flag + "\" = x ]; then IFS= read -r xb64 || true; " + ExportVars + "fi; ";
+
+    /// <summary>The flag argument that tells a script the exports line comes on stdin.</summary>
+    private static string ExportsFlag(bool exportsOnStdin) => exportsOnStdin ? "x" : "-";
+
+    /// <summary>The <c>--env-file</c> options of a Git stack (its <c>.env</c> and <see cref="Entities.Stack.GitEnvFile"/>), kept beside the files by a
+    /// deploy so the later commands (restart, recreate of a service) read the same variables.</summary>
+    public const string EnvFilesName = ".matdock-env-files";
+
+    /// <summary>After <c>cd</c> into the stack dir: <c>$ef</c> holds the <c>--env-file</c> options a Git deploy kept, else it is empty.</summary>
+    private const string EnvFiles = "ef=\"\"; if [ -f \"" + EnvFilesName + "\" ]; then ef=$(cat \"" + EnvFilesName + "\"); fi; ";
+
+    /// <summary>The line <see cref="Lifecycle"/>, <see cref="Service"/> and <see cref="GitSync(string, string, string, DeployOptions, IReadOnlyCollection{string}?, string?, string?, string?, bool)"/>
+    /// read first from stdin when they are told to: the exports in base64.</summary>
+    public static byte[] ExportsLine(string? exports)
+        => System.Text.Encoding.UTF8.GetBytes((string.IsNullOrEmpty(exports) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(exports))) + "\n");
+
+    /// <summary>Whether an env file path of a repository is safe to name on the command line (it is split on spaces there).</summary>
+    public static bool IsSafeEnvFilePath(string? path)
+        => !string.IsNullOrEmpty(path) && path.Length <= 300 && !path.StartsWith('/') && !path.Split('/').Contains("..")
+           && path.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-' or '/');
 
     /// <summary>After <see cref="WriteFiles"/> and <c>cd</c>: the compose files to name when MatDock overrides images (<c>$cf</c>), nothing otherwise.</summary>
     private const string InlineFiles =
@@ -178,35 +211,37 @@ public static partial class StackCommands
     }
 
     /// <summary>What <see cref="Deploy"/> and <see cref="Update"/> read from stdin: the <c>.env</c> as one base64 line, the image overrides
-    /// (<see cref="ImageOverrides.Render"/>) as another (empty = none, a stale file is removed), then the compose file.</summary>
-    public static byte[] FilesOnStdin(string composeYaml, string? envContent, string? overrideYaml = null)
+    /// (<see cref="ImageOverrides.Render"/>) as another (empty = none, a stale file is removed), the exports (<see cref="StackSecrets.Exports"/>: the
+    /// secrets, never written to a file) as a third, then the compose file.</summary>
+    public static byte[] FilesOnStdin(string composeYaml, string? envContent, string? overrideYaml = null, string? exports = null)
     {
         var env = string.IsNullOrEmpty(envContent)
             ? string.Empty
             : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(envContent.Replace("\r\n", "\n")));
-        return System.Text.Encoding.UTF8.GetBytes(env + "\n" + ImageOverrides.Base64Of(overrideYaml) + "\n" + composeYaml.Replace("\r\n", "\n"));
+        var x = string.IsNullOrEmpty(exports) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(exports));
+        return System.Text.Encoding.UTF8.GetBytes(env + "\n" + ImageOverrides.Base64Of(overrideYaml) + "\n" + x + "\n" + composeYaml.Replace("\r\n", "\n"));
     }
 
     /// <summary><c>compose down</c> for the stack (stops and removes containers, with <c>--volumes</c> also its
     /// named volumes). Output merged.</summary>
-    public static string Down(string dockerHead, string name, string composePath, bool removeVolumes = false)
-        => Lifecycle(dockerHead, name, composePath, removeVolumes ? "down --volumes" : "down");
+    public static string Down(string dockerHead, string name, string composePath, bool removeVolumes = false, bool exportsOnStdin = false)
+        => Lifecycle(dockerHead, name, composePath, removeVolumes ? "down --volumes" : "down", exportsOnStdin);
 
     /// <summary><c>compose restart</c> for the stack (restarts its containers without re-creating them). Output merged.</summary>
-    public static string Restart(string dockerHead, string name, string composePath)
-        => Lifecycle(dockerHead, name, composePath, "restart");
+    public static string Restart(string dockerHead, string name, string composePath, bool exportsOnStdin = false)
+        => Lifecycle(dockerHead, name, composePath, "restart", exportsOnStdin);
 
     /// <summary><c>compose pull</c> for the stack (fetches newer images, containers keep running). Output merged.</summary>
-    public static string Pull(string dockerHead, string name, string composePath)
-        => Lifecycle(dockerHead, name, composePath, "pull");
+    public static string Pull(string dockerHead, string name, string composePath, bool exportsOnStdin = false)
+        => Lifecycle(dockerHead, name, composePath, "pull", exportsOnStdin);
 
     /// <summary><c>compose stop</c> for the stack (stops containers, keeps them). Output merged.</summary>
-    public static string Stop(string dockerHead, string name, string composePath)
-        => Lifecycle(dockerHead, name, composePath, "stop");
+    public static string Stop(string dockerHead, string name, string composePath, bool exportsOnStdin = false)
+        => Lifecycle(dockerHead, name, composePath, "stop", exportsOnStdin);
 
     /// <summary><c>compose start</c> for the stack (starts previously-stopped containers). Output merged.</summary>
-    public static string Start(string dockerHead, string name, string composePath)
-        => Lifecycle(dockerHead, name, composePath, "start");
+    public static string Start(string dockerHead, string name, string composePath, bool exportsOnStdin = false)
+        => Lifecycle(dockerHead, name, composePath, "start", exportsOnStdin);
 
     /// <summary>What can be done to one service of a managed stack.</summary>
     public enum ServiceAction
@@ -224,10 +259,11 @@ public static partial class StackCommands
 
     /// <summary>
     /// One service of a managed stack: restart, stop, start, recreate or scale it, with the stack's compose file and its image overrides.
-    /// $1 = stack, $2 = compose path, $3 = service, $4 = number of containers (all validated and passed as quoted arguments). Recreate and scale need the
-    /// files on the host (deployed from MatDock once); restart, stop and start fall back to the project label.
+    /// $1 = stack, $2 = compose path, $3 = service, $4 = number of containers (all validated and passed as quoted arguments), $5 = whether the exports
+    /// (the secrets) come on stdin. Recreate and scale need the files on the host (deployed from MatDock once); restart, stop and start fall back to the
+    /// project label.
     /// </summary>
-    public static string Service(string dockerHead, string name, string composePath, string service, ServiceAction action, int replicas = 1)
+    public static string Service(string dockerHead, string name, string composePath, string service, ServiceAction action, int replicas = 1, bool exportsOnStdin = false)
     {
         Require(name);
         if (!IsValidServiceName(service))
@@ -248,14 +284,14 @@ public static partial class StackCommands
             _ => "up -d --no-recreate --scale \"$3=$4\" \"$3\"",
         };
         var needsFiles = action is ServiceAction.Recreate or ServiceAction.Scale;
-        var script = "set -e; dir=\"" + StacksDir + "/$1\"; "
-                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + dockerHead + " compose -p \"$1\" -f \"$2\" $ov " + verb + "; "
+        var script = "set -e; " + ReadExports("$5") + "dir=\"" + StacksDir + "/$1\"; "
+                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + EnvFiles + dockerHead + " compose -p \"$1\" -f \"$2\" $ov $ef " + verb + "; "
                    + (needsFiles
                        ? "else echo \"The compose file of this stack is not on the host: deploy it from MatDock once.\" >&2; exit 3; fi"
                        : "else " + dockerHead + " compose -p \"$1\" " + verb + "; fi");
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
-             + " " + VolumeFileCommands.ShellQuote(service) + " " + replicas.ToString(System.Globalization.CultureInfo.InvariantCulture) + " 2>&1";
+             + " " + VolumeFileCommands.ShellQuote(service) + " " + replicas.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + ExportsFlag(exportsOnStdin) + " 2>&1";
     }
 
     // ---- Discovered (external) stacks: operate by compose project label, no compose file needed ----
@@ -308,7 +344,7 @@ public static partial class StackCommands
              + " sh " + VolumeFileCommands.ShellQuote(project) + " 2>&1";
     }
 
-    private static string Lifecycle(string dockerHead, string name, string composePath, string verb)
+    private static string Lifecycle(string dockerHead, string name, string composePath, string verb, bool exportsOnStdin)
     {
         Require(name);
         // $1 = stack name (validated), $2 = compose file path (relative). Both passed as separate,
@@ -316,11 +352,12 @@ public static partial class StackCommands
         // Without the files on the host (never deployed from here, or a lost directory) compose still finds
         // the project's containers by its label, so stop/start/down keep working.
         // MatDock's image overrides (a file next to the compose file) are part of the project whenever they exist.
-        var script = "set -e; dir=\"" + StacksDir + "/$1\"; "
-                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + dockerHead + " compose -p \"$1\" -f \"$2\" $ov " + verb + "; "
+        // $3 says whether the exports (the secrets) come on stdin.
+        var script = "set -e; " + ReadExports("$3") + "dir=\"" + StacksDir + "/$1\"; "
+                   + "if [ -f \"$dir/$2\" ]; then cd \"$dir\"; " + OverrideFile + EnvFiles + dockerHead + " compose -p \"$1\" -f \"$2\" $ov $ef " + verb + "; "
                    + "else " + dockerHead + " compose -p \"$1\" " + verb + "; fi";
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
-             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " 2>&1";
+             + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath) + " " + ExportsFlag(exportsOnStdin) + " 2>&1";
     }
 
     /// <summary>After <c>cd</c> into the stack dir: <c>$ov</c> names the image overrides when that file exists, else it is empty.</summary>
@@ -336,20 +373,35 @@ public static partial class StackCommands
     public static string GitSync(string dockerHead, string name, string composePath, bool pull = false, IReadOnlyCollection<string>? pinned = null, string? overrideYaml = null)
         => GitSync(dockerHead, name, composePath, new DeployOptions { Pull = pull }, pinned, overrideYaml);
 
-    /// <summary>The Git deploy with the deploy options: pull (not the <paramref name="pinned"/> services), build and the flags of <c>up</c>.</summary>
-    public static string GitSync(string dockerHead, string name, string composePath, DeployOptions options, IReadOnlyCollection<string>? pinned = null, string? overrideYaml = null)
+    /// <summary>
+    /// The Git deploy with the deploy options: pull (not the <paramref name="pinned"/> services), build and the flags of <c>up</c>. With
+    /// <paramref name="envFile"/> compose reads <paramref name="dotEnv"/> (when the repository has it) and then that file (both relative to the repository,
+    /// <see cref="IsSafeEnvFilePath"/>); the options are kept in <see cref="EnvFilesName"/> for the later commands. With <paramref name="exportsOnStdin"/>
+    /// the first line on stdin is the exports (<see cref="ExportsLine"/>), the tar follows. $4 = env file, $5 = .env, $6 = the exports flag.
+    /// </summary>
+    public static string GitSync(string dockerHead, string name, string composePath, DeployOptions options, IReadOnlyCollection<string>? pinned = null,
+        string? overrideYaml = null, string? envFile = null, string? dotEnv = null, bool exportsOnStdin = false)
     {
         Require(name);
-        const string args = "-p \"$1\" -f \"$2\" $ov";
+        if (!string.IsNullOrEmpty(envFile) && (!IsSafeEnvFilePath(envFile) || !IsSafeEnvFilePath(dotEnv)))
+        {
+            throw new ArgumentException($"Invalid env file path: '{envFile}'.", nameof(envFile));
+        }
+
+        const string args = "-p \"$1\" -f \"$2\" $ov $ef";
         // Optionally pull first so :latest images are refreshed before the (idempotent) up -d; pinned services are not pulled.
         var steps = (options.Pull ? PullStep(dockerHead, args, pinned) : string.Empty) + BuildStep(dockerHead, args, options);
-        var script = "set -e; dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
+        var script = "set -e; " + ReadExports("$6") + "dir=\"" + StacksDir + "/$1\"; mkdir -p \"$dir\"; "
                    + "tar -C \"$dir\" -xf -; cd \"$dir\"; "
                    + "if [ -n \"$3\" ]; then printf %s \"$3\" | base64 -d > \"" + ImageOverrides.FileName + "\"; else rm -f \"" + ImageOverrides.FileName + "\"; fi; "
+                   + "ef=\"\"; if [ -n \"$4\" ]; then if [ -f \"$5\" ]; then ef=\"--env-file $5\"; fi; ef=\"$ef --env-file $4\"; fi; "
+                   + "if [ -n \"$ef\" ]; then printf %s \"$ef\" > \"" + EnvFilesName + "\"; else rm -f \"" + EnvFilesName + "\"; fi; "
                    + OverrideFile + steps
                    + dockerHead + " compose " + args + Up(options);
         return VolumeCommands.PathPrefix + "sh -c " + VolumeFileCommands.ShellQuote(script)
              + " sh " + VolumeFileCommands.ShellQuote(name) + " " + VolumeFileCommands.ShellQuote(composePath)
-             + " " + VolumeFileCommands.ShellQuote(ImageOverrides.Base64Of(overrideYaml)) + " 2>&1";
+             + " " + VolumeFileCommands.ShellQuote(ImageOverrides.Base64Of(overrideYaml))
+             + " " + VolumeFileCommands.ShellQuote(envFile ?? string.Empty) + " " + VolumeFileCommands.ShellQuote(string.IsNullOrEmpty(envFile) ? string.Empty : dotEnv ?? string.Empty)
+             + " " + ExportsFlag(exportsOnStdin) + " 2>&1";
     }
 }

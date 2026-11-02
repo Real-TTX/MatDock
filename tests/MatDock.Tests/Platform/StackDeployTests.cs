@@ -89,8 +89,8 @@ public sealed class StackDeployTests : IClassFixture<StackDeployTests.Site>
         Assert.True(inline.IndexOf(" pull; ", StringComparison.Ordinal) < inline.IndexOf(" build ", StringComparison.Ordinal));
 
         var git = StackCommands.GitSync("docker", "shop", "deploy/compose.yml", new DeployOptions { Build = true, ForceRecreate = true });
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov build; ", git);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov up -d --force-recreate", git);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef build; ", git);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef up -d --force-recreate", git);
         Assert.DoesNotContain(" pull", git);
     }
 

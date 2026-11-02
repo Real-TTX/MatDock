@@ -922,6 +922,10 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<long?>("GitCredentialId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("GitEnvFile")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GitReference")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -951,6 +955,9 @@ namespace MatDock.Core.Data.Migrations
 
                     b.Property<string>("PinnedServices")
                         .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecretsJson")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("SyncJobId")

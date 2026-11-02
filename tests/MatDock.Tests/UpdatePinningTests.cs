@@ -68,8 +68,8 @@ public class UpdatePinningTests
     public void GitSync_with_pins_uses_the_compose_file_argument()
     {
         var cmd = StackCommands.GitSync("docker", "media", "deploy/compose.yml", pull: true, pinned: new[] { "db" });
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov config --services", cmd);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov pull $svcs", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef config --services", cmd);
+        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef pull $svcs", cmd);
         // No pull requested: pins change nothing.
         Assert.DoesNotContain("config --services", StackCommands.GitSync("docker", "media", "c.yml", pull: false, pinned: new[] { "db" }));
     }

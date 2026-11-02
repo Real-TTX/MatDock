@@ -17,7 +17,8 @@ public sealed record ApiStackDetail(
     string Name, long EnvironmentId, bool Managed, string? ManagedBy, string State,
     IReadOnlyList<ApiContainer> Containers, DateTime? UpdatedAt, DateTime? LastDeployedAt, string? LastStatus,
     string? ComposeYaml, string? EnvContent,
-    IReadOnlyList<ApiImageOverride>? ImageOverrides = null);
+    IReadOnlyList<ApiImageOverride>? ImageOverrides = null,
+    IReadOnlyList<string>? Secrets = null);
 
 /// <summary>An image MatDock runs for a service instead of the one in the compose file (which it names as <c>Base</c>).</summary>
 public sealed record ApiImageOverride(string Service, string Base, string Image);
@@ -65,7 +66,8 @@ public static class StackViews
         => new(stack.Name, stack.EnvironmentId, true, stack.ManagedBy, state ?? StateOf(live), Containers(live),
             ApiResults.Utc(stack.UpdateDate), ApiResults.Utc(stack.LastDeployedAt), stack.LastStatus,
             stack.ComposeYaml, stack.EnvContent,
-            ImageOverrides.Of(stack).Select(o => new ApiImageOverride(o.Key, o.Value.Base, o.Value.Image)).ToList());
+            ImageOverrides.Of(stack).Select(o => new ApiImageOverride(o.Key, o.Value.Base, o.Value.Image)).ToList(),
+            StackSecrets.Names(stack.SecretsJson));
 
     /// <summary>A compose project that runs on the host but is not managed by MatDock.</summary>
     public static ApiStackDetail ToDiscoveredDetail(string project, long environmentId, IReadOnlyList<DockerContainer> live)

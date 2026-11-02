@@ -67,12 +67,12 @@ public sealed class StackServiceActionTests : IClassFixture<StackServiceActionTe
     public void A_service_command_passes_service_and_count_as_arguments()
     {
         var restart = StackCommands.Service("docker", "shop", "docker-compose.yml", "web", StackCommands.ServiceAction.Restart);
-        Assert.Contains("compose -p \"$1\" -f \"$2\" $ov restart \"$3\"", restart);
+        Assert.Contains("compose -p \"$1\" -f \"$2\" $ov $ef restart \"$3\"", restart);
         Assert.Contains("else docker compose -p \"$1\" restart \"$3\"; fi", restart); // without the files: by the project label
 
         var scale = StackCommands.Service("docker", "shop", "docker-compose.yml", "web", StackCommands.ServiceAction.Scale, 3);
         Assert.Contains("up -d --no-recreate --scale \"$3=$4\" \"$3\"", scale);
-        Assert.EndsWith("'shop' 'docker-compose.yml' 'web' 3 2>&1", scale);
+        Assert.EndsWith("'shop' 'docker-compose.yml' 'web' 3 - 2>&1", scale);
         Assert.Contains("deploy it from MatDock once", scale);           // scale needs the files
 
         var recreate = StackCommands.Service("docker", "shop", "docker-compose.yml", "web", StackCommands.ServiceAction.Recreate);
@@ -140,7 +140,7 @@ public sealed class StackServiceActionTests : IClassFixture<StackServiceActionTe
         _site.App.Hosts.Commands.Clear();
         var post = await ServiceAsync(browser, "web", "Scale", 3);
         Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
-        Assert.Contains(_site.App.Hosts.Commands, c => c.Contains("--scale \"$3=$4\"", StringComparison.Ordinal) && c.EndsWith("'web' 3 2>&1", StringComparison.Ordinal));
+        Assert.Contains(_site.App.Hosts.Commands, c => c.Contains("--scale \"$3=$4\"", StringComparison.Ordinal) && c.EndsWith("'web' 3 x 2>&1", StringComparison.Ordinal));
     }
 
     [Fact]

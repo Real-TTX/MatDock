@@ -263,3 +263,15 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-console__pane { min-height: 6rem; max-height: 28rem; }
 .md-deploy-options > summary { display: flex; align-items: center; gap: var(--mat-space-2); cursor: pointer; font-weight: 600; }
 .md-deploy-options > .mat-checks { margin-top: var(--mat-space-3); }
+
+/* The live checks and the secrets of the stack editor. */
+.md-lint { display: flex; flex-direction: column; gap: var(--mat-space-2); padding: var(--mat-space-3); border: 1px solid var(--mat-border); border-radius: var(--mat-radius); background: var(--mat-surface-2); }
+.md-lint__head, .md-secrets__head { display: flex; align-items: center; gap: var(--mat-space-2); flex-wrap: wrap; }
+.md-lint__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--mat-space-1); max-height: 16rem; overflow: auto; }
+.md-lint__item { display: flex; align-items: center; gap: var(--mat-space-2); flex-wrap: wrap; font-size: var(--mat-fs-sm); }
+.md-lint__text { flex: 1 1 16rem; }
+.md-secrets { display: flex; flex-direction: column; gap: var(--mat-space-2); }
+.md-secrets__rows { display: flex; flex-direction: column; gap: var(--mat-space-2); }
+.md-secrets__row { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(10rem, 1fr) auto; gap: var(--mat-space-2); align-items: center; }
+.md-secrets__name { overflow-wrap: anywhere; }
+@media (max-width: 40rem) { .md-secrets__row { grid-template-columns: 1fr auto; } }

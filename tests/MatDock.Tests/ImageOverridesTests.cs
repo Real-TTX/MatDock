@@ -116,7 +116,8 @@ public class ImageOverridesTests
 
         Assert.Equal(string.Empty, lines[0]); // no .env
         Assert.Equal(yaml, System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(lines[1])));
-        Assert.Equal("services: {}", lines[2]);
+        Assert.Equal(string.Empty, lines[2]); // no secrets
+        Assert.Equal("services: {}", lines[3]);
     }
 
     // ---- the stack ----

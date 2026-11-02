@@ -131,6 +131,10 @@
                 <mat-field label="Environment variables (.env)" asp-for="Input.EnvContent" hint="One KEY=value per line, used for ${VAR} substitution in the compose file.">
                     <textarea asp-for="Input.EnvContent" class="mat-textarea" data-code="env" rows="6" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin&#10;PUID=1000"></textarea>
                 </mat-field>
+                <section class="md-lint" data-lint aria-live="polite" aria-label="Checks of the compose file">
+                    <div class="md-lint__head"><icon name="list-checks" /><strong>Checks</strong><span class="mat-muted" data-lint-summary></span></div>
+                    <ul class="md-lint__list" data-lint-list></ul>
+                </section>
             </div>
 
             <div class="mat-stack" data-show-if="#Source" data-show-value="git">
@@ -168,8 +172,49 @@
                             }
                         </select>
                     </mat-field>
+
+                    <mat-field label="Env file in repo" asp-for="Input.GitEnvFile" hint="Optional, beside the compose file, read after its .env.">
+                        <input asp-for="Input.GitEnvFile" class="mat-input" placeholder=".env.production" />
+                    </mat-field>
                 </div>
+                <mat-field label="Variables" for-id="git-env" hint="Override the repository's .env; never written into the repository.">
+                    <textarea id="git-env" name="Input.EnvContent" class="mat-textarea" data-code="env" rows="4" spellcheck="false" wrap="off" placeholder="TZ=Europe/Berlin">@Model.Input.EnvContent</textarea>
+                </mat-field>
             </div>
+
+            <section class="md-secrets" aria-labelledby="secrets-title">
+                <div class="md-secrets__head"><icon name="key" /><strong id="secrets-title">Secrets</strong><span class="mat-muted">Encrypted, never written to the host, available as ${NAME}.</span></div>
+                <div class="md-secrets__rows" data-secret-rows>
+                    @for (var i = 0; i < Model.Input.Secrets.Count; i++)
+                    {
+                        var s = Model.Input.Secrets[i];
+                        <div class="md-secrets__row" data-secret-row>
+                            @if (s.Existing)
+                            {
+                                <input type="hidden" name="Input.Secrets[@i].Key" value="@s.Key" data-secret-key />
+                                <input type="hidden" name="Input.Secrets[@i].Existing" value="true" />
+                                <span class="mat-mono md-secrets__name">@s.Key</span>
+                                <input type="password" name="Input.Secrets[@i].Value" class="mat-input mat-input--sm" placeholder="•••••••• (unchanged)" autocomplete="new-password" aria-label="New value of @s.Key" />
+                                <label class="mat-check"><input type="checkbox" name="Input.Secrets[@i].Remove" value="true" checked="@(s.Remove ? "checked" : null)" /><span>Remove</span></label>
+                            }
+                            else
+                            {
+                                <input name="Input.Secrets[@i].Key" value="@s.Key" class="mat-input mat-input--sm mat-mono" placeholder="NAME" aria-label="Name" autocomplete="off" data-secret-key />
+                                <input type="password" name="Input.Secrets[@i].Value" value="@s.Value" class="mat-input mat-input--sm" placeholder="Value" autocomplete="new-password" aria-label="Value" />
+                                <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-secret-drop title="Remove" aria-label="Remove this row"><icon name="x" /></button>
+                            }
+                        </div>
+                    }
+                </div>
+                <template data-secret-template>
+                    <div class="md-secrets__row" data-secret-row>
+                        <input name="Input.Secrets[#].Key" class="mat-input mat-input--sm mat-mono" placeholder="NAME" aria-label="Name" autocomplete="off" data-secret-key />
+                        <input type="password" name="Input.Secrets[#].Value" class="mat-input mat-input--sm" placeholder="Value" autocomplete="new-password" aria-label="Value" />
+                        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-secret-drop title="Remove" aria-label="Remove this row"><icon name="x" /></button>
+                    </div>
+                </template>
+                <button type="button" class="mat-btn mat-btn--secondary mat-btn--sm" data-secret-add data-secret-next="@Model.Input.Secrets.Count"><icon name="plus" /><span>Add secret</span></button>
+            </section>
 
             <details class="md-deploy-options" open="@(Model.Input.Options.IsNone ? null : "open")">
                 <summary><icon name="sliders" /><span>Deploy options</span>@if (!Model.Input.Options.IsNone) { <span class="mat-muted">@Model.Input.Options.Describe()</span> }</summary>

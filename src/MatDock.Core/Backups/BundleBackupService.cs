@@ -35,6 +35,9 @@ public sealed class BundleManifest
     /// older MatDock) - a restore then keeps what the stack has now.</summary>
     public string? ImageOverrides { get; set; }
 
+    /// <summary>The secret variables of the managed stack (JSON, encrypted like the <c>.env</c>); null when it had none or the bundle is older.</summary>
+    public string? Secrets { get; set; }
+
     /// <summary>Owner of the managed stack (e.g. <c>mattiverse</c>), restored with a re-created stack.</summary>
     public string? ManagedBy { get; set; }
 
@@ -238,6 +241,7 @@ public sealed class BundleBackupService
             // Encrypted like in the database: a bundle at an SMB share or on a disk must not carry passwords in plain text.
             EnvContent = managed is null ? null : (_secrets is null ? managed.EnvContent : _secrets.Protect(managed.EnvContent)) ?? string.Empty,
             ImageOverrides = managed is null ? null : managed.ImageOverridesJson ?? string.Empty,
+            Secrets = string.IsNullOrEmpty(stack?.SecretsJson) ? null : (_secrets is null ? stack.SecretsJson : _secrets.Protect(stack.SecretsJson)),
             ManagedBy = stack?.ManagedBy,
             Services = services,
             Volumes = volumes
@@ -349,6 +353,12 @@ public sealed class BundleBackupService
             if (manifest.ImageOverrides is not null)
             {
                 await _stackService.RestoreImageOverridesAsync(stackId, manifest.ImageOverrides, ct);
+            }
+
+            // The secrets come back too (a bundle of another installation cannot be read: the stack keeps its own).
+            if (manifest.Secrets is not null && BundleEnv(manifest.Secrets).Env is { } secrets)
+            {
+                await _stackService.RestoreSecretsAsync(stackId, secrets, ct);
             }
 
             var (dok, dout) = await _stackService.DeployAsync(stackId, new DeployRequest(Trigger: DeployTrigger.Restore), ct);

@@ -7,19 +7,23 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace MatDock.Core.Security;
 
 /// <summary>
-/// Keeps the <c>.env</c> of a stack (<see cref="Stack.EnvContent"/>: database passwords, API keys) encrypted in the database. Writing encrypts it, reading
-/// decrypts it, so the rest of MatDock sees the plain text as before. A value written by an older MatDock (plain) is read as it is and encrypted the next
-/// time the stack is saved (<see cref="EncryptExistingAsync"/> does it for all at the start). The prefix tells an encrypted value apart.
+/// Keeps the <c>.env</c> of a stack (<see cref="Stack.EnvContent"/>: database passwords, API keys) and its secret variables (<see cref="Stack.SecretsJson"/>)
+/// encrypted in the database. Writing encrypts them, reading decrypts them, so the rest of MatDock sees the plain text as before. A value written by an older
+/// MatDock (plain) is read as it is and encrypted the next time the stack is saved (<see cref="EncryptExistingAsync"/> does it for all at the start). The
+/// prefix tells an encrypted value apart.
 /// </summary>
 public sealed class StackSecretsInterceptor : SaveChangesInterceptor, IMaterializationInterceptor
 {
     /// <summary>What an encrypted value starts with.</summary>
     public const string Prefix = "enc1:";
 
+    /// <summary>The columns of a stack that are kept encrypted.</summary>
+    private static readonly string[] Columns = [nameof(Stack.EnvContent), nameof(Stack.SecretsJson)];
+
     private readonly ISecretProtector? _secrets;
 
     // Plain values of the stacks of one SaveChanges, put back into the entities afterwards.
-    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<DbContext, List<(EntityEntry Entry, string Plain)>> _pending = new();
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<DbContext, List<(EntityEntry Entry, string Column, string Plain)>> _pending = new();
 
     /// <summary>An instance with its own protector (for code that encrypts a value outside the database, like a bundle backup, and for tests).</summary>
     public StackSecretsInterceptor(ISecretProtector secrets) => _secrets = secrets;
@@ -68,9 +72,11 @@ public sealed class StackSecretsInterceptor : SaveChangesInterceptor, IMateriali
 
     public object InitializedInstance(MaterializationInterceptionData materializationData, object entity)
     {
-        if (entity is Stack stack && IsProtected(stack.EnvContent))
+        if (entity is Stack stack && (IsProtected(stack.EnvContent) || IsProtected(stack.SecretsJson)))
         {
-            stack.EnvContent = Unprotect(stack.EnvContent, SecretsOf(materializationData.Context));
+            var secrets = SecretsOf(materializationData.Context);
+            stack.EnvContent = Unprotect(stack.EnvContent, secrets);
+            stack.SecretsJson = Unprotect(stack.SecretsJson, secrets);
         }
 
         return entity;
@@ -116,18 +122,20 @@ public sealed class StackSecretsInterceptor : SaveChangesInterceptor, IMateriali
             return; // no protector (a context without the app): nothing is encrypted, nothing is lost
         }
 
-        var pending = new List<(EntityEntry, string)>();
+        var pending = new List<(EntityEntry, string, string)>();
         foreach (var entry in context.ChangeTracker.Entries<Stack>().Where(e => e.State is EntityState.Added or EntityState.Modified))
         {
-            var property = entry.Property(s => s.EnvContent);
-            var plain = property.CurrentValue;
-            if (string.IsNullOrEmpty(plain) || IsProtected(plain))
+            foreach (var column in Columns)
             {
-                continue;
-            }
+                var property = entry.Property(column);
+                if (property.CurrentValue is not string plain || plain.Length == 0 || IsProtected(plain))
+                {
+                    continue;
+                }
 
-            property.CurrentValue = Protect(plain, secrets);
-            pending.Add((entry, plain));
+                property.CurrentValue = Protect(plain, secrets);
+                pending.Add((entry, column, plain));
+            }
         }
 
         if (pending.Count > 0)
@@ -144,15 +152,24 @@ public sealed class StackSecretsInterceptor : SaveChangesInterceptor, IMateriali
         }
 
         _pending.Remove(context);
-        foreach (var (entry, plain) in pending)
+        foreach (var (entry, column, plain) in pending)
         {
             if (entry.State == EntityState.Detached)
             {
-                ((Stack)entry.Entity).EnvContent = plain;
+                var stack = (Stack)entry.Entity;
+                if (column == nameof(Stack.SecretsJson))
+                {
+                    stack.SecretsJson = plain;
+                }
+                else
+                {
+                    stack.EnvContent = plain;
+                }
+
                 continue;
             }
 
-            var property = entry.Property(nameof(Stack.EnvContent));
+            var property = entry.Property(column);
             property.CurrentValue = plain;
             property.OriginalValue = plain;
             property.IsModified = false;

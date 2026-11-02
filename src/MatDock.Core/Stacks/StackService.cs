@@ -168,8 +168,8 @@ public sealed class StackService
 
         try
         {
-            var (ok, output) = await ExecOnHostAsync(prep.Settings!, StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas),
-                writeStdin: null, prep.Timeout, ct, stream: false);
+            var (ok, output) = await ExecOnHostAsync(prep.Settings!, StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas, exportsOnStdin: true),
+                ExportsWriter(stack), prep.Timeout, ct, stream: false);
             var done = action switch
             {
                 StackCommands.ServiceAction.Scale => $"{service} runs with {replicas} container(s).",
@@ -246,6 +246,7 @@ public sealed class StackService
             GitRepoUrl = source.GitRepoUrl,
             GitReference = source.GitReference,
             GitComposePath = source.GitComposePath,
+            GitEnvFile = source.GitEnvFile,
             GitCredentialId = source.GitCredentialId,
         }, ct);
         if (!created)
@@ -257,6 +258,7 @@ public sealed class StackService
         copy.ImageOverridesJson = source.ImageOverridesJson;
         copy.PinnedServices = source.PinnedServices;
         copy.DeployOptionsJson = source.DeployOptionsJson;
+        copy.SecretsJson = source.SecretsJson;
         if (source.IsGitBacked)
         {
             copy.ComposeYaml = source.ComposeYaml; // the cache of the repo's compose file, so overrides can be checked before the first deploy
@@ -502,15 +504,15 @@ public sealed class StackService
     /// <summary><c>compose down</c>: stops and removes the stack's containers (and with <paramref name="removeVolumes"/>
     /// its named volumes). The stack definition stays in MatDock.</summary>
     public Task<(bool Ok, string Output)> DownAsync(long id, bool removeVolumes, CancellationToken ct = default)
-        => LifecycleAsync(id, (head, name, path) => StackCommands.Down(head, name, path, removeVolumes), null, null, ct);
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Down(head, name, path, removeVolumes, exportsOnStdin: true), null, null, ct);
 
     /// <summary><c>compose restart</c>: restarts the stack's containers without re-creating them.</summary>
     public Task<(bool Ok, string Output)> RestartAsync(long id, CancellationToken ct = default)
-        => LifecycleAsync(id, StackCommands.Restart, "Restarted", "Restart failed", ct);
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Restart(head, name, path, exportsOnStdin: true), "Restarted", "Restart failed", ct);
 
     /// <summary><c>compose pull</c>: fetches newer images; the running containers are not touched.</summary>
     public Task<(bool Ok, string Output)> PullAsync(long id, CancellationToken ct = default)
-        => LifecycleAsync(id, StackCommands.Pull, "Pulled", "Pull failed", ct);
+        => LifecycleAsync(id, (head, name, path) => StackCommands.Pull(head, name, path, exportsOnStdin: true), "Pulled", "Pull failed", ct);
 
     private async Task<(bool Ok, string Output)> LifecycleAsync(
         long id, Func<string, string, string, string> build, string? successStatus, string? failureStatus, CancellationToken ct)
@@ -528,7 +530,7 @@ public sealed class StackService
         }
 
         var command = build(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
             successStatus: successStatus, failureStatus: failureStatus);
     }
 
@@ -547,8 +549,8 @@ public sealed class StackService
             return (false, prep.Message);
         }
 
-        var command = StackCommands.Stop(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+        var command = StackCommands.Stop(prep.Head!, stack.Name, EffectiveComposePath(stack), exportsOnStdin: true);
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
             successStatus: "Stopped", failureStatus: "Stop failed");
     }
 
@@ -567,8 +569,8 @@ public sealed class StackService
             return (false, prep.Message);
         }
 
-        var command = StackCommands.Start(prep.Head!, stack.Name, EffectiveComposePath(stack));
-        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, writeStdin: null, ct,
+        var command = StackCommands.Start(prep.Head!, stack.Name, EffectiveComposePath(stack), exportsOnStdin: true);
+        return await ExecuteAndPersistAsync(stack, deploy: false, prep, command, ExportsWriter(stack), ct,
             successStatus: "Started", failureStatus: "Start failed");
     }
 
@@ -718,7 +720,7 @@ public sealed class StackService
 
         // The compose file may have changed an image since the override was made: then the compose wins.
         var notes = ReconcileOverrides(stack, stack.ComposeYaml);
-        var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent, ImageOverrides.Render(ImageOverrides.Of(stack)));
+        var yaml = StackCommands.FilesOnStdin(stack.ComposeYaml, stack.EnvContent, ImageOverrides.Render(ImageOverrides.Of(stack)), StackSecrets.Exports(stack.SecretsJson));
         var command = StackCommands.Deploy(prep.Head!, stack.Name, options, PinnedOf(stack));
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
             (s, c) => s.WriteAsync(yaml, c).AsTask(), ct,
@@ -819,9 +821,17 @@ public sealed class StackService
         var localDir = workDir;
         // The repo may have changed an image since the override was made: then the repo wins.
         var notes = ReconcileOverrides(stack, composeContent);
-        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, options, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)));
+        var (envFile, dotEnv) = GitEnvFiles(stack, composePath);
+        var command = StackCommands.GitSync(prep.Head!, stack.Name, composePath, options, PinnedOf(stack), ImageOverrides.Render(ImageOverrides.Of(stack)),
+            envFile, dotEnv, exportsOnStdin: true);
+        var exports = StackCommands.ExportsLine(ExportsOf(stack));
         var (ok, output) = await ExecuteAndPersistAsync(stack, deploy: true, prep, command,
-            (s, _) => { TarFile.CreateFromDirectory(localDir, s, includeBaseDirectory: false); return Task.CompletedTask; },
+            async (s, c) =>
+            {
+                // The exports line first (the script reads it before the tar), then the tree.
+                await s.WriteAsync(exports, c);
+                Git.RepoTar.Write(localDir, s);
+            },
             ct, beforePersist: s =>
             {
                 s.ComposeYaml = composeContent;
@@ -942,7 +952,11 @@ public sealed class StackService
     }
 
     /// <summary>Lets compose on the environment check a compose file and its .env (nothing is deployed or kept). Output = compose's words.</summary>
-    public async Task<(bool Ok, string Output)> CheckComposeAsync(long environmentId, string composeYaml, string? envContent, CancellationToken ct = default)
+    public Task<(bool Ok, string Output)> CheckComposeAsync(long environmentId, string composeYaml, string? envContent, CancellationToken ct = default)
+        => CheckComposeAsync(environmentId, composeYaml, envContent, null, ct);
+
+    /// <summary>The check with the secrets of a stack (as JSON), so compose resolves its variables as a deploy would.</summary>
+    public async Task<(bool Ok, string Output)> CheckComposeAsync(long environmentId, string composeYaml, string? envContent, string? secretsJson, CancellationToken ct = default)
     {
         var env = await _environmentService.GetAsync(environmentId, ct);
         if (env is null || !env.IsEnabled)
@@ -952,7 +966,7 @@ public sealed class StackService
 
         var settings = _environmentService.BuildSettings(env);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var files = StackCommands.FilesOnStdin(composeYaml ?? string.Empty, envContent);
+        var files = StackCommands.FilesOnStdin(composeYaml ?? string.Empty, envContent, null, StackSecrets.Exports(secretsJson));
         try
         {
             return await ExecOnHostAsync(settings, StackCommands.CheckConfig(head), (s, c) => s.WriteAsync(files, c).AsTask(),
@@ -1164,6 +1178,36 @@ public sealed class StackService
         return all.ToString();
     }
 
+    /// <summary>What the commands of a stack hand to compose as environment variables: its secrets, and for a Git stack its variables (they override the
+    /// repository's <c>.env</c>). Null when there are none.</summary>
+    private static string? ExportsOf(Stack stack) => StackSecrets.Exports(stack.SecretsJson, stack.IsGitBacked ? stack.EnvContent : null);
+
+    /// <summary>Writes the exports line (<see cref="StackCommands.ExportsLine"/>) as the stdin of a command.</summary>
+    private static Func<Stream, CancellationToken, Task> ExportsWriter(Stack stack)
+    {
+        var line = StackCommands.ExportsLine(ExportsOf(stack));
+        return (s, c) => s.WriteAsync(line, c).AsTask();
+    }
+
+    /// <summary>
+    /// The env file of a Git stack (<see cref="Stack.GitEnvFile"/>) and the repository's <c>.env</c>, both beside the compose file and relative to the
+    /// repository root; (null, null) without an env file.
+    /// </summary>
+    internal static (string? EnvFile, string? DotEnv) GitEnvFiles(Stack stack, string composePath)
+    {
+        var file = stack.GitEnvFile is { } raw && !raw.TrimStart().StartsWith('/') ? VolumeFileCommands.NormalizeRelPath(raw) : null;
+        if (string.IsNullOrEmpty(file))
+        {
+            return (null, null);
+        }
+
+        var slash = composePath.LastIndexOf('/');
+        var dir = slash > 0 ? composePath[..slash] + "/" : string.Empty;
+        var envFile = VolumeFileCommands.NormalizeRelPath(dir + file);
+        var dotEnv = dir + ".env";
+        return StackCommands.IsSafeEnvFilePath(envFile) && StackCommands.IsSafeEnvFilePath(dotEnv) ? (envFile, dotEnv) : (null, null);
+    }
+
     /// <summary>Repo-relative compose file path for the stack (validated at save time). Defaults to
     /// <c>docker-compose.yml</c> for inline stacks and when the git path is empty.</summary>
     private static string EffectiveComposePath(Stack stack)
@@ -1195,6 +1239,7 @@ public sealed class StackService
             stack.GitReference = null;
             stack.GitComposePath = null;
             stack.GitCredentialId = null;
+            stack.GitEnvFile = null;
             stack.ComposeYaml = input.ComposeYaml ?? string.Empty;
             stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
@@ -1205,7 +1250,9 @@ public sealed class StackService
             stack.GitReference = string.IsNullOrWhiteSpace(input.GitReference) ? null : input.GitReference.Trim();
             stack.GitComposePath = string.IsNullOrWhiteSpace(input.GitComposePath) ? null : input.GitComposePath.Trim();
             stack.GitCredentialId = input.GitCredentialId is > 0 ? input.GitCredentialId : null;
-            stack.EnvContent = null;
+            stack.GitEnvFile = string.IsNullOrWhiteSpace(input.GitEnvFile) ? null : input.GitEnvFile.Trim();
+            // The repository's .env stays its own; these variables override it (handed to compose at deploy, not written over the file).
+            stack.EnvContent = string.IsNullOrWhiteSpace(input.EnvContent) ? null : input.EnvContent;
         }
     }
 
@@ -1230,6 +1277,62 @@ public sealed class StackService
             return "Invalid compose path (no absolute paths or \"..\").";
         }
 
+        if (!string.IsNullOrWhiteSpace(input.GitEnvFile))
+        {
+            var composePath = VolumeFileCommands.NormalizeRelPath(input.GitComposePath?.Trim()) is { Length: > 0 } path ? path : "docker-compose.yml";
+            if (GitEnvFiles(new Stack { GitEnvFile = input.GitEnvFile.Trim() }, composePath).EnvFile is null)
+            {
+                return "Invalid env file: a path beside the compose file (letters, digits, . _ - and /, no \"..\").";
+            }
+        }
+
         return null;
+    }
+
+    /// <summary>Puts back the secret variables of a bundle backup (all of them, as JSON).</summary>
+    public async Task RestoreSecretsAsync(long id, string json, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is not null)
+        {
+            stack.SecretsJson = StackSecrets.ToJson(StackSecrets.Parse(json));
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// Changes the secret variables of a stack: <paramref name="set"/> adds or replaces (a value as given, empty allowed), <paramref name="remove"/> drops.
+    /// Nothing is saved when one name or value is not valid (<see cref="StackSecrets.Problem"/>).
+    /// </summary>
+    public async Task<(bool Ok, string Message)> SetSecretsAsync(long id, IReadOnlyDictionary<string, string> set, IEnumerable<string> remove, CancellationToken ct = default)
+    {
+        var stack = await _db.Stacks.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (stack is null)
+        {
+            return (false, "Stack not found.");
+        }
+
+        foreach (var (name, value) in set)
+        {
+            if (StackSecrets.Problem(name, value) is { } problem)
+            {
+                return (false, problem);
+            }
+        }
+
+        var secrets = StackSecrets.Parse(stack.SecretsJson);
+        foreach (var name in remove)
+        {
+            secrets.Remove(name);
+        }
+
+        foreach (var (name, value) in set)
+        {
+            secrets[name] = value;
+        }
+
+        stack.SecretsJson = StackSecrets.ToJson(secrets);
+        await _db.SaveChangesAsync(ct);
+        return (true, secrets.Count == 1 ? "1 secret." : $"{secrets.Count} secrets.");
     }
 }
