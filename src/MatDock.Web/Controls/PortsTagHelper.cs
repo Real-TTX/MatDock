@@ -20,6 +20,9 @@ public sealed class PortsTagHelper : TagHelper
 
     public string Scheme { get; set; } = "http";
 
+    /// <summary>Public addresses of the container (from its proxy labels, <see cref="MatDock.Core.Containers.ProxyUrls"/>), shown first as links.</summary>
+    public IReadOnlyList<string>? Urls { get; set; }
+
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         output.TagName = "div";
@@ -30,13 +33,21 @@ public sealed class PortsTagHelper : TagHelper
         output.Attributes.SetAttribute("class", string.IsNullOrEmpty(existing) ? "md-ports" : $"md-ports {existing}");
 
         var (published, exposed) = Parse(Ports);
-        if (published.Count == 0 && exposed.Count == 0)
+        var urls = Urls ?? [];
+        if (published.Count == 0 && exposed.Count == 0 && urls.Count == 0)
         {
             output.Content.SetHtmlContent("<span class=\"mat-muted\">–</span>");
             return;
         }
 
         var sb = new StringBuilder();
+        foreach (var url in urls)
+        {
+            var href = WebUtility.HtmlEncode(url);
+            var label = WebUtility.HtmlEncode(new Uri(url).Host);
+            sb.Append($"<a class=\"mat-tag md-port-link\" href=\"{href}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open {href}\"><svg class=\"mat-icon\" focusable=\"false\" aria-hidden=\"true\"><use href=\"#mat-i-globe\"></use></svg>{label}</a>");
+        }
+
         foreach (var (hostPort, containerPort) in published)
         {
             var label = WebUtility.HtmlEncode($"{hostPort}:{containerPort}");

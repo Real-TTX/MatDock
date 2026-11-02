@@ -134,6 +134,13 @@ else if (Model.Detail is { } d)
                 <p class="mat-row">
                     <span class="mat-pill @(scan.Critical > 0 ? "mat-pill--error" : scan.High > 0 ? "mat-pill--warn" : "mat-pill--ok")">@scan.Critical critical · @scan.High high · @scan.Medium medium · @scan.Low low</span>
                     <small class="mat-muted">scanned @scan.ScannedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                    @if (scan.Error is null)
+                    {
+                        @foreach (var format in new[] { "csv", "json", "sarif" })
+                        {
+                            <a class="mat-btn mat-btn--ghost mat-btn--sm" href="?handler=ScanExport&envId=@Model.EnvId&reference=@Uri.EscapeDataString(Model.Reference)&format=@format" title="Download the scan as @format.ToUpperInvariant()"><icon name="download" /><span>@format.ToUpperInvariant()</span></a>
+                        }
+                    }
                 </p>
                 @if (scan.Error is not null)
                 {

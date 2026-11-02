@@ -50,7 +50,7 @@ else
                             </div>
                         </td>
                         <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
-                        <td data-label="Ports"><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td>
+                        <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td>
                         <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" /></td>
                         <td class="mat-table__cell-actions">
                             <div class="mat-table__actions">

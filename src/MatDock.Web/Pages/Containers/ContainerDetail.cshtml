@@ -70,6 +70,7 @@ else if (c is not null)
         @if (Model.IsAdmin)
         {
             <a class="mat-btn mat-btn--secondary" href="/Containers/Create?from=@Uri.EscapeDataString(c.Id)&envId=@Model.EnvId"><icon name="copy" /><span>Duplicate</span></a>
+            <a class="mat-btn mat-btn--secondary" href="/Stacks/FromContainer?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="A compose file for this container, to copy or to keep as a stack"><icon name="code" /><span>Compose</span></a>
             @if (i is not null && i.Project is null)
             {
                 <form method="post" asp-page-handler="Recreate" data-confirm="Recreate '@c.Name' with the newest image of @i.Image? It keeps its settings and volumes; it is stopped for a moment.">
@@ -146,7 +147,7 @@ else if (c is not null)
                         }
                     </dd>
                     <dt>Ports</dt>
-                    <dd><container-ports ports="@c.Ports" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
+                    <dd><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
                     <dt>CPU</dt>
                     <dd>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</dd>
                     <dt>RAM</dt>

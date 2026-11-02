@@ -20,6 +20,23 @@ public enum NotificationChannelType
 
     /// <summary>A Gotify server (<see cref="NotificationChannel.Url"/>); the secret is the token of an application.</summary>
     Gotify = 5,
+
+    /// <summary>A Mattermost incoming webhook (the secret is its address).</summary>
+    Mattermost = 6,
+
+    /// <summary>Pushover: the secret is the application's API token, <see cref="NotificationChannel.Target"/> the user (or group) key.</summary>
+    Pushover = 7,
+
+    /// <summary>An Apprise API server (<see cref="NotificationChannel.Url"/>) with a stored configuration (<see cref="NotificationChannel.Target"/> = its key), or
+    /// without one the secret is the Apprise URLs to notify.</summary>
+    Apprise = 8,
+
+    /// <summary>Bark (iOS): a server (<see cref="NotificationChannel.Url"/>, api.day.app by default); the secret is the device key.</summary>
+    Bark = 9,
+
+    /// <summary>A signal-cli REST API server (<see cref="NotificationChannel.Url"/>); the secret is the sending number, <see cref="NotificationChannel.Target"/>
+    /// the recipients (numbers or group ids, comma-separated).</summary>
+    Signal = 10,
 }
 
 /// <summary>

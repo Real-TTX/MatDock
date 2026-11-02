@@ -1,0 +1,47 @@
+@page
+@model MatDock.Web.Pages.Stacks.FromContainerModel
+@{
+    ViewData["Title"] = "Compose from a container";
+    ViewData["Heading"] = Model.ContainerName is null ? "Compose from a container" : $"Compose · {Model.ContainerName}";
+    ViewData["Crumbs"] = new List<(string Text, string? Url)> { ("Containers", "/Containers"), (Model.ContainerName ?? Model.Id, $"/Containers/ContainerDetail?envId={Model.EnvId}&id={Model.Id}") };
+}
+
+@if (Model.Error is not null)
+{
+    <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@Model.Error</div></div>
+}
+
+@if (Model.Yaml is not null)
+{
+    <section class="mat-card">
+        <div class="mat-card__head">
+            <icon name="code" />
+            <h2 class="mat-card__title">docker-compose.yml</h2>
+            <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-copy="#generated-compose" title="Copy" aria-label="Copy the compose file"><icon name="copy" /></button>
+        </div>
+        <div class="mat-card__body mat-stack">
+            @if (Model.SecretNames.Count > 0)
+            {
+                <p class="mat-hint">@string.Join(", ", Model.SecretNames) @(Model.SecretNames.Count == 1 ? "is" : "are") written as a variable; a stack made here gets the value as its secret.</p>
+            }
+            <pre class="mat-code md-output md-output--tall" id="generated-compose">@Model.Yaml</pre>
+        </div>
+    </section>
+
+    <section class="mat-card">
+        <div class="mat-card__head"><icon name="layers" /><h2 class="mat-card__title">Keep as a stack</h2></div>
+        <div class="mat-card__body">
+            <form method="post" class="mat-form">
+                <input type="hidden" name="EnvId" value="@Model.EnvId" />
+                <input type="hidden" name="Id" value="@Model.Id" />
+                <mat-field label="Stack name" for-id="from-name" hint="Not deployed: stop the container first, then deploy the stack.">
+                    <input id="from-name" name="Name" value="@Model.Name" class="mat-input" pattern="[a-z0-9][a-z0-9_-]{0,62}" required />
+                </mat-field>
+                <mat-form-buttons>
+                    <button type="submit" class="mat-btn mat-btn--primary"><icon name="plus" /><span>Create stack</span></button>
+                    <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Model.Id" class="mat-btn mat-btn--ghost"><icon name="back" /><span>Back</span></a>
+                </mat-form-buttons>
+            </form>
+        </div>
+    </section>
+}

@@ -128,6 +128,23 @@ public class DetailModel : PageModel
         return new EmptyResult();
     }
 
+    /// <summary>The last scan of the image to download: <c>format</c> = csv, json or sarif.</summary>
+    public async Task<IActionResult> OnGetScanExportAsync(long envId, string reference, string? format)
+    {
+        if (await _environments.GetAsync(envId, HttpContext.RequestAborted) is not { } || await _scans.GetAsync(envId, reference, HttpContext.RequestAborted) is not { } scan)
+        {
+            return NotFound();
+        }
+
+        var name = "scan-" + new string(reference.Select(ch => char.IsLetterOrDigit(ch) || ch is '.' or '-' or '_' ? ch : '_').ToArray());
+        return format?.ToLowerInvariant() switch
+        {
+            "csv" => File(System.Text.Encoding.UTF8.GetBytes(MatDock.Core.Images.ScanExport.Csv(scan)), "text/csv", name + ".csv"),
+            "sarif" => File(System.Text.Encoding.UTF8.GetBytes(MatDock.Core.Images.ScanExport.Sarif(scan)), "application/sarif+json", name + ".sarif"),
+            _ => File(System.Text.Encoding.UTF8.GetBytes(MatDock.Core.Images.ScanExport.ToJson(scan)), "application/json", name + ".json"),
+        };
+    }
+
     /// <summary>Starts a vulnerability scan in the background (it can take minutes); the page follows it.</summary>
     public async Task<IActionResult> OnPostScanAsync(long envId, string reference)
     {

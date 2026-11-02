@@ -322,7 +322,7 @@ public sealed class ScheduleService
             RetentionCount = isBackup || self ? input.RetentionCount : 0,
             RetentionDays = isBackup ? input.RetentionDays : 0,
             StopContainers = isBackup && input.StopContainers,
-            BundleStack = input.Action is ScheduleAction.BundleBackup or ScheduleAction.UpdateStacks && !string.IsNullOrWhiteSpace(input.BundleStack)
+            BundleStack = input.Action is ScheduleAction.BundleBackup or ScheduleAction.UpdateStacks or ScheduleAction.StartStacks or ScheduleAction.StopStacks && !string.IsNullOrWhiteSpace(input.BundleStack)
                 ? input.BundleStack.Trim()
                 : null,
             UpdateApply = input.Action == ScheduleAction.UpdateStacks && input.UpdateApply,
@@ -370,6 +370,19 @@ public sealed class ScheduleService
         {
             return "Invalid stack name (lowercase, a-z 0-9 _ -, must start alphanumeric).";
         }
+        if (input.Action is ScheduleAction.StartStacks or ScheduleAction.StopStacks)
+        {
+            var names = StackNames(input.BundleStack);
+            if (names.Count == 0)
+            {
+                return "Name the stack(s) to start or stop (comma-separated).";
+            }
+
+            if (names.FirstOrDefault(n => !Stacks.StackCommands.IsValidName(n)) is { } bad)
+            {
+                return $"Invalid stack name '{bad}' (lowercase, a-z 0-9 _ -, must start alphanumeric).";
+            }
+        }
         if (input.Action == ScheduleAction.SelfBackup && !string.IsNullOrEmpty(input.SelfBackupPassphrase)
             && SelfBackupService.PassphraseProblem(input.SelfBackupPassphrase) is { } weak)
         {
@@ -386,6 +399,10 @@ public sealed class ScheduleService
         => task.Action == ScheduleAction.SelfBackup && ScheduleOptions.Parse(task.OptionsJson).SelfBackupPassphrase is null
             ? "Please enter the passphrase the backups are encrypted with."
             : null;
+
+    /// <summary>The stack names of a start or stop task (comma-separated, trimmed, each once).</summary>
+    public static IReadOnlyList<string> StackNames(string? csv)
+        => (csv ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).ToList();
 
     private static DateTime? SafeNext(string? cron, DateTime fromUtc)
     {

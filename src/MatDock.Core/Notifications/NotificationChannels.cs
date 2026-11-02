@@ -25,12 +25,16 @@ public sealed class NotificationChannelInput
 public static partial class ChannelMessages
 {
     public const string NtfyDefault = "https://ntfy.sh";
+    public const string BarkDefault = "https://api.day.app";
 
     [GeneratedRegex("^-?[0-9]{1,20}$|^@[A-Za-z0-9_]{5,32}$")]
     private static partial Regex TelegramChat();
 
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
     private static partial Regex NtfyTopic();
+
+    [GeneratedRegex("^[A-Za-z0-9]{30}$")]
+    private static partial Regex PushoverKey();
 
     /// <summary>What is wrong with a channel (null = fine); <paramref name="hasSecret"/> says whether one is stored already.</summary>
     public static string? Problem(NotificationChannelInput input, bool hasSecret)
@@ -41,21 +45,28 @@ public static partial class ChannelMessages
         }
 
         var secret = input.Secret?.Trim();
-        var needsSecret = input.Type is not NotificationChannelType.Ntfy;
+        var needsSecret = input.Type is not (NotificationChannelType.Ntfy or NotificationChannelType.Apprise);
         if (needsSecret && string.IsNullOrEmpty(secret) && !hasSecret)
         {
             return input.Type switch
             {
                 NotificationChannelType.Telegram => "Please enter the token of the bot.",
-                NotificationChannelType.Gotify => "Please enter the token of the application.",
+                NotificationChannelType.Gotify or NotificationChannelType.Pushover => "Please enter the token of the application.",
+                NotificationChannelType.Bark => "Please enter the device key.",
+                NotificationChannelType.Signal => "Please enter the number that sends.",
                 _ => "Please enter the address of the webhook.",
             };
         }
 
-        if (input.Type is NotificationChannelType.Discord or NotificationChannelType.Slack or NotificationChannelType.Teams
+        if (input.Type is NotificationChannelType.Discord or NotificationChannelType.Slack or NotificationChannelType.Teams or NotificationChannelType.Mattermost
             && !string.IsNullOrEmpty(secret) && !IsHttps(secret))
         {
             return "The address of the webhook starts with https://.";
+        }
+
+        if (input.Type == NotificationChannelType.Apprise && string.IsNullOrWhiteSpace(input.Target) && string.IsNullOrEmpty(secret) && !hasSecret)
+        {
+            return "Please enter the key of a stored Apprise configuration, or the Apprise URLs.";
         }
 
         return input.Type switch
@@ -68,6 +79,18 @@ public static partial class ChannelMessages
                 => "The server is an http(s) address.",
             NotificationChannelType.Gotify when string.IsNullOrWhiteSpace(input.Url) || !IsHttp(input.Url.Trim())
                 => "Please enter the address of the Gotify server.",
+            NotificationChannelType.Pushover when !PushoverKey().IsMatch(input.Target?.Trim() ?? string.Empty)
+                => "Please enter the user or group key (30 letters and digits).",
+            NotificationChannelType.Apprise when string.IsNullOrWhiteSpace(input.Url) || !IsHttp(input.Url.Trim())
+                => "Please enter the address of the Apprise API server.",
+            NotificationChannelType.Apprise when !string.IsNullOrWhiteSpace(input.Target) && !NtfyTopic().IsMatch(input.Target.Trim())
+                => "The key of the configuration is letters, digits, - and _.",
+            NotificationChannelType.Bark when !string.IsNullOrWhiteSpace(input.Url) && !IsHttp(input.Url.Trim())
+                => "The server is an http(s) address.",
+            NotificationChannelType.Signal when string.IsNullOrWhiteSpace(input.Url) || !IsHttp(input.Url.Trim())
+                => "Please enter the address of the signal-cli REST API.",
+            NotificationChannelType.Signal when string.IsNullOrWhiteSpace(input.Target)
+                => "Please enter at least one recipient.",
             _ => null,
         };
     }
@@ -128,6 +151,33 @@ public static partial class ChannelMessages
                 request.Headers.Add("X-Gotify-Key", secret);
                 return request;
             }
+
+            case NotificationChannelType.Mattermost:
+                return Json(secret!, new { text = Cut($"**{subject}**\n{body}", 16000) });
+            case NotificationChannelType.Pushover:
+                return new HttpRequestMessage(HttpMethod.Post, "https://api.pushover.net/1/messages.json")
+                {
+                    Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        ["token"] = secret ?? string.Empty,
+                        ["user"] = channel.Target ?? string.Empty,
+                        ["title"] = Cut(subject, 250),
+                        ["message"] = Cut(body, 1024),
+                    }),
+                };
+            case NotificationChannelType.Apprise:
+                return string.IsNullOrWhiteSpace(channel.Target)
+                    ? Json(Server(channel.Url, string.Empty) + "/notify", new { urls = secret, title = subject, body = Cut(body, 8000) })
+                    : Json(Server(channel.Url, string.Empty) + "/notify/" + Uri.EscapeDataString(channel.Target.Trim()), new { title = subject, body = Cut(body, 8000) });
+            case NotificationChannelType.Bark:
+                return Json(Server(channel.Url, BarkDefault) + "/push", new { device_key = secret, title = Cut(subject, 200), body = Cut(body, 3000), group = "MatDock" });
+            case NotificationChannelType.Signal:
+                return Json(Server(channel.Url, string.Empty) + "/v2/send", new
+                {
+                    message = Cut($"{subject}\n\n{body}", 4000),
+                    number = secret,
+                    recipients = (channel.Target ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                });
 
             default:
                 throw new InvalidOperationException("Unknown channel.");

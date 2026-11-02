@@ -53,7 +53,7 @@
                             <container-status state="@c.State" status="@c.Status" />
                         </div>
                         <div class="md-ctile__meta mat-mono" title="@c.Image">@c.Image</div>
-                        <container-ports ports="@c.Ports" host="@r.EnvHost" />
+                        <container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@r.EnvHost" />
                         <div class="mat-table__actions md-ctile__actions">
                             <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
                             @if (c.IsRunning)

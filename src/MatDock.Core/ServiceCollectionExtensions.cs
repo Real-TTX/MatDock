@@ -73,6 +73,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Schedules.IScheduleAction, Schedules.ResticMaintenanceAction>();
         services.AddScoped<Schedules.IScheduleAction, Schedules.SelfBackupAction>();
         services.AddScoped<Schedules.IScheduleAction, Stacks.GitSyncAction>();
+        services.AddScoped<Schedules.IScheduleAction>(sp => new Schedules.StackPowerAction(sp.GetRequiredService<Environments.EnvironmentService>(), sp.GetRequiredService<Stacks.StackService>(), Entities.ScheduleAction.StartStacks));
+        services.AddScoped<Schedules.IScheduleAction>(sp => new Schedules.StackPowerAction(sp.GetRequiredService<Environments.EnvironmentService>(), sp.GetRequiredService<Stacks.StackService>(), Entities.ScheduleAction.StopStacks));
         services.AddScoped<Stacks.GitSyncSchedules>();
         services.AddScoped<Backups.SelfBackupService>();
         services.AddScoped<Schedules.ScheduleService>();

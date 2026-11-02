@@ -742,3 +742,55 @@ public sealed class SelfBackupAction : IScheduleAction
         }
     }
 }
+
+/// <summary>
+/// Starts or stops the named managed stacks (<c>compose start</c> / <c>compose stop</c>; the containers stay, a stopped stack starts as it was), on the task's
+/// environment or wherever a stack of that name is: a test stack every night off, every morning on.
+/// </summary>
+public sealed class StackPowerAction : IScheduleAction
+{
+    private readonly EnvironmentService _environments;
+    private readonly Stacks.StackService _stacks;
+
+    public StackPowerAction(EnvironmentService environments, Stacks.StackService stacks, ScheduleAction type)
+    {
+        _environments = environments;
+        _stacks = stacks;
+        Type = type;
+    }
+
+    public ScheduleAction Type { get; }
+
+    public async Task<(bool Ok, string Summary)> ExecuteAsync(ScheduledTask task, CancellationToken ct = default)
+    {
+        var names = ScheduleService.StackNames(ScheduleOptions.Parse(task.OptionsJson).BundleStack);
+        var envs = (await _environments.GetEnabledAsync(ct)).Where(e => task.EnvironmentId is not > 0 || e.Id == task.EnvironmentId).Select(e => e.Id).ToHashSet();
+        var stacks = (await _stacks.GetAllAsync(ct)).Where(s => envs.Contains(s.EnvironmentId) && names.Contains(s.Name, StringComparer.Ordinal)).ToList();
+        if (stacks.Count == 0)
+        {
+            return (false, $"No managed stack named {string.Join(", ", names)} on the environment(s).");
+        }
+
+        var start = Type == ScheduleAction.StartStacks;
+        var lines = new List<string>();
+        var failed = 0;
+        foreach (var stack in stacks)
+        {
+            var (ok, output) = start ? await _stacks.StartAsync(stack.Id, ct) : await _stacks.StopAsync(stack.Id, ct);
+            if (!ok)
+            {
+                failed++;
+            }
+
+            lines.Add($"{stack.Name}: {(ok ? (start ? "started" : "stopped") : "failed: " + output.Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim())}");
+        }
+
+        var missing = names.Where(n => stacks.All(s => s.Name != n)).ToList();
+        if (missing.Count > 0)
+        {
+            lines.Add($"Not found: {string.Join(", ", missing)}");
+        }
+
+        return (failed == 0 && missing.Count == 0, string.Join("; ", lines));
+    }
+}

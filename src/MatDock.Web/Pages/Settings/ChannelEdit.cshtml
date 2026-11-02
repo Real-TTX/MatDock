@@ -23,8 +23,54 @@
                 </mat-field>
             </div>
 
-            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Discord),@((int)NotificationChannelType.Slack),@((int)NotificationChannelType.Teams)">
-                <mat-field label="Webhook address" for-id="ch-webhook" hint="@(keep ?? "Discord: server settings → Integrations → Webhooks. Slack: an incoming webhook. Teams: the workflow “When a Teams webhook request is received”.")">
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Pushover)">
+                <div class="mat-form__grid">
+                    <mat-field label="Application token" for-id="ch-pushover-token" hint="@(keep ?? "Pushover → Your applications.")">
+                        <input asp-for="Input.Secret" id="ch-pushover-token" type="password" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                    <mat-field label="User or group key" for-id="ch-pushover-user">
+                        <input asp-for="Input.Target" id="ch-pushover-user" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Apprise)">
+                <div class="mat-form__grid">
+                    <mat-field label="Apprise API server" for-id="ch-apprise-server">
+                        <input asp-for="Input.Url" id="ch-apprise-server" class="mat-input" autocomplete="off" placeholder="http://apprise:8000" />
+                    </mat-field>
+                    <mat-field label="Configuration key" for-id="ch-apprise-key" hint="A configuration stored in Apprise; or leave it empty and give the URLs.">
+                        <input asp-for="Input.Target" id="ch-apprise-key" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+                <mat-field label="Apprise URLs" for-id="ch-apprise-urls" hint="@(keep ?? "Without a configuration key: the services to notify, e.g. mailto://… tgram://…")">
+                    <input asp-for="Input.Secret" id="ch-apprise-urls" type="password" class="mat-input" autocomplete="off" />
+                </mat-field>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Bark)">
+                <div class="mat-form__grid">
+                    <mat-field label="Server" for-id="ch-bark-server" hint="Empty = https://api.day.app">
+                        <input asp-for="Input.Url" id="ch-bark-server" class="mat-input" autocomplete="off" placeholder="https://api.day.app" />
+                    </mat-field>
+                    <mat-field label="Device key" for-id="ch-bark-key" hint="@keep">
+                        <input asp-for="Input.Secret" id="ch-bark-key" type="password" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Signal)">
+                <div class="mat-form__grid">
+                    <mat-field label="signal-cli REST API" for-id="ch-signal-server">
+                        <input asp-for="Input.Url" id="ch-signal-server" class="mat-input" autocomplete="off" placeholder="http://signal-api:8080" />
+                    </mat-field>
+                    <mat-field label="Sending number" for-id="ch-signal-number" hint="@(keep ?? "Registered in signal-cli, e.g. +491701234567.")">
+                        <input asp-for="Input.Secret" id="ch-signal-number" type="password" class="mat-input" autocomplete="off" />
+                    </mat-field>
+                </div>
+                <mat-field label="Recipients" for-id="ch-signal-to" hint="Numbers or group ids, comma-separated.">
+                    <input asp-for="Input.Target" id="ch-signal-to" class="mat-input" autocomplete="off" />
+                </mat-field>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Type" data-show-value="@((int)NotificationChannelType.Discord),@((int)NotificationChannelType.Slack),@((int)NotificationChannelType.Teams),@((int)NotificationChannelType.Mattermost)">
+                <mat-field label="Webhook address" for-id="ch-webhook" hint="@(keep ?? "Discord: server settings → Integrations → Webhooks. Slack and Mattermost: an incoming webhook. Teams: the workflow “When a Teams webhook request is received”.")">
                     <input asp-for="Input.Secret" id="ch-webhook" type="password" class="mat-input" autocomplete="off" placeholder="https://…" />
                 </mat-field>
             </div>

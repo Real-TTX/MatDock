@@ -34,6 +34,8 @@
                         <option value="Backup">Backup volumes</option>
                         <option value="BundleBackup">Backup stacks (bundle: volumes + compose + .env)</option>
                         <option value="UpdateStacks">Update stacks (newer images)</option>
+                        <option value="StartStacks">Start stacks</option>
+                        <option value="StopStacks">Stop stacks</option>
                         <option value="ScanImages">Scan images for vulnerabilities</option>
                         <option value="ResticMaintenance">Maintain restic repositories (prune + check)</option>
                         <option value="SelfBackup">Back up MatDock itself (database + keys, encrypted)</option>
@@ -87,6 +89,11 @@
             <div class="mat-stack" data-show-if="#Input_Action" data-show-value="BundleBackup,UpdateStacks">
                 <mat-field label="Stack" asp-for="Input.BundleStack" hint="Empty = all managed stacks.">
                     <input asp-for="Input.BundleStack" class="mat-input" placeholder="e.g. media-stack" />
+                </mat-field>
+            </div>
+            <div class="mat-stack" data-show-if="#Input_Action" data-show-value="StartStacks,StopStacks">
+                <mat-field label="Stacks" for-id="power-stacks" hint="Comma-separated; on the environment above, or everywhere.">
+                    <input id="power-stacks" name="Input.BundleStack" value="@Model.Input.BundleStack" class="mat-input" placeholder="e.g. test-shop, demo" />
                 </mat-field>
             </div>
             <div class="mat-stack" data-show-if="#Input_Action" data-show-value="Backup,BundleBackup">

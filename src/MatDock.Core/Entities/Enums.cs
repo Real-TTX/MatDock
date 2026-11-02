@@ -116,7 +116,13 @@ public enum ScheduleAction
 
     /// <summary>Asks the repository of a Git stack for new commits and deploys when the files of its compose folder changed
     /// (<see cref="Entities.Stack.GitSyncCron"/>; the task is the stack's own, <c>SourceKind</c> "gitsync").</summary>
-    GitSync = 13
+    GitSync = 13,
+
+    /// <summary>Starts the named stacks (<c>compose start</c>; the option <c>BundleStack</c> holds the names, comma-separated), e.g. every morning.</summary>
+    StartStacks = 14,
+
+    /// <summary>Stops the named stacks (<c>compose stop</c>), e.g. every night.</summary>
+    StopStacks = 15
 }
 
 /// <summary>Why a stack bundle was taken.</summary>
