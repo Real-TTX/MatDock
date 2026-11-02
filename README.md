@@ -51,7 +51,25 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   is saved at the first clone), or from an **App template**
 - Deploy / redeploy / stop, aggregated **resources** per stack; per **service** restart, stop, start, recreate and **scale**;
   a **redeploy webhook** per stack (for a CI); **copy** a stack to another environment
-- Container list with **short status** (hover for detail), **ports as clickable tags**, combined
+- **Deploy options** kept with the stack: pull first, **build** (with the newest base images, without the cache – BuildKit is in the
+  image), re-create every container, remove orphans. A deploy runs in the background with a **live console** (search, follow, wrap,
+  copy, download), and every deploy goes into the stack's **deploy history**: who or what started it (a person, the webhook, a Git sync,
+  a schedule, an update, a rollback, a restore, the API, MCP), the options, the commit, how long it took, what compose did and its log
+- **Secrets** per stack: encrypted in the database, shown by name only, never written to the host – a deploy, a restart or a recreated
+  service hands them to compose as environment variables (in bundle backups and copies too)
+- A **live check** of the compose file while you type: what compose will refuse (host ports twice, unknown volumes and networks,
+  `depends_on`), what is risky (a port another stack already publishes, a database on every interface, a password in the file, the
+  Docker socket, privileged, a misspelt key, a variable without a value) and what is better practice – with one-click fixes
+- **Git stacks**: an env file of the repository besides its `.env`, variables that override it, **auto-sync** on a schedule that deploys
+  only when the compose file's folder changed, and the **push webhook** (GitHub, Gitea, Forgejo signatures, GitLab token) that answers
+  `skipped` when there is nothing new
+- **Import** compose projects from a folder of the host (several at once); taken-over stacks keep their relative paths (`./data`) and
+  their `.env` pointing to the original folder, so the data stays where it is
+- **Tags** (a catalog with colours, from labels `matdock.tags` too) to filter the stacks, and an **icon** per stack: a toolkit icon,
+  the logo of a known app (selfh.st, fetched by the server) or your own image
+- A **compose file from a running container** – to copy or to keep as a stack (its secrets become variables)
+- Container list with **short status** (hover for detail), **ports as clickable tags** and the **public addresses** of Traefik and
+  caddy-docker-proxy labels (or `matdock.url`), combined
   **CPU/RAM**, and actions: **open, shell, logs, volumes, start/stop/restart**; tick several for **start, stop, restart or
   remove at once** (images, volumes and networks too)
 - A **container detail** page: environment (secrets masked), networks with their addresses, mounts, health with its log,
@@ -70,7 +88,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   (for a host without a registry)
 - **Vulnerability scan** with Trivy, run as a container on the image's own host (its database is kept in the volume
   `matdock-trivy-cache` there): findings per image on the detail page, critical/high in the list, and the schedule action
-  *Scan images* that scans the images of the running containers and notifies about critical and high findings
+  *Scan images* that scans the images of the running containers and notifies about critical and high findings; a scan downloads
+  as CSV, JSON or SARIF
 
 **Networks**
 - List, details with the attached containers, prune; a **network map** per environment: the networks and the
@@ -96,7 +115,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
 - **Web terminal** (xterm.js) – a shell on an SSH host or straight into a container (bash when it has one, else sh;
   on the local Docker socket too)
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
-- Users & roles, notifications (**SMTP, webhook, Discord, Slack, Teams, Telegram, ntfy, Gotify**), Git credentials, API keys –
+- Users & roles, notifications (**SMTP, webhook, Discord, Slack, Teams, Mattermost, Telegram, Signal, ntfy, Gotify, Pushover,
+  Bark, Apprise**), Git credentials, tags, API keys –
   all under **System**
 - An **activity log** (System → Activity): every action of a user and every changing call of the API, with user,
   target, environment and result, searchable, kept for 90 days
@@ -107,7 +127,8 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   (AES-256-GCM), as a download or a schedule; a restore takes its place at the next start and keeps what it replaced
 
 **Schedules and alerts**
-- Cron schedules for prune (volumes, images, networks), status reports, health alerts, volume and stack backups and Git sync
+- Cron schedules for prune (volumes, images, networks), status reports, health alerts, volume and stack backups, Git sync and
+  **starting and stopping stacks** (a test stack off at night)
 - **Image updates**: the schedule *Update stacks* checks the registries for newer images of the tags in use and notifies,
   or pulls and redeploys (optionally after a stack backup); with the health gate the containers must be up and healthy
   within 90 s, otherwise the images from before the update get their tags back and the stack is deployed again; the
@@ -116,7 +137,10 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   stays as it is; an image override runs another image). A rule per scope (default, environment, stack) sets the mode (off, notify,
   automatic), the strategy (the same tag with a new digest, the newest minor or latest version of the series, or pinned; per service
   too), a time window, how often to look, a backup before, rollback and notifications. A new version is announced once; in automatic
-  mode it is applied within the window and a failed update is not tried again. **Updates** lists all stacks with Check all and Update all
+  mode it is applied within the window and a failed update is not tried again. **Updates** lists all stacks with Check all and Update all.
+  An automatic update can wait a **minimum age** of a new image and **hold back a new image with vulnerabilities** (scanned with Trivy
+  before the pull); labels `matdock.tag.include` / `.exclude` (also `dockhand.*`, `wud.*`) narrow the version tags, and the update page
+  links the **release notes** (`org.opencontainers.image.source`)
 - **Alerts**: event schedules for *container died* (an error exit or out of memory, not a stop), *container unhealthy*,
   a **restart loop** (n starts in m minutes), a **host over a limit** (CPU, memory, disk; global or per environment, said once
   when crossed and once when back), environment offline and failed deploys, backups and syncs – with *Send a notification*

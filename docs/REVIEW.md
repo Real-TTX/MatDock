@@ -291,3 +291,45 @@ services as the pages and the REST API. The key check is the one of `/api/v1` (`
 log with the key's name (source `mcp`). The long actions of stacks and backups moved into `StackOperations`, shared by REST and MCP.
 
 Found on the way: `GET /api/v1/stacks/{name}` handed the `.env` of a stack (its secrets) to a read key. A read key now gets `envContent: null`, in REST and MCP.
+
+## 11. Dockhand once more: compose management (November 2026)
+
+Checked against the Dockhand manual (dockhand.pro/manual, version 1.0.57) with one question: can MatDock replace Dockhand for managing compose
+stacks? What was missing is built, in seven steps (one commit each, tried against real Docker on this PC besides the tests). Not wanted stays not
+wanted: the Hawser agent, LDAP, roles per object, 2FA and passkeys (MatIdentity signs people in), template catalogs (the apps topic waits),
+external secret stores (1Password, Vault …), dashboard tile layouts, translations of the UI.
+
+| Dockhand | MatDock now | Where |
+|---|---|---|
+| Redeploy options (pull, build, pull base images, no cache, force recreate) | ✅ kept per stack, changeable per deploy; remove orphans too | `DeployOptions`, editor |
+| Live deploy console | ✅ deploys run as operations; console with search, follow, wrap, copy, download | `_OperationConsole`, `console.js`, `/ui/operations/{id}` |
+| Deploy history (trigger, duration, summary, log) | ✅ every compose up: trigger and actor, options, commit, outcome, summary, log (newest 50 per stack) | `StackDeployment`, `DeploymentHistory`, tab *Deploys* |
+| Secrets (encrypted, masked, injected, not on disk) | ✅ handed to compose over stdin as environment variables for deploy, restart, stop/start, pull, down and service actions | `StackSecrets`, `StackCommands.ExportVars` |
+| Variables flagged as missing | ✅ in the live check, built-ins and defaults respected | `StackVariables` |
+| Compose validate with rules and fixes | ✅ errors, warnings, suggestions while typing; fixes for version, restart, 127.0.0.1, typos | `ComposeLint` |
+| Git: env file, overrides, branch, compose path | ✅ env file beside the compose file (`--env-file`), variables that override the repo's `.env` | `Stack.GitEnvFile` |
+| Git: auto-sync, redeploy only on change | ✅ own scheduled task per stack; a hash of the compose folder decides | `GitSyncAction`, `StackService.SyncGitAsync` |
+| Webhooks with HMAC / GitLab token, "skipped" | ✅ for Git stacks; other stacks keep the pull-and-redeploy webhook | `WebhookStackEndpoint` |
+| Convert local ↔ Git | ✅ (the source of an existing stack can be switched; the compose of the last deploy stays) | editor |
+| Adopt untracked stacks, scan a folder | ✅ scan a host folder, import several; relative paths keep pointing to the original folder | `Stacks/Import`, `ComposeRelocate` |
+| Stack icons (icons, selfh.st logos, upload) | ✅ | `StackIcons`, `AppLogos` |
+| Tags (catalog, labels, filter) | ✅ catalog with colours, `matdock.tags` / `dockhand.tags`, filter in the stack list | `TagService`, System → Tags |
+| Minimum image age, newer-version detection | ✅ minimum age per update rule (first seen); versions were there | `UpdatePolicy.MinAgeHours` |
+| Block updates with vulnerabilities | ✅ the new image is scanned by its exact reference before the pull | `UpdateAutomation.GateAsync` |
+| Per-container tag filters (incl. WUD labels), release notes | ✅ | `UpdateLabels` |
+| Generate compose from a container | ✅ secrets as variables, volumes and networks external | `ComposeFromContainer`, `Stacks/FromContainer` |
+| Reverse-proxy URL pills, `dockhand.url` | ✅ Traefik, caddy-docker-proxy, `matdock.url` | `ProxyUrls` |
+| Scheduled start/stop | ✅ for stacks (schedule actions *Start stacks*, *Stop stacks*) | `StackPowerAction` |
+| More notification services | ✅ Mattermost, Pushover, Apprise, Bark, Signal | `ChannelMessages` |
+| Scan export CSV/JSON/SARIF | ✅ | `ScanExport` |
+
+Found on the way and fixed:
+- **Git deploys never shipped dot files** (`.env`, `.config/…`) on Linux: `TarFile.CreateFromDirectory` leaves out what Linux counts as
+  hidden. MatDock packs the clone itself now (`RepoTar`). Shown by a shell test in the Linux SDK container (dash) that failed before.
+- **Adopting a running project broke its relative paths**: the stack deploys from MatDock's own folder, so `./data` became an empty
+  folder there. Adopt and import now make them absolute in the original folder and take the project's `.env` along.
+- The MatDock image had no **buildx** plugin: compose fell back to the legacy builder (no BuildKit, no `dockerfile_inline`).
+- Writing the deploy history while a page wrote too hit SQLite's "database is locked"; the history retries.
+
+Tests: 1037 → 1108 on Windows; the shell tests (secrets on stdin, env files, the packing of the clone) also pass in the Linux SDK container.
+Migrations: `AddStackDeployments`, `AddStackSecretsAndEnvFile`, `AddStackGitSync`, `AddTagsAndIcons`, `AddUpdateAgeAndScanGate`.
