@@ -1464,7 +1464,9 @@ public sealed class StackService
 
         // With an ambient sink (an API operation) the output is read live and forwarded as it arrives.
         var sink = stream ? CommandOutput.Current : null;
-        if (sink is not null)
+        // The JSON progress of a pull becomes readable lines again (and the download a line per tenth), for the console and the history alike.
+        var progress = sink is null ? null : new ComposeProgressLines(sink);
+        if (progress is not null)
         {
             cmd.BufferOutput = false;
         }
@@ -1486,15 +1488,16 @@ public sealed class StackService
             }
         }
 
-        if (sink is null)
+        if (progress is null)
         {
             cmd.EndExecute(async);
-            return (cmd.ExitStatus == 0, cmd.Result ?? string.Empty);
+            return (cmd.ExitStatus == 0, ComposeProgressLines.ConvertAll(cmd.Result ?? string.Empty));
         }
 
-        var output = await PumpOutputAsync(cmd, sink, cts.Token);
+        var output = await PumpOutputAsync(cmd, progress.Write, cts.Token);
+        progress.Flush();
         cmd.EndExecute(async);
-        return (cmd.ExitStatus == 0, output);
+        return (cmd.ExitStatus == 0, ComposeProgressLines.ConvertAll(output));
     }
 
     /// <summary>Reads a command's (merged) output until it ends, forwarding every chunk to <paramref name="sink"/>.

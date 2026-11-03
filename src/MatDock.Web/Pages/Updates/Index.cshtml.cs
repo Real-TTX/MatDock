@@ -112,10 +112,11 @@ public class IndexModel : PageModel
                 if (await all.GetAsync(id, ctx.CancellationToken) is { } stack)
                 {
                     list.Add(stack);
+                    ctx.Operation.Steps.Add(stack.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stack.Name);
                 }
             }
 
-            var pending = await automation.CheckStacksAsync(list, ctx.Log, ctx.CancellationToken);
+            var pending = await automation.CheckStacksAsync(list, ctx.Log, ctx.CancellationToken, ctx.Operation.Steps);
             ctx.Log(pending == 0 ? "Nothing to update." : $"{pending} stack(s) can be updated.");
             return OperationOutcome.Success();
         });
@@ -167,10 +168,11 @@ public class IndexModel : PageModel
                 if (await all.GetAsync(id, ctx.CancellationToken) is { } stack)
                 {
                     list.Add(stack);
+                    ctx.Operation.Steps.Add(stack.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stack.Name);
                 }
             }
 
-            var (updated, failed) = await automation.UpdateStacksAsync(list, ctx.Log, ctx.CancellationToken);
+            var (updated, failed) = await automation.UpdateStacksAsync(list, ctx.Log, ctx.CancellationToken, ctx.Operation.Steps);
             ctx.Log($"{updated} updated, {failed} failed.");
             return failed == 0 ? OperationOutcome.Success() : OperationOutcome.Failure($"{failed} stack(s) failed.");
         });

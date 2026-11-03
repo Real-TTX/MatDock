@@ -22,20 +22,15 @@
 }
 
 @* The background run (checking or updating many stacks) refreshes itself every 5 s while it runs. *@
-<section id="live-run" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "5" : null)" hidden="@(Model.Running is null ? "hidden" : null)">
+<section id="live-run" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "2" : null)" hidden="@(Model.Running is null ? "hidden" : null)">
     @if (Model.Running is { } op)
     {
-        var (text, _) = op.Read(0);
         <div class="mat-card__head">
             <icon name="@(op.IsFinished ? (op.Error is null ? "check-circle" : "alert") : "refresh")" />
             <h2 class="mat-card__title">@(op.Kind == "updates-check" ? "Checking" : "Updating")@(op.IsFinished ? string.Empty : "…")</h2>
         </div>
         <div class="mat-card__body mat-stack">
-            @if (op.Error is not null)
-            {
-                <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
-            }
-            <pre class="mat-code md-output">@text</pre>
+            <partial name="_RunSteps" model="op" />
         </div>
     }
 </section>

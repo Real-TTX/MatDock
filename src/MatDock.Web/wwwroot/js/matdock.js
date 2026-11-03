@@ -229,7 +229,7 @@
     (function () {
         var regions = Array.prototype.slice.call(document.querySelectorAll("[data-live][id]"));
         if (regions.length === 0 || !window.fetch || !window.DOMParser) { return; }
-        var seconds = Math.max(10, parseInt(regions[0].getAttribute("data-live"), 10) || 20);
+        var seconds = Math.max(2, parseInt(regions[0].getAttribute("data-live"), 10) || 20);
         var busy = false;
         // The user is at it: the focus is inside, or a row is ticked. Asked before reading the page and again when it arrives (reading a page of
         // many containers takes seconds; a tick made meanwhile must not be wiped by the old answer).

@@ -83,7 +83,7 @@ public sealed class StackDeployTests : IClassFixture<StackDeployTests.Site>
     {
         var all = new DeployOptions { Pull = true, Build = true, PullBase = true, NoCache = true, ForceRecreate = true, RemoveOrphans = true };
         var inline = StackCommands.Deploy("docker", "shop", all);
-        Assert.Contains("docker compose -p \"$name\" $cf pull; ", inline);
+        Assert.Contains("docker compose $pj -p \"$name\" $cf pull; ", inline);
         Assert.Contains("docker compose -p \"$name\" $cf build --pull --no-cache; ", inline);
         Assert.EndsWith("docker compose -p \"$name\" $cf up -d --force-recreate --remove-orphans' 2>&1", inline);
         Assert.True(inline.IndexOf(" pull; ", StringComparison.Ordinal) < inline.IndexOf(" build ", StringComparison.Ordinal));

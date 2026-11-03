@@ -72,7 +72,12 @@ public sealed class Operation
         {
             _output.Append(text.Replace("\r\n", "\n"));
         }
+
+        Steps.Feed(text);
     }
+
+    /// <summary>The entries of a run through a list (stacks to check or update), with the download of the one that runs (<see cref="OperationSteps"/>).</summary>
+    public OperationSteps Steps { get; } = new();
 
     /// <summary>Appends one line (a status message of the operation itself).</summary>
     public void Log(string line)

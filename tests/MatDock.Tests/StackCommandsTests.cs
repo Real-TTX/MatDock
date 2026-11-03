@@ -60,7 +60,7 @@ public class StackCommandsTests
     {
         var cmd = StackCommands.Update("docker", "media");
         Assert.Contains("cat > \"$dir/docker-compose.yml\"", cmd);
-        Assert.Contains("docker compose -p \"$name\" $cf pull;", cmd);
+        Assert.Contains("docker compose $pj -p \"$name\" $cf pull;", cmd);
         Assert.Contains("docker compose -p \"$name\" $cf up -d", cmd);
         Assert.EndsWith("2>&1", cmd);
     }
@@ -197,7 +197,7 @@ public class StackCommandsTests
     public void GitSync_with_pull_pulls_before_up()
     {
         var cmd = StackCommands.GitSync("docker", "media", "compose.yml", pull: true);
-        Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef pull;", cmd);
+        Assert.Contains("docker compose $pj -p \"$1\" -f \"$2\" $ov $ef pull;", cmd);
         Assert.Contains("docker compose -p \"$1\" -f \"$2\" $ov $ef up -d", cmd);
     }
 

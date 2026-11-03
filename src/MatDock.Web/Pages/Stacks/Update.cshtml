@@ -25,6 +25,18 @@
         <div data-toast="@Model.StatusMessage" data-tone="success" hidden></div>
     }
 }
+@if (Model.Running is { } updating)
+{
+    <section id="live-update" class="mat-card" data-live="@(updating.IsFinished ? null : "2")">
+        <div class="mat-card__head">
+            <icon name="@(updating.IsFinished ? (updating.Error is null ? "check-circle" : "alert") : "refresh")" />
+            <h2 class="mat-card__title">@(updating.IsFinished ? (updating.Error is null ? "Updated" : "Update failed") : "Updating…")</h2>
+        </div>
+        <div class="mat-card__body"><partial name="_RunSteps" model="updating" /></div>
+    </section>
+}
+
+
 
 @if (Model.Report?.Error is not null)
 {

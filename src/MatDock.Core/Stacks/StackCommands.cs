@@ -140,9 +140,11 @@ public static partial class StackCommands
     /// </summary>
     private static string PullStep(string dockerHead, string composeArgs, IReadOnlyCollection<string>? pinned)
     {
+        // With JSON progress where compose has it: only that tells the size of a download (ComposeProgressLines makes lines of it again).
+        var progress = "pj=\"\"; if " + dockerHead + " compose --progress json version > /dev/null 2>&1; then pj=\"--progress json\"; fi; ";
         if (pinned is null || pinned.Count == 0)
         {
-            return dockerHead + " compose " + composeArgs + " pull; ";
+            return progress + dockerHead + " compose $pj " + composeArgs + " pull; ";
         }
 
         if (pinned.Any(p => !IsValidServiceName(p)))
@@ -153,7 +155,7 @@ public static partial class StackCommands
         return "pins=\" " + string.Join(' ', pinned) + " \"; svcs=\"\"; "
                + "for s in $(" + dockerHead + " compose " + composeArgs + " config --services); do "
                + "case \"$pins\" in *\" $s \"*) ;; *) svcs=\"$svcs $s\";; esac; done; "
-               + "if [ -n \"$svcs\" ]; then " + dockerHead + " compose " + composeArgs + " pull $svcs; fi; ";
+               + progress + "if [ -n \"$svcs\" ]; then " + dockerHead + " compose $pj " + composeArgs + " pull $svcs; fi; ";
     }
 
     /// <summary>

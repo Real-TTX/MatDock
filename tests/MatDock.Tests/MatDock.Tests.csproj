@@ -34,6 +34,7 @@
     <!-- The icon sprite of MatUi (a copy of MatDesign src/MatUi/wwwroot/img/matui-icons.svg; MatDock has no MatUi yet):
          the icons a MatApiDefinition may name - Mattiverse draws them with it. -->
     <None Update="Fixtures\matui-icons.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\compose-pull-progress.jsonl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

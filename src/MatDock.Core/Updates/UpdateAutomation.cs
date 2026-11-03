@@ -282,18 +282,24 @@ public sealed class UpdateAutomation
         return outcome;
     }
 
-    /// <summary>Looks for updates in the given stacks now (what their rules would update), whatever their mode, and keeps the result for the overview. Answers how many have some.</summary>
-    public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default)
+    /// <summary>
+    /// Looks for updates in the given stacks now (what their rules would update), whatever their mode, and keeps the result for the overview. Answers how many
+    /// have some. With <paramref name="steps"/> every stack is an entry of it (key: its id) that runs and ends with its result.
+    /// </summary>
+    public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null)
     {
         var policies = await _policies.LoadAsync(ct);
         var pending = 0;
         foreach (var listed in stacks)
         {
             ct.ThrowIfCancellationRequested();
+            var key = listed.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            steps?.Set(key, Operations.StepState.Running, "Asking the registry");
             var env = await _environments.GetAsync(listed.EnvironmentId, ct);
             if (env is null || !env.IsEnabled)
             {
                 log($"{listed.Name}: environment not available.");
+                steps?.Set(key, Operations.StepState.Skipped, "Environment not available");
                 continue;
             }
 
@@ -301,15 +307,18 @@ public sealed class UpdateAutomation
             if (plan.Error is not null)
             {
                 log($"{listed.Name} on {env.Name}: {plan.Error}");
+                steps?.Set(key, Operations.StepState.Failed, plan.Error);
             }
             else if (plan.Items.Count == 0)
             {
                 log($"{listed.Name} on {env.Name}: up to date.");
+                steps?.Set(key, Operations.StepState.Done, "Up to date");
             }
             else
             {
                 pending++;
                 log($"{listed.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
+                steps?.Set(key, Operations.StepState.Done, $"{plan.Items.Count} update(s): {string.Join(", ", plan.Items.Select(i => i.Service))}");
             }
         }
 
@@ -318,20 +327,23 @@ public sealed class UpdateAutomation
 
     /// <summary>
     /// Updates the given stacks now, one after the other, whatever their mode: each is looked at again and gets what its rule makes of it, with the backup and the
-    /// health gate of that rule. A stack with nothing to update is skipped.
+    /// health gate of that rule. A stack with nothing to update is skipped. With <paramref name="steps"/> every stack is an entry of it (key: its id).
     /// </summary>
-    public async Task<(int Updated, int Failed)> UpdateStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default)
+    public async Task<(int Updated, int Failed)> UpdateStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null)
     {
         var policies = await _policies.LoadAsync(ct);
         int updated = 0, failed = 0;
         foreach (var listed in stacks)
         {
             ct.ThrowIfCancellationRequested();
+            var key = listed.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            steps?.Set(key, Operations.StepState.Running, "Looking for the new images");
             var env = await _environments.GetAsync(listed.EnvironmentId, ct);
             var stack = await _stacks.GetAsync(listed.Id, ct);
             if (env is null || !env.IsEnabled || stack is null)
             {
                 log($"{listed.Name}: environment not available.");
+                steps?.Set(key, Operations.StepState.Skipped, "Environment not available");
                 continue;
             }
 
@@ -341,26 +353,31 @@ public sealed class UpdateAutomation
             {
                 failed++;
                 log($"{stack.Name} on {env.Name}: {plan.Error}");
+                steps?.Set(key, Operations.StepState.Failed, plan.Error);
                 continue;
             }
 
             if (plan.Items.Count == 0)
             {
                 log($"{stack.Name} on {env.Name}: up to date.");
+                steps?.Set(key, Operations.StepState.Skipped, "Up to date");
                 continue;
             }
 
             log($"==> {stack.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
+            steps?.Set(key, Operations.StepState.Running, $"Updating {string.Join(", ", plan.Items.Select(i => i.Service))}");
             var outcome = await ApplyAsync(stack, plan.Items, policy, ct, trigger: "manual");
             if (outcome.Ok)
             {
                 updated++;
                 log($"{stack.Name}: updated.");
+                steps?.Set(key, Operations.StepState.Done, outcome.Changed ? $"Updated: {string.Join(", ", plan.Items.Select(i => i.Service))}" : "Nothing changed");
             }
             else
             {
                 failed++;
                 log($"{stack.Name}: failed{(outcome.RolledBack ? " and rolled back" : string.Empty)}: {LastLines(outcome.Message)}");
+                steps?.Set(key, Operations.StepState.Failed, (outcome.RolledBack ? "Rolled back: " : string.Empty) + LastLines(outcome.Message));
             }
         }
 

@@ -1,0 +1,68 @@
+@model MatDock.Core.Operations.Operation
+@using MatDock.Core.Operations
+@*
+    A run through a list (checking or updating stacks): the progress over all entries, then every entry with its state (a spinner while it runs, a tick,
+    a cross), what it does or did, and the download of the one that runs. The raw output folds out below.
+*@
+@{
+    var op = Model;
+    var steps = op.Steps.Snapshot();
+    var total = Math.Max(1, steps.Count);
+    var finished = op.Steps.Finished;
+    var percent = op.IsFinished ? 100 : (int)Math.Round(finished * 100.0 / total);
+    var failed = steps.Count(s => s.State == StepState.Failed);
+    var (text, _) = op.Read(0);
+}
+<div class="md-run">
+    <div class="md-run__head">
+        <span class="md-run__count">@(op.IsFinished ? "Finished" : $"{finished} of {steps.Count}")</span>
+        @if (failed > 0)
+        {
+            <span class="mat-pill mat-pill--error">@failed failed</span>
+        }
+        <span class="md-run__pct">@percent %</span>
+    </div>
+    <div class="mat-meter @(op.IsFinished ? string.Empty : "mat-meter--striped mat-meter--animated")" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="Progress">
+        <div class="mat-meter__fill" data-value="@percent" data-tone="@(op.IsFinished ? (failed > 0 || op.Error is not null ? "error" : "ok") : null)"></div>
+    </div>
+    @if (steps.Count > 0)
+    {
+        <ol class="md-run__steps">
+            @foreach (var s in steps)
+            {
+                <li class="md-step md-step--@s.State.ToString().ToLowerInvariant()">
+                    <span class="md-step__icon" aria-hidden="true">
+                        @switch (s.State)
+                        {
+                            case StepState.Running: <span class="mat-spinner mat-spinner--sm"></span> break;
+                            case StepState.Done: <icon name="check-circle" /> break;
+                            case StepState.Failed: <icon name="x-circle" /> break;
+                            case StepState.Skipped: <icon name="minus" /> break;
+                            default: <span class="md-step__wait"></span> break;
+                        }
+                    </span>
+                    <span class="md-step__label">@s.Label</span>
+                    <span class="md-step__detail" title="@s.Detail">@(s.Detail ?? (s.State == StepState.Waiting ? "waiting" : null))</span>
+                    @if (s.Percent is { } p)
+                    {
+                        <div class="mat-meter mat-meter--sm md-step__meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)p)" aria-label="Download of @s.Label">
+                            <div class="mat-meter__fill" data-value="@((int)p)"></div>
+                        </div>
+                    }
+                    <span class="mat-sr-only">@s.State</span>
+                </li>
+            }
+        </ol>
+    }
+    @if (op.Error is not null)
+    {
+        <div class="mat-alert mat-alert--danger" role="alert"><icon name="x-circle" /><div class="mat-alert__body">@op.Error</div></div>
+    }
+    @if (!string.IsNullOrWhiteSpace(text))
+    {
+        <details class="md-run__log">
+            <summary>Output</summary>
+            <pre class="mat-code md-output">@text</pre>
+        </details>
+    }
+</div>

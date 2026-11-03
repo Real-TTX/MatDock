@@ -242,8 +242,8 @@ public sealed partial class DeploymentHistory
     [GeneratedRegex(@"Container\s+(?<name>\S+)\s+(?<state>Created|Recreated|Started|Stopped|Removed|Running|Waiting|Healthy)\b", RegexOptions.IgnoreCase)]
     private static partial Regex ProgressLine();
 
-    // " ✔ web Pulled   2.1s" — one per service whose image was fetched
-    [GeneratedRegex(@"^\W*\S+\s+Pulled\b", RegexOptions.IgnoreCase)]
+    // " ✔ web Pulled   2.1s" (with a terminal) or " Image nginx:1 Pulled" (without one, compose 5) — one per image that was fetched
+    [GeneratedRegex(@"^\W*(?:Image\s+)?\S+\s+Pulled\b", RegexOptions.IgnoreCase)]
     private static partial Regex PulledLine();
 
     // " ✔ Image shop-web:local  Built" (compose v2.30+), " ✔ Service web  Built" (v2.20+) or "Successfully built" (the classic builder)

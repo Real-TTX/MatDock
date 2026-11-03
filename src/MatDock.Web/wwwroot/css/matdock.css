@@ -336,3 +336,28 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-cron__preview:empty { display: none; }
 .md-cron__preview.is-error { background: var(--mat-danger-bg); color: var(--mat-danger-text); }
 .mat-form__grid > :has(.md-cron) { grid-column: 1 / -1; }
+
+/* A run through a list (_RunSteps): the progress over all, every entry with its state, the download of the running one. */
+.md-run { display: flex; flex-direction: column; gap: var(--mat-space-3); }
+.md-run__head { display: flex; align-items: center; gap: var(--mat-space-2); }
+.md-run__count { font-weight: 650; }
+.md-run__pct { margin-left: auto; color: var(--mat-text-muted); font-variant-numeric: tabular-nums; }
+.md-run__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1.25rem minmax(8rem, auto) 1fr minmax(6rem, 12rem); column-gap: var(--mat-space-3); }
+.md-step { display: contents; }
+.md-step > * { display: flex; align-items: center; min-width: 0; padding: var(--mat-space-2) 0; border-top: 1px solid var(--mat-border); }
+.md-step:first-child > * { border-top: 0; }
+.md-step__label { font-weight: 600; }
+.md-step__detail { color: var(--mat-text-muted); font-size: var(--mat-fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.md-step__meter { align-self: center; display: block; padding: 0; }
+.md-step:not(:has(.md-step__meter)) > .md-step__detail { grid-column: span 2; }
+.md-step__wait { width: .75rem; height: .75rem; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--mat-text-muted); }
+.md-step--done .md-step__icon { color: var(--mat-success); }
+.md-step--failed .md-step__icon, .md-step--failed .md-step__detail { color: var(--mat-danger-text); }
+.md-step--skipped .md-step__icon, .md-step--waiting .md-step__label { color: var(--mat-text-muted); }
+.md-step--running .md-step__label { color: var(--mat-accent-text); }
+.md-run__log > summary { cursor: pointer; color: var(--mat-text-muted); font-size: var(--mat-fs-sm); }
+.md-run__log > pre { margin-top: var(--mat-space-2); max-height: 22rem; overflow: auto; }
+@media (max-width: 699px) {
+  .md-run__steps { grid-template-columns: 1.25rem 1fr; }
+  .md-step__detail, .md-step__meter { grid-column: 2 / -1; padding-top: 0; border-top: 0; }
+}
