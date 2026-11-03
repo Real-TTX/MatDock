@@ -8,6 +8,72 @@
 <partial name="_BackupTabs" />
 <partial name="_StatusMessage" model="(Model.StatusMessage, Model.IsError)" />
 
+@if (Model.Jobs.Count > 0)
+{
+    <section class="mat-section" id="live-backup-jobs" data-live="@(Model.Runs.Running.Count > 0 ? "10" : "60")">
+        <h2>Backup jobs</h2>
+        <mat-table>
+            <mat-table-body>
+                <div class="mat-table-wrap">
+                    <table class="mat-table">
+                        <thead>
+                            <tr><th>Environment</th><th>Job</th><th>What → where</th><th>When</th><th>Status</th><th>Next run</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in Model.Jobs)
+                            {
+                                var run = Model.Runs.Of(t.Id);
+                                var (tone, label, title) = MatDock.Web.Support.ScheduleView.State(t, run);
+                                <tr>
+                                    <td class="mat-nowrap" data-label="Environment">@(t.EnvironmentId is { } eid && Model.JobEnvNames.TryGetValue(eid, out var en) ? en : "All")</td>
+                                    <td data-label="Job">
+                                        <div class="mat-table__name">
+                                            <a href="/Schedules/Edit?id=@t.Id"><strong>@t.Name</strong></a>
+                                            @if (!t.Enabled)
+                                            {
+                                                <span class="mat-tag" title="Disabled">off</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td data-label="What → where">@MatDock.Web.Support.ScheduleView.Scope(t, Model.TargetNames)</td>
+                                    <td data-label="When"><span title="@t.Cron">@MatDock.Core.Schedules.CronText.Describe(t.Cron)</span></td>
+                                    <td data-label="Status">
+                                        <span class="mat-pill @tone" title="@title">@label</span>
+                                        @if (run is null && t.LastRunAt is { } last)
+                                        {
+                                            <small class="mat-muted" title="@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
+                                        }
+                                    </td>
+                                    <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
+                                    <td class="mat-table__cell-actions">
+                                        <div class="mat-table__actions md-acts">
+                                            @if (run is not null)
+                                            {
+                                                <form method="post" asp-page-handler="CancelJob" data-confirm="Cancel the running backup '@t.Name'?">
+                                                    <input type="hidden" name="id" value="@t.Id" />
+                                                    <button type="submit" class="mat-btn mat-btn--danger mat-btn--solid mat-btn--sm" disabled="@(run.Cancelling ? "disabled" : null)"><icon name="x" /><span>Cancel</span></button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <form method="post" asp-page-handler="RunJob">
+                                                    <input type="hidden" name="id" value="@t.Id" />
+                                                    <button type="submit" class="mat-btn md-btn--go mat-btn--sm mat-btn--icon" data-tip="Back up now" aria-label="Run @t.Name now"><icon name="play" /></button>
+                                                </form>
+                                            }
+                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Schedules/Edit?id=@t.Id" data-tip="Edit" aria-label="Edit @t.Name"><icon name="edit" /></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </mat-table-body>
+        </mat-table>
+    </section>
+}
+
 @if (Model.Bundles.Count > 0)
 {
     <section class="mat-section">

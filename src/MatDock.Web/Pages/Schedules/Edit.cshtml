@@ -159,8 +159,8 @@
                     </select>
                 </mat-field>
                 <div class="mat-stack" data-show-if="#Input_Trigger" data-show-value="Cron">
-                    <mat-field label="Schedule (cron, UTC)" asp-for="Input.Cron" hint="min hour day month weekday · e.g. 0 4 * * * = daily at 04:00">
-                        <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+                    <mat-field label="When" asp-for="Input.Cron">
+                        <partial name="_CronEditor" model='("Input.Cron", Model.Input.Cron, "cron-schedule", Model.IsEdit)' />
                     </mat-field>
                 </div>
                 <div class="mat-stack" data-show-if="#Input_Trigger" data-show-value="Event">

@@ -19,14 +19,17 @@ public sealed class ScheduleService
     private readonly INotificationService _notifications;
     private readonly ILogger<ScheduleService> _logger;
     private readonly Security.ISecretProtector? _secrets;
+    private readonly ScheduleRuns _runs;
 
     public ScheduleService(
         MatDockDbContext db,
         IEnumerable<IScheduleAction> actions,
         INotificationService notifications,
         ILogger<ScheduleService> logger,
-        Security.ISecretProtector? secrets = null)
+        Security.ISecretProtector? secrets = null,
+        ScheduleRuns? runs = null)
     {
+        _runs = runs ?? new ScheduleRuns();
         _db = db;
         _actions = actions;
         _notifications = notifications;
@@ -247,11 +250,26 @@ public sealed class ScheduleService
             ok = false;
             summary = $"No handler for action {task.Action}.";
         }
+        else if (_runs.Begin(task.Id, task.Name, task.EnvironmentId, ct) is not { } run)
+        {
+            // Runs already (a long backup still going when its next time comes, or Run now twice): this start is left out.
+            return "Runs already: this start was left out.";
+        }
         else
         {
+            using var _ = run;
             try
             {
-                (ok, summary) = await action.ExecuteAsync(task, ct);
+                (ok, summary) = await action.ExecuteAsync(task, run.Token);
+                if (run.Cancelled && !ct.IsCancellationRequested)
+                {
+                    (ok, summary) = (false, "Cancelled. " + summary);
+                }
+            }
+            catch (OperationCanceledException) when (run.Cancelled && !ct.IsCancellationRequested)
+            {
+                ok = false;
+                summary = "Cancelled.";
             }
             catch (Exception ex)
             {
@@ -343,7 +361,7 @@ public sealed class ScheduleService
         }
         if (input.Trigger == ScheduleTrigger.Cron && !CronSchedule.IsValid(input.Cron))
         {
-            return "Please enter a valid cron expression (5 fields, UTC).";
+            return "Please choose a valid time (or a cron expression of 5 fields).";
         }
         if (input.Action == ScheduleAction.Backup)
         {

@@ -332,6 +332,15 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostRestartAsync(long id)
+    {
+        var (ok, output) = await _stackService.RestartAsync(id, HttpContext.RequestAborted);
+        StatusMessage = ok ? "Stack restarted." : "Restart failed.";
+        IsError = !ok;
+        Output = ok ? null : output;
+        return RedirectToPage(new { view = View, Q, Status, Type });
+    }
+
     public async Task<IActionResult> OnPostStartAsync(long id)
     {
         var (ok, output) = await _stackService.StartAsync(id, HttpContext.RequestAborted);

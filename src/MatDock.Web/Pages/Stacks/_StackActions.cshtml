@@ -1,0 +1,133 @@
+@model (MatDock.Web.Pages.Stacks.IndexModel.StackRow Row, bool Self, bool Labels)
+@*
+    The actions of a stack (card header and list row): the power button in its colour (green Start or Deploy, red Stop), Redeploy, and the rest in a
+    menu (LIST-09), the destructive ones last behind a separator. MatDock's own stack (Self) is not stopped or taken down from here.
+*@
+@{
+    var r = Model.Row;
+    var self = Model.Self;
+    var managed = r.Managed && r.ManagedId is not null;
+    var id = r.ManagedId ?? 0;
+    var menuId = $"sm-{r.EnvId}-{r.Name}";
+    var app = MatDock.Web.Support.AppView.Parse(r.AppMetaJson);
+    var appPort = app is null ? (int?)null : MatDock.Web.Support.AppView.PrimaryPort(r.Containers);
+    var size = Model.Labels ? "mat-btn--sm" : "mat-btn--sm mat-btn--icon";
+    const string SelfTitle = "MatDock runs in this stack: stop or remove it on the host";
+    var deployConfirm = self ? "Redeploy MatDock itself? It restarts and is away for a few seconds."
+        : r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?";
+    var restartConfirm = self ? "Restart MatDock itself? It is away for a few seconds." : $"Restart stack '{r.Name}'?";
+    var startHandler = managed ? "Start" : "ProjectStart";
+    var stopHandler = managed ? "Stop" : "ProjectStop";
+    var restartHandler = managed ? "Restart" : "ProjectRestart";
+}
+@functions {
+    // The fields a handler of the page takes: the id of a managed stack, else environment and project.
+    private static Microsoft.AspNetCore.Html.IHtmlContent Fields(MatDock.Web.Pages.Stacks.IndexModel.StackRow r, bool managed)
+        => new Microsoft.AspNetCore.Html.HtmlString(managed
+            ? $"<input type=\"hidden\" name=\"id\" value=\"{r.ManagedId}\" />"
+            : $"<input type=\"hidden\" name=\"envId\" value=\"{r.EnvId}\" /><input type=\"hidden\" name=\"project\" value=\"{System.Net.WebUtility.HtmlEncode(r.Name)}\" />");
+}
+<div class="md-acts">
+    @if (managed && r.Total == 0)
+    {
+        <form method="post" asp-page-handler="Deploy" data-confirm="@deployConfirm">
+            @Fields(r, true)
+            <button type="submit" class="mat-btn md-btn--go @size" data-tip="@(Model.Labels ? null : "Deploy")" aria-label="Deploy @r.Name"><icon name="rocket" />@if (Model.Labels) { <span>Deploy</span> }</button>
+        </form>
+    }
+    else if (r.Running == 0)
+    {
+        <form method="post" asp-page-handler="@startHandler">
+            @Fields(r, managed)
+            <button type="submit" class="mat-btn md-btn--go @size" data-tip="@(Model.Labels ? null : "Start")" aria-label="Start @r.Name"><icon name="play" />@if (Model.Labels) { <span>Start</span> }</button>
+        </form>
+    }
+    else if (self)
+    {
+        <button type="button" class="mat-btn mat-btn--danger mat-btn--solid @size" disabled title="@SelfTitle" aria-label="Stop @r.Name"><icon name="stop" />@if (Model.Labels) { <span>Stop</span> }</button>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="@stopHandler" data-confirm="Stop stack '@r.Name'?">
+            @Fields(r, managed)
+            <button type="submit" class="mat-btn mat-btn--danger mat-btn--solid @size" data-tip="@(Model.Labels ? null : "Stop")" aria-label="Stop @r.Name"><icon name="stop" />@if (Model.Labels) { <span>Stop</span> }</button>
+        </form>
+    }
+
+    @if (managed && r.Total > 0)
+    {
+        <form method="post" asp-page-handler="Deploy" data-confirm="@deployConfirm">
+            @Fields(r, true)
+            <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm mat-btn--icon" data-tip="@(r.GitBacked ? "Deploy from Git" : "Redeploy")" aria-label="Redeploy @r.Name"><icon name="@(r.GitBacked ? "git" : "refresh")" /></button>
+        </form>
+    }
+
+    <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-menu-toggle="@menuId" data-menu-place="bottom" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for @r.Name" data-tip="More"><icon name="more-horizontal" /></button>
+    <div class="mat-menu" id="@menuId" role="menu" aria-label="Actions for @r.Name" hidden>
+        @if (app is not null)
+        {
+            foreach (var act in app.Actions)
+            {
+                var href = MatDock.Web.Support.AppView.ActionHref(act, r.EnvHost, appPort);
+                if (href is not null)
+                {
+                    var actIcon = !string.IsNullOrEmpty(act.Icon) && Toolkit.Names.Contains(act.Icon) ? act.Icon : "external";
+                    <a class="mat-menu__item" role="menuitem" href="@href" target="_blank" rel="noopener"><icon name="@actIcon" /><span>@act.Name</span></a>
+                }
+            }
+        }
+        @if (managed)
+        {
+            <a class="mat-menu__item" role="menuitem" href="/Stacks/Edit?id=@id"><icon name="edit" /><span>Edit</span></a>
+            <a class="mat-menu__item" role="menuitem" href="/Stacks/Update?id=@id"><icon name="image" /><span>Updates</span></a>
+            <a class="mat-menu__item" role="menuitem" href="/Stacks/Deploys?id=@id"><icon name="clock" /><span>Deploys</span></a>
+        }
+        else
+        {
+            <form class="mat-menu__form" method="post" asp-page-handler="Adopt" data-confirm="Adopt '@r.Name' into MatDock?">
+                @Fields(r, false)
+                <button type="submit" class="mat-menu__item" role="menuitem"><icon name="download" /><span>Adopt into MatDock</span></button>
+            </form>
+        }
+        <a class="mat-menu__item" role="menuitem" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)"><icon name="box" /><span>Containers</span></a>
+        <a class="mat-menu__item" role="menuitem" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)"><icon name="volume" /><span>Volumes</span></a>
+        <div class="mat-menu__sep" role="separator"></div>
+        @if (r.Running > 0)
+        {
+            <form class="mat-menu__form" method="post" asp-page-handler="@restartHandler" data-confirm="@restartConfirm">
+                @Fields(r, managed)
+                <button type="submit" class="mat-menu__item" role="menuitem"><icon name="refresh" /><span>Restart</span></button>
+            </form>
+        }
+        @if (r.IsPartial)
+        {
+            <form class="mat-menu__form" method="post" asp-page-handler="@startHandler">
+                @Fields(r, managed)
+                <button type="submit" class="mat-menu__item" role="menuitem"><icon name="play" /><span>Start the stopped</span></button>
+            </form>
+        }
+        <form class="mat-menu__form" method="post" asp-page-handler="BundleBackup" data-confirm="Back up stack '@r.Name'?">
+            <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
+            <button type="submit" class="mat-menu__item" role="menuitem"><icon name="save" /><span>Backup</span></button>
+        </form>
+        @if (managed)
+        {
+            <div class="mat-menu__sep" role="separator"></div>
+            @if (self)
+            {
+                <button type="button" class="mat-menu__item mat-menu__item--danger" role="menuitem" disabled title="@SelfTitle"><icon name="x-circle" /><span>Down</span></button>
+            }
+            else
+            {
+                <form class="mat-menu__form" method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
+                    @Fields(r, true)
+                    <button type="submit" class="mat-menu__item mat-menu__item--danger" role="menuitem"><icon name="x-circle" /><span>Down (stop &amp; remove)</span></button>
+                </form>
+            }
+            <form class="mat-menu__form" method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running.">
+                @Fields(r, true)
+                <button type="submit" class="mat-menu__item mat-menu__item--danger" role="menuitem"><icon name="trash" /><span>Remove from MatDock</span></button>
+            </form>
+        }
+    </div>
+</div>

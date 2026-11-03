@@ -25,90 +25,14 @@
     string State(DockerContainer c) => c.IsRunning ? "running" : "stopped";
     string ViewUrl(string v) => $"/Containers?view={v}";
 
-    // Shared action buttons (used by both list rows and tiles). Async because it renders TagHelpers.
-    async Task Actions(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r)
-    {
-        var env = r.Env;
-        var c = r.Container;
-        var openUrl = MatDock.Web.Support.OpenUrls.Resolve(c.OpenUrlOverride, env.BaseUrl);
-        if (openUrl is not null)
+    // The actions of a container (list rows and tiles): power button, logs, the rest in a menu (_ContainerActions).
+    MatDock.Web.Support.ContainerActionsModel Acts(MatDock.Web.Pages.Containers.IndexModel.ContainerRow r)
+        => new(r.Env.Id, r.Container, "Action", canControl, isAdmin, Self.IsOn(r.Env.Id, r.Container.Id))
         {
-            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open app" aria-label="Open app"><icon name="external" /></a>
-        }
-        if (isAdmin && c.IsRunning)
-        {
-            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@env.Id&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
-        }
-        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@env.Id&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
-        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@env.Id&Q=@Uri.EscapeDataString(c.Project ?? c.Name)" title="Volumes of this container's stack" aria-label="Volumes"><icon name="volume" /></a>
-        if (!canControl)
-        {
-            return;
-        }
-        var paused = string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
-        @if (c.IsRunning && Self.IsOn(env.Id, c.Id))
-        {
-            // MatDock itself: a restart goes through a helper container, the rest would leave nobody to start it again.
-            <form method="post" asp-page-handler="Action" data-confirm="Restart MatDock itself? It is away for a few seconds.">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-            </form>
-            <button type="button" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" disabled title="This container is MatDock itself: stop it on the host" aria-label="Stop"><icon name="stop" /></button>
-            return;
-        }
-        @if (c.IsRunning)
-        {
-            <form method="post" asp-page-handler="Action">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Restart" />
-                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-            </form>
-            <form method="post" asp-page-handler="Action">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Pause" />
-                <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Pause" aria-label="Pause"><icon name="pause" /></button>
-            </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Stop" />
-                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-            </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Kill container '@c.Name'? (SIGKILL, no graceful shutdown)">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Kill" />
-                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Kill" aria-label="Kill"><icon name="x-circle" /></button>
-            </form>
-        }
-        else if (paused)
-        {
-            <form method="post" asp-page-handler="Action">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Unpause" />
-                <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Unpause" aria-label="Unpause"><icon name="play" /></button>
-            </form>
-            <form method="post" asp-page-handler="Action" data-confirm="Stop container '@c.Name'?">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Stop" />
-                <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-            </form>
-        }
-        else
-        {
-            <form method="post" asp-page-handler="Action">
-                <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                <input type="hidden" name="action" value="Start" />
-                <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Start" aria-label="Start"><icon name="play" /></button>
-            </form>
-            if (isAdmin)
-            {
-                <form method="post" asp-page-handler="Remove" data-confirm="Remove container '@c.Name'? Its anonymous volumes go too; named volumes stay.">
-                    <input type="hidden" name="envId" value="@env.Id" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
-                    <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Remove" aria-label="Remove @c.Name"><icon name="trash" /></button>
-                </form>
-            }
-        }
-    }
+            RemoveHandler = "Remove",
+            Extended = true,
+            OpenUrl = MatDock.Web.Support.OpenUrls.Resolve(r.Container.OpenUrlOverride, r.Env.BaseUrl),
+        };
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -191,7 +115,7 @@
                             {
                                 <span class="mat-tag"><icon name="layers" /> @c.Project</span>
                             }
-                            <div class="mat-table__actions">@{ await Actions(r); }</div>
+                            <partial name="_ContainerActions" model="Acts(r)" />
                         </div>
                     </div>
                 }
@@ -237,10 +161,10 @@
                                     </div>
                                 </td>
                                 <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
-                                <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" /></td>
+                                <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" max="3" /></td>
                                 <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" /></td>
                                 <td class="mat-table__cell-actions">
-                                    <div class="mat-table__actions">@{ await Actions(r); }</div>
+                                    <partial name="_ContainerActions" model="Acts(r)" />
                                 </td>
                             </tr>
                         }

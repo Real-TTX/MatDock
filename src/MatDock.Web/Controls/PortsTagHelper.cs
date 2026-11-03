@@ -23,6 +23,9 @@ public sealed class PortsTagHelper : TagHelper
     /// <summary>Public addresses of the container (from its proxy labels, <see cref="MatDock.Core.Containers.ProxyUrls"/>), shown first as links.</summary>
     public IReadOnlyList<string>? Urls { get; set; }
 
+    /// <summary>At most this many tags (the addresses first), the rest as one "+N" tag that names them; null = all (the detail page).</summary>
+    public int? Max { get; set; }
+
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         output.TagName = "div";
@@ -41,14 +44,28 @@ public sealed class PortsTagHelper : TagHelper
         }
 
         var sb = new StringBuilder();
-        foreach (var url in urls)
+        var shown = 0;
+        var hidden = new List<string>();
+        bool Room(string name)
+        {
+            if (Max is not { } max || shown < max)
+            {
+                shown++;
+                return true;
+            }
+
+            hidden.Add(name);
+            return false;
+        }
+
+        foreach (var url in urls.Where(u => Room(u)))
         {
             var href = WebUtility.HtmlEncode(url);
             var label = WebUtility.HtmlEncode(new Uri(url).Host);
             sb.Append($"<a class=\"mat-tag md-port-link\" href=\"{href}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open {href}\"><svg class=\"mat-icon\" focusable=\"false\" aria-hidden=\"true\"><use href=\"#mat-i-globe\"></use></svg>{label}</a>");
         }
 
-        foreach (var (hostPort, containerPort) in published)
+        foreach (var (hostPort, containerPort) in published.Where(p => Room($"{p.Host}:{p.Container}")))
         {
             var label = WebUtility.HtmlEncode($"{hostPort}:{containerPort}");
             if (!string.IsNullOrEmpty(Host))
@@ -62,9 +79,14 @@ public sealed class PortsTagHelper : TagHelper
             }
         }
 
-        foreach (var cp in exposed)
+        foreach (var cp in exposed.Where(e => Room(e)))
         {
             sb.Append($"<span class=\"mat-tag mat-mono mat-muted\" title=\"exposed, not published\">{WebUtility.HtmlEncode(cp)}</span>");
+        }
+
+        if (hidden.Count > 0)
+        {
+            sb.Append($"<span class=\"mat-tag mat-muted\" title=\"{WebUtility.HtmlEncode(string.Join(", ", hidden))}\">+{hidden.Count}</span>");
         }
 
         output.Content.SetHtmlContent(sb.ToString());

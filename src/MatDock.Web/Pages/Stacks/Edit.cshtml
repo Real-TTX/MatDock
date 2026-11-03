@@ -222,12 +222,12 @@
                             <option value="15">Every 15 minutes</option>
                             <option value="60">Every hour</option>
                             <option value="daily">Daily (04:00 UTC)</option>
-                            <option value="custom">Custom cron</option>
+                            <option value="custom">Custom time</option>
                         </select>
                     </mat-field>
 
-                    <mat-field label="Cron (UTC)" asp-for="Input.GitSyncCron" data-show-if="#GitSync" data-show-value="custom">
-                        <input asp-for="Input.GitSyncCron" class="mat-input mat-mono" placeholder="*/10 * * * *" />
+                    <mat-field label="When" asp-for="Input.GitSyncCron" data-show-if="#GitSync" data-show-value="custom">
+                        <partial name="_CronEditor" model='("Input.GitSyncCron", Model.Input.GitSyncCron, "cron-gitsync", Model.IsEdit)' />
                     </mat-field>
                 </div>
                 @if (Model.IsEdit && Model.Input.Source == "git")

@@ -7,7 +7,6 @@
     var isGallery = !string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
     // MatDock runs in this stack: no stop or down from here (StackService refuses them too).
     bool IsSelf(MatDock.Web.Pages.Stacks.IndexModel.StackRow r) => r.Containers.Any(c => Self.IsOn(r.EnvId, c.Id));
-    const string SelfTitle = "MatDock runs in this stack: stop or remove it on the host";
 
     string ViewUrl(string v) => $"/Stacks?view={v}"
         + $"&Q={Uri.EscapeDataString(Model.Q ?? string.Empty)}"
@@ -38,64 +37,38 @@
         return any ? (cpu, mem) : (null, null);
     }
 
-    // Container tiles for an expanded stack (shared by the gallery cards and the list detail rows).
-    async Task RenderTiles(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
+    // The containers of a stack as compact rows (shared by the gallery cards and the list detail rows): state, name and image, ports, usage, actions.
+    async Task RenderContainers(MatDock.Web.Pages.Stacks.IndexModel.StackRow r)
     {
         if (r.Containers.Count == 0)
         {
-            <p class="mat-muted mat-small">No containers running for this stack.</p>
+            <p class="mat-muted mat-small">No containers.</p>
+            return;
         }
-        else
-        {
-            <div class="md-ctiles">
-                @foreach (var c in r.Containers)
-                {
-                    var label = string.IsNullOrEmpty(c.Service) ? c.Name : c.Service;
-                    <div class="md-ctile">
-                        <div class="md-ctile__top">
-                            <a class="md-ctile__name" href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="@label">@label</a>
-                            <container-status state="@c.State" status="@c.Status" />
-                        </div>
-                        <div class="md-ctile__meta mat-mono" title="@c.Image">@c.Image</div>
-                        <container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@r.EnvHost" />
-                        <div class="mat-table__actions md-ctile__actions">
-                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
-                            @if (c.IsRunning)
-                            {
-                                @if (User.IsInRole("Admin"))
-                                {
-                                    <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@r.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
-                                }
-                                var itself = Self.IsOn(r.EnvId, c.Id);
-                                <form method="post" asp-page-handler="ContainerAction" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
-                                    <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-                                </form>
-                                @if (itself)
-                                {
-                                    <button type="button" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" disabled title="This container is MatDock itself: stop it on the host" aria-label="Stop"><icon name="stop" /></button>
-                                }
-                                else
-                                {
-                                    <form method="post" asp-page-handler="ContainerAction" data-confirm="Stop container '@c.Name'?">
-                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
-                                        <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                    </form>
-                                }
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="ContainerAction">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
-                                    <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Start" aria-label="Start"><icon name="play" /></button>
-                                </form>
-                            }
-                        </div>
+
+        <ul class="md-crows">
+            @foreach (var c in r.Containers)
+            {
+                var label = string.IsNullOrEmpty(c.Service) ? c.Name : c.Service;
+                var actions = new MatDock.Web.Support.ContainerActionsModel(r.EnvId, c, "ContainerAction", User.CanControl(), User.IsInRole("Admin"), Self.IsOn(r.EnvId, c.Id));
+                <li class="md-crow">
+                    <div class="md-crow__name">
+                        <a href="/Containers/ContainerDetail?envId=@r.EnvId&id=@Uri.EscapeDataString(c.Id)" title="@c.Name">@label</a>
+                        <span class="md-crow__image mat-mono" title="@c.Image">@c.Image</span>
                     </div>
-                }
-            </div>
-        }
+                    <span class="md-crow__state"><container-status state="@c.State" status="@c.Status" /></span>
+                    <container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@r.EnvHost" max="3" />
+                    <span class="md-crow__usage mat-small mat-muted">@(c.CpuPercent is { } cpu ? $"CPU {cpu:0.#} %" : null)@(c.MemPercent is { } mem ? $" · RAM {mem:0.#} %" : null)</span>
+                    <partial name="_ContainerActions" model="actions" />
+                </li>
+            }
+        </ul>
     }
+
+    // The state of a container as a dot beside its service, in the head of a card.
+    string Dot(MatDock.Core.Containers.DockerContainer c)
+        => c.IsRunning ? "md-dot--ok" : string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase) ? "md-dot--warn"
+         : string.Equals(c.State, "exited", StringComparison.OrdinalIgnoreCase) && !(c.Status ?? string.Empty).Contains("(0)") ? "md-dot--error" : "md-dot--off";
 }
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
@@ -185,159 +158,76 @@
                 @foreach (var r in Model.Rows)
                 {
                     var app = MatDock.Web.Support.AppView.Parse(r.AppMetaJson);
-                    var appPort = app is null ? (int?)null : MatDock.Web.Support.AppView.PrimaryPort(r.Containers);
                     var agg = Agg(r);
                     var self = IsSelf(r);
-                    <details class="mat-card md-stack" open="@(Model.Rows.Count <= 3)">
-                        <summary class="mat-card__head md-stack__head">
-                            <icon name="chevron-right" class="md-stack__chev" />
-                            @if (app?.Icon is not null)
-                            {
-                                <partial name="_AppIcon" model="app" />
-                            }
-                            <div class="md-stack__title">
-                                <div class="md-stack__name">
-                                    <span class="mat-card__title">@r.Name</span>
-                                    @if (r.GitBacked)
+                    <div class="md-stack-cell">
+                        <details class="mat-card md-stack" open="@(Model.Rows.Count <= 2)">
+                            <summary class="mat-card__head md-stack__head">
+                                <icon name="chevron-right" class="md-stack__chev" />
+                                @if (app?.Icon is not null)
+                                {
+                                    <partial name="_AppIcon" model="app" />
+                                }
+                                <div class="md-stack__title">
+                                    <div class="md-stack__name">
+                                        <span class="mat-card__title">@r.Name</span>
+                                        @if (r.GitBacked)
+                                        {
+                                            <span class="mat-tag" title="Git-backed"><icon name="git" /> Git</span>
+                                        }
+                                        @{ var updates = UpdateChecks.Updates(r.EnvId, r.Name); }
+                                        @if (updates.Count > 0 && r.ManagedId is { } uid)
+                                        {
+                                            <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
+                                        }
+                                        @if (self)
+                                        {
+                                            <span class="mat-pill mat-pill--accent" title="MatDock runs in this stack">This MatDock</span>
+                                        }
+                                        <managed-badge value="@r.ManagedBy" />
+                                        <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
+                                        @if (r.Discovered)
+                                        {
+                                            <span class="mat-tag" title="Running on the host, not managed by MatDock">External</span>
+                                        }
+                                    </div>
+                                    <span class="mat-card__sub"><icon name="server" /> @r.EnvName</span>
+                                    @if (r.Containers.Count > 0)
                                     {
-                                        <span class="mat-tag" title="Git-backed"><icon name="git" /> Git</span>
-                                    }
-                                    @{ var updates = UpdateChecks.Updates(r.EnvId, r.Name); }
-                                    @if (updates.Count > 0 && r.ManagedId is { } uid)
-                                    {
-                                        <a class="mat-pill mat-pill--info" href="/Stacks/Update?id=@uid" title="@string.Join(", ", updates.Select(u => u.Image))">Update</a>
-                                    }
-                                    @if (self)
-                                    {
-                                        <span class="mat-pill mat-pill--accent" title="MatDock runs in this stack">This MatDock</span>
-                                    }
-                                    <managed-badge value="@r.ManagedBy" />
-                                    <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
-                                    @if (r.Discovered)
-                                    {
-                                        <span class="mat-tag" title="Running on the host, not managed by MatDock">External</span>
+                                        <span class="md-stack__svcs">
+                                            @foreach (var c in r.Containers.Take(8))
+                                            {
+                                                <span class="md-svc" title="@c.Name: @c.Status"><span class="md-dot @Dot(c)" aria-hidden="true"></span>@(string.IsNullOrEmpty(c.Service) ? c.Name : c.Service)</span>
+                                            }
+                                            @if (r.Containers.Count > 8)
+                                            {
+                                                <span class="md-svc mat-muted">+@(r.Containers.Count - 8)</span>
+                                            }
+                                        </span>
                                     }
                                 </div>
-                                <span class="mat-card__sub"><icon name="server" /> @r.EnvName</span>
+                                @if (r.Total > 0)
+                                {
+                                    <span class="mat-pill @StatusPill(r)">@r.Running/@r.Total</span>
+                                }
+                                else
+                                {
+                                    <span class="mat-pill mat-pill--plain">idle</span>
+                                }
+                            </summary>
+
+                            <div class="mat-card__body mat-stack">
+                                @if (agg.Mem is not null)
+                                {
+                                    <usage mem="@agg.Mem" cpu="@agg.Cpu" mem-title="Aggregated RAM across the stack (% of host)" cpu-title="Aggregated CPU across the stack (% of host)" />
+                                }
+                                @{ await RenderContainers(r); }
                             </div>
-                            @if (r.Total > 0)
-                            {
-                                <span class="mat-pill @StatusPill(r)">@r.Running/@r.Total</span>
-                            }
-                            else
-                            {
-                                <span class="mat-pill mat-pill--plain">idle</span>
-                            }
-                        </summary>
-
-                        <div class="mat-card__body mat-stack">
-                            @if (agg.Mem is not null)
-                            {
-                                <usage mem="@agg.Mem" cpu="@agg.Cpu" mem-title="Aggregated RAM across the stack (% of host)" cpu-title="Aggregated CPU across the stack (% of host)" />
-                            }
-                            @{ await RenderTiles(r); }
+                        </details>
+                        <div class="md-stack__acts">
+                            <partial name="_StackActions" model="(r, self, true)" />
                         </div>
-
-                        <div class="mat-card__foot mat-actions md-actions">
-                            @if (app is not null)
-                            {
-                                foreach (var act in app.Actions)
-                                {
-                                    var href = MatDock.Web.Support.AppView.ActionHref(act, r.EnvHost, appPort);
-                                    if (href is not null)
-                                    {
-                                        var actIcon = !string.IsNullOrEmpty(act.Icon) && Toolkit.Names.Contains(act.Icon) ? act.Icon : "external";
-                                        <a class="mat-btn mat-btn--sm mat-btn--primary" href="@href" target="_blank" rel="noopener" title="@act.Name"><icon name="@actIcon" /><span>@act.Name</span></a>
-                                    }
-                                }
-                            }
-                            @if (r.Managed && r.ManagedId is { } mid)
-                            {
-                                <form method="post" asp-page-handler="Deploy" data-confirm="@(self ? "Redeploy MatDock itself? It restarts and is away for a few seconds." : r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
-                                    <input type="hidden" name="id" value="@mid" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")"><icon name="@(r.GitBacked ? "git" : "refresh")" /><span>Redeploy</span></button>
-                                </form>
-                                @if (r.Total > 0 && r.Running < r.Total)
-                                {
-                                    <form method="post" asp-page-handler="Start">
-                                        <input type="hidden" name="id" value="@mid" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Start (compose start)" aria-label="Start"><icon name="play" /></button>
-                                    </form>
-                                }
-                                @if (r.Running > 0 && self)
-                                {
-                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
-                                }
-                                else if (r.Running > 0)
-                                {
-                                    <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?">
-                                        <input type="hidden" name="id" value="@mid" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Stop (compose stop)" aria-label="Stop"><icon name="stop" /></button>
-                                    </form>
-                                }
-                                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Stacks/Edit?id=@mid" title="Edit stack definition"><icon name="edit" /><span>Edit</span></a>
-                                <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Stacks/Update?id=@mid" title="Check for image updates"><icon name="image" /><span>Updates</span></a>
-                            }
-                            @if (r.Discovered && r.Total > 0 && r.Running < r.Total)
-                            {
-                                <form method="post" asp-page-handler="ProjectStart">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Start" aria-label="Start"><icon name="play" /></button>
-                                </form>
-                            }
-                            @if (r.Discovered && r.Running > 0)
-                            {
-                                @if (self)
-                                {
-                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
-                                }
-                                else
-                                {
-                                    <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
-                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                    </form>
-                                }
-                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="@(self ? "Restart MatDock itself? It is away for a few seconds." : $"Restart stack '{r.Name}'?")">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary mat-btn--icon" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-                                </form>
-                            }
-                            @if (r.Discovered)
-                            {
-                                <form method="post" asp-page-handler="Adopt" data-confirm="Adopt '@r.Name' into MatDock?">
-                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary" title="Adopt into MatDock (import compose, makes it editable)"><icon name="download" /><span>Adopt</span></button>
-                                </form>
-                            }
-                            <a class="mat-btn mat-btn--secondary mat-btn--sm mat-btn--icon" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers" aria-label="Containers"><icon name="box" /></a>
-                            <a class="mat-btn mat-btn--secondary mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack"><icon name="volume" /><span>Volumes</span></a>
-                            <form method="post" asp-page-handler="BundleBackup" data-confirm="Back up stack '@r.Name'?">
-                                <input type="hidden" name="envId" value="@r.EnvId" />
-                                <input type="hidden" name="project" value="@r.Name" />
-                                <button type="submit" class="mat-btn mat-btn--secondary mat-btn--sm" title="Full backup (volumes + compose)"><icon name="save" /><span>Backup</span></button>
-                            </form>
-                            @if (r.Managed && r.ManagedId is { } did)
-                            {
-                                <span class="mat-btn-row__spacer"></span>
-                                @if (self)
-                                {
-                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" disabled title="@SelfTitle" aria-label="Down"><icon name="x-circle" /></button>
-                                }
-                                else
-                                {
-                                    <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
-                                        <input type="hidden" name="id" value="@did" />
-                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
-                                    </form>
-                                }
-                                <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running.">
-                                    <input type="hidden" name="id" value="@did" />
-                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Remove from MatDock" aria-label="Remove from MatDock"><icon name="trash" /></button>
-                                </form>
-                            }
-                        </div>
-                    </details>
+                    </div>
                 }
             </div>
         }
@@ -346,7 +236,7 @@
             <div class="mat-table-wrap">
                 <table class="mat-table">
                     <thead>
-                        <tr><th>Environment</th><th>Name</th><th>Source</th><th>Status</th><th class="mat-num">Containers</th><th class="mat-num">Volumes</th><th>Resources</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr>
+                        <tr><th>Environment</th><th>Name</th><th>Status</th><th class="mat-num">Containers</th><th class="mat-num">Volumes</th><th>Resources</th><th class="mat-table__cell-actions"><span class="mat-sr-only">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         @foreach (var r in Model.Rows)
@@ -366,6 +256,14 @@
                                         {
                                             <span>@r.Name</span>
                                         }
+                                        @if (r.GitBacked)
+                                        {
+                                            <span class="mat-tag" title="Git-backed"><icon name="git" /> Git</span>
+                                        }
+                                        @if (r.Discovered)
+                                        {
+                                            <span class="mat-tag" title="Running on the host, not managed by MatDock">External</span>
+                                        }
                                         @{ var updates = UpdateChecks.Updates(r.EnvId, r.Name); }
                                         @if (updates.Count > 0 && r.ManagedId is { } uid)
                                         {
@@ -378,20 +276,6 @@
                                         <managed-badge value="@r.ManagedBy" />
                                         <partial name="_TagList" model="(r.Tags, Model.TagColors, TagFilter)" />
                                     </div>
-                                </td>
-                                <td data-label="Source">
-                                    @if (r.Discovered)
-                                    {
-                                        <span class="mat-tag" title="Running on the host, not managed by MatDock">External</span>
-                                    }
-                                    else if (r.GitBacked)
-                                    {
-                                        <span class="mat-tag" title="Git-backed"><icon name="git" /> Git</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="mat-muted">Managed</span>
-                                    }
                                 </td>
                                 <td data-label="Status">
                                     @if (r.Total > 0)
@@ -408,94 +292,15 @@
                                         <span class="mat-muted">–</span>
                                     }
                                 </td>
-                                <td class="mat-num" data-label="Containers"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Containers.Count</a></td>
+                                <td class="mat-num" data-label="Containers"><a href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers of this stack">@r.Running/@r.Total</a></td>
                                 <td class="mat-num" data-label="Volumes"><a href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack">@r.VolumeCount</a></td>
                                 <td data-label="Resources"><usage mem="@agg.Mem" cpu="@agg.Cpu" mem-title="Aggregated RAM across the stack (% of host)" cpu-title="Aggregated CPU across the stack (% of host)" /></td>
-                                <td class="mat-table__cell-actions md-cell-wrap">
-                                    <div class="mat-table__actions md-actions-wrap">
-                                        @if (r.Managed && r.ManagedId is { } id)
-                                        {
-                                            <form method="post" asp-page-handler="Deploy" data-confirm="@(self ? "Redeploy MatDock itself? It restarts and is away for a few seconds." : r.GitBacked ? $"Fetch stack '{r.Name}' from Git and deploy?" : $"Deploy stack '{r.Name}' now (compose up)?")">
-                                                <input type="hidden" name="id" value="@id" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary mat-btn--icon" title="@(r.GitBacked ? "Deploy/update from Git" : "Redeploy")" aria-label="Redeploy"><icon name="@(r.GitBacked ? "git" : "refresh")" /></button>
-                                            </form>
-                                            @if (r.Total > 0 && r.Running < r.Total)
-                                            {
-                                                <form method="post" asp-page-handler="Start">
-                                                    <input type="hidden" name="id" value="@id" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Start (compose start)" aria-label="Start"><icon name="play" /></button>
-                                                </form>
-                                            }
-                                            @if (r.Running > 0 && self)
-                                            {
-                                                <button type="button" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
-                                            }
-                                            else if (r.Running > 0)
-                                            {
-                                                <form method="post" asp-page-handler="Stop" data-confirm="Stop stack '@r.Name' (compose stop)?">
-                                                    <input type="hidden" name="id" value="@id" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Stop (compose stop)" aria-label="Stop"><icon name="stop" /></button>
-                                                </form>
-                                            }
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Stacks/Edit?id=@id" title="Edit stack definition" aria-label="Edit"><icon name="edit" /></a>
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Stacks/Update?id=@id" title="Check for image updates" aria-label="Updates"><icon name="image" /></a>
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers" aria-label="Containers"><icon name="box" /></a>
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack" aria-label="Volumes"><icon name="volume" /></a>
-                                            @if (self)
-                                            {
-                                                <button type="button" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" disabled title="@SelfTitle" aria-label="Down"><icon name="x-circle" /></button>
-                                            }
-                                            else
-                                            {
-                                                <form method="post" asp-page-handler="Down" data-confirm="Remove the containers of '@r.Name'? (compose down)">
-                                                    <input type="hidden" name="id" value="@id" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Down (stop &amp; remove)" aria-label="Down"><icon name="x-circle" /></button>
-                                                </form>
-                                            }
-                                            <form method="post" asp-page-handler="Delete" data-confirm="Remove '@r.Name' from MatDock? Its containers keep running.">
-                                                <input type="hidden" name="id" value="@id" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--danger mat-btn--icon" title="Remove from MatDock" aria-label="Remove from MatDock"><icon name="trash" /></button>
-                                            </form>
-                                        }
-                                        else
-                                        {
-                                            @if (r.Total > 0 && r.Running < r.Total)
-                                            {
-                                                <form method="post" asp-page-handler="ProjectStart">
-                                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Start" aria-label="Start"><icon name="play" /></button>
-                                                </form>
-                                            }
-                                            @if (r.Running > 0)
-                                            {
-                                                @if (self)
-                                                {
-                                                    <button type="button" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
-                                                }
-                                                else
-                                                {
-                                                    <form method="post" asp-page-handler="ProjectStop" data-confirm="Stop stack '@r.Name'?">
-                                                        <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                                        <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                                    </form>
-                                                }
-                                                <form method="post" asp-page-handler="ProjectRestart" data-confirm="@(self ? "Restart MatDock itself? It is away for a few seconds." : $"Restart stack '{r.Name}'?")">
-                                                    <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                                    <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-                                                </form>
-                                            }
-                                            <form method="post" asp-page-handler="Adopt" data-confirm="Adopt '@r.Name' into MatDock?">
-                                                <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="project" value="@r.Name" />
-                                                <button type="submit" class="mat-btn mat-btn--sm mat-btn--primary mat-btn--icon" title="Adopt into MatDock (import compose, makes it editable)" aria-label="Adopt"><icon name="download" /></button>
-                                            </form>
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Stack?envId=@r.EnvId&project=@Uri.EscapeDataString(r.Name)" title="Containers" aria-label="Containers"><icon name="box" /></a>
-                                            <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Volumes?EnvId=@r.EnvId&Q=@Uri.EscapeDataString(r.Name)" title="Volumes of this stack" aria-label="Volumes"><icon name="volume" /></a>
-                                        }
-                                    </div>
+                                <td class="mat-table__cell-actions">
+                                    <partial name="_StackActions" model="(r, self, false)" />
                                 </td>
                             </tr>
                             <tr class="md-stack-detail" hidden>
-                                <td colspan="8">@{ await RenderTiles(r); }</td>
+                                <td colspan="7">@{ await RenderContainers(r); }</td>
                             </tr>
                         }
                     </tbody>

@@ -1,0 +1,91 @@
+@model MatDock.Web.Support.ContainerActionsModel
+@using MatDock.Core.Containers
+@*
+    The actions of a container in a list: the power button in its colour, the logs, the rest in a menu (LIST-09). MatDock itself (Model.Itself) is
+    not stopped, paused, killed or removed from here; its restart goes through a helper container.
+*@
+@{
+    var c = Model.Container;
+    var running = c.IsRunning;
+    const string SelfTitle = "This container is MatDock itself: stop it on the host";
+    var restartConfirm = Model.Itself ? "Restart MatDock itself? It is away for a few seconds." : null;
+}
+<div class="mat-table__actions md-acts">
+    @if (Model.CanControl)
+    {
+        if (running && Model.Itself)
+        {
+            <button type="button" class="mat-btn mat-btn--danger mat-btn--solid mat-btn--icon mat-btn--sm" disabled title="@SelfTitle" aria-label="Stop"><icon name="stop" /></button>
+        }
+        else if (running)
+        {
+            <form method="post" asp-page-handler="@Model.Handler" data-confirm="Stop container '@c.Name'?">
+                <partial name="_ContainerActionFields" model="(Model, ContainerAction.Stop)" />
+                <button type="submit" class="mat-btn mat-btn--danger mat-btn--solid mat-btn--icon mat-btn--sm" data-tip="Stop" aria-label="Stop @c.Name"><icon name="stop" /></button>
+            </form>
+        }
+        else if (Model.Paused)
+        {
+            <form method="post" asp-page-handler="@Model.Handler">
+                <partial name="_ContainerActionFields" model="(Model, ContainerAction.Unpause)" />
+                <button type="submit" class="mat-btn md-btn--go mat-btn--icon mat-btn--sm" data-tip="Unpause" aria-label="Unpause @c.Name"><icon name="play" /></button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="@Model.Handler">
+                <partial name="_ContainerActionFields" model="(Model, ContainerAction.Start)" />
+                <button type="submit" class="mat-btn md-btn--go mat-btn--icon mat-btn--sm" data-tip="Start" aria-label="Start @c.Name"><icon name="play" /></button>
+            </form>
+        }
+    }
+    <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" data-tip="Logs" aria-label="Logs of @c.Name"><icon name="eye" /></a>
+    <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-menu-toggle="@Model.MenuId" data-menu-place="bottom" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for @c.Name" data-tip="More"><icon name="more-horizontal" /></button>
+    <div class="mat-menu" id="@Model.MenuId" role="menu" aria-label="Actions for @c.Name" hidden>
+        <a class="mat-menu__item" role="menuitem" href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="info" /><span>Details</span></a>
+        @if (Model.OpenUrl is not null)
+        {
+            <a class="mat-menu__item" role="menuitem" href="@Model.OpenUrl" target="_blank" rel="noopener noreferrer"><icon name="external" /><span>Open</span></a>
+        }
+        @if (running && Model.IsAdmin)
+        {
+            <a class="mat-menu__item" role="menuitem" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+        }
+        <a class="mat-menu__item" role="menuitem" href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(c.Project ?? c.Name)"><icon name="volume" /><span>Volumes</span></a>
+        @if (Model.CanControl && running)
+        {
+            <div class="mat-menu__sep" role="separator"></div>
+            <form class="mat-menu__form" method="post" asp-page-handler="@Model.Handler" data-confirm="@restartConfirm">
+                <partial name="_ContainerActionFields" model="(Model, ContainerAction.Restart)" />
+                <button type="submit" class="mat-menu__item" role="menuitem"><icon name="refresh" /><span>Restart</span></button>
+            </form>
+            @if (Model.Extended && !Model.Itself)
+            {
+                <form class="mat-menu__form" method="post" asp-page-handler="@Model.Handler">
+                    <partial name="_ContainerActionFields" model="(Model, ContainerAction.Pause)" />
+                    <button type="submit" class="mat-menu__item" role="menuitem"><icon name="pause" /><span>Pause</span></button>
+                </form>
+                <form class="mat-menu__form" method="post" asp-page-handler="@Model.Handler" data-confirm="Kill container '@c.Name'? (SIGKILL, no graceful shutdown)">
+                    <partial name="_ContainerActionFields" model="(Model, ContainerAction.Kill)" />
+                    <button type="submit" class="mat-menu__item mat-menu__item--danger" role="menuitem"><icon name="x-circle" /><span>Kill</span></button>
+                </form>
+            }
+        }
+        else if (Model.CanControl && Model.Paused)
+        {
+            <div class="mat-menu__sep" role="separator"></div>
+            <form class="mat-menu__form" method="post" asp-page-handler="@Model.Handler" data-confirm="Stop container '@c.Name'?">
+                <partial name="_ContainerActionFields" model="(Model, ContainerAction.Stop)" />
+                <button type="submit" class="mat-menu__item mat-menu__item--danger" role="menuitem"><icon name="stop" /><span>Stop</span></button>
+            </form>
+        }
+        else if (Model.CanControl && Model.IsAdmin && Model.RemoveHandler is not null && !Model.Itself)
+        {
+            <div class="mat-menu__sep" role="separator"></div>
+            <form class="mat-menu__form" method="post" asp-page-handler="@Model.RemoveHandler" data-confirm="Remove container '@c.Name'? Its anonymous volumes go too; named volumes stay.">
+                <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" />
+                <button type="submit" class="mat-menu__item mat-menu__item--danger" role="menuitem" aria-label="Remove @c.Name"><icon name="trash" /><span>Remove</span></button>
+            </form>
+        }
+    </div>
+</div>

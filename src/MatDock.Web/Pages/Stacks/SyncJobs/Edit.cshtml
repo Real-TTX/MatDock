@@ -79,8 +79,8 @@
                     <span>Scheduled</span>
                 </label>
                 <div class="mat-stack" data-show-if="#Input_ScheduleEnabled" data-show-value="true">
-                    <mat-field label="Cron (UTC)" asp-for="Input.Cron">
-                        <input asp-for="Input.Cron" class="mat-input" placeholder="0 4 * * *" />
+                    <mat-field label="When" asp-for="Input.Cron">
+                        <partial name="_CronEditor" model='("Input.Cron", Model.Input.Cron, "cron-sync", Model.IsEdit)' />
                     </mat-field>
                 </div>
                 <label class="mat-switch">

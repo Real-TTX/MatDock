@@ -1,0 +1,83 @@
+@model (string Name, string? Value, string Id, bool Saved)
+@*
+    The time of a schedule without writing cron: how often (a segmented control), the time, the days, and the next runs as they will be. It writes a cron
+    line into the hidden field: with the zone of the browser (CRON_TZ=…) for a new one, a saved one keeps its zone (UTC before there were zones); the
+    zone can be switched. Cron stays possible ("Cron"). Without the script the field is a plain cron field (cron-editor.js shows the editor).
+*@
+@{
+    var id = Model.Id;
+}
+<div class="md-cron" id="@id" data-cron-editor data-cron-preview="/ui/cron" data-cron-saved="@(Model.Saved ? "true" : "false")">
+    <input class="mat-input mat-mono" name="@Model.Name" value="@Model.Value" data-cron-value placeholder="0 4 * * *" aria-label="Cron expression" />
+    <div class="md-cron__ui" hidden>
+        <div class="mat-seg md-cron__modes" role="group" aria-label="How often">
+            <button type="button" class="mat-seg__btn" data-cron-mode="minutes" aria-pressed="false">Minutes</button>
+            <button type="button" class="mat-seg__btn" data-cron-mode="hourly" aria-pressed="false">Hourly</button>
+            <button type="button" class="mat-seg__btn" data-cron-mode="daily" aria-pressed="false">Daily</button>
+            <button type="button" class="mat-seg__btn" data-cron-mode="weekly" aria-pressed="false">Weekly</button>
+            <button type="button" class="mat-seg__btn" data-cron-mode="monthly" aria-pressed="false">Monthly</button>
+            <button type="button" class="mat-seg__btn" data-cron-mode="custom" aria-pressed="false">Cron</button>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="minutes">
+            <span>Every</span>
+            <select class="mat-select mat-w-auto" data-cron-every aria-label="Minutes between the runs">
+                @foreach (var m in new[] { 5, 10, 15, 20, 30 })
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+            <span>minutes</span>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="hourly">
+            <span>Every</span>
+            <select class="mat-select mat-w-auto" data-cron-hours aria-label="Hours between the runs">
+                @foreach (var h in new[] { 1, 2, 3, 4, 6, 8, 12 })
+                {
+                    <option value="@h">@(h == 1 ? "hour" : $"{h} hours")</option>
+                }
+            </select>
+            <span>at minute</span>
+            <select class="mat-select mat-w-auto" data-cron-minute aria-label="Minute of the hour">
+                @for (var m = 0; m < 60; m += 5)
+                {
+                    <option value="@m">:@m.ToString("00")</option>
+                }
+            </select>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="weekly">
+            <div class="md-cron__days" role="group" aria-label="Days">
+                @foreach (var (d, label) in new[] { (1, "Mo"), (2, "Tu"), (3, "We"), (4, "Th"), (5, "Fr"), (6, "Sa"), (0, "Su") })
+                {
+                    <button type="button" class="md-cron__day" data-cron-day="@d" aria-pressed="false">@label</button>
+                }
+            </div>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="monthly">
+            <span>On the</span>
+            <select class="mat-select mat-w-auto" data-cron-dom aria-label="Day of the month">
+                @for (var d = 1; d <= 28; d++)
+                {
+                    <option value="@d">@(d).</option>
+                }
+            </select>
+            <span>of every month</span>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="daily weekly monthly">
+            <span>at</span>
+            <input type="time" class="mat-input mat-w-auto" data-cron-time value="02:00" step="300" aria-label="Time" />
+            <select class="mat-select mat-w-auto" data-cron-zone aria-label="Time zone"></select>
+        </div>
+
+        <div class="md-cron__row" data-cron-part="custom">
+            <input class="mat-input mat-mono" data-cron-text placeholder="0 4 * * *" aria-label="Cron expression" spellcheck="false" autocomplete="off" />
+            <span class="mat-hint">minute hour day month weekday</span>
+        </div>
+
+        <p class="md-cron__preview" data-cron-out aria-live="polite"></p>
+    </div>
+</div>

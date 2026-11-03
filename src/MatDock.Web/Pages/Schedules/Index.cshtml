@@ -59,44 +59,68 @@
         }
         else
         {
-            <div class="mat-table-wrap">
+            <div class="mat-table-wrap" id="live-schedules" data-live="@(Model.Runs.Running.Count > 0 ? "10" : "60")">
                 <table class="mat-table" id="sched-table">
                     <thead>
-                        <tr><th>Name</th><th>Trigger</th><th>Action</th><th>Environment</th><th>Next run</th><th>Last run</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                        <tr><th>Environment</th><th>Name</th><th>What</th><th>When</th><th>Status</th><th>Next run</th><th><span class="mat-sr-only">Actions</span></th></tr>
                     </thead>
                     <tbody>
                         @foreach (var t in Model.Tasks)
                         {
+                            var run = Model.Runs.Of(t.Id);
+                            var (tone, label, title) = MatDock.Web.Support.ScheduleView.State(t, run);
+                            var scope = MatDock.Web.Support.ScheduleView.Scope(t, Model.TargetNames);
                             <tr>
+                                <td class="mat-nowrap" data-label="Environment">@(t.EnvironmentId is { } eid && Model.EnvNames.TryGetValue(eid, out var n) ? n : "All")</td>
                                 <td data-label="Name">
-                                    <a href="/Schedules/Edit?id=@t.Id"><strong>@t.Name</strong></a>
-                                    <managed-badge value="@t.ManagedBy" />
-                                    @if (!t.Enabled)
-                                    {
-                                        <span class="mat-tag" title="Disabled">disabled</span>
-                                    }
+                                    <div class="mat-table__name">
+                                        <span>
+                                            <a href="/Schedules/Edit?id=@t.Id"><strong>@t.Name</strong></a>
+                                            <small>@ActionLabel(t.Action)</small>
+                                        </span>
+                                        <managed-badge value="@t.ManagedBy" />
+                                        @if (!t.Enabled)
+                                        {
+                                            <span class="mat-tag" title="Disabled">off</span>
+                                        }
+                                    </div>
                                 </td>
-                                <td data-label="Trigger">
+                                <td data-label="What">@(string.IsNullOrEmpty(scope) ? "–" : scope)</td>
+                                <td data-label="When">
                                     @if (t.Trigger == ScheduleTrigger.Cron)
                                     {
-                                        <span class="mat-mono">@t.Cron</span>
+                                        <span title="@t.Cron">@MatDock.Core.Schedules.CronText.Describe(t.Cron)</span>
                                     }
                                     else
                                     {
                                         <span class="mat-tag"><icon name="alert" /> @MatDock.Core.Schedules.ScheduleService.EventLabel(t.Event)</span>
                                     }
                                 </td>
-                                <td data-label="Action">@ActionLabel(t.Action)</td>
-                                <td class="mat-nowrap" data-label="Environment">@(t.EnvironmentId is { } eid && Model.EnvNames.TryGetValue(eid, out var n) ? n : "All environments")</td>
-                                <td class="mat-muted mat-nowrap" data-label="Next run">@(t.Trigger == ScheduleTrigger.Cron ? (t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–") : "on event")</td>
-                                <td class="mat-muted" data-label="Last run" title="@t.LastStatus">@Ago(t.LastRunAt)</td>
+                                <td data-label="Status">
+                                    <span class="mat-pill @tone" title="@title">@label</span>
+                                    @if (run is null && t.LastRunAt is { } last)
+                                    {
+                                        <small class="mat-muted" title="@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
+                                    }
+                                </td>
+                                <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(t.Trigger == ScheduleTrigger.Cron && t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
                                 <td class="mat-table__cell-actions">
-                                    <div class="mat-table__actions">
-                                        <form method="post" asp-page-handler="RunNow">
-                                            <input type="hidden" name="id" value="@t.Id" />
-                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Run now" aria-label="Run now"><icon name="play" /></button>
-                                        </form>
-                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Schedules/Edit?id=@t.Id" title="Edit" aria-label="Edit"><icon name="edit" /></a>
+                                    <div class="mat-table__actions md-acts">
+                                        @if (run is not null)
+                                        {
+                                            <form method="post" asp-page-handler="Cancel" data-confirm="Cancel the running '@t.Name'?">
+                                                <input type="hidden" name="id" value="@t.Id" />
+                                                <button type="submit" class="mat-btn mat-btn--danger mat-btn--solid mat-btn--sm mat-btn--icon" data-tip="Cancel" aria-label="Cancel @t.Name" disabled="@(run.Cancelling ? "disabled" : null)"><icon name="x" /></button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" asp-page-handler="RunNow">
+                                                <input type="hidden" name="id" value="@t.Id" />
+                                                <button type="submit" class="mat-btn md-btn--go mat-btn--sm mat-btn--icon" data-tip="Run now" aria-label="Run @t.Name now"><icon name="play" /></button>
+                                            </form>
+                                        }
+                                        <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Schedules/Edit?id=@t.Id" data-tip="Edit" aria-label="Edit @t.Name"><icon name="edit" /></a>
                                     </div>
                                 </td>
                             </tr>

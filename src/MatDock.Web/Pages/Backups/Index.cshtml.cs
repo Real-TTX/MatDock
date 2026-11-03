@@ -1,7 +1,9 @@
 using MatDock.Core.Backups;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Schedules;
 using MatDock.Core.Volumes;
+using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -15,8 +17,21 @@ public class IndexModel : PageModel
     private readonly BundleBackupService _bundleService;
     private readonly EnvironmentService _environments;
 
-    public IndexModel(VolumeBackupService backupService, BundleBackupService bundleService, EnvironmentService environments)
+    private readonly ScheduleService _schedules;
+    private readonly BackupTargetService _targets;
+    private readonly IServiceScopeFactory _scopes;
+    private readonly IHostApplicationLifetime _lifetime;
+    private readonly ILogger<IndexModel> _logger;
+
+    public IndexModel(VolumeBackupService backupService, BundleBackupService bundleService, EnvironmentService environments, ScheduleService schedules,
+        BackupTargetService targets, ScheduleRuns runs, IServiceScopeFactory scopes, IHostApplicationLifetime lifetime, ILogger<IndexModel> logger)
     {
+        _schedules = schedules;
+        _targets = targets;
+        Runs = runs;
+        _scopes = scopes;
+        _lifetime = lifetime;
+        _logger = logger;
         _backupService = backupService;
         _bundleService = bundleService;
         _environments = environments;
@@ -40,11 +55,25 @@ public class IndexModel : PageModel
     /// <summary>Distinct source-environment names across all backups (for the filter dropdown).</summary>
     public List<string> EnvNames { get; private set; } = new();
 
+    public ScheduleRuns Runs { get; }
+
+    /// <summary>The schedules that back something up (volumes, stacks, MatDock itself): what, where, when, how it went, and the one running now.</summary>
+    public List<ScheduledTask> Jobs { get; private set; } = new();
+
+    public Dictionary<long, string> JobEnvNames { get; private set; } = new();
+
+    public Dictionary<long, string> TargetNames { get; private set; } = new();
+
     [TempData] public string? StatusMessage { get; set; }
     [TempData] public bool IsError { get; set; }
 
     public async Task OnGetAsync()
     {
+        Jobs = (await _schedules.GetAllAsync(HttpContext.RequestAborted))
+            .Where(t => t.Action is ScheduleAction.Backup or ScheduleAction.BundleBackup or ScheduleAction.SelfBackup)
+            .OrderByDescending(t => Runs.Of(t.Id) is not null).ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        JobEnvNames = (await _environments.GetAllAsync(HttpContext.RequestAborted)).ToDictionary(e => e.Id, e => e.Name);
+        TargetNames = (await _targets.GetAllAsync(HttpContext.RequestAborted)).ToDictionary(t => t.Id, t => t.Name);
         var all = await _backupService.GetAllAsync(HttpContext.RequestAborted);
         EnvNames = all.Select(b => b.SourceEnvironmentName)
             .Where(n => !string.IsNullOrWhiteSpace(n))
@@ -120,5 +149,21 @@ public class IndexModel : PageModel
         StatusMessage = deleted ? "Backup deleted." : "Backup not found.";
         IsError = !deleted;
         return RedirectToPage(new { Q, Volume, Env });
+    }
+
+    public IActionResult OnPostRunJob(long id)
+    {
+        var started = ScheduleView.StartNow(_scopes, Runs, id, _lifetime.ApplicationStopping, _logger);
+        StatusMessage = started ? "Backup started. The list shows it running." : "It runs already.";
+        IsError = !started;
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostCancelJob(long id)
+    {
+        var cancelled = Runs.Cancel(id);
+        StatusMessage = cancelled ? "Cancelling: the backup stops at its next step." : "It does not run (any more).";
+        IsError = !cancelled;
+        return RedirectToPage();
     }
 }

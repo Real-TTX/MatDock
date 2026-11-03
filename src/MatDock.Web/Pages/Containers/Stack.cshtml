@@ -52,42 +52,11 @@ else
                             </div>
                         </td>
                         <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
-                        <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></td>
+                        <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" max="4" /></td>
                         <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" /></td>
                         <td class="mat-table__cell-actions">
-                            <div class="mat-table__actions">
-                                @if (openUrl is not null)
-                                {
-                                    <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="@openUrl" target="_blank" rel="noopener noreferrer" title="Open" aria-label="Open"><icon name="external" /></a>
-                                }
-                                <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
-                                @if (canControl && c.IsRunning)
-                                {
-                                    var itself = Self.IsOn(Model.EnvId, c.Id);
-                                    <form method="post" asp-page-handler="Action" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
-                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
-                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>
-                                    </form>
-                                    @if (itself)
-                                    {
-                                        <button type="button" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" disabled title="This container is MatDock itself: stop it on the host" aria-label="Stop"><icon name="stop" /></button>
-                                    }
-                                    else
-                                    {
-                                        <form method="post" asp-page-handler="Action" data-confirm="Stop '@c.Name'?">
-                                            <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Stop" />
-                                            <button type="submit" class="mat-btn mat-btn--danger mat-btn--icon mat-btn--sm" title="Stop" aria-label="Stop"><icon name="stop" /></button>
-                                        </form>
-                                    }
-                                }
-                                else if (canControl)
-                                {
-                                    <form method="post" asp-page-handler="Action">
-                                        <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Start" />
-                                        <button type="submit" class="mat-btn mat-btn--primary mat-btn--icon mat-btn--sm" title="Start" aria-label="Start"><icon name="play" /></button>
-                                    </form>
-                                }
-                            </div>
+                            @{ var acts = new MatDock.Web.Support.ContainerActionsModel(Model.EnvId, c, "Action", canControl, User.IsInRole("Admin"), Self.IsOn(Model.EnvId, c.Id)) { Project = Model.Project, OpenUrl = openUrl }; }
+                            <partial name="_ContainerActions" model="acts" />
                         </td>
                     </tr>
                 }

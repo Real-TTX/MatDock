@@ -1,0 +1,6 @@
+@model (MatDock.Web.Support.ContainerActionsModel Actions, MatDock.Core.Containers.ContainerAction Action)
+<input type="hidden" name="envId" value="@Model.Actions.EnvId" /><input type="hidden" name="id" value="@Model.Actions.Container.Id" /><input type="hidden" name="name" value="@Model.Actions.Container.Name" /><input type="hidden" name="action" value="@Model.Action" />
+@if (Model.Actions.Project is not null)
+{
+    <input type="hidden" name="project" value="@Model.Actions.Project" />
+}
