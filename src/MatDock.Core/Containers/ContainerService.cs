@@ -6,6 +6,7 @@ using MatDock.Core.Environments;
 using MatDock.Core.Execution;
 using MatDock.Core.Ssh;
 using MatDock.Core.Volumes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -19,14 +20,23 @@ public sealed class ContainerService
     private readonly MatDockOptions _options;
     private readonly ILogger<ContainerService> _logger;
     private readonly SelfContainer? _self;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache? _cache;
+
+    /// <summary>
+    /// How long the answer of <c>docker stats</c> of a host is used again. It is the costly part of a container list (Docker samples every container), and a
+    /// page that refreshes itself, the dashboard and the metrics would otherwise each ask for it: shared, a host is asked at most this often.
+    /// </summary>
+    public static readonly TimeSpan StatsFor = TimeSpan.FromSeconds(30);
 
     public ContainerService(
         IHostSessionFactory hostSessionFactory,
         EnvironmentService environmentService,
         IOptions<MatDockOptions> options,
         ILogger<ContainerService> logger,
-        SelfContainer? self = null)
+        SelfContainer? self = null,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache? cache = null)
     {
+        _cache = cache;
         _hostSessionFactory = hostSessionFactory;
         _environmentService = environmentService;
         _options = options.Value;
@@ -38,34 +48,39 @@ public sealed class ContainerService
     public const string SelfRefusal =
         "This container is MatDock itself: stopped, paused, removed or re-created from here, nobody could start it again. Do it on the host.";
 
-    /// <summary>Whether <paramref name="id"/> (an id or a name) is MatDock's own container (<see cref="SelfContainer"/>).</summary>
+    /// <summary>Whether <paramref name="id"/> (an id or a name) is MatDock's own container (<see cref="SelfContainer"/>), or through a bridge the MatDock at its end.</summary>
     public async Task<bool> IsSelfAsync(DockerEnvironment environment, string id, CancellationToken ct = default)
+        => await SelfTargetOfAsync(environment, id, ct) is not null;
+
+    /// <summary>The MatDock that <paramref name="id"/> is (<see cref="IsSelfAsync"/>), or null.</summary>
+    private async Task<SelfTarget?> SelfTargetOfAsync(DockerEnvironment environment, string id, CancellationToken ct)
     {
-        if (_self?.Id is null || !ContainerCommands.IsValidId(id))
+        if (_self is null || !ContainerCommands.IsValidId(id)
+            || await _self.TargetAsync(environment.Id, _environmentService.BuildSettings(environment), ct) is not { } target)
         {
-            return false;
+            return null;
         }
 
-        if (_self.Is(id))
+        if (target.Is(id))
         {
-            return true;
+            return target;
         }
 
         if (id.All(Uri.IsHexDigit))
         {
-            return false; // an id, not ours
+            return null; // an id, not ours
         }
 
         // A name: what it stands for.
         try
         {
             var (ok, output) = await RunAsync(environment, head => VolumeCommands.PathPrefix + head + " inspect -f \"{{.Id}}\" " + VolumeFileCommands.ShellQuote(id), ct);
-            return ok && _self.Is(output.Trim());
+            return ok && target.Is(output.Trim()) ? target : null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Could not tell whether {Id} is MatDock's container.", id);
-            return false;
+            return null;
         }
     }
 
@@ -92,13 +107,21 @@ public sealed class ContainerService
             return containers;
         }
 
-        // Best-effort live usage on the same connection; never fail the listing if stats are unavailable.
+        // Best-effort live usage on the same connection (shared for <see cref="StatsFor"/>); never fail the listing if stats are unavailable.
+        var statsKey = "docker-stats:" + environment.Id;
+        if (_cache is not null && _cache.TryGetValue(statsKey, out string? recent) && recent is not null)
+        {
+            ApplyStats(containers, recent);
+            return containers;
+        }
+
         try
         {
             var statsResult = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
             if (statsResult.ExitStatus == 0)
             {
                 ApplyStats(containers, statsResult.StdOut);
+                _cache?.Set(statsKey, statsResult.StdOut, StatsFor);
             }
         }
         catch (Exception ex)
@@ -357,7 +380,7 @@ public sealed class ContainerService
         try
         {
             var command = ContainerCommands.Action(head, action, id);
-            if (action is ContainerAction.Stop or ContainerAction.Kill or ContainerAction.Pause or ContainerAction.Restart && await IsSelfAsync(environment, id, ct))
+            if (action is ContainerAction.Stop or ContainerAction.Kill or ContainerAction.Pause or ContainerAction.Restart && await SelfTargetOfAsync(environment, id, ct) is { } self)
             {
                 if (action != ContainerAction.Restart)
                 {
@@ -365,7 +388,7 @@ public sealed class ContainerService
                 }
 
                 // A restart stops this process too: a helper container does it a few seconds later.
-                if (Stacks.SelfHandover.For(settings, _self!.Id!) is not { } handover)
+                if (self.HandOver() is not { } handover)
                 {
                     return (false, Stacks.SelfHandover.NoHandover);
                 }

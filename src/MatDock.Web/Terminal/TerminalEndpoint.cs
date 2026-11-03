@@ -70,6 +70,15 @@ public static class TerminalEndpoint
         var settings = environmentService.BuildSettings(env);
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
 
+        // A bridge carries commands, not an interactive terminal: the shell is opened on the other MatDock.
+        if (settings.IsBridge)
+        {
+            using var bridgeWs = await context.WebSockets.AcceptWebSocketAsync();
+            await TrySendTextAsync(bridgeWs, "\r\n\x1b[33m[This environment is reached through another MatDock (a bridge), which carries no terminal; open the shell there.]\x1b[0m\r\n");
+            try { await bridgeWs.CloseAsync(WebSocketCloseStatus.NormalClosure, "unsupported", CancellationToken.None); } catch { }
+            return;
+        }
+
         // A Local environment is the Docker socket of MatDock's own host: a shell in a container works (through script),
         // a shell on the host would be one in MatDock's own container, so there is none.
         if (settings.RunsLocally)

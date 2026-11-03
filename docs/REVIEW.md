@@ -353,3 +353,24 @@ are refused, with a disabled button and the *This MatDock* mark. A backup that s
 says so. A restore into a volume MatDock uses is refused. Over a Docker API connection (tcp) there is no handover, and the deploy is
 refused rather than leaving MatDock down. Tried for real: a MatDock as compose project `mdself` deployed itself with a changed setting and a
 secret (recreated in 12 s, the secret in the new container, the history *Done, 1 recreated*), and rolled itself onto a newly built image.
+
+**Another MatDock as a bridge (November 2026).** An environment can be *Another MatDock (bridge)*: its address, a key of the new
+scope *Bridge* made there, and an environment there. The commands go as they would over SSH (`POST /api/v1/bridge/exec`: the command,
+then its stdin; the answer is frames of stdout as it comes, then stderr and the exit code), so every feature works unchanged. The other
+side runs them through its own session factory, local, over SSH or through a further bridge (chains, cut after four, `508`).
+`/api/v1/bridge/info` says how Docker is called at the end of the chain (sudo, DOCKER_HOST); the connection test stores that for the
+commands, and the MatDock container there is protected like this one. Its own stack's steps go to a helper container on its side.
+A bridge key opens only the bridge, and nothing else opens it. A self-signed certificate is pinned by its SHA-256, which the test names.
+No terminal through a bridge. Tried for real with two MatDocks: the test learned the Docker of the other side, the list showed its host
+figures, and a stack with a secret deployed from A ran on B's Docker with the secret inside.
+
+**Load on SSH hosts and lost sign-ins (November 2026, from live use).** A MatDock with a host over SSH put a high load on it. Every
+command opened its own SSH connection, a login on the host (sshd, PAM, a logind session, the user's shell), and an open page reads
+every 20–30 s, besides the dashboard, the alerts and the metrics. SSH sessions now share kept-open connections (`SshConnectionPool`:
+four sessions per connection, three connections per host, closed after two idle minutes, dropped when broken; a first contact without a
+saved host key keeps its own connection). Against a real sshd, 34 sessions were 5 logins instead of 34. `docker stats`, which makes
+Docker sample every container, is shared per host for 30 s (`ContainerService.StatsFor`). Sign-ins were lost for two reasons: the
+session check wrote to SQLite on every request and failed when the database was busy, which ended the request or the session; and every
+MatDock named its cookies `matdock.auth`, so two MatDocks reached on one host (cookies ignore the port) signed each other out. The
+check now keeps the cookie when the database cannot answer, and the cookies carry the id of the installation (`config/instance-id`).
+That signs everyone out once after the update.

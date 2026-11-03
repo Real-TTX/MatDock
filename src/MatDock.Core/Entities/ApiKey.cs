@@ -8,6 +8,12 @@ public enum ApiKeyScope
 
     /// <summary>Everything the API offers, as the engine key.</summary>
     Full = 1,
+
+    /// <summary>
+    /// Only the bridge (<c>/api/v1/bridge</c>): another MatDock runs its Docker commands on the environments here. That is as much as a shell with the
+    /// Docker socket, so no other key opens it (not even the engine key), and this one opens nothing else.
+    /// </summary>
+    Bridge = 2,
 }
 
 /// <summary>

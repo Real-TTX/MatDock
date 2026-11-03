@@ -48,7 +48,7 @@ public static class MatDockApi
             {
                 id = e.Id,
                 name = e.Name,
-                type = e.ConnectionType switch { ConnectionType.Local => "local", ConnectionType.Tcp => "tcp", _ => "ssh" },
+                type = MatDock.Core.Environments.ConnectionNames.Of(e.ConnectionType),
                 status = e.Status.ToString().ToLowerInvariant(),
                 enabled = e.IsEnabled,
             }),

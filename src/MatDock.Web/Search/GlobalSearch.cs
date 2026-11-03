@@ -146,7 +146,7 @@ public sealed class GlobalSearch
         }
 
         var envHits = environments.Where(e => Hit(q, e.Name, e.Host))
-            .Select(e => (e.Name, new SearchItem(e.Name, e.ConnectionType == ConnectionType.Local ? "local Docker" : e.Host, $"/Environments/Detail?id={e.Id}", "server", "environment")))
+            .Select(e => (e.Name, new SearchItem(e.Name, e.ConnectionType == ConnectionType.Local ? "local Docker" : e.ConnectionType == ConnectionType.Bridge ? $"{e.RemoteEnvironment} via {e.Host}" : e.Host, $"/Environments/Detail?id={e.Id}", "server", "environment")))
             .ToList();
         var pages = Pages.Where(p => (admin || !p.Admin) && Hit(q, p.Name))
             .Select(p => (p.Name, new SearchItem(p.Name, null, p.Href, p.Icon, "page")))

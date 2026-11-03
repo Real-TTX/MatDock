@@ -6,7 +6,7 @@
     ViewData["Title"] = "Stacks";
     var isGallery = !string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
     // MatDock runs in this stack: no stop or down from here (StackService refuses them too).
-    bool IsSelf(MatDock.Web.Pages.Stacks.IndexModel.StackRow r) => r.Containers.Any(c => Self.Is(c.Id));
+    bool IsSelf(MatDock.Web.Pages.Stacks.IndexModel.StackRow r) => r.Containers.Any(c => Self.IsOn(r.EnvId, c.Id));
     const string SelfTitle = "MatDock runs in this stack: stop or remove it on the host";
 
     string ViewUrl(string v) => $"/Stacks?view={v}"
@@ -66,7 +66,7 @@
                                 {
                                     <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Terminal?envId=@r.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)" title="Shell" aria-label="Shell"><icon name="terminal" /></a>
                                 }
-                                var itself = Self.Is(c.Id);
+                                var itself = Self.IsOn(r.EnvId, c.Id);
                                 <form method="post" asp-page-handler="ContainerAction" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
                                     <input type="hidden" name="envId" value="@r.EnvId" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                                     <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>

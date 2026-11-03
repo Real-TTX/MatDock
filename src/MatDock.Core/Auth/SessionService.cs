@@ -66,10 +66,18 @@ public sealed class SessionService
 
         if (DateTime.UtcNow - session.LastSeenAt > TouchInterval)
         {
-            // Slide the server-side expiry with activity (mirrors the cookie's sliding expiration).
+            // Slide the server-side expiry with activity (mirrors the cookie's sliding expiration). Best effort: a database that is busy for a moment
+            // (SQLite has one writer) or a request the browser dropped must not end the session; the next request slides it.
             session.LastSeenAt = DateTime.UtcNow;
             session.ExpiresAt = DateTime.UtcNow.AddDays(Math.Max(1, _options.SessionLifetimeDays));
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _db.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (DbUpdateException)
+            {
+                _db.Entry(session).State = EntityState.Unchanged;
+            }
         }
 
         return session;

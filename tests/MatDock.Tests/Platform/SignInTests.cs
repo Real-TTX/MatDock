@@ -12,7 +12,7 @@ namespace MatDock.Tests.Platform;
 /// <summary>Helpers of the sign-in tests.</summary>
 internal static partial class SignIn
 {
-    public const string SessionCookie = "matdock.auth";
+    public const string SessionCookie = "matdock.auth." + MatDockFactory.InstanceId;
 
     /// <summary>Posts the local form of <paramref name="page"/> (which <paramref name="browser"/> has just loaded) to <paramref name="url"/>.</summary>
     public static Task<HttpResponseMessage> PostLocalFormAsync(HttpClient browser, string url, string page, string user = MatDockFactory.Admin, string password = MatDockFactory.AdminPassword)

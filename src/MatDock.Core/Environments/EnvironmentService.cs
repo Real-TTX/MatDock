@@ -185,10 +185,12 @@ public sealed class EnvironmentService
             TimeoutSeconds = _options.SshTimeoutSeconds,
             UseSudo = env.UseSudo,
             DockerHost = env.DockerHost,
-            HostKeyFingerprint = env.ConnectionType == ConnectionType.Ssh ? env.HostKeyFingerprint : null,
+            // SSH: the host key to expect; a bridge: the certificate to trust that no CA vouches for.
+            HostKeyFingerprint = env.ConnectionType is ConnectionType.Ssh or ConnectionType.Bridge ? env.HostKeyFingerprint : null,
             TlsCaPem = env.TlsCa,
             TlsCertPem = env.TlsCert,
             TlsKeyPem = _secrets.UnprotectNullable(env.EncryptedTlsKey),
+            RemoteEnvironment = env.RemoteEnvironment,
         };
     }
 
@@ -243,6 +245,24 @@ public sealed class EnvironmentService
                 TlsCaPem = Pem(input.TlsCa),
                 TlsCertPem = Pem(input.TlsCert),
                 TlsKeyPem = Pem(input.TlsKey) ?? storedKey,
+                TimeoutSeconds = _options.SshTimeoutSeconds,
+            };
+        }
+
+        if (input.ConnectionType == ConnectionType.Bridge)
+        {
+            // A blank key keeps the stored one, but only for the address it was saved for.
+            var storedKey = string.IsNullOrEmpty(input.Password) && id is > 0 && await GetAsync(id.Value, ct) is { } savedBridge && SameBridge(savedBridge, input)
+                ? _secrets.UnprotectNullable(savedBridge.EncryptedPassword)
+                : null;
+            return new SshConnectionSettings
+            {
+                ConnectionType = ConnectionType.Bridge,
+                Host = (input.Host ?? string.Empty).Trim(),
+                Username = string.Empty,
+                Password = string.IsNullOrEmpty(input.Password) ? storedKey : input.Password.Trim(),
+                RemoteEnvironment = (input.RemoteEnvironment ?? string.Empty).Trim(),
+                HostKeyFingerprint = string.IsNullOrWhiteSpace(input.CertificateFingerprint) ? null : input.CertificateFingerprint.Trim(),
                 TimeoutSeconds = _options.SshTimeoutSeconds,
             };
         }
@@ -425,12 +445,53 @@ public sealed class EnvironmentService
            && entity.Port == input.Port
            && string.Equals(entity.Username, (input.Username ?? string.Empty).Trim(), StringComparison.Ordinal);
 
+    /// <summary>Whether the input points at the same other MatDock (its address) as the stored bridge.</summary>
+    public static bool SameBridge(DockerEnvironment entity, EnvironmentInput input)
+        => entity.ConnectionType == ConnectionType.Bridge
+           && string.Equals(entity.Host.TrimEnd('/'), (input.Host ?? string.Empty).Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+
     private void ApplyInput(DockerEnvironment entity, EnvironmentInput input, bool isCreate)
     {
+        var sameBridge = !isCreate && SameBridge(entity, input);
+        var sameRemote = sameBridge && string.Equals(entity.RemoteEnvironment, input.RemoteEnvironment?.Trim(), StringComparison.OrdinalIgnoreCase);
         entity.Name = input.Name.Trim();
         entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         entity.BaseUrl = string.IsNullOrWhiteSpace(input.BaseUrl) ? null : input.BaseUrl.Trim();
         entity.ConnectionType = input.ConnectionType;
+        entity.RemoteEnvironment = null;
+
+        if (input.ConnectionType == ConnectionType.Bridge)
+        {
+            // Another MatDock: its address, the bridge key (encrypted; a blank one keeps the stored key for the same address), the environment there,
+            // and a certificate to trust. How Docker is called there (sudo, DOCKER_HOST) is learned from it at the connection test.
+            entity.Host = input.Host.Trim().TrimEnd('/');
+            entity.Port = 0;
+            entity.Username = string.Empty;
+            entity.AuthType = AuthType.Password;
+            if (!string.IsNullOrEmpty(input.Password))
+            {
+                entity.EncryptedPassword = _secrets.Protect(input.Password.Trim());
+            }
+            else if (!sameBridge)
+            {
+                entity.EncryptedPassword = null;
+            }
+
+            entity.EncryptedPrivateKey = null;
+            entity.EncryptedPrivateKeyPassphrase = null;
+            entity.TlsCa = null;
+            entity.TlsCert = null;
+            entity.EncryptedTlsKey = null;
+            entity.RemoteEnvironment = (input.RemoteEnvironment ?? string.Empty).Trim();
+            entity.HostKeyFingerprint = string.IsNullOrWhiteSpace(input.CertificateFingerprint) ? null : input.CertificateFingerprint.Trim();
+            if (!sameRemote)
+            {
+                entity.UseSudo = false;
+                entity.DockerHost = null;
+            }
+
+            return;
+        }
 
         if (input.ConnectionType != ConnectionType.Tcp)
         {

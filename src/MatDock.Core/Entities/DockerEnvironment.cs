@@ -48,6 +48,9 @@ public class DockerEnvironment : AuditableEntity
     /// <summary>Optional DOCKER_HOST (e.g. a rootless socket <c>unix:///run/user/1000/docker.sock</c>); auto-detected.</summary>
     public string? DockerHost { get; set; }
 
+    /// <summary>A bridge (<see cref="ConnectionType.Bridge"/>): the environment on the other MatDock (its name or id) the commands run on.</summary>
+    public string? RemoteEnvironment { get; set; }
+
     /// <summary>The SSH host key (SHA256 fingerprint) seen at the first successful connection; later connections must
     /// show the same key. Null until then, and again after the host, port or user changed or the key was forgotten.</summary>
     public string? HostKeyFingerprint { get; set; }

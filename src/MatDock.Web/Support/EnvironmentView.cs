@@ -6,12 +6,13 @@ namespace MatDock.Web.Support;
 /// <summary>How an environment is shown in lists.</summary>
 public static class EnvironmentView
 {
-    /// <summary>Where MatDock reaches it: <c>user@host:port</c> over SSH, "Docker socket" for a Local environment.</summary>
+    /// <summary>Where MatDock reaches it: <c>user@host:port</c> over SSH, "Docker socket" for a Local environment, the environment of another MatDock for a bridge.</summary>
     public static string Address(DockerEnvironment env)
         => env.ConnectionType switch
         {
             ConnectionType.Local => "Docker socket",
             ConnectionType.Tcp => $"tcp://{env.Host}:{env.Port}{(env.TlsCert is null ? " (no TLS)" : string.Empty)}",
+            ConnectionType.Bridge => $"{env.RemoteEnvironment} via {env.Host}",
             _ => $"{env.Username}@{env.Host}:{env.Port}",
         };
 

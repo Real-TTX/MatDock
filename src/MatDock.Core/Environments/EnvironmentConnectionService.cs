@@ -35,6 +35,11 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
     public async Task<DockerConnectionResult> TestConnectionAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)
     {
+        if (settings.IsBridge)
+        {
+            return await TestBridgeAsync(settings, cancellationToken);
+        }
+
         try
         {
             using var client = _hostSessionFactory.Create(settings);
@@ -89,6 +94,68 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
 
             return DockerConnectionResult.Fail(DockerErrorMessages.DescribeSshError(ex), EnvironmentStatus.Error);
         }
+    }
+
+    /// <summary>
+    /// A bridge: the other MatDock says how Docker is called on its environment (sudo, DOCKER_HOST, through every further bridge), which this side then
+    /// uses for its own commands, and Docker answers through it. An untrusted certificate is named, so the user can pin it.
+    /// </summary>
+    private async Task<DockerConnectionResult> TestBridgeAsync(SshConnectionSettings settings, CancellationToken ct)
+    {
+        if (BridgeProtocol.Problem(settings.Host) is { } problem)
+        {
+            return DockerConnectionResult.Fail(problem);
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.RemoteEnvironment))
+        {
+            return DockerConnectionResult.Fail("Name the environment on the other MatDock.");
+        }
+
+        BridgeInfo info;
+        try
+        {
+            info = await BridgeHttp.InfoAsync(settings, ct);
+        }
+        catch (HttpRequestException ex) when (ex.InnerException is System.Security.Authentication.AuthenticationException)
+        {
+            var seen = await BridgeHttp.PeekCertificateAsync(settings.Host, ct);
+            return DockerConnectionResult.Fail(
+                $"The certificate of {settings.Host} is not trusted{(seen is null ? "." : $": its SHA-256 is {seen}.")} If it is the one of the other MatDock "
+                + "(a self-signed one), enter it as the certificate fingerprint.", EnvironmentStatus.Error);
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException or TaskCanceledException or JsonException)
+        {
+            _logger.LogInformation(ex, "Bridge test to {Url} failed.", settings.Host);
+            if (ex is IOException && ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var offered = await BridgeHttp.EnvironmentsAsync(settings, ct);
+                    return DockerConnectionResult.Fail($"{ex.Message} It offers: {string.Join(", ", offered.Where(e => e.Enabled).Select(e => e.Name))}.", EnvironmentStatus.Error);
+                }
+                catch (Exception inner) when (inner is IOException or HttpRequestException or TaskCanceledException or JsonException)
+                {
+                    // the plain message then
+                }
+            }
+
+            return DockerConnectionResult.Fail(ex is TaskCanceledException or HttpRequestException ? $"The other MatDock cannot be reached: {ex.Message}" : ex.Message,
+                ex is HttpRequestException or TaskCanceledException ? EnvironmentStatus.Offline : EnvironmentStatus.Error);
+        }
+
+        using var client = _hostSessionFactory.Create(settings);
+        var probe = RunCommand(client, VolumeCommands.ServerVersion(VolumeCommands.DockerHead(info.UseSudo, info.DockerHost)), settings);
+        if (probe.ExitStatus != 0 || string.IsNullOrWhiteSpace(probe.StdOut))
+        {
+            return DockerConnectionResult.Fail(DockerErrorMessages.InterpretDockerError(probe.StdErr, probe.StdOut));
+        }
+
+        var (version, apiVersion, osArch) = ParseServerVersion(probe.StdOut);
+        var chain = info.Hops > 0 ? $" ({info.Hops + 1} bridges)" : string.Empty;
+        return DockerConnectionResult.Ok(
+            $"Connected through the MatDock at {settings.Host} to Docker {version} (API {apiVersion}) on its environment '{info.Environment}'{chain}.",
+            version, apiVersion, osArch, info.UseSudo, info.DockerHost, "bridge");
     }
 
     public async Task<IReadOnlyList<DockerVolume>> ListVolumesAsync(SshConnectionSettings settings, CancellationToken cancellationToken = default)

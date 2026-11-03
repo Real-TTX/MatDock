@@ -68,6 +68,57 @@ public sealed partial class SelfContainer
     /// <summary>Waits until a step is handed over (<see cref="NoteHandover"/>).</summary>
     public Task WaitForHandoverAsync(CancellationToken ct) => _handedOver.WaitAsync(ct);
 
+    // Through a bridge: the MatDock at the end of the chain, per environment, for a while.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (SelfTarget? Target, DateTime At)> _bridged = new(StringComparer.Ordinal);
+
+    /// <summary>How long the answer of a bridge about its MatDock is kept.</summary>
+    public static readonly TimeSpan BridgeAnswerFor = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// The MatDock container to protect on an environment, and how a helper container reaches Docker there: for a direct environment this MatDock's own
+    /// container; through a bridge the MatDock at the end of the chain (the commands run through it: stopped, it would cut its own bridge mid-command, and
+    /// steps of its stack go to a helper container there). Null when there is none, or the bridge does not answer now.
+    /// </summary>
+    public async Task<SelfTarget?> TargetAsync(long environmentId, Ssh.SshConnectionSettings settings, CancellationToken ct)
+    {
+        if (!settings.IsBridge)
+        {
+            return Id is null ? null : new SelfTarget(Id, settings);
+        }
+
+        var key = PlaceKey(environmentId, settings);
+        if (_bridged.TryGetValue(key, out var known) && DateTime.UtcNow - known.At < BridgeAnswerFor)
+        {
+            return known.Target;
+        }
+
+        try
+        {
+            var info = await BridgeHttp.InfoAsync(settings, ct);
+            var target = info.MatDockContainer is { Length: 64 } id && id.All(Uri.IsHexDigit)
+                ? new SelfTarget(id.ToLowerInvariant(), new Ssh.SshConnectionSettings
+                {
+                    ConnectionType = info.Connection switch { "local" => Entities.ConnectionType.Local, "tcp" => Entities.ConnectionType.Tcp, _ => Entities.ConnectionType.Ssh },
+                    Host = "bridge",
+                    Username = string.Empty,
+                    UseSudo = info.UseSudo,
+                    DockerHost = info.DockerHost,
+                })
+                : null;
+            _bridged[key] = (target, DateTime.UtcNow);
+            return target;
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>For the pages: whether a container of an environment is the MatDock to protect there (this one, or the one behind its bridge, when known).</summary>
+    public bool IsOn(long environmentId, string? containerId)
+        => Is(containerId) || (containerId is { Length: >= 12 } c && _bridged.Any(kv => kv.Key.StartsWith(environmentId + "|", StringComparison.Ordinal)
+                                                                                       && kv.Value.Target?.Id.StartsWith(c.Trim().ToLowerInvariant(), StringComparison.Ordinal) == true));
+
     /// <summary>The key of an environment's answer: its id and what it connects to (an edited connection asks again).</summary>
     public static string PlaceKey(long environmentId, Ssh.SshConnectionSettings settings)
         => $"{environmentId}|{settings.ConnectionType}|{settings.Host}|{settings.Port}|{settings.DockerHost}";
@@ -87,3 +138,14 @@ public sealed partial class SelfContainer
 
 /// <summary>Where MatDock's container is on an environment: its compose project and service (empty when it was not made by compose).</summary>
 public sealed record SelfPlace(string Project, string Service);
+
+/// <summary>
+/// The MatDock container to protect on an environment (<see cref="SelfContainer.TargetAsync"/>) and the connection a helper container works with there
+/// (<see cref="Stacks.SelfHandover.For"/>): through a bridge the kind of the environment at its end.
+/// </summary>
+public sealed record SelfTarget(string Id, Ssh.SshConnectionSettings Handover)
+{
+    public Stacks.SelfHandover? HandOver() => Stacks.SelfHandover.For(Handover, Id);
+
+    public bool Is(string? containerId) => new SelfContainer(Id).Is(containerId);
+}

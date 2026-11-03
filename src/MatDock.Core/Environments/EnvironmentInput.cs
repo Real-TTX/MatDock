@@ -32,6 +32,12 @@ public sealed class EnvironmentInput
     public string? PrivateKeyPassphrase { get; set; }
 
     /// <summary>Docker API over TCP: CA, client certificate and client key (PEM); all empty = no TLS. A blank key on edit keeps the stored one.</summary>
+    /// <summary>A bridge: the environment on the other MatDock (its name or id).</summary>
+    public string? RemoteEnvironment { get; set; }
+
+    /// <summary>A bridge: the SHA-256 of the other MatDock's certificate, when no CA vouches for it (a self-signed one).</summary>
+    public string? CertificateFingerprint { get; set; }
+
     public string? TlsCa { get; set; }
     public string? TlsCert { get; set; }
     public string? TlsKey { get; set; }

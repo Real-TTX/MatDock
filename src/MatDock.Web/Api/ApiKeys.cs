@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace MatDock.Web.Api;
 
 /// <summary>Who called with a key: its name (null = the engine key) and whether it may change anything. Kept in <c>HttpContext.Items</c> for the request.</summary>
-public sealed record ApiCaller(string? KeyName, bool CanWrite)
+public sealed record ApiCaller(string? KeyName, bool CanWrite, bool IsBridge = false)
 {
     public const string ItemKey = "matdock.api-caller";
 
@@ -45,7 +45,7 @@ public static class ApiKeys
     /// passes stands for the system: a session cookie that came along plays no role (its user's limits do not apply); a named key gives the audit its name.
     /// The caller is kept for the request (<see cref="ApiCaller.Of"/>).
     /// </summary>
-    public static async Task<(ApiCaller? Caller, IResult? Denied)> AuthenticateAsync(HttpContext http)
+    public static async Task<(ApiCaller? Caller, IResult? Denied)> AuthenticateAsync(HttpContext http, bool bridge = false)
     {
         var configured = http.RequestServices.GetRequiredService<IOptions<MatDockOptions>>().Value.Api.Key;
         var presented = Presented(http.Request);
@@ -60,12 +60,20 @@ public static class ApiKeys
         var keys = http.RequestServices.GetService<ApiKeyService>();
         if (caller is null && keys is not null && await keys.FindAsync(presented, http.RequestAborted) is { } key)
         {
-            caller = new ApiCaller(key.Name, key.Scope == ApiKeyScope.Full);
+            caller = new ApiCaller(key.Name, key.Scope == ApiKeyScope.Full, key.Scope == ApiKeyScope.Bridge);
             http.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, caller.Actor)], Scheme));
         }
 
         if (caller is not null)
         {
+            // The bridge is as much as a shell on the Docker hosts: only a bridge key opens it, and a bridge key opens nothing else.
+            if (caller.IsBridge != bridge)
+            {
+                return (null, ApiResults.Error(StatusCodes.Status403Forbidden, bridge
+                    ? "The bridge needs a bridge key (System → API keys, \"Bridge\")."
+                    : $"The key '{caller.KeyName}' is a bridge key: it opens only the bridge of another MatDock."));
+            }
+
             http.Items[ApiCaller.ItemKey] = caller;
             return (caller, null);
         }

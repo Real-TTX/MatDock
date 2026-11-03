@@ -89,6 +89,19 @@ public class EditModel : PageModel
         public string? TlsCa { get; set; }
         public string? TlsCert { get; set; }
         public string? TlsKey { get; set; }
+
+        // A bridge: the other MatDock (fields of their own, so they never mix with the SSH host and password).
+        [StringLength(500)]
+        public string? BridgeUrl { get; set; }
+
+        [DataType(DataType.Password)]
+        public string? BridgeKey { get; set; }
+
+        [StringLength(200)]
+        public string? RemoteEnvironment { get; set; }
+
+        [StringLength(200)]
+        public string? CertificateFingerprint { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(long? id)
@@ -201,7 +214,7 @@ public class EditModel : PageModel
             return Page();
         }
 
-        if (Input.ConnectionType == ConnectionType.Tcp)
+        if (Input.ConnectionType is ConnectionType.Tcp or ConnectionType.Bridge)
         {
             ValidateConnection();
             if (!ModelState.IsValid)
@@ -235,23 +248,29 @@ public class EditModel : PageModel
         return Page();
     }
 
-    private EnvironmentInput ToServiceInput() => new()
+    private EnvironmentInput ToServiceInput()
     {
-        Name = Input.Name,
-        Description = Input.Description,
-        BaseUrl = Input.BaseUrl,
-        ConnectionType = Input.ConnectionType,
-        Host = Input.Host ?? string.Empty,
-        Port = Input.Port,
-        Username = Input.Username ?? string.Empty,
-        AuthType = Input.AuthType,
-        Password = Input.Password,
-        PrivateKeyPem = Input.PrivateKeyPem,
-        PrivateKeyPassphrase = Input.PrivateKeyPassphrase,
-        TlsCa = Input.TlsCa,
-        TlsCert = Input.TlsCert,
-        TlsKey = Input.TlsKey,
-    };
+        var bridge = Input.ConnectionType == ConnectionType.Bridge;
+        return new()
+        {
+            Name = Input.Name,
+            Description = Input.Description,
+            BaseUrl = Input.BaseUrl,
+            ConnectionType = Input.ConnectionType,
+            Host = (bridge ? Input.BridgeUrl : Input.Host) ?? string.Empty,
+            Port = Input.Port,
+            Username = Input.Username ?? string.Empty,
+            AuthType = Input.AuthType,
+            Password = bridge ? Input.BridgeKey : Input.Password,
+            PrivateKeyPem = Input.PrivateKeyPem,
+            PrivateKeyPassphrase = Input.PrivateKeyPassphrase,
+            TlsCa = Input.TlsCa,
+            TlsCert = Input.TlsCert,
+            TlsKey = Input.TlsKey,
+            RemoteEnvironment = Input.RemoteEnvironment,
+            CertificateFingerprint = Input.CertificateFingerprint,
+        };
+    }
 
     private void MapToInput(DockerEnvironment entity)
     {
@@ -270,11 +289,33 @@ public class EditModel : PageModel
             TlsCa = entity.TlsCa,
             TlsCert = entity.TlsCert,
         };
+        if (entity.ConnectionType == ConnectionType.Bridge)
+        {
+            Input.Host = null;
+            Input.BridgeUrl = entity.Host;
+            Input.RemoteEnvironment = entity.RemoteEnvironment;
+            Input.CertificateFingerprint = entity.HostKeyFingerprint;
+        }
     }
 
     /// <summary>SSH environments need a host and user, Docker API ones a host and a complete set of certificates (or none); local ones talk to the mounted socket.</summary>
     private void ValidateConnection()
     {
+        if (Input.ConnectionType == ConnectionType.Bridge)
+        {
+            if (MatDock.Core.Execution.BridgeProtocol.Problem(Input.BridgeUrl) is { } problem)
+            {
+                ModelState.AddModelError("Input.BridgeUrl", problem);
+            }
+
+            if (string.IsNullOrWhiteSpace(Input.RemoteEnvironment))
+            {
+                ModelState.AddModelError("Input.RemoteEnvironment", "Name the environment on the other MatDock.");
+            }
+
+            return;
+        }
+
         if (Input.ConnectionType == ConnectionType.Tcp)
         {
             if (string.IsNullOrWhiteSpace(Input.Host) || !System.Text.RegularExpressions.Regex.IsMatch(Input.Host.Trim(), @"^[A-Za-z0-9.:\[\]-]+$"))
@@ -307,6 +348,19 @@ public class EditModel : PageModel
 
     private async Task ValidateSecretsForSaveAsync()
     {
+        if (Input.ConnectionType == ConnectionType.Bridge)
+        {
+            // A blank key keeps the stored one, but only for the address it was saved for.
+            if (string.IsNullOrWhiteSpace(Input.BridgeKey)
+                && !(IsEdit && await _environmentService.GetAsync(Input.Id!.Value, HttpContext.RequestAborted) is { } saved
+                     && EnvironmentService.SameBridge(saved, ToServiceInput()) && saved.EncryptedPassword is not null))
+            {
+                ModelState.AddModelError("Input.BridgeKey", "Please enter the bridge key.");
+            }
+
+            return;
+        }
+
         if (Input.ConnectionType != ConnectionType.Ssh)
         {
             return; // local needs no secrets, the TLS key is checked with the certificates

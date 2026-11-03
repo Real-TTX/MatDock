@@ -37,6 +37,32 @@ public sealed class AppPaths
 
     public string SqliteConnectionString => $"Data Source={DatabasePath}";
 
+    /// <summary>
+    /// A short id of this installation (8 hex characters, made once and kept in the configuration folder). Its cookies carry it in their names: a browser
+    /// keeps cookies per host, not per port, so two MatDocks reached on the same host (two ports of one server, server1 and server2 by the same
+    /// address) would otherwise overwrite each other's sign-in.
+    /// </summary>
+    public string InstanceId()
+    {
+        var file = Path.Combine(ConfigPath, "instance-id");
+        try
+        {
+            if (File.Exists(file) && File.ReadAllText(file).Trim() is { Length: 8 } kept && kept.All(Uri.IsHexDigit))
+            {
+                return kept.ToLowerInvariant();
+            }
+
+            var made = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(4));
+            Directory.CreateDirectory(ConfigPath);
+            File.WriteAllText(file, made);
+            return made;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "00000000";
+        }
+    }
+
     /// <summary>Creates the data directories if they do not yet exist.</summary>
     public void EnsureCreated()
     {

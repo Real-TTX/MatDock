@@ -26,7 +26,7 @@ public static class EngineTools
             {
                 id = e.Id,
                 name = e.Name,
-                connection = e.ConnectionType switch { ConnectionType.Local => "local", ConnectionType.Tcp => "tcp", _ => "ssh" },
+                connection = MatDock.Core.Environments.ConnectionNames.Of(e.ConnectionType),
                 host = e.ConnectionType == ConnectionType.Local ? null : e.Host,
                 status = e.Status.ToString().ToLowerInvariant(),
                 enabled = e.IsEnabled,

@@ -22,7 +22,20 @@ public static class SessionValidation
         }
 
         var sessions = context.HttpContext.RequestServices.GetRequiredService<SessionService>();
-        var session = await sessions.ValidateAsync(token, context.HttpContext.RequestAborted);
+        MatDock.Core.Entities.UserSession? session;
+        try
+        {
+            session = await sessions.ValidateAsync(token, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is System.Data.Common.DbException or Microsoft.EntityFrameworkCore.DbUpdateException or TimeoutException)
+        {
+            // The database cannot answer right now (busy, a disk under load): the cookie is valid and not expired, so this request keeps it. Signing the user
+            // out here would end sessions whenever the server is busy; a revoked session is refused at the next request that reaches the database.
+            context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(SessionValidation))
+                .LogWarning(ex, "The session could not be checked against the database; the request keeps its cookie.");
+            return;
+        }
+
         if (session?.User is null)
         {
             await RejectAsync(context);

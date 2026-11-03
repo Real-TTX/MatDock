@@ -30,6 +30,8 @@ var dataPath = !string.IsNullOrWhiteSpace(configuredDataPath)
 
 var appPaths = new AppPaths(dataPath);
 appPaths.EnsureCreated();
+// The cookies carry the id of this installation, so two MatDocks on one host (cookies ignore the port) keep their own sign-in.
+var instanceId = appPaths.InstanceId();
 // A restore of MatDock itself that was prepared before the last stop takes its place now, before anything opens the database or reads the keys.
 var restored = MatDock.Core.Backups.SelfBackupRestore.ApplyPending(appPaths);
 builder.Services.AddSingleton(appPaths);
@@ -130,7 +132,7 @@ var platform = builder.AddMatPlatform<DockPlatform>(o => DockPlatform.Describe(o
 builder.Services.AddAuthentication(AuthConstants.CookieScheme)
     .AddCookie(AuthConstants.CookieScheme, options =>
     {
-        options.Cookie.Name = "matdock.auth";
+        options.Cookie.Name = "matdock.auth." + instanceId;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -148,6 +150,9 @@ builder.Services.AddAuthentication(AuthConstants.CookieScheme)
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
     });
+// The form token and the one-time messages too: with the names of another MatDock on the same host its forms failed and its messages got lost.
+builder.Services.AddAntiforgery(options => options.Cookie.Name = "matdock.af." + instanceId);
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.CookieTempDataProviderOptions>(options => options.Cookie.Name = "matdock.msg." + instanceId);
 
 builder.Services.AddAuthorization(options =>
 {
@@ -304,6 +309,7 @@ app.MapPost("/webhooks/stacks/{token}", MatDock.Web.Sync.WebhookStackEndpoint.Ha
 // Machine-to-machine REST API (/api/v1, used by Mattiverse). Anonymous at the cookie level — the X-Api-Key header
 // (MatDock__Api__Key) is the guard; without a configured key every call answers 503.
 app.MapMatDockApi();
+app.MapBridgeApi();
 // The MCP server: every request needs a key (Authorization: Bearer or X-Api-Key), checked before the endpoint.
 app.MapMatDockMcp();
 // What /api/v1 offers, for a client generator or a person: open, it holds no data.

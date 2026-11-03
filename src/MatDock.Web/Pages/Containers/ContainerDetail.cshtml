@@ -14,7 +14,7 @@
     var hasHealth = i?.HealthStatus is not null;
     var running = c?.IsRunning == true;
     // MatDock itself: a restart goes through a helper container; stop, re-create and remove would leave nobody to start it again.
-    var itself = c is not null && Self.Is(c.Id);
+    var itself = c is not null && Self.IsOn(Model.EnvId, c.Id);
     const string SelfTitle = "This container is MatDock itself: do it on the host";
 }
 

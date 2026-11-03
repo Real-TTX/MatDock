@@ -172,14 +172,14 @@ public sealed class StackService
         try
         {
             var command = StackCommands.Service(prep.Head!, stack.Name, EffectiveComposePath(stack), service, action, replicas, exportsOnStdin: true);
-            if (action != StackCommands.ServiceAction.Start && await SelfPlaceAsync(stack, prep, ct) is { } self && string.Equals(self.Service, service, StringComparison.Ordinal))
+            if (action != StackCommands.ServiceAction.Start && await SelfPlaceAsync(stack, prep, ct) is { } self && string.Equals(self.Place.Service, service, StringComparison.Ordinal))
             {
                 if (action != StackCommands.ServiceAction.Restart)
                 {
                     return (false, SelfServiceRefusal);
                 }
 
-                if (SelfHandover.For(prep.Settings!, _self!.Id!) is not { } handover)
+                if (self.Target.HandOver() is not { } handover)
                 {
                     return (false, SelfHandover.NoHandover);
                 }
@@ -584,14 +584,14 @@ public sealed class StackService
 
         var command = build(prep.Head!, stack.Name, EffectiveComposePath(stack));
         Func<Stream, CancellationToken, Task>? writeStdin = ExportsWriter(stack);
-        if (self != SelfStep.Same && await SelfPlaceAsync(stack, prep, ct) is not null)
+        if (self != SelfStep.Same && await SelfPlaceAsync(stack, prep, ct) is { } hit)
         {
             if (self == SelfStep.Refuse)
             {
                 return (false, SelfRefusal);
             }
 
-            if (SelfHandover.For(prep.Settings!, _self!.Id!) is not { } handover)
+            if (hit.Target.HandOver() is not { } handover)
             {
                 return (false, SelfHandover.NoHandover);
             }
@@ -880,14 +880,14 @@ public sealed class StackService
         var timeout = TimeSpan.FromSeconds(Math.Max(60, _options.MigrationTimeoutSeconds));
         try
         {
-            if (self != SelfStep.Same && await SelfPlaceAsync(env.Id, project, settings, head, ct) is not null)
+            if (self != SelfStep.Same && await SelfPlaceAsync(env.Id, project, settings, head, ct) is { } hit)
             {
                 if (self == SelfStep.Refuse)
                 {
                     return (false, SelfRefusal);
                 }
 
-                return SelfHandover.For(settings, _self!.Id!) is { } handover
+                return hit.Target.HandOver() is { } handover
                     ? await ExecOnHostAsync(settings, handover.Restart(head, project), writeStdin: null, timeout, ct)
                     : (false, SelfHandover.NoHandover);
             }
@@ -1232,15 +1232,20 @@ public sealed class StackService
     /// Where MatDock's own container is when it belongs to <paramref name="stack"/> (its compose project on the stack's environment), else null. The
     /// answer per environment is kept (one <c>docker inspect</c> per environment and connection); an unclear failure is asked again next time.
     /// </summary>
-    private async Task<SelfPlace?> SelfPlaceAsync(Stack stack, HostPrep prep, CancellationToken ct)
+    private async Task<SelfHit?> SelfPlaceAsync(Stack stack, HostPrep prep, CancellationToken ct)
         => await SelfPlaceAsync(stack.EnvironmentId, stack.Name, prep.Settings!, prep.Head!, ct);
 
-    private async Task<SelfPlace?> SelfPlaceAsync(long environmentId, string project, SshConnectionSettings settings, string head, CancellationToken ct)
+    /// <summary>MatDock's container in a stack: its compose project and service, and the MatDock it is (this one, or the one behind a bridge).</summary>
+    private sealed record SelfHit(SelfPlace Place, SelfTarget Target);
+
+    private async Task<SelfHit?> SelfPlaceAsync(long environmentId, string project, SshConnectionSettings settings, string head, CancellationToken ct)
     {
-        if (_self?.Id is not { } id)
+        if (_self is null || await _self.TargetAsync(environmentId, settings, ct) is not { } target)
         {
             return null;
         }
+
+        var id = target.Id;
 
         var key = SelfContainer.PlaceKey(environmentId, settings);
         if (!_self.TryGetPlace(key, out var place))
@@ -1261,13 +1266,13 @@ public sealed class StackService
             }
         }
 
-        return place is not null && place.Project.Length > 0 && string.Equals(place.Project, project, StringComparison.Ordinal) ? place : null;
+        return place is not null && place.Project.Length > 0 && string.Equals(place.Project, project, StringComparison.Ordinal) ? new SelfHit(place, target) : null;
     }
 
     /// <summary>Whether the stack runs MatDock itself (for the page: a mark, and no stop or removal).</summary>
     public async Task<bool> IsSelfAsync(Stack stack, CancellationToken ct = default)
     {
-        if (_self?.Id is null)
+        if (_self is null)
         {
             return false;
         }
@@ -1279,7 +1284,7 @@ public sealed class StackService
     /// <summary>Whether the compose project <paramref name="project"/> on <paramref name="env"/> runs MatDock itself.</summary>
     public async Task<bool> IsSelfProjectAsync(DockerEnvironment env, string project, CancellationToken ct = default)
     {
-        if (_self?.Id is null || !StackCommands.IsValidName(project))
+        if (_self is null || !StackCommands.IsValidName(project))
         {
             return false;
         }
@@ -1340,12 +1345,12 @@ public sealed class StackService
     /// <summary>For MatDock's own stack the handover of its last step (<see cref="SelfHandover"/>), or why it cannot be done here; nothing for any other stack.</summary>
     private async Task<(SelfHandover? Handover, string? Refusal)> HandoverOfAsync(Stack stack, HostPrep prep, CancellationToken ct)
     {
-        if (await SelfPlaceAsync(stack, prep, ct) is null)
+        if (await SelfPlaceAsync(stack, prep, ct) is not { } hit)
         {
             return (null, null);
         }
 
-        return SelfHandover.For(prep.Settings!, _self!.Id!) is { } handover ? (handover, null) : (null, SelfHandover.NoHandover);
+        return hit.Target.HandOver() is { } handover ? (handover, null) : (null, SelfHandover.NoHandover);
     }
 
     private async Task<HostPrep> PrepareHostAsync(Stack stack, CancellationToken ct)

@@ -46,7 +46,7 @@
             return;
         }
         var paused = string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase);
-        @if (c.IsRunning && Self.Is(c.Id))
+        @if (c.IsRunning && Self.IsOn(env.Id, c.Id))
         {
             // MatDock itself: a restart goes through a helper container, the rest would leave nobody to start it again.
             <form method="post" asp-page-handler="Action" data-confirm="Restart MatDock itself? It is away for a few seconds.">
@@ -174,7 +174,7 @@
                         <div class="mat-card__head">
                             <div class="md-tile__title">
                                 <a class="mat-card__title" href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
-                                @if (Self.Is(c.Id))
+                                @if (Self.IsOn(env.Id, c.Id))
                                 {
                                     <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span>
                                 }
@@ -225,7 +225,7 @@
                                     <div class="mat-table__name">
                                         <span>
                                             <a href="/Containers/ContainerDetail?envId=@env.Id&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
-                                            @if (Self.Is(c.Id))
+                                            @if (Self.IsOn(env.Id, c.Id))
                                             {
                                                 <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span>
                                             }

@@ -19,6 +19,13 @@ public sealed class SshConnectionSettings
     /// <summary>The commands run on the MatDock host (Local and Tcp), not over SSH.</summary>
     public bool RunsLocally => IsLocal || IsTcp;
 
+    /// <summary>Through another MatDock: <see cref="Host"/> is its address (<c>https://…</c>), <see cref="Password"/> its bridge key,
+    /// <see cref="RemoteEnvironment"/> the environment there, <see cref="HostKeyFingerprint"/> the SHA-256 of a certificate to trust that no CA vouches for.</summary>
+    public bool IsBridge => ConnectionType == ConnectionType.Bridge;
+
+    /// <summary>A bridge: the environment on the other MatDock (its name or id).</summary>
+    public string? RemoteEnvironment { get; init; }
+
     /// <summary>Docker API over TCP with TLS: CA, client certificate and key (PEM); null = plain TCP.</summary>
     public string? TlsCaPem { get; init; }
     public string? TlsCertPem { get; init; }

@@ -35,6 +35,9 @@ public class MatDockFactory : WebApplicationFactory<Program>
 {
     public const string ApiKey = "platform-key-0123456789";
     public const string EngineKey = "engine-key-0123456789";
+
+    /// <summary>The id of every test instance (the suffix of its cookie names).</summary>
+    public const string InstanceId = "7e57c00c";
     public const string Admin = "tester";
     public const string AdminPassword = "Tester123!";
 
@@ -75,6 +78,9 @@ public class MatDockFactory : WebApplicationFactory<Program>
         _authority = authority;
         _reachable = reachable;
         Directory.CreateDirectory(_data);
+        // One id for every test instance, so the tests know the names of its cookies (<see cref="SignIn.SessionCookie"/>).
+        Directory.CreateDirectory(Path.Combine(_data, "config"));
+        File.WriteAllText(Path.Combine(_data, "config", "instance-id"), InstanceId);
         SetVariables();
     }
 
@@ -238,6 +244,13 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
     /// <summary>When set and true for a command, the command fails (exit status 1, the answer as its error).</summary>
     public Func<string, bool>? Fails { get; set; }
 
+    /// <summary>When true, a command that streams (<c>BufferOutput = false</c>) reads its answer from <see cref="IHostCommand.OutputStream"/> too (off by default: the
+    /// tests from before saw an empty stream there).</summary>
+    public bool StreamResults { get; set; }
+
+    /// <summary>What the commands got on stdin, in order (UTF-8), once their input was closed.</summary>
+    public List<string> Inputs { get; } = [];
+
     public IHostSession Create(SshConnectionSettings settings) => new Session(this);
 
     private sealed class Session(FakeHostSessionFactory hosts) : IHostSession
@@ -253,7 +266,7 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
 
             var result = hosts.Respond?.Invoke(command)
                 ?? (command.Contains(" ps -a", StringComparison.Ordinal) ? string.Join("\n", hosts.Containers) : string.Empty);
-            return new Command(result, hosts.Fails?.Invoke(command) == true);
+            return new Command(result, hosts.Fails?.Invoke(command) == true, hosts);
         }
 
         public void Dispose()
@@ -261,8 +274,10 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
         }
     }
 
-    private sealed class Command(string result, bool fails = false) : IHostCommand
+    private sealed class Command(string result, bool fails, FakeHostSessionFactory hosts) : IHostCommand
     {
+        private Stream? _output;
+
         public TimeSpan CommandTimeout { get; set; }
 
         public int? ExitStatus => fails ? 1 : 0;
@@ -271,7 +286,7 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
 
         public string Result => fails ? string.Empty : result;
 
-        public Stream OutputStream { get; } = new MemoryStream();
+        public Stream OutputStream => _output ??= hosts.StreamResults && !fails ? new MemoryStream(System.Text.Encoding.UTF8.GetBytes(result)) : new MemoryStream();
 
         public bool BufferOutput { get; set; }
 
@@ -281,12 +296,29 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
 
         public IAsyncResult BeginExecute() => Task.CompletedTask;
 
-        public Stream CreateInputStream() => new MemoryStream();
+        public Stream CreateInputStream() => new RecordingStream(hosts.Inputs);
 
         public void EndExecute(IAsyncResult asyncResult)
         {
         }
 
-        public void Dispose() => OutputStream.Dispose();
+        public void Dispose() => _output?.Dispose();
+    }
+
+    /// <summary>A stdin that writes down what it got when it is closed.</summary>
+    private sealed class RecordingStream(List<string> inputs) : MemoryStream
+    {
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                lock (inputs)
+                {
+                    inputs.Add(System.Text.Encoding.UTF8.GetString(ToArray()));
+                }
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }

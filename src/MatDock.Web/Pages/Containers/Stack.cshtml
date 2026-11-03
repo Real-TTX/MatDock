@@ -46,7 +46,7 @@ else
                             <div class="mat-table__name">
                                 <span>
                                     <a href="/Containers/ContainerDetail?envId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)">@c.Name</a>
-                                    @if (Self.Is(c.Id)) { <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span> }
+                                    @if (Self.IsOn(Model.EnvId, c.Id)) { <span class="mat-pill mat-pill--accent" title="MatDock runs in this container">This MatDock</span> }
                                     @if (!string.IsNullOrEmpty(c.Service)) { <small class="mat-mono">@c.Service</small> }
                                 </span>
                             </div>
@@ -63,7 +63,7 @@ else
                                 <a class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)" title="Logs" aria-label="Logs"><icon name="eye" /></a>
                                 @if (canControl && c.IsRunning)
                                 {
-                                    var itself = Self.Is(c.Id);
+                                    var itself = Self.IsOn(Model.EnvId, c.Id);
                                     <form method="post" asp-page-handler="Action" data-confirm="@(itself ? "Restart MatDock itself? It is away for a few seconds." : null)">
                                         <input type="hidden" name="envId" value="@Model.EnvId" /><input type="hidden" name="project" value="@Model.Project" /><input type="hidden" name="id" value="@c.Id" /><input type="hidden" name="name" value="@c.Name" /><input type="hidden" name="action" value="Restart" />
                                         <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Restart" aria-label="Restart"><icon name="refresh" /></button>

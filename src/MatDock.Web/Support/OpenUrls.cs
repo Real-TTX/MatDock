@@ -28,6 +28,12 @@ public static class OpenUrls
             return "localhost";
         }
 
+        // A bridge: the containers run where the other MatDock is (or behind it); its host is the best guess without a base URL.
+        if (env.ConnectionType == MatDock.Core.Entities.ConnectionType.Bridge)
+        {
+            return Uri.TryCreate(env.Host, UriKind.Absolute, out var bridge) ? bridge.Host : null;
+        }
+
         return string.IsNullOrWhiteSpace(env.Host) ? null : env.Host;
     }
 

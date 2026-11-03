@@ -38,6 +38,7 @@
                         <option value="Ssh">SSH (remote host)</option>
                         <option value="Local">Local (Docker socket)</option>
                         <option value="Tcp">Docker API (TCP/TLS)</option>
+                        <option value="Bridge">Another MatDock (bridge)</option>
                     </select>
                 </mat-field>
             </div>
@@ -70,6 +71,23 @@
                 </mat-field>
                 <mat-field label="Client key (key.pem)" asp-for="Input.TlsKey" hint="@(Model.IsEdit ? "Leave empty to keep the stored key." : null)">
                     <textarea asp-for="Input.TlsKey" class="mat-textarea mat-mono" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                </mat-field>
+            </div>
+
+            <div class="mat-stack" data-show-if="#ConnectionType" data-show-value="Bridge">
+                <div class="mat-form__grid">
+                    <mat-field label="Address of the other MatDock" asp-for="Input.BridgeUrl">
+                        <input asp-for="Input.BridgeUrl" class="mat-input" placeholder="https://server2:4455" />
+                    </mat-field>
+                    <mat-field label="Environment there" asp-for="Input.RemoteEnvironment" hint="Its name or id.">
+                        <input asp-for="Input.RemoteEnvironment" class="mat-input" placeholder="local" />
+                    </mat-field>
+                </div>
+                <mat-field label="Bridge key" asp-for="Input.BridgeKey" hint="@(Model.IsEdit ? "Leave empty to keep the stored key (only while the address stays the same)." : "Made on the other MatDock: System → API keys, \"Bridge\".")">
+                    <input asp-for="Input.BridgeKey" type="password" class="mat-input" autocomplete="new-password" />
+                </mat-field>
+                <mat-field label="Certificate fingerprint (SHA-256)" asp-for="Input.CertificateFingerprint" hint="Only for a self-signed certificate; the test names it.">
+                    <input asp-for="Input.CertificateFingerprint" class="mat-input mat-mono" autocomplete="off" spellcheck="false" />
                 </mat-field>
             </div>
 

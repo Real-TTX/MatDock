@@ -28,7 +28,14 @@ public enum ConnectionType
     Local = 1,
 
     /// <summary>Run the Docker CLI on the MatDock host against a remote Docker API (tcp://host:port, with TLS client certificates).</summary>
-    Tcp = 2
+    Tcp = 2,
+
+    /// <summary>
+    /// Through another MatDock (a bridge): the commands go over HTTPS to it and run on one of its environments (its local Docker, a host it reaches over
+    /// SSH, or a further bridge). <see cref="DockerEnvironment.Host"/> is its address, the password its bridge key, <see cref="DockerEnvironment.RemoteEnvironment"/>
+    /// the environment there.
+    /// </summary>
+    Bridge = 3
 }
 
 /// <summary>Soft-delete / audit state for every persisted record.</summary>

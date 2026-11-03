@@ -315,6 +315,18 @@ MatDock reaches your servers over SSH – nothing to install there. In the UI:
 The socket mount above is only needed if you also want to manage the machine MatDock runs on as
 a **local** environment; remove it for an SSH-only setup.
 
+**Another MatDock as a bridge.** One MatDock can manage the environments of another one: on server2
+make a key under *System → API keys* with *May: Bridge*. On server1 add an environment of the type *Another MatDock
+(bridge)* with server2's address (`https://server2:4455`), that key and the environment there (`local`, or a host
+server2 reaches over SSH). Server1 sends its Docker commands over HTTPS, and server2 runs them on that environment and
+streams the answer back, so stacks, containers, volumes, backups and updates work as on any environment. Server2
+can itself use a bridge, so chains work (`server1 → server2 → server3`, at most four bridges, so loops are cut).
+The connection test learns from server2 how Docker is called there (sudo, a rootless socket). A self-signed
+certificate is trusted by its SHA-256 fingerprint, which the test names. A bridge key opens only the bridge,
+and no other key opens it, because it is as much as a shell with the Docker socket. Server1 also protects
+the MatDock at the other end: it is not stopped from server1, and an update of its stack goes through a
+helper container there. A terminal does not go through a bridge: open it on server2.
+
 ### 3. As a Windows app
 
 Every build also produces a **self-contained Windows executable** (`win-x64`, no .NET install
