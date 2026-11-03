@@ -2,6 +2,7 @@ using MatDock.Core.Containers;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
+using MatDock.Core.Operations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
@@ -17,9 +18,12 @@ public class IndexModel : PageModel
     private readonly IEnvironmentConnectionService _connectionService;
     private readonly ContainerService _containerService;
     private readonly IMemoryCache _cache;
+    private readonly OperationRegistry _operations;
 
-    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, ContainerService containerService, IMemoryCache cache)
+    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, ContainerService containerService, IMemoryCache cache,
+        OperationRegistry operations)
     {
+        _operations = operations;
         _environmentService = environmentService;
         _connectionService = connectionService;
         _containerService = containerService;
@@ -33,6 +37,11 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)] public long EnvId { get; set; }
     [BindProperty(SupportsGet = true)] public bool Refresh { get; set; }
 
+    /// <summary>The pull started from this page (its id in the address), shown with its progress while it runs and its outcome after.</summary>
+    [BindProperty(SupportsGet = true)] public string? Op { get; set; }
+
+    public Operation? Running { get; private set; }
+
     public List<DockerEnvironment> Environments { get; private set; } = new();
     public List<ImageRow> Rows { get; private set; } = new();
     public List<(string Environment, string Message)> Errors { get; private set; } = new();
@@ -41,7 +50,11 @@ public class IndexModel : PageModel
 
     private sealed record CachedImages(IReadOnlyList<DockerImage> Images, IReadOnlyList<DockerContainer> Containers, string? Error);
 
-    public async Task OnGetAsync() => await LoadAsync();
+    public async Task OnGetAsync()
+    {
+        Running = string.IsNullOrEmpty(Op) ? null : _operations.Get(Op);
+        await LoadAsync();
+    }
 
     /// <summary>Deletes the ticked images (admins); one that a container uses is refused by docker and named in the answer.</summary>
     public async Task<IActionResult> OnPostBulkAsync(string? bulkAction, List<string>? ids)
@@ -104,11 +117,34 @@ public class IndexModel : PageModel
             return RedirectToPage(new { EnvId, Q });
         }
 
-        var (ok, message) = await _connectionService.PullImageAsync(
-            _environmentService.BuildSettings(env), reference ?? string.Empty, HttpContext.RequestAborted);
-        StatusMessage = ok ? $"Pulled \"{reference}\" onto {env.Name}." : message;
-        IsError = !ok;
-        return RedirectToPage(new { EnvId = envId, Q, Refresh = true });
+        reference = (reference ?? string.Empty).Trim();
+        if (!MatDock.Core.Images.ImageCommands.IsValidImageRef(reference))
+        {
+            StatusMessage = "Invalid image reference.";
+            IsError = true;
+            return RedirectToPage(new { EnvId, Q });
+        }
+
+        // In the background: the page shows the download as it goes (live), and a pull of gigabytes does not hang on the request.
+        var settings = _environmentService.BuildSettings(env);
+        var label = $"{reference} → {env.Name}";
+        var operation = _operations.Start("image-pull", label, $"image-pull:{env.Id}:{reference}", async ctx =>
+        {
+            ctx.Operation.Steps.Add("pull", label);
+            ctx.Operation.Steps.Set("pull", StepState.Running);
+            var connection = ctx.Services.GetRequiredService<IEnvironmentConnectionService>();
+            bool ok;
+            string message;
+            using (MatDock.Core.Execution.CommandOutput.Redirect(ctx.Operation.Append))
+            {
+                (ok, message) = await connection.PullImageAsync(settings, reference, ctx.CancellationToken);
+            }
+
+            ctx.Operation.Steps.Set("pull", ok ? StepState.Done : StepState.Failed, ok ? null : message);
+            ctx.Services.GetRequiredService<IMemoryCache>().Remove($"images:{env.Id}");
+            return ok ? OperationOutcome.Success() : OperationOutcome.Failure(message);
+        });
+        return RedirectToPage(new { EnvId = envId, Q, op = operation.Id });
     }
 
     /// <summary>Prunes the dangling images, or with <paramref name="all"/> every image no container uses.</summary>

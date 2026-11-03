@@ -383,3 +383,12 @@ private half encrypted). A push only connects to a public address (the endpoint 
 `X-MatDock-Request`, which no other site can send without asking, and a device the push service reports gone (404/410) is forgotten.
 Tested against the RFC example, by decrypting a sent message as the device would, and for real in Edge (subscribed with WNS, the test
 message taken). On iPhone and iPad it works in the app added to the Home Screen; *Install the app* shows where the browser offers it.
+
+**Progress for updates and pulls (November 2026).** An update of many stacks showed only a log; a pull on the Images page waited on
+the request and ended after the SSH timeout of a command (20 s), so a larger image never arrived. Runs now show a bar, the list of
+their entries (a spinner while one runs, then its state) and the download of the one that runs (`OperationSteps`). Without a terminal
+`docker pull` and compose name only the layers, so pulls use compose's JSON progress where it has it (current and total bytes, made
+readable lines again by `ComposeProgressLines`); a pull on the Images page is the image as the single service of a compose file on
+stdin, with a plain `docker pull` where compose is older, and may take 30 minutes. A live region whose run has ended is no longer read
+again (before, the finished card was fetched every few seconds for as long as the page was open), and the Images page reads itself
+once more for the list with the new image.

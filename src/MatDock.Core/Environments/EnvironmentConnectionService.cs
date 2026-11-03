@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using MatDock.Core.Configuration;
 using MatDock.Core.Docker;
@@ -6,6 +7,7 @@ using MatDock.Core.Execution;
 using MatDock.Core.Images;
 using MatDock.Core.Networks;
 using MatDock.Core.Ssh;
+using MatDock.Core.Stacks;
 using MatDock.Core.Volumes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -695,11 +697,58 @@ public sealed class EnvironmentConnectionService : IEnvironmentConnectionService
             return (false, DockerErrorMessages.DescribeSshError(ex));
         }
 
+        // A pull takes as long as the download: the SSH timeout of a command (seconds) would end every larger image.
         var head = VolumeCommands.DockerHead(settings.UseSudo, settings.DockerHost);
-        var result = RunCommand(client, ImageCommands.Pull(reference, head), settings);
-        return result.ExitStatus == 0
+        using var command = client.CreateCommand(ImageCommands.PullWithProgress(reference, head));
+        command.CommandTimeout = PullTimeout;
+        string output;
+        if (CommandOutput.Current is { } sink)
+        {
+            // With a sink (the pull of the Images page) the progress goes out as it arrives, a line per tenth of each layer.
+            var progress = new ComposeProgressLines(sink);
+            command.BufferOutput = false;
+            var running = command.BeginExecute();
+            output = await PumpAsync(command, progress.Write, cancellationToken);
+            progress.Flush();
+            command.EndExecute(running);
+        }
+        else
+        {
+            await command.ExecuteAsync(cancellationToken);
+            output = command.Result ?? string.Empty;
+        }
+
+        output = ComposeProgressLines.ConvertAll(output);
+        return command.ExitStatus == 0
             ? (true, $"Pulled \"{reference}\".")
-            : (false, DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
+            : (false, DockerErrorMessages.InterpretDockerError(command.Error ?? string.Empty, output));
+    }
+
+    private static readonly TimeSpan PullTimeout = TimeSpan.FromMinutes(30);
+
+    private static async Task<string> PumpAsync(IHostCommand command, Action<string> sink, CancellationToken ct)
+    {
+        var all = new StringBuilder();
+        using var abort = ct.Register(command.Dispose);
+        try
+        {
+            using var reader = new StreamReader(command.OutputStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
+            var buffer = new char[4096];
+            int read;
+            while ((read = await reader.ReadAsync(buffer.AsMemory(), CancellationToken.None)) > 0)
+            {
+                var chunk = new string(buffer, 0, read);
+                all.Append(chunk);
+                try { sink(chunk); } catch { /* a failing sink never breaks the pull */ }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException && ct.IsCancellationRequested)
+        {
+            // cancelled: the command was ended above
+        }
+
+        ct.ThrowIfCancellationRequested();
+        return all.ToString();
     }
 
     public async Task<PruneResult> PruneImagesAsync(SshConnectionSettings settings, bool all, CancellationToken cancellationToken = default)

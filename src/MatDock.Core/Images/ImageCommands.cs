@@ -44,6 +44,20 @@ public static partial class ImageCommands
         => VolumeCommands.PathPrefix + dockerHead + " pull " + QuotedRef(reference) + " 2>&1";
 
     /// <summary>
+    /// A pull that tells how far the download is: <c>docker pull</c> without a terminal names only the layers, so where compose has JSON progress the image
+    /// is pulled as the single service of a compose file on stdin (current and total bytes per layer, made lines again by
+    /// <see cref="Stacks.ComposeProgressLines"/>); without it a plain <c>docker pull</c>. Both read the same registry logins.
+    /// </summary>
+    public static string PullWithProgress(string reference, string dockerHead = "docker")
+    {
+        var quoted = QuotedRef(reference);
+        return VolumeCommands.PathPrefix
+               + "if " + dockerHead + " compose --progress json version > /dev/null 2>&1; then "
+               + "printf 'services:\\n  image:\\n    image: %s\\n' " + quoted + " | " + dockerHead + " compose --progress json -p matdock-pull -f - pull 2>&1; "
+               + "else " + dockerHead + " pull " + quoted + " 2>&1; fi";
+    }
+
+    /// <summary>
     /// The tag that keeps the image of <paramref name="reference"/> during an update (<c>repo:matdock-rollback-latest</c>): with the containerd image
     /// store an image that loses its last name is gone, so the old one gets this name before the pull and its tag back from it on a rollback.
     /// Null for a reference pinned to a digest (nothing moves).

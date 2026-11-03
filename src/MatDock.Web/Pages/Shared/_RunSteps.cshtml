@@ -9,13 +9,15 @@
     var steps = op.Steps.Snapshot();
     var total = Math.Max(1, steps.Count);
     var finished = op.Steps.Finished;
-    var percent = op.IsFinished ? 100 : (int)Math.Round(finished * 100.0 / total);
+    // The download of the entry that runs counts too: one pull alone moves the bar as it downloads, not only when it is done.
+    var running = steps.Where(s => s.State == StepState.Running).Sum(s => (s.Percent ?? 0) / 100.0);
+    var percent = op.IsFinished ? 100 : (int)Math.Min(99, Math.Round((finished + running) * 100.0 / total));
     var failed = steps.Count(s => s.State == StepState.Failed);
     var (text, _) = op.Read(0);
 }
 <div class="md-run">
     <div class="md-run__head">
-        <span class="md-run__count">@(op.IsFinished ? "Finished" : $"{finished} of {steps.Count}")</span>
+        <span class="md-run__count">@(op.IsFinished ? "Finished" : steps.Count > 1 ? $"{finished} of {steps.Count}" : "Running")</span>
         @if (failed > 0)
         {
             <span class="mat-pill mat-pill--error">@failed failed</span>

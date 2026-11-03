@@ -155,10 +155,24 @@ public sealed class FakeConnectionService : IEnvironmentConnectionService
         return Task.FromResult((true, "ok"));
     }
 
+    /// <summary>The references pulled, in order.</summary>
+    public List<string> Pulled { get; } = [];
+
+    /// <summary>What a pull says as it goes (to the ambient sink, as the real one streams), and whether it fails.</summary>
+    public string? PullOutput { get; set; }
+
+    public bool PullFails { get; set; }
+
     public Task<(bool Ok, string Message)> PullImageAsync(SshConnectionSettings settings, string reference, CancellationToken cancellationToken = default)
     {
         LastSettings = settings;
-        return Task.FromResult((true, "ok"));
+        Pulled.Add(reference);
+        if (PullOutput is not null)
+        {
+            MatDock.Core.Execution.CommandOutput.Current?.Invoke(PullOutput);
+        }
+
+        return Task.FromResult(PullFails ? (false, "manifest for " + reference + " not found") : (true, "ok"));
     }
 
     public Task<(bool Ok, string Message)> CreateNetworkAsync(SshConnectionSettings settings, string name, string? driver, bool @internal, CancellationToken cancellationToken = default, MatDock.Core.Networks.NetworkIpam? ipam = null)

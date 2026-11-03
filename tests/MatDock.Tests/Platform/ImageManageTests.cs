@@ -202,4 +202,99 @@ public sealed class ImageManageTests : IClassFixture<ImageManageTests.Site>
         Assert.StartsWith("/Account/AccessDenied", SignIn.Path(await browser.GetAsync($"{DetailUrl}&handler=Save")));
         Assert.StartsWith("/Account/AccessDenied", SignIn.Path(await browser.GetAsync("/Images/Load")));
     }
+
+    private static string PullProgress => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "compose-pull-progress.jsonl"));
+
+    private async Task<(HttpClient Browser, string Target)> PullAsync(string reference)
+    {
+        var browser = await SignInAsync();
+        var page = await browser.GetStringAsync($"/Images?EnvId={_site.EnvId}");
+        Assert.Contains("handler=Pull", page);
+        var post = await browser.PostAsync($"/Images?EnvId={_site.EnvId}&handler=Pull", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(page),
+            ["envId"] = _site.EnvId.ToString(),
+            ["reference"] = reference,
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
+        var target = SignIn.Path(post);
+        var op = System.Web.HttpUtility.ParseQueryString(new Uri("http://x" + target).Query)["op"];
+        Assert.False(string.IsNullOrEmpty(op));
+        await _site.App.Services.GetRequiredService<MatDock.Core.Operations.OperationRegistry>().WaitAsync(op!);
+        return (browser, target);
+    }
+
+    [Fact]
+    public async Task A_pull_runs_in_the_background_with_its_download_and_ends_with_the_list()
+    {
+        _site.App.Connection.PullOutput = MatDock.Core.Stacks.ComposeProgressLines.ConvertAll(PullProgress);
+        try
+        {
+            var (browser, target) = await PullAsync(" 127.0.0.1:5099/mdtest/app:latest ");
+            Assert.Equal("127.0.0.1:5099/mdtest/app:latest", _site.App.Connection.Pulled[^1]);
+
+            var done = await browser.GetStringAsync(target);
+            Assert.Contains("id=\"live-pull\"", done);
+            Assert.Contains("Pulled", done);
+            Assert.Contains("127.0.0.1:5099/mdtest/app:latest &#x2192; image-host", done);
+            Assert.Contains("md-step--done", done);
+            Assert.DoesNotContain("data-live=\"2\"", done);      // ended: no longer read again
+            Assert.Contains("Downloading", done);                // the output, lines again from the JSON
+        }
+        finally
+        {
+            _site.App.Connection.PullOutput = null;
+        }
+    }
+
+    [Fact]
+    public async Task A_failed_pull_says_why_on_the_page()
+    {
+        _site.App.Connection.PullFails = true;
+        try
+        {
+            var (browser, target) = await PullAsync("nosuch/image:1");
+            var done = await browser.GetStringAsync(target);
+            Assert.Contains("Pull failed", done);
+            Assert.Contains("md-step--failed", done);
+            Assert.Contains("manifest for nosuch/image:1 not found", done);
+        }
+        finally
+        {
+            _site.App.Connection.PullFails = false;
+        }
+    }
+
+    /// <summary>The real pull (EnvironmentConnectionService): through compose with JSON progress, streamed to the sink as readable lines, the step at its percent.</summary>
+    [Fact]
+    public async Task The_pull_streams_its_progress_as_lines_and_moves_the_step()
+    {
+        var hosts = new FakeHostSessionFactory { StreamResults = true };
+        var progress = PullProgress;
+        hosts.Respond = command => command.Contains("-p matdock-pull -f - pull", StringComparison.Ordinal) ? progress : null;
+        var service = new MatDock.Core.Environments.EnvironmentConnectionService(hosts, Microsoft.Extensions.Options.Options.Create(new MatDock.Core.Configuration.MatDockOptions()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MatDock.Core.Environments.EnvironmentConnectionService>.Instance);
+
+        var steps = new MatDock.Core.Operations.OperationSteps();
+        steps.Add("pull", "app");
+        steps.Set("pull", MatDock.Core.Operations.StepState.Running);
+        var seen = new System.Text.StringBuilder();
+        var percents = new List<double>();
+        using (MatDock.Core.Execution.CommandOutput.Redirect(text =>
+        {
+            seen.Append(text);
+            steps.Feed(text);
+            if (steps.Snapshot()[0].Percent is { } p) { percents.Add(p); }
+        }))
+        {
+            var (ok, message) = await service.PullImageAsync(new MatDock.Core.Ssh.SshConnectionSettings { Host = "h", Username = "u" }, "127.0.0.1:5099/mdtest/app:latest");
+            Assert.True(ok, message);
+        }
+
+        Assert.Contains(hosts.Commands, c => c.Contains("compose --progress json -p matdock-pull -f - pull", StringComparison.Ordinal));
+        Assert.Contains("Downloading", seen.ToString());
+        Assert.DoesNotContain("\"status\"", seen.ToString());   // no raw JSON reaches the page
+        Assert.NotEmpty(percents);
+        Assert.True(percents[^1] > 50, string.Join(", ", percents));
+    }
 }

@@ -227,7 +227,8 @@
        once more and the region's content replaced by the new one. Skipped while something inside has the focus, a row
        of it is ticked or a POST is running, so nothing changes under the user's hand. Fires "matdock:live" on document afterwards. */
     (function () {
-        var regions = Array.prototype.slice.call(document.querySelectorAll("[data-live][id]"));
+        // An empty data-live (a run that has ended) is not read.
+        var regions = Array.prototype.slice.call(document.querySelectorAll("[data-live][id]")).filter(function (r) { return !!r.getAttribute("data-live"); });
         if (regions.length === 0 || !window.fetch || !window.DOMParser) { return; }
         var seconds = Math.max(2, parseInt(regions[0].getAttribute("data-live"), 10) || 20);
         var busy = false;
@@ -239,26 +240,35 @@
             return regions.some(function (r) { return r.querySelector("input[data-select-row]:checked"); });
         }
         function refresh() {
-            if (busy || document.hidden || document.querySelector(".is-loading") || held()) { return; }
+            if (regions.length === 0 || busy || document.hidden || document.querySelector(".is-loading") || held()) { return; }
             busy = true;
             fetch(location.href, { credentials: "same-origin", headers: { "X-Requested-With": "matdock-live" } })
                 .then(function (r) { return r.ok && !r.redirected ? r.text() : null; })
                 .then(function (html) {
                     if (!html || held()) { return; }
                     var doc = new DOMParser().parseFromString(html, "text/html");
+                    var reload = false;
                     regions.forEach(function (region) {
                         var fresh = doc.getElementById(region.id);
                         if (fresh) {
                             region.innerHTML = fresh.innerHTML;
                             if (window.MatUi) { window.MatUi.refresh(region); }
+                            // Done (a run that ended): the region is no longer read; data-live-done="reload" reads the whole page once instead.
+                            if (!fresh.getAttribute("data-live")) {
+                                region.removeAttribute("data-live");
+                                reload = reload || region.getAttribute("data-live-done") === "reload";
+                            }
                         }
                     });
+                    regions = regions.filter(function (r) { return !!r.getAttribute("data-live"); });
+                    if (reload) { location.reload(); return; }
+                    if (regions.length === 0) { clearInterval(timer); }
                     document.dispatchEvent(new CustomEvent("matdock:live"));
                 })
                 .catch(function () { /* next round */ })
                 .then(function () { busy = false; });
         }
-        setInterval(refresh, seconds * 1000);
+        var timer = setInterval(refresh, seconds * 1000);
         document.addEventListener("visibilitychange", function () { if (!document.hidden) { refresh(); } });
         // Back online: read the page again at once, so nothing stale stays on screen.
         window.addEventListener("online", refresh);

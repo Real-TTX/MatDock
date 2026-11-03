@@ -21,6 +21,20 @@
     }
 }
 
+@* A pull started here: its download as it goes, read again every 2 s; when it ends the page reads itself once more for the list with the new image. *@
+@if (Model.Running is { } pull)
+{
+    <section id="live-pull" class="mat-card" data-live="@(pull.IsFinished ? null : "2")" data-live-done="reload">
+        <div class="mat-card__head">
+            <icon name="@(pull.IsFinished ? (pull.Error is null ? "check-circle" : "alert") : "download")" />
+            <h2 class="mat-card__title">@(pull.IsFinished ? (pull.Error is null ? "Pulled" : "Pull failed") : "Pulling…")</h2>
+        </div>
+        <div class="mat-card__body mat-stack">
+            <partial name="_RunSteps" model="pull" />
+        </div>
+    </section>
+}
+
 @if (Model.Errors.Count > 0)
 {
     <div class="mat-alert mat-alert--warning">
