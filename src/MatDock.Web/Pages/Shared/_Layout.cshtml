@@ -223,6 +223,7 @@
             <div><strong>@userName</strong><small>@role</small></div>
         </div>
         <a class="mat-menu__item" role="menuitem" href="/Account/Profile">@Ui.Icon("user")<span>Profile</span></a>
+        <button type="button" class="mat-menu__item" role="menuitem" data-pwa-install hidden>@Ui.Icon("download")<span>Install the app</span></button>
         <div class="mat-menu__sep" role="separator"></div>
         <form method="post" asp-page="/Account/Logout">
             <button type="submit" class="mat-menu__item" role="menuitem">@Ui.Icon("logout")<span>Sign out</span></button>

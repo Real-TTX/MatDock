@@ -1,5 +1,6 @@
 @page
 @model MatDock.Web.Pages.Account.ProfileModel
+@inject MatDock.Core.Notifications.WebPush.WebPushService Push
 @{
     ViewData["Title"] = "Profile";
     ViewData["Width"] = "narrow";
@@ -56,3 +57,34 @@
         </div>
     </div>
 </div>
+
+@{
+    var devices = await Push.OfUserAsync(MatDock.Web.Infrastructure.ClaimsPrincipalExtensions.GetUserId(User) ?? 0);
+}
+@* Notifications on this device (pwa.js): every notification of MatDock reaches the devices switched on here, also the installed app on a phone. *@
+<section class="mat-card" data-push-device data-push-endpoints="@System.Text.Json.JsonSerializer.Serialize(devices.Select(d => d.Endpoint))">
+    <div class="mat-card__head"><icon name="bell" /><span class="mat-card__title">Notifications on this device</span></div>
+    <div class="mat-card__body mat-stack">
+        <p data-push-state class="mat-muted">…</p>
+        <div class="mat-row">
+            <button type="button" class="mat-btn md-btn--go" data-push-enable hidden><icon name="bell" /><span>Turn on</span></button>
+            <button type="button" class="mat-btn mat-btn--secondary" data-push-test hidden><icon name="play" /><span>Send a test</span></button>
+            <button type="button" class="mat-btn mat-btn--danger" data-push-disable hidden><icon name="x" /><span>Turn off</span></button>
+            <button type="button" class="mat-btn mat-btn--secondary" data-pwa-install hidden><icon name="download" /><span>Install the app</span></button>
+        </div>
+        @if (devices.Count > 0)
+        {
+            <ul class="md-devices">
+                @foreach (var d in devices)
+                {
+                    <li>
+                        <icon name="smartphone" />
+                        <span>@d.Name</span>
+                        <small class="mat-muted">@(d.LastUsedAt is { } used ? "last reached " + used.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "added " + d.CreateDate.ToLocalTime().ToString("dd.MM.yyyy"))</small>
+                        <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-push-remove="@d.Id" aria-label="Remove @d.Name" data-tip="Remove"><icon name="trash" /></button>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</section>

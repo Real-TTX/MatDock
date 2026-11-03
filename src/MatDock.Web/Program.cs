@@ -296,6 +296,7 @@ app.MapGet("/api/search", MatDock.Web.Search.SearchEndpoint.HandleAsync).Require
 // The output of a running operation for the console of a page (a deploy). Any signed-in user; the id is known only to the page that started it.
 app.MapGet(MatDock.Web.Support.OperationConsoleEndpoint.Path + "/{id}", MatDock.Web.Support.OperationConsoleEndpoint.Handle).RequireAuthorization();
 app.MapGet(MatDock.Web.Support.CronPreviewEndpoint.Path, MatDock.Web.Support.CronPreviewEndpoint.Handle).RequireAuthorization();
+MatDock.Web.Support.PushEndpoints.MapPushEndpoints(app);
 
 // Live container logs (one-directional WebSocket, docker logs -f). Any authenticated user, like the Logs page.
 app.MapGet("/logs/ws", MatDock.Web.Logs.LogsEndpoint.HandleAsync).RequireAuthorization();

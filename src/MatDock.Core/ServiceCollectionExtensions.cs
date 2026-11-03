@@ -55,6 +55,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Sync.SyncJobService>();
         services.AddScoped<Notifications.NotificationSettingsService>();
         services.AddScoped<Notifications.NotificationChannelService>();
+        // Web Push to the devices of the users (the installed app on a phone): the key pair once per installation, the sending only to public addresses.
+        services.AddSingleton<Notifications.WebPush.WebPushKeys>();
+        services.AddScoped<Notifications.WebPush.WebPushService>();
+        services.AddHttpClient(Notifications.WebPush.WebPushService.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(20))
+            .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+            {
+                ConnectCallback = Notifications.WebPush.PublicNetwork.ConnectCallback("The push address does not lead to a public server."),
+                AllowAutoRedirect = false,
+            });
         services.AddScoped<Notifications.INotificationService, Notifications.NotificationService>();
         services.AddSingleton<Proxies.IProxyProvider, Proxies.CaddyProxyProvider>();
         services.AddSingleton<Proxies.IProxyProvider, Proxies.MatcadProxyProvider>();

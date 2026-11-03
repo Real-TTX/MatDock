@@ -27,10 +27,13 @@ public sealed class NotificationService : INotificationService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<NotificationService> _logger;
     private readonly NotificationChannelService? _channels;
+    private readonly WebPush.WebPushService? _push;
 
     public NotificationService(NotificationSettingsService settingsService, IHttpClientFactory httpFactory, ILogger<NotificationService> logger,
-        NotificationChannelService? channels = null)
+        NotificationChannelService? channels = null,
+        WebPush.WebPushService? push = null)
     {
+        _push = push;
         _settingsService = settingsService;
         _httpFactory = httpFactory;
         _logger = logger;
@@ -39,7 +42,7 @@ public sealed class NotificationService : INotificationService
 
     /// <summary>E-mail, the webhook or one of the channels is on.</summary>
     private async Task<bool> AnyChannelAsync(NotificationSettings s, CancellationToken ct)
-        => s.SmtpEnabled || s.WebhookEnabled || (_channels is not null && await _channels.AnyEnabledAsync(ct));
+        => s.SmtpEnabled || s.WebhookEnabled || (_channels is not null && await _channels.AnyEnabledAsync(ct)) || (_push is not null && await _push.AnyAsync(ct));
 
     public async Task NotifyBackupResultAsync(string title, string summary, bool success, CancellationToken ct = default)
     {
@@ -102,6 +105,13 @@ public sealed class NotificationService : INotificationService
         if (_channels is not null)
         {
             errors.AddRange(await _channels.SendAllAsync(subject, body, ct));
+        }
+
+        // The devices that switched notifications on (the installed app on a phone).
+        if (_push is not null)
+        {
+            try { errors.AddRange(await _push.SendAllAsync(subject, body, "/", ct)); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Push notification failed."); errors.Add($"Push: {ex.Message}"); }
         }
 
         return errors;

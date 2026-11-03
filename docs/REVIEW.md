@@ -374,3 +374,12 @@ session check wrote to SQLite on every request and failed when the database was 
 MatDock named its cookies `matdock.auth`, so two MatDocks reached on one host (cookies ignore the port) signed each other out. The
 check now keeps the cookie when the database cannot answer, and the cookies carry the id of the installation (`config/instance-id`).
 That signs everyone out once after the update.
+
+**Notifications on the phone (November 2026, as in Matmon).** MatDock was already an installable app (manifest, service worker), but
+a notification only went out by e-mail or a channel. Now each user switches notifications on per device under *Profile*: the browser
+subscribes with its push service (Google, Mozilla, Apple, Microsoft), and every notification of MatDock goes to the devices too,
+encrypted for each one (RFC 8291, aes128gcm) and signed as this installation (VAPID, the key pair in `config/push-keys.json`, the
+private half encrypted). A push only connects to a public address (the endpoint is what a browser said), the endpoints need the header
+`X-MatDock-Request`, which no other site can send without asking, and a device the push service reports gone (404/410) is forgotten.
+Tested against the RFC example, by decrypting a sent message as the device would, and for real in Edge (subscribed with WNS, the test
+message taken). On iPhone and iPad it works in the app added to the Home Screen; *Install the app* shows where the browser offers it.

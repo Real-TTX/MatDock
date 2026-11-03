@@ -37,6 +37,7 @@ public class MatDockDbContext : DbContext
     public DbSet<ProxyConnection> ProxyConnections => Set<ProxyConnection>();
     public DbSet<ContainerRegistry> ContainerRegistries => Set<ContainerRegistry>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
+    public DbSet<PushDevice> PushDevices => Set<PushDevice>();
     public DbSet<Docker.MetricSample> MetricSamples => Set<Docker.MetricSample>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
@@ -296,6 +297,19 @@ public class MatDockDbContext : DbContext
             e.Property(x => x.Url).HasMaxLength(500);
             e.Property(x => x.Target).HasMaxLength(200);
             e.HasIndex(x => x.Name);
+            e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
+        });
+
+        modelBuilder.Entity<PushDevice>(e =>
+        {
+            e.ToTable("PushDevice");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Endpoint).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.P256dh).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Auth).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => x.Endpoint).IsUnique();
+            e.HasIndex(x => x.UserId);
             e.HasQueryFilter(x => x.UpdateState != UpdateState.Deleted);
         });
 

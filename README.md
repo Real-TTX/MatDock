@@ -116,7 +116,7 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   on the local Docker socket too)
 - **Apps**: reusable Compose blueprints with icons, installed as a stack in one click
 - Users & roles, notifications (**SMTP, webhook, Discord, Slack, Teams, Mattermost, Telegram, Signal, ntfy, Gotify, Pushover,
-  Bark, Apprise**), Git credentials, tags, API keys –
+  Bark, Apprise**, **push to the phone** – the installable app, switched on per device in the profile), Git credentials, tags, API keys –
   all under **System**
 - An **activity log** (System → Activity): every action of a user and every changing call of the API, with user,
   target, environment and result, searchable, kept for 90 days
