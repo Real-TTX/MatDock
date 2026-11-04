@@ -261,12 +261,17 @@ public sealed class BackupAction : IScheduleAction
 
         var ok = 0;
         var failures = new List<string>();
+        var skipped = new List<string>();
         foreach (var volume in volumes)
         {
             ct.ThrowIfCancellationRequested();
             var result = await _backup.BackupAsync(env, volume, target, scheduleId: null, ct,
-                stopContainers: opt.StopContainers, scheduledTaskId: task.Id);
-            if (result.Success)
+                stopContainers: opt.StopContainers, scheduledTaskId: task.Id, skipDataElsewhere: true);
+            if (result.Skipped)
+            {
+                skipped.Add(volume);
+            }
+            else if (result.Success)
             {
                 ok++;
                 await ApplyRetentionAsync(task.Id, volume, opt, ct);
@@ -277,7 +282,11 @@ public sealed class BackupAction : IScheduleAction
             }
         }
 
-        var summary = $"{ok}/{volumes.Count} volumes backed up";
+        var summary = $"{ok}/{volumes.Count - skipped.Count} volumes backed up";
+        if (skipped.Count > 0)
+        {
+            summary += $" (left out, data on a share or host folder: {string.Join(", ", skipped)})";
+        }
         if (failures.Count > 0)
         {
             summary += " – " + string.Join("; ", failures.Take(3));

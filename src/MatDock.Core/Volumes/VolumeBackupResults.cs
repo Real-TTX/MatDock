@@ -7,6 +7,11 @@ public sealed class BackupResult
     public long BytesTransferred { get; init; }
     public long? BackupId { get; init; }
 
+    /// <summary>Left out on purpose (its data lives elsewhere, see <see cref="Docker.DockerVolumeDetail.HoldsDataElsewhere"/>): neither a backup nor a failure.</summary>
+    public bool Skipped { get; init; }
+
+    public static BackupResult Skip(string message) => new() { Success = false, Skipped = true, Message = message };
+
     public static BackupResult Ok(long bytes, long backupId, string? warning = null) => new()
     {
         Success = true,

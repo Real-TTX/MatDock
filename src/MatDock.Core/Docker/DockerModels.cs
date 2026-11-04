@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MatDock.Core.Entities;
 
 namespace MatDock.Core.Docker;
@@ -185,4 +186,69 @@ public sealed class DockerVolumeDetail
 
     /// <summary>True when the volume is a remote mount (has a device option), e.g. SMB/CIFS or NFS.</summary>
     public bool IsRemote => Device is not null;
+
+    /// <summary>
+    /// Whether the data of this volume lives somewhere else than in the volume itself: a network share (NFS/CIFS), a host folder bound in
+    /// (<c>type: none, o: bind, device: /mnt/…</c>) or a volume plugin. A media library on a NAS is the typical one; backups leave it out.
+    /// </summary>
+    public bool HoldsDataElsewhere => Device is not null || (Driver.Length > 0 && !string.Equals(Driver, "local", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Where the data of <see cref="HoldsDataElsewhere"/> lives, for messages.</summary>
+    public string Elsewhere => Device ?? $"driver {Driver}";
+    /// <summary>Reads the one-line JSON of <c>docker volume inspect</c> (<see cref="Volumes.VolumeCommands.InspectJson"/>); null when it is not one.</summary>
+    public static DockerVolumeDetail? Parse(string json)
+    {
+        var line = DockerErrorMessages.FirstLine(json);
+        if (line is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            string? Get(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString()
+                : null;
+
+            IReadOnlyDictionary<string, string> Obj(string name)
+            {
+                var map = new Dictionary<string, string>();
+                if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var p in v.EnumerateObject())
+                    {
+                        if (p.Value.ValueKind == JsonValueKind.String)
+                        {
+                            map[p.Name] = p.Value.GetString()!;
+                        }
+                    }
+                }
+
+                return map;
+            }
+
+            return new DockerVolumeDetail
+            {
+                Name = Get("Name") ?? string.Empty,
+                Driver = Get("Driver") ?? string.Empty,
+                Mountpoint = Get("Mountpoint"),
+                Scope = Get("Scope"),
+                CreatedAt = Get("CreatedAt"),
+                Options = Obj("Options"),
+                Labels = Obj("Labels"),
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }
+

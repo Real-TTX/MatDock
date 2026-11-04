@@ -1,6 +1,7 @@
 using MatDock.Core.Backups;
 using MatDock.Core.Configuration;
 using MatDock.Core.Data;
+using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Execution;
@@ -102,7 +103,7 @@ public sealed class VolumeBackupService
         return volumeName.Length > 0;
     }
 
-    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false, long? scheduledTaskId = null, long? stackBackupId = null)
+    public async Task<BackupResult> BackupAsync(DockerEnvironment environment, string volumeName, BackupTarget? target, long? scheduleId = null, CancellationToken ct = default, bool stopContainers = false, long? scheduledTaskId = null, long? stackBackupId = null, bool skipDataElsewhere = false)
     {
         if (!VolumeCommands.IsValidVolumeName(volumeName))
         {
@@ -130,6 +131,14 @@ public sealed class VolumeBackupService
             if (inspect.ExitStatus != 0)
             {
                 return BackupResult.Fail($"Volume '{volumeName}' does not exist on the host.");
+            }
+
+            // A volume that only points at a share or a host folder (a media library on a NAS) is not copied into a backup by a stack or a
+            // schedule: it is big, it is not the stack's own data, and it has its own backup where it lives. Asked for by hand, it still is.
+            if (skipDataElsewhere
+                && DockerVolumeDetail.Parse(RunCommand(client, VolumeCommands.InspectJson(volumeName, head)).StdOut) is { HoldsDataElsewhere: true } detail)
+            {
+                return BackupResult.Skip($"Volume '{volumeName}' is left out: its data lives on {detail.Elsewhere}.");
             }
 
             // Optionally quiesce the volume's containers so the archive is a consistent snapshot.

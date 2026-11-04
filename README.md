@@ -77,9 +77,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   and **recreate** with the newest image
 - **New container** from a full form: command, entrypoint, labels, limits, hostname, user, capabilities, devices, GPUs,
   logging, DNS, extra hosts, health check, a fixed IP and aliases
-- A **file browser inside a running container** (the same as for volumes: browse, edit, upload, download, create,
-  rename, duplicate, delete; it runs `docker exec`; a container without a shell (distroless, scratch) is browsed, read and
-  written through `docker cp`)
+- A **file browser inside a container** (*Files* on the container and in its ⋯ menu; the same as for volumes: browse, edit,
+  upload, download, create, rename, duplicate, delete; it runs `docker exec`; a container without a shell (distroless, scratch)
+  or a **stopped** one is browsed, read and written through `docker cp`)
 
 **Images**
 - List across environments with size, age and whether a container uses it; a **detail page** with tags, digest,
@@ -108,6 +108,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   at a target and **restore even backups written by another/older MatDock**
 - **Full stack bundles**: all volumes **+ the compose definition + image references** in one
   backup, restored as a running stack (images are pulled again on restore)
+- A volume that only **points at a NAS share or a host folder** (driver options `type: nfs`/`cifs` or `o: bind` with a
+  `device`, or a volume plugin) – a Plex movie library, say – is **left out** of stack bundles and scheduled backups and named
+  in the result; backed up by hand from the volume, it still is
 
 **Operations**
 - **Live log viewer** (streaming `docker logs -f`): pause, follow, **live filter**, **search**, timestamps – for one

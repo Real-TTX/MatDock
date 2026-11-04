@@ -213,11 +213,16 @@ public sealed class BundleBackupService
         var ts = DateTime.UtcNow;
         var volumes = new List<BundleVolume>();
         int ok = 0, fail = 0;
+        var skipped = new List<string>();
         foreach (var vol in volumeSet)
         {
             var res = await _volumeBackupService.BackupAsync(env, vol, target, scheduleId: null, ct: ct, stopContainers: stopContainers,
-                stackBackupId: record.Id);
-            if (res.Success && res.BackupId is { } bid)
+                stackBackupId: record.Id, skipDataElsewhere: true);
+            if (res.Skipped)
+            {
+                skipped.Add(vol);
+            }
+            else if (res.Success && res.BackupId is { } bid)
             {
                 var rec = await _volumeBackupService.GetAsync(bid, ct);
                 volumes.Add(new BundleVolume { Name = vol, File = rec?.FileName ?? string.Empty, SizeBytes = res.BytesTransferred });
@@ -268,7 +273,8 @@ public sealed class BundleBackupService
         record.SizeBytes = volumes.Sum(v => v.SizeBytes) + manifestBytes;
 
         var envNote = manifest.EnvContent is { Length: > 0 } ? " + .env" : string.Empty;
-        var summary = $"Bundle '{manifestName}': {ok}/{ok + fail} volume(s), compose ({composeSource}){envNote}, {services.Count} service(s).";
+        var skipNote = skipped.Count > 0 ? $" Left out (data on a share or host folder): {string.Join(", ", skipped)}." : string.Empty;
+        var summary = $"Bundle '{manifestName}': {ok}/{ok + fail} volume(s), compose ({composeSource}){envNote}, {services.Count} service(s).{skipNote}";
         return (fail == 0, summary);
     }
 
