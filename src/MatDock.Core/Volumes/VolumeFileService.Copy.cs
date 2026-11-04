@@ -9,20 +9,29 @@ namespace MatDock.Core.Volumes;
 public sealed partial class VolumeFileService
 {
     private static readonly TimeSpan ShellCacheTime = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan ShellTrustTime = TimeSpan.FromSeconds(30);
     private static readonly ConcurrentDictionary<(long Env, string Container), (bool NoShell, DateTime At)> ShellCache = new();
 
-    /// <summary>Whether <paramref name="target"/> is a container without <c>sh</c> (asked once every few minutes per container).</summary>
+    /// <summary>Whether <paramref name="target"/> is reached through <c>docker cp</c> only (no <c>sh</c>, or stopped).</summary>
     private async Task<bool> NoShellAsync(DockerEnvironment env, FileTarget target, CancellationToken ct)
+        => await CopyOnlyAsync(env, target, ct) is not null;
+
+    /// <summary>
+    /// Why <paramref name="target"/> is reached through <c>docker cp</c> only, or null when it has a shell: a container without <c>sh</c>
+    /// (asked once every few minutes per container) or a stopped one (asked each time, it may be started).
+    /// </summary>
+    private async Task<string?> CopyOnlyAsync(DockerEnvironment env, FileTarget target, CancellationToken ct)
     {
         if (!target.IsContainer || !target.IsValid)
         {
-            return false;
+            return null;
         }
 
         var key = (env.Id, target.Name);
-        if (ShellCache.TryGetValue(key, out var known) && DateTime.UtcNow - known.At < ShellCacheTime)
+        // A missing shell stays (it is the image); a shell is trusted only briefly, the container may have been stopped since.
+        if (ShellCache.TryGetValue(key, out var known) && DateTime.UtcNow - known.At < (known.NoShell ? ShellCacheTime : ShellTrustTime))
         {
-            return known.NoShell;
+            return known.NoShell ? ContainerCopyFiles.NoShellMessage : null;
         }
 
         try
@@ -31,20 +40,26 @@ public sealed partial class VolumeFileService
             using (client)
             {
                 var probe = await RunAsync(client, ContainerCopyFiles.ShellProbe(head, target.Name), ct);
-                var noShell = probe.ExitStatus != 0 && ContainerCopyFiles.IsNoShell(probe.ExitStatus, probe.StdErr + probe.StdOut);
-                // Remembered only when the answer is sure (a stopped container says neither).
+                var output = probe.StdErr + probe.StdOut;
+                if (probe.ExitStatus != 0 && ContainerCopyFiles.IsStopped(output))
+                {
+                    return ContainerCopyFiles.StoppedMessage;
+                }
+
+                var noShell = probe.ExitStatus != 0 && ContainerCopyFiles.IsNoShell(probe.ExitStatus, output);
+                // Remembered only when the answer is sure.
                 if (probe.ExitStatus == 0 || noShell)
                 {
                     ShellCache[key] = (noShell, DateTime.UtcNow);
                 }
 
-                return noShell;
+                return noShell ? ContainerCopyFiles.NoShellMessage : null;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Shell probe of {Container} failed.", target.Name);
-            return false; // the normal way reports the problem
+            return null; // the normal way reports the problem
         }
     }
 

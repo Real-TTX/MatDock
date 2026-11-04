@@ -25,11 +25,21 @@ public class FilesModel : PageModel
     /// <summary>The container whose file system is shown (/Containers/Files); empty for a volume.</summary>
     public string Container { get; private set; } = string.Empty;
 
+    /// <summary>The container's name for the title, when the link brought it (the target itself is its id).</summary>
+    public string ContainerName { get; private set; } = string.Empty;
+
+    /// <summary>What the title and the breadcrumb call the target.</summary>
+    public string DisplayName => Target.IsContainer ? (ContainerName.Length > 0 ? ContainerName : Container.Length > 12 ? Container[..12] : Container) : Volume;
+
     public FileTarget Target => string.IsNullOrEmpty(Container) ? FileTarget.ForVolume(Volume) : FileTarget.ForContainer(Container);
 
     /// <summary>The page and the query part that name the target, for links.</summary>
     public string BasePath => Target.IsContainer ? "/Containers/Files" : "/Volumes/Files";
-    public string TargetQuery => Target.IsContainer ? $"container={Uri.EscapeDataString(Container)}" : $"volume={Uri.EscapeDataString(Volume)}";
+    public string TargetQuery => Target.IsContainer ? ContainerQuery(Container, ContainerName) : $"volume={Uri.EscapeDataString(Volume)}";
+
+    /// <summary>The query that names a container target, with its name for the title when known.</summary>
+    public static string ContainerQuery(string container, string? name)
+        => $"container={Uri.EscapeDataString(container)}" + (string.IsNullOrEmpty(name) ? string.Empty : $"&containerName={Uri.EscapeDataString(name)}");
     public string Path { get; private set; } = string.Empty;
     public DockerEnvironment? Environment { get; private set; }
 
@@ -44,7 +54,7 @@ public class FilesModel : PageModel
     /// <summary>Path segments for the breadcrumb: (name, cumulative rel path).</summary>
     public IReadOnlyList<(string Name, string Rel)> Crumbs { get; private set; } = new List<(string, string)>();
 
-    public async Task<IActionResult> OnGetAsync(long envId, string? volume, string? container, string? path)
+    public async Task<IActionResult> OnGetAsync(long envId, string? volume, string? container, string? path, string? containerName)
     {
         if (!await LoadEnvAsync(envId))
         {
@@ -54,6 +64,7 @@ public class FilesModel : PageModel
         EnvId = envId;
         Volume = volume ?? string.Empty;
         Container = container ?? string.Empty;
+        ContainerName = containerName ?? string.Empty;
         Path = VolumeFileCommands.NormalizeRelPath(path) ?? string.Empty;
         BuildCrumbs();
 
@@ -168,7 +179,7 @@ public class FilesModel : PageModel
         IsError = !ok;
         return string.IsNullOrEmpty(container)
             ? Redirect($"/Volumes/Files?envId={envId}&volume={Uri.EscapeDataString(volume ?? string.Empty)}&path={Uri.EscapeDataString(path ?? string.Empty)}")
-            : Redirect($"/Containers/Files?envId={envId}&container={Uri.EscapeDataString(container)}&path={Uri.EscapeDataString(path ?? string.Empty)}");
+            : Redirect($"/Containers/Files?envId={envId}&{ContainerQuery(container, Request.HasFormContentType ? Request.Form["containerName"].ToString() : null)}&path={Uri.EscapeDataString(path ?? string.Empty)}");
     }
 
     private static FileTarget T(string? volume, string? container)

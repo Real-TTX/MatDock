@@ -20,10 +20,11 @@ public class FileEditModel : PageModel
     [BindProperty(SupportsGet = true)] public long EnvId { get; set; }
     [BindProperty(SupportsGet = true)] public string Volume { get; set; } = string.Empty;
     [BindProperty(SupportsGet = true)] public string Container { get; set; } = string.Empty;
+    [BindProperty(SupportsGet = true)] public string ContainerName { get; set; } = string.Empty;
 
     public FileTarget Target => string.IsNullOrEmpty(Container) ? FileTarget.ForVolume(Volume) : FileTarget.ForContainer(Container);
     public string BasePath => Target.IsContainer ? "/Containers/Files" : "/Volumes/Files";
-    public string TargetQuery => Target.IsContainer ? $"container={Uri.EscapeDataString(Container)}" : $"volume={Uri.EscapeDataString(Volume)}";
+    public string TargetQuery => Target.IsContainer ? FilesModel.ContainerQuery(Container, ContainerName) : $"volume={Uri.EscapeDataString(Volume)}";
     [BindProperty(SupportsGet = true)] public string Path { get; set; } = string.Empty;
 
     [BindProperty] public string FileContent { get; set; } = string.Empty;

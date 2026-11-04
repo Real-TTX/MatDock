@@ -175,19 +175,19 @@ public sealed partial class VolumeFileService
             return (false, "The root folder cannot be deleted.");
         }
 
-        return await NoShellAsync(env, target, ct)
-            ? (false, ContainerCopyFiles.NoShellMessage)
+        return await CopyOnlyAsync(env, target, ct) is { } copyOnly
+            ? (false, copyOnly)
             : await MutateAsync(env, target, relPath, VolumeFileCommands.Delete, "Deleted.", ct);
     }
 
     public async Task<(bool Ok, string Message)> MoveAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
-        => await NoShellAsync(env, target, ct)
-            ? (false, ContainerCopyFiles.NoShellMessage)
+        => await CopyOnlyAsync(env, target, ct) is { } copyOnly
+            ? (false, copyOnly)
             : await Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Move, "Moved/renamed.", ct);
 
     public async Task<(bool Ok, string Message)> CopyAsync(DockerEnvironment env, FileTarget target, string srcRel, string dstRel, CancellationToken ct = default)
-        => await NoShellAsync(env, target, ct)
-            ? (false, ContainerCopyFiles.NoShellMessage)
+        => await CopyOnlyAsync(env, target, ct) is { } copyOnly
+            ? (false, copyOnly)
             : await Mutate2Async(env, target, srcRel, dstRel, VolumeFileCommands.Copy, "Copied.", ct);
 
     /// <summary>Streams a file's raw bytes from the volume or container into <paramref name="output"/> (no size cap; for downloads).</summary>

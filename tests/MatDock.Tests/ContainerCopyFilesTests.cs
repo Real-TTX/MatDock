@@ -73,4 +73,12 @@ public class ContainerCopyFilesTests
         Assert.True(ContainerCopyFiles.IsNoShell(1, "OCI runtime exec failed: exec failed: unable to start container process: exec: \"sh\": executable file not found in $PATH"));
         Assert.False(ContainerCopyFiles.IsNoShell(1, "Error response from daemon: container is not running"));
     }
+
+    [Theory]
+    [InlineData("Error response from daemon: container 3f2a… is not running", true)]
+    [InlineData("Error response from daemon: Container 3f2a is not running", true)]
+    [InlineData("Error response from daemon: container 3f2a is paused, unpause the container before exec", false)]
+    [InlineData("OCI runtime exec failed: exec: \"sh\": executable file not found in $PATH", false)]
+    public void A_stopped_container_is_told_apart_from_one_without_a_shell(string stderr, bool stopped)
+        => Assert.Equal(stopped, ContainerCopyFiles.IsStopped(stderr));
 }

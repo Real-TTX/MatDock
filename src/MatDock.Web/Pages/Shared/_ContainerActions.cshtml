@@ -49,7 +49,11 @@
         }
         @if (running && Model.IsAdmin)
         {
-            <a class="mat-menu__item" role="menuitem" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+            <a class="mat-menu__item" role="menuitem" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&containerName=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+        }
+        @if (Model.IsAdmin && !Model.Paused)
+        {
+            <a class="mat-menu__item" role="menuitem" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&containerName=@Uri.EscapeDataString(c.Name)"><icon name="folder" /><span>Files</span></a>
         }
         <a class="mat-menu__item" role="menuitem" href="/Volumes?EnvId=@Model.EnvId&Q=@Uri.EscapeDataString(c.Project ?? c.Name)"><icon name="volume" /><span>Volumes</span></a>
         @if (Model.CanControl && running)

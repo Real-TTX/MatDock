@@ -75,15 +75,16 @@ else if (c is not null)
         <a class="mat-btn mat-btn--secondary" href="/Containers/Logs?EnvId=@Model.EnvId&id=@Uri.EscapeDataString(c.Id)"><icon name="eye" /><span>Logs</span></a>
         @if (running && Model.IsAdmin)
         {
-            <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&name=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+            <a class="mat-btn mat-btn--secondary" href="/Terminal?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&containerName=@Uri.EscapeDataString(c.Name)"><icon name="terminal" /><span>Shell</span></a>
+        }
+        @* The file explorer also on a stopped container (docker cp reaches its files); a paused one answers neither exec nor cp reliably. *@
+        @if (Model.IsAdmin && !string.Equals(c.State, "paused", StringComparison.OrdinalIgnoreCase))
+        {
+            <a class="mat-btn mat-btn--secondary" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)&containerName=@Uri.EscapeDataString(c.Name)"><icon name="folder" /><span>Files</span></a>
         }
         <button type="button" class="mat-btn mat-btn--secondary mat-btn--icon" data-menu-toggle="container-more" data-menu-place="bottom" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for @c.Name" data-tip="More"><icon name="more-horizontal" /></button>
         <div class="mat-menu" id="container-more" role="menu" aria-label="Actions for @c.Name" hidden>
             <a class="mat-menu__item" role="menuitem" href="/Events?EnvId=@Model.EnvId&Container=@Uri.EscapeDataString(c.Name)&Hours=168"><icon name="activity" /><span>Events</span></a>
-            @if (running && Model.IsAdmin)
-            {
-                <a class="mat-menu__item" role="menuitem" href="/Containers/Files?envId=@Model.EnvId&container=@Uri.EscapeDataString(c.Id)"><icon name="folder" /><span>Files</span></a>
-            }
             @if (Model.IsAdmin)
             {
                 <a class="mat-menu__item" role="menuitem" href="/Containers/Create?from=@Uri.EscapeDataString(c.Id)&envId=@Model.EnvId"><icon name="copy" /><span>Duplicate</span></a>

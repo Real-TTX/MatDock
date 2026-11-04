@@ -15,6 +15,12 @@ public static class ContainerCopyFiles
 
     public const string NoShellMessage = "This container has no shell: files can be browsed, read and written, but not deleted, renamed or copied.";
 
+    public const string StoppedMessage = "This container is stopped: files can be browsed, read and written, but not deleted, renamed or copied. Start it for those.";
+
+    /// <summary>Whether a <c>docker exec</c> failed because the container is stopped (<c>docker cp</c> still reaches its files).</summary>
+    public static bool IsStopped(string stderr)
+        => stderr.Contains("is not running", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Whether a <c>docker exec … sh</c> failed because the container has no <c>sh</c>.</summary>
     public static bool IsNoShell(int exitStatus, string stderr)
         => exitStatus is 126 or 127

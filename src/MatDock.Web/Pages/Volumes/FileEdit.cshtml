@@ -52,7 +52,7 @@ else
         <div class="mat-alert mat-alert--warning"><icon name="alert" /><div class="mat-alert__body">The file is not UTF-8 encoded – read-only to avoid corruption.</div></div>
     }
     <form method="post" asp-page-handler="Save" class="mat-form">
-        <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Container" /><input type="hidden" asp-for="Path" />
+        <input type="hidden" asp-for="EnvId" /><input type="hidden" asp-for="Volume" /><input type="hidden" asp-for="Container" /><input type="hidden" asp-for="ContainerName" /><input type="hidden" asp-for="Path" />
         <textarea name="FileContent" class="mat-textarea mat-mono md-file-text" rows="24" spellcheck="false" aria-label="Content of @Model.FileName" readonly="@(editable ? null : "readonly")">@Model.FileContent</textarea>
         <mat-form-buttons>
             @if (editable)
