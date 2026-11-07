@@ -47,11 +47,18 @@ public static class DbBootstrapper
         }
 
         // Local/dev only (never in Production): a ready-to-use test account so testing never touches
-        // the real admin. Automatic — no configuration flag needed.
-        if (environment.IsDevelopment() && !await users.UsernameExistsAsync("tester"))
+        // the real admin. Automatic — no configuration flag needed. It is the test account of every Mat app.
+        if (environment.IsDevelopment() && !await users.UsernameExistsAsync(TestAccount.Username))
         {
-            await users.CreateAsync("tester", "Test User", "Tester123!", UserRole.Admin, mustChangePassword: false);
-            logger.LogWarning("Seeded local test account 'tester' / 'Tester123!' (Development only).");
+            await users.CreateAsync(TestAccount.Username, "Admin", TestAccount.Password, UserRole.Admin, mustChangePassword: false);
+            logger.LogWarning("Seeded local test account '{Username}' / '{Password}' (Development only).", TestAccount.Username, TestAccount.Password);
         }
+    }
+
+    /// <summary>The test account of the development stack – the same in every Mat app.</summary>
+    internal static class TestAccount
+    {
+        public const string Username = "admin@example.com";
+        public const string Password = "Start12345";
     }
 }

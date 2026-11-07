@@ -29,7 +29,7 @@ namespace MatDock.Tests.Platform;
 /// <see cref="Connection"/> and <see cref="Hosts"/> (a canned <c>docker ps</c>). <see cref="ApiKey"/> is <c>MAT_API_KEY</c> and <see cref="EngineKey"/>
 /// the key of <c>/api/v1</c> (<c>MatDock__Api__Key</c>), each unless switched off; with an <c>authority</c> the sign-in through MatIdentity is on, with
 /// a fixed OpenID configuration so that no MatIdentity has to run. Program reads its settings from environment variables, so the test classes run
-/// one after the other (DisableTestParallelization). In Development MatDock seeds the administrator <c>tester</c> / <c>Tester123!</c>.
+/// one after the other (DisableTestParallelization). In Development MatDock seeds the administrator <c>admin@example.com</c> / <c>Start12345</c> (the test account of every Mat app).
 /// </summary>
 public class MatDockFactory : WebApplicationFactory<Program>
 {
@@ -38,8 +38,8 @@ public class MatDockFactory : WebApplicationFactory<Program>
 
     /// <summary>The id of every test instance (the suffix of its cookie names).</summary>
     public const string InstanceId = "7e57c00c";
-    public const string Admin = "tester";
-    public const string AdminPassword = "Tester123!";
+    public const string Admin = "admin@example.com";
+    public const string AdminPassword = "Start12345";
 
     /// <summary>The key MatIdentity signs with in the tests (made here, no network); it is in the fixed OpenID configuration's keys.</summary>
     public static readonly SigningCredentials SigningCredentials = NewCredentials("test-key");

@@ -1,4 +1,4 @@
-# MatDock – dev stack: the image in Development mode (a test account tester / Tester123! is created) and a SQLite web viewer on the data volume.
+# MatDock – dev stack: the image in Development mode (the test account admin@example.com / Start12345 is created) and a SQLite web viewer on the data volume.
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 # App:        http://localhost:4455
 # SQLite web: http://localhost:8085

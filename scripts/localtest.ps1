@@ -6,7 +6,7 @@
     A separate container (matdock-localtest) with its own data volume, so it never touches the live instance or its data. It mounts the Docker
     socket, so the "local" environment is this machine's Docker: containers, volumes, networks and images of the real Docker are what you see and
     change. Because of that it listens on 127.0.0.1 only (the test account is an administrator, the socket is root on the host).
-    Development mode seeds the test account tester / Tester123! and the local environment is created through the API.
+    Development mode seeds the test account admin@example.com / Start12345 and the local environment is created through the API.
 .PARAMETER Port
     The port on 127.0.0.1 (default 4470).
 .PARAMETER Fresh
@@ -123,7 +123,7 @@ Invoke-RestMethod -Method Put -Uri "$url/api/v1/environments/local" -Headers @{ 
 
 Write-Host ''
 Write-Host "MatDock test instance: $url" -ForegroundColor Green
-Write-Host '  sign in:  tester / Tester123!   (Development mode seeds this administrator)'
+Write-Host '  sign in:  admin@example.com / Start12345   (Development mode seeds this administrator)'
 if ($MatSmtp) { Write-Host "  mail:     through $MatSmtp (relay user $relayUser); Settings > Notifications shows it as fixed" }
 Write-Host '  it sees the Docker of this machine through the mounted socket, so changes are real'
 Write-Host "  stop:     ./scripts/localtest.ps1 -Stop     (add -Fresh to delete its data too)"
