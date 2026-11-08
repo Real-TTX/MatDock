@@ -131,11 +131,55 @@ public static partial class VolumeCommands
         return sb.ToString();
     }
 
-    /// <summary>Command that tars the volume contents to stdout (source side).</summary>
-    public static string Export(string volume, string image, string dockerHead = "docker")
+    /// <summary>
+    /// Command that tars the volume contents to stdout (source side). The archive is read over the attached stdout, so the helper runs
+    /// with <c>--log-driver none</c>: with Docker's default json-file driver every byte of the archive would also be written into the
+    /// container log on the host's disk, and a helper still running after an aborted transfer fills that disk.
+    /// <paramref name="containerName"/> (see <see cref="HelperName"/>) names the helper so an aborted transfer can remove it
+    /// (<see cref="RemoveHelper"/>) instead of leaving it running.
+    /// </summary>
+    public static string Export(string volume, string image, string dockerHead = "docker", string? containerName = null)
     {
         EnsureValid(volume, image);
-        return PathPrefix + $"{dockerHead} run --rm -v '{volume}':/from:ro '{image}' tar -C /from -cf - .";
+        return PathPrefix + $"{dockerHead} run --rm --log-driver none{NameArgument(containerName)} -v '{volume}':/from:ro '{image}' tar -C /from -cf - .";
+    }
+
+    /// <summary>A unique name for a helper container (<c>matdock-&lt;purpose&gt;-&lt;12 hex&gt;</c>), for <see cref="Export"/> and <see cref="RemoveHelper"/>.</summary>
+    public static string HelperName(string purpose)
+    {
+        if (!OptKeyRegex().IsMatch(purpose))
+        {
+            throw new ArgumentException($"Invalid helper purpose: '{purpose}'.", nameof(purpose));
+        }
+
+        return $"matdock-{purpose}-{Guid.NewGuid():N}"[..(8 + purpose.Length + 13)];
+    }
+
+    /// <summary>Removes a named helper container whatever state it is in; succeeds quietly when it is already gone.</summary>
+    public static string RemoveHelper(string containerName, string dockerHead = "docker")
+    {
+        if (!IsValidVolumeName(containerName))
+        {
+            throw new ArgumentException($"Invalid container name: '{containerName}'.", nameof(containerName));
+        }
+
+        return PathPrefix + $"{dockerHead} rm -f '{containerName}' >/dev/null 2>&1 || true";
+    }
+
+    private static string NameArgument(string? containerName)
+    {
+        if (containerName is null)
+        {
+            return string.Empty;
+        }
+
+        // Container names follow the same character rules as volume names.
+        if (!IsValidVolumeName(containerName))
+        {
+            throw new ArgumentException($"Invalid container name: '{containerName}'.", nameof(containerName));
+        }
+
+        return $" --name '{containerName}'";
     }
 
     /// <summary>
@@ -146,9 +190,10 @@ public static partial class VolumeCommands
     public static string Import(string volume, string image, string dockerHead = "docker", bool clearFirst = false)
     {
         EnsureValid(volume, image);
+        // No container log either: tar only reads stdin here, nothing in its output is worth keeping on the host's disk.
         return clearFirst
-            ? PathPrefix + $"{dockerHead} run --rm -i -v '{volume}':/to '{image}' sh -c 'rm -rf /to/* /to/.[!.]* /to/..?* 2>/dev/null; exec tar -C /to -xf -'"
-            : PathPrefix + $"{dockerHead} run --rm -i -v '{volume}':/to '{image}' tar -C /to -xf -";
+            ? PathPrefix + $"{dockerHead} run --rm -i --log-driver none -v '{volume}':/to '{image}' sh -c 'rm -rf /to/* /to/.[!.]* /to/..?* 2>/dev/null; exec tar -C /to -xf -'"
+            : PathPrefix + $"{dockerHead} run --rm -i --log-driver none -v '{volume}':/to '{image}' tar -C /to -xf -";
     }
 
     /// <summary>Verifies a volume exists (exit code 0) without creating it.</summary>

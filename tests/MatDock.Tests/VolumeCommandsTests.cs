@@ -30,14 +30,55 @@ public class VolumeCommandsTests
     public void Export_builds_expected_command()
     {
         var cmd = VolumeCommands.Export("data", "busybox");
-        Assert.Contains("docker run --rm -v 'data':/from:ro 'busybox' tar -C /from -cf - .", cmd);
+        Assert.Contains("docker run --rm --log-driver none -v 'data':/from:ro 'busybox' tar -C /from -cf - .", cmd);
+    }
+
+    [Fact]
+    public void Export_never_writes_the_archive_into_the_container_log()
+    {
+        // The archive goes over the attached stdout; with the json-file driver Docker would also store it on the host's disk.
+        Assert.Contains("--log-driver none", VolumeCommands.Export("data", "busybox"));
+        Assert.Contains("--log-driver none", VolumeCommands.Export("data", "busybox", "sudo docker", "matdock-backup-0123456789ab"));
+    }
+
+    [Fact]
+    public void Export_names_the_helper_when_asked()
+    {
+        var cmd = VolumeCommands.Export("data", "busybox", containerName: "matdock-backup-0123456789ab");
+        Assert.Contains("docker run --rm --log-driver none --name 'matdock-backup-0123456789ab' -v 'data':/from:ro 'busybox' tar -C /from -cf - .", cmd);
+    }
+
+    [Theory]
+    [InlineData("x;rm -rf /")]
+    [InlineData("$(id)")]
+    [InlineData("-name")]
+    public void Export_rejects_unsafe_helper_names(string name)
+        => Assert.Throws<ArgumentException>(() => VolumeCommands.Export("data", "busybox", containerName: name));
+
+    [Fact]
+    public void HelperName_is_unique_and_safe()
+    {
+        var a = VolumeCommands.HelperName("backup");
+        var b = VolumeCommands.HelperName("backup");
+        Assert.NotEqual(a, b);
+        Assert.Matches(@"^matdock-backup-[0-9a-f]{12}$", a);
+        Assert.True(VolumeCommands.IsValidVolumeName(a));
+        Assert.Throws<ArgumentException>(() => VolumeCommands.HelperName("a b"));
+    }
+
+    [Fact]
+    public void RemoveHelper_force_removes_and_ignores_a_missing_container()
+    {
+        var cmd = VolumeCommands.RemoveHelper("matdock-backup-0123456789ab", "sudo docker");
+        Assert.Contains("sudo docker rm -f 'matdock-backup-0123456789ab' >/dev/null 2>&1 || true", cmd);
+        Assert.Throws<ArgumentException>(() => VolumeCommands.RemoveHelper("a;b"));
     }
 
     [Fact]
     public void Import_builds_expected_command()
     {
         var cmd = VolumeCommands.Import("data", "busybox");
-        Assert.Contains("docker run --rm -i -v 'data':/to 'busybox' tar -C /to -xf -", cmd);
+        Assert.Contains("docker run --rm -i --log-driver none -v 'data':/to 'busybox' tar -C /to -xf -", cmd);
     }
 
     [Fact]

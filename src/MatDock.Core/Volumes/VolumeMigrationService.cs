@@ -105,11 +105,14 @@ public sealed class VolumeMigrationService
             }
 
             long bytes = 0;
+            // Named, so an aborted transfer can remove the source helper instead of leaving it running (see VolumeCommands.Export).
+            var helper = VolumeCommands.HelperName("migrate");
+            var exportEnded = false;
             try
             {
                 // Stream source -> target. On overwrite, wipe the target first so it matches the source.
                 var timeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
-                using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead));
+                using var exportCmd = source.CreateCommand(VolumeCommands.Export(request.SourceVolume, image, sourceHead, helper));
                 using var importCmd = target.CreateCommand(VolumeCommands.Import(request.TargetVolume, image, targetHead, clearFirst: request.Overwrite));
                 exportCmd.CommandTimeout = timeout;
                 importCmd.CommandTimeout = timeout;
@@ -127,6 +130,7 @@ public sealed class VolumeMigrationService
                 importInput.Close(); // signal EOF so the remote tar finishes
 
                 exportCmd.EndExecute(exportAsync);
+                exportEnded = true;
                 importCmd.EndExecute(importAsync);
 
                 // Require explicit success; null exit status = command killed / channel died = failure.
@@ -141,6 +145,18 @@ public sealed class VolumeMigrationService
             }
             finally
             {
+                if (!exportEnded)
+                {
+                    try
+                    {
+                        RunCommand(source, VolumeCommands.RemoveHelper(helper, sourceHead));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not remove the migration helper {Helper}; it may still be running on the source host.", helper);
+                    }
+                }
+
                 // Always restart the source containers we stopped, even on failure.
                 Containers.ContainerQuiesce.Start(source, sourceHead, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }

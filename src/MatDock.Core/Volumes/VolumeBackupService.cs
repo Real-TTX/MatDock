@@ -147,9 +147,13 @@ public sealed class VolumeBackupService
                 : Containers.QuiesceResult.None;
 
             long bytes = 0;
+            // Named, so a transfer that is aborted (timeout, target error) can remove it: closing the SSH channel does not stop the
+            // container, and a helper left running keeps the volume (often a share) open.
+            var helper = VolumeCommands.HelperName("backup");
+            var exportEnded = false;
             try
             {
-                using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head));
+                using var exportCmd = client.CreateCommand(VolumeCommands.Export(volumeName, _options.HelperImage, head, helper));
                 exportCmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(30, _options.MigrationTimeoutSeconds));
                 exportCmd.BufferOutput = false; // stream the tar stdout live instead of buffering it in memory
                 var async = exportCmd.BeginExecute();
@@ -160,6 +164,7 @@ public sealed class VolumeBackupService
                 }
 
                 exportCmd.EndExecute(async);
+                exportEnded = true;
                 // Require an explicit success: a null exit status means the command was killed / the channel
                 // died mid-transfer, which would otherwise persist a truncated archive as a valid backup.
                 if (exportCmd.ExitStatus != 0)
@@ -170,6 +175,11 @@ public sealed class VolumeBackupService
             }
             finally
             {
+                if (!exportEnded)
+                {
+                    RemoveHelper(client, head, helper, volumeName);
+                }
+
                 // Always restart whatever we stopped, even if the export failed.
                 Containers.ContainerQuiesce.Start(client, head, quiesce.StoppedIds, _options.SshTimeoutSeconds);
             }
@@ -358,6 +368,19 @@ public sealed class VolumeBackupService
         cmd.CommandTimeout = TimeSpan.FromSeconds(Math.Max(5, _options.SshTimeoutSeconds));
         var stdout = cmd.Execute();
         return (cmd.ExitStatus ?? -1, stdout ?? string.Empty, cmd.Error ?? string.Empty);
+    }
+
+    /// <summary>Best effort: stops and removes the export helper of an aborted backup so it does not keep running on the host.</summary>
+    private void RemoveHelper(IHostSession client, string head, string helper, string volumeName)
+    {
+        try
+        {
+            RunCommand(client, VolumeCommands.RemoveHelper(helper, head));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not remove the backup helper {Helper} of volume {Volume}; it may still be running on the host.", helper, volumeName);
+        }
     }
 
     private static async Task TryDeleteAsync(Backups.IBackupStorage storage, string fileName)
