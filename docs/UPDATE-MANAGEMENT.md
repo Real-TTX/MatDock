@@ -104,3 +104,25 @@ MatDock kann pro Service ein anderes Image laufen lassen, als die Compose nennt,
 - **Fehlschlag:** Ein Update, das nicht zustande kam (Backup oder Pull fehlgeschlagen) oder zurückgerollt wurde, nimmt seinen Override zurück und wird nicht erneut versucht, bis ein neueres Ziel da ist. Bringt es unhealthy Container ohne Rollback hoch, bleibt der Override (der Stack läuft, was er sagt).
 - **Rollback und Override:** Ein Rollback deployt den Stack erneut; damit er das alte Image wirklich bringt, setzt er vorher die Overrides der Services zurück, deren Image-Referenz das Update geändert hat.
 - **Bedienung:** `/Updates` (Übersicht, Prüfen, Update-All, Regel je Stack), `/Updates/Rules?scope=Global|Environment|Stack` (nur Administratoren), Kennzahl "Updates available" im Dashboard. Der Stand der letzten Prüfung liegt nur im Speicher (`UpdateCheckCache`).
+
+## 13. Host-Updates: Docker Engine und Systempakete (apt)
+
+Neben den Images der Stacks zeigt die Updates-Seite die **Hosts** der Umgebungen: welche Docker-Version läuft, auf welche apt sie heben
+würde, wie viele Systempakete ausstehen (davon Sicherheits-Updates), wie alt die Paketlisten sind und ob der Host auf einen Neustart wartet.
+
+- **Wie MatDock auf den Host schaut:** über einen kurzlebigen Hilfs-Container (`HelperImage`, busybox) auf der Docker der Umgebung, der per
+  `chroot` die apt des Hosts fragt (`apt-get -s dist-upgrade`, nichts wird installiert). Das Root-Dateisystem des Hosts ist dabei nur lesend
+  eingehängt, beschreibbar sind nur die Paketlisten, apts Cache und ein tmpfs für `/tmp`. So geht es bei einer **Local**-Umgebung (MatDock
+  selbst im Container) genauso wie über SSH, und es braucht kein sudo-Passwort.
+- **Paketlisten:** jede Prüfung frischt sie vorher auf (`apt-get update`, Netz des Hosts). Listen älter als zwei Tage werden markiert –
+  sonst wäre „keine Updates“ nur geraten (so war es auf ve-docker-2: Listen von August, in Wahrheit Dutzende ausstehende Updates).
+- **Automatisch:** `HostUpdateMonitor` schaut alle sechs Stunden auf alle Hosts (drei Minuten nach dem Start zum ersten Mal) und
+  benachrichtigt einmal, wenn eine Umgebung eine neue Docker-Version oder Sicherheits-Updates bekommt. „Check all“ auf der Updates-Seite
+  prüft Stacks und Hosts zusammen; das Dashboard nennt die Hosts mit Docker- oder Sicherheits-Updates.
+- **Docker aktualisieren:** der Knopf je Host hebt nur die Docker-Pakete (Engine, CLI, containerd, Plugins) mit
+  `apt-get install --only-upgrade` (Konfigdateien bleiben, nichts fragt nach). Der Hilfs-Container übergibt das an systemd auf dem Host
+  (`nsenter` + `systemd-run`, eigene Einheit `matdock-host-update-<hex>`), damit es zu Ende läuft, auch wenn Docker dabei neu startet.
+  Log und Exit-Code landen in `/var/log/matdock/`; MatDock liest sie mit. Am Ende startet Docker neu und mit ihm alle Container des Hosts.
+  Läuft MatDock auf demselben Host, startet es mit – die Seite verliert dann den Lauf, das Update läuft trotzdem durch.
+- **Später:** alle Systempakete aktualisieren (derselbe Weg mit allen Paketen), Neustart des Hosts, Zeitfenster aus den Update-Regeln.
+- Hosts ohne apt (z. B. Alpine) werden als solche angezeigt; eine Bridge-Umgebung (andere MatDock) schaut selbst auf ihre Hosts.

@@ -20,9 +20,12 @@ public class IndexModel : PageModel
     private readonly UpdatePolicyService _policies;
     private readonly UpdateCheckCache _cache;
     private readonly OperationRegistry _operations;
+    private readonly HostUpdateCache _hostCache;
 
-    public IndexModel(EnvironmentService environments, StackService stacks, UpdatePolicyService policies, UpdateCheckCache cache, OperationRegistry operations)
+    public IndexModel(EnvironmentService environments, StackService stacks, UpdatePolicyService policies, UpdateCheckCache cache, OperationRegistry operations,
+        HostUpdateCache hostCache)
     {
+        _hostCache = hostCache;
         _environments = environments;
         _stacks = stacks;
         _policies = policies;
@@ -53,6 +56,14 @@ public class IndexModel : PageModel
     public int Total { get; private set; }
 
     public int PendingStacks { get; private set; }
+
+    /// <summary>The hosts of the environments shown, with what apt would upgrade on them (Docker first of all), from the last look.</summary>
+    public List<HostRow> HostRows { get; private set; } = new();
+
+    public sealed record HostRow(DockerEnvironment Env, HostUpdateReport? Report, DateTime? CheckedUtc)
+    {
+        public bool DockerPending => Report?.DockerTarget is not null;
+    }
 
     public ListToolbarModel Toolbar { get; private set; } = null!;
 
@@ -91,13 +102,29 @@ public class IndexModel : PageModel
         Rows = ListView.Apply(all, Q, SortChoices, SortKey, r => r.Stack.Name, r => r.EnvName, r => r.Policy.Mode.ToString(),
             r => string.Join(" ", r.Plan?.Items.Select(i => i.Service) ?? []));
         Toolbar = ListView.Toolbar(Q, SortKey, "Search stacks", SortChoices);
+
+        HostRows = (await VisibleHostsAsync())
+            .Select(env => _hostCache.Get(env.Id) is { } cached ? new HostRow(env, cached.Report, cached.CheckedUtc) : new HostRow(env, null, null))
+            .ToList();
     }
 
-    /// <summary>Looks for updates in every stack shown (in the background: the registries are asked one stack after the other).</summary>
+    /// <summary>The environments shown (the sidebar choice, or all) whose host MatDock can look at.</summary>
+    private async Task<List<DockerEnvironment>> VisibleHostsAsync()
+    {
+        var envs = await _environments.GetEnabledAsync(HttpContext.RequestAborted);
+        var selected = EnvSelection.Current(HttpContext) is { } id && envs.Any(e => e.Id == id) ? id : 0;
+        return envs
+            .Where(e => HostUpdateService.Supports(e) && (selected == 0 || e.Id == selected))
+            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>Looks for updates in every stack and on every host shown (in the background: one after the other).</summary>
     public async Task<IActionResult> OnPostCheckAsync()
     {
         var stacks = (await VisibleStacksAsync()).Select(x => x.Stack.Id).ToList();
-        if (stacks.Count == 0)
+        var hosts = (await VisibleHostsAsync()).Select(e => e.Id).ToList();
+        if (stacks.Count == 0 && hosts.Count == 0)
         {
             return RedirectToPage();
         }
@@ -116,11 +143,164 @@ public class IndexModel : PageModel
                 }
             }
 
-            var pending = await automation.CheckStacksAsync(list, ctx.Log, ctx.CancellationToken, ctx.Operation.Steps);
-            ctx.Log(pending == 0 ? "Nothing to update." : $"{pending} stack(s) can be updated.");
+            var envs = await HostEnvironmentsAsync(ctx, hosts);
+            var pending = list.Count == 0 ? 0 : await automation.CheckStacksAsync(list, ctx.Log, ctx.CancellationToken, ctx.Operation.Steps);
+            ctx.Log(pending == 0 ? "No stack to update." : $"{pending} stack(s) can be updated.");
+            await CheckHostsAsync(ctx, envs);
             return OperationOutcome.Success();
         });
         return RedirectToPage(new { op = operation.Id });
+    }
+
+    /// <summary>Looks at one host again (refreshing its package lists; in the background, it may take a minute).</summary>
+    public async Task<IActionResult> OnPostCheckHostAsync(long id)
+    {
+        var env = (await VisibleHostsAsync()).FirstOrDefault(e => e.Id == id);
+        if (env is null)
+        {
+            return RedirectToPage();
+        }
+
+        var operation = _operations.Start("updates-check", env.Name, $"host-update:{env.Id}", async ctx =>
+        {
+            await CheckHostsAsync(ctx, await HostEnvironmentsAsync(ctx, [env.Id]));
+            return OperationOutcome.Success();
+        });
+        return RedirectToPage(new { op = operation.Id });
+    }
+
+    /// <summary>
+    /// Upgrades the Docker packages of one host that the last look found (engine, CLI, containerd, plugins). The upgrade runs on the host
+    /// itself; at its end Docker restarts and with it every container on that host.
+    /// </summary>
+    public async Task<IActionResult> OnPostUpgradeDockerAsync(long id)
+    {
+        var env = (await VisibleHostsAsync()).FirstOrDefault(e => e.Id == id);
+        if (env is null || _hostCache.Get(env.Id) is not { Report.DockerTarget: not null })
+        {
+            StatusMessage = "Look at the host first: there is no Docker update known for it.";
+            IsError = true;
+            return RedirectToPage();
+        }
+
+        var operation = _operations.Start("host-upgrade", env.Name, $"host-update:{env.Id}", async ctx =>
+        {
+            var hosts = ctx.Services.GetRequiredService<HostUpdateService>();
+            var current = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(env.Id, ctx.CancellationToken);
+            if (current is null)
+            {
+                return OperationOutcome.Failure("The environment is gone.");
+            }
+
+            var packages = hosts.PendingDockerPackages(current.Id);
+            if (packages.Count == 0)
+            {
+                return OperationOutcome.Failure("No Docker update is known for this host any more.");
+            }
+
+            ctx.Operation.Steps.Add("start", "Start the upgrade on the host");
+            ctx.Operation.Steps.Add("apt", "apt-get: " + string.Join(", ", packages));
+            ctx.Operation.Steps.Add("check", "Look at the host again");
+
+            ctx.Operation.Steps.Set("start", StepState.Running);
+            var unit = await hosts.StartUpgradeAsync(current, packages, ctx.CancellationToken);
+            ctx.Operation.Steps.Set("start", StepState.Done, unit);
+            ctx.Log($"The upgrade runs on {current.Name} as the systemd unit {unit} (log: {HostUpdateCommands.LogDirectory}/{unit}.log).");
+            ctx.Log("At its end Docker restarts: every container on this host restarts with it.");
+            if (current.ConnectionType == ConnectionType.Local)
+            {
+                ctx.Log("MatDock runs on this host too: it restarts with Docker and this page loses the run. The upgrade goes on regardless; look at the host again afterwards.");
+            }
+
+            ctx.Operation.Steps.Set("apt", StepState.Running);
+            var (exit, log) = await WaitForUpgradeAsync(ctx, hosts, current, unit);
+            if (exit != 0)
+            {
+                ctx.Operation.Steps.Set("apt", StepState.Failed, exit is null ? "no answer" : $"exit code {exit}");
+                ctx.Log(log);
+                return OperationOutcome.Failure(exit is null
+                    ? $"The upgrade did not report back in time; see {HostUpdateCommands.LogDirectory}/{unit}.log on the host."
+                    : $"apt-get ended with exit code {exit}.");
+            }
+
+            ctx.Operation.Steps.Set("apt", StepState.Done);
+            ctx.Operation.Steps.Set("check", StepState.Running);
+            var report = await hosts.CheckAsync(current, refresh: false, ctx.CancellationToken);
+            ctx.Operation.Steps.Set("check", report.Error is null ? StepState.Done : StepState.Failed, report.Summary(null));
+            ctx.Log($"{current.Name}: {report.Summary(null)}");
+            return OperationOutcome.Success();
+        });
+        return RedirectToPage(new { op = operation.Id });
+    }
+
+    /// <summary>Follows the upgrade's log until it reports its exit code (at most half an hour). While Docker restarts the host may not answer for a moment.</summary>
+    private static async Task<(int? Exit, string Log)> WaitForUpgradeAsync(OperationContext ctx, HostUpdateService hosts, DockerEnvironment env, string unit)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromMinutes(30);
+        var shown = 0;
+        var log = string.Empty;
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), ctx.CancellationToken);
+            int? exit;
+            try
+            {
+                (exit, log) = await hosts.ReadUpgradeAsync(env, unit, ctx.CancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ctx.Log($"No answer from the host yet ({ex.Message}); Docker may be restarting.");
+                continue;
+            }
+
+            var lines = log.Split('\n');
+            if (lines.Length > shown)
+            {
+                foreach (var line in lines.Skip(shown).Where(l => l.Length > 0))
+                {
+                    ctx.Log(line);
+                }
+
+                shown = lines.Length;
+            }
+
+            if (exit is not null)
+            {
+                return (exit, string.Empty);
+            }
+        }
+
+        return (null, log);
+    }
+
+    private static async Task<List<DockerEnvironment>> HostEnvironmentsAsync(OperationContext ctx, IEnumerable<long> ids)
+    {
+        var environments = ctx.Services.GetRequiredService<EnvironmentService>();
+        var list = new List<DockerEnvironment>();
+        foreach (var id in ids)
+        {
+            if (await environments.GetAsync(id, ctx.CancellationToken) is { IsEnabled: true } env)
+            {
+                list.Add(env);
+                ctx.Operation.Steps.Add($"host:{env.Id}", $"{env.Name} (host)");
+            }
+        }
+
+        return list;
+    }
+
+    private static async Task CheckHostsAsync(OperationContext ctx, IReadOnlyList<DockerEnvironment> envs)
+    {
+        var hosts = ctx.Services.GetRequiredService<HostUpdateService>();
+        foreach (var env in envs)
+        {
+            var key = $"host:{env.Id}";
+            ctx.Operation.Steps.Set(key, StepState.Running, "Refreshing the package lists");
+            var report = await hosts.CheckAsync(env, refresh: true, ctx.CancellationToken);
+            var summary = report.Summary(env.DockerVersion);
+            ctx.Operation.Steps.Set(key, report.Error is null ? StepState.Done : StepState.Failed, summary);
+            ctx.Log($"{env.Name} (host): {summary}");
+        }
     }
 
     /// <summary>Updates the stacks shown that have something to update, one after the other, each with the backup and the health gate of its rule.</summary>

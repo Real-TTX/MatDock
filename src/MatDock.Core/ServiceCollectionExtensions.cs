@@ -99,6 +99,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Images.ImageService>();
         services.AddScoped<Images.ImageScanService>();
         services.AddSingleton<Updates.UpdateCheckCache>();
+        services.AddSingleton<Updates.HostUpdateCache>();
+        services.AddScoped<Updates.HostUpdateService>();
         services.AddSingleton<Schedules.IScheduleEventBus, Schedules.ScheduleEventBus>();
         services.AddSingleton<Operations.OperationRegistry>();
         services.AddMemoryCache();

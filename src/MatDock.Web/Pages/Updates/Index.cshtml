@@ -27,13 +27,115 @@
     {
         <div class="mat-card__head">
             <icon name="@(op.IsFinished ? (op.Error is null ? "check-circle" : "alert") : "refresh")" />
-            <h2 class="mat-card__title">@(op.Kind == "updates-check" ? "Checking" : "Updating")@(op.IsFinished ? string.Empty : "…")</h2>
+            <h2 class="mat-card__title">@(op.Kind switch { "updates-check" => "Checking", "host-upgrade" => $"Updating Docker on {op.Target}", _ => "Updating" })@(op.IsFinished ? string.Empty : "…")</h2>
         </div>
         <div class="mat-card__body mat-stack">
             <partial name="_RunSteps" model="op" />
         </div>
     }
 </section>
+
+@* The hosts: Docker Engine and the system's packages (apt), looked at by a throwaway container on each host. *@
+@if (Model.HostRows.Count > 0)
+{
+    <section class="mat-card" id="hosts">
+        <div class="mat-card__head"><icon name="server" /><h2 class="mat-card__title">Hosts</h2></div>
+        <div class="mat-table-wrap">
+            <table class="mat-table">
+                <thead>
+                    <tr><th>Environment</th><th>System</th><th>Docker</th><th>Packages</th><th>Package lists</th><th>Checked</th><th><span class="mat-sr-only">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var host in Model.HostRows)
+                    {
+                        var report = host.Report;
+                        <tr>
+                            <td data-label="Environment"><a href="/Environments/Detail?id=@host.Env.Id">@host.Env.Name</a></td>
+                            <td data-label="System" class="mat-muted">@(report?.OsName ?? "–")</td>
+                            <td data-label="Docker" class="mat-mono">
+                                @if (report?.DockerTarget is { } target)
+                                {
+                                    <span class="mat-pill mat-pill--info" title="@string.Join(", ", report.DockerPackages.Select(p => p.Name))">@(host.Env.DockerVersion ?? "?") → @target</span>
+                                }
+                                else
+                                {
+                                    <span>@(host.Env.DockerVersion ?? "–")</span>
+                                }
+                            </td>
+                            <td data-label="Packages">
+                                @if (report is null)
+                                {
+                                    <span class="mat-muted">–</span>
+                                }
+                                else if (report.Error is not null)
+                                {
+                                    <span class="mat-pill mat-pill--error" title="@report.Error">Check failed</span>
+                                    <div class="mat-muted">@report.Error</div>
+                                }
+                                else if (!report.AptAvailable)
+                                {
+                                    <span class="mat-muted">No apt on this host</span>
+                                }
+                                else if (report.Packages.Count == 0)
+                                {
+                                    <span class="mat-pill mat-pill--ok">Up to date</span>
+                                }
+                                else
+                                {
+                                    <details>
+                                        <summary>
+                                            @report.Packages.Count packages
+                                            @if (report.SecurityCount > 0)
+                                            {
+                                                <span class="mat-pill mat-pill--warn">@report.SecurityCount security</span>
+                                            }
+                                        </summary>
+                                        <ul class="mat-mono">
+                                            @foreach (var p in report.Packages.OrderByDescending(p => p.IsSecurity).ThenBy(p => p.Name, StringComparer.Ordinal))
+                                            {
+                                                <li title="@p.Origin">@p.Name @(p.From ?? "new") → @p.To@(p.IsSecurity ? " (security)" : string.Empty)</li>
+                                            }
+                                        </ul>
+                                    </details>
+                                }
+                                @if (report?.RebootRequired == true)
+                                {
+                                    <span class="mat-pill mat-pill--warn">Reboot required</span>
+                                }
+                            </td>
+                            <td data-label="Package lists" class="mat-nowrap">
+                                @if (report?.ListsUpdatedUtc is { } lists)
+                                {
+                                    <span class="@(report.ListsStale(DateTime.UtcNow) ? "mat-pill mat-pill--warn" : "mat-muted")" title="When the host last fetched its package lists">@lists.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                }
+                                else
+                                {
+                                    <span class="mat-muted">–</span>
+                                }
+                            </td>
+                            <td data-label="Checked" class="mat-nowrap mat-muted">@(host.CheckedUtc is { } at ? at.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
+                            <td class="mat-table__cell-actions">
+                                <div class="mat-table__actions">
+                                    <form method="post" asp-page-handler="CheckHost">
+                                        <input type="hidden" name="id" value="@host.Env.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Look at the host (refreshes its package lists)" aria-label="Look at the host of @host.Env.Name"><icon name="search" /></button>
+                                    </form>
+                                    @if (host.DockerPending)
+                                    {
+                                        <form method="post" asp-page-handler="UpgradeDocker" data-confirm="Update Docker on @host.Env.Name to @report!.DockerTarget? Docker restarts at the end, and with it every container on this host.">
+                                            <input type="hidden" name="id" value="@host.Env.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Update Docker" aria-label="Update Docker on @host.Env.Name"><icon name="arrow-up" /></button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
 
 <mat-table>
 <mat-table-toolbar><partial name="_ListToolbar" model="Model.Toolbar" /></mat-table-toolbar>

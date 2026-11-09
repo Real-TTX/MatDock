@@ -28,6 +28,7 @@ public class IndexModel : PageModel
     private readonly IMemoryCache _cache;
     private readonly HostMetricsHistory _history;
     private readonly MatDock.Core.Updates.UpdateCheckCache _updates;
+    private readonly MatDock.Core.Updates.HostUpdateCache _hostUpdates;
 
     public IndexModel(
         EnvironmentService environmentService,
@@ -39,8 +40,10 @@ public class IndexModel : PageModel
         AppLaunchpadService launchpad,
         IMemoryCache cache,
         HostMetricsHistory history,
-        MatDock.Core.Updates.UpdateCheckCache updates)
+        MatDock.Core.Updates.UpdateCheckCache updates,
+        MatDock.Core.Updates.HostUpdateCache hostUpdates)
     {
+        _hostUpdates = hostUpdates;
         _history = history;
         _updates = updates;
         _environmentService = environmentService;
@@ -67,6 +70,9 @@ public class IndexModel : PageModel
     /// <summary>Stacks that had something to update at the last look, and how many stacks were looked at (a look is made by the Updates page, an update rule or a schedule).</summary>
     public int UpdatesAvailable { get; private set; }
     public int UpdatesChecked { get; private set; }
+
+    /// <summary>Hosts whose last look found a Docker update or security fixes.</summary>
+    public int HostUpdates { get; private set; }
 
     // Per-environment usage tiles
     public List<DockerEnvironment> Environments { get; private set; } = new();
@@ -183,6 +189,11 @@ public class IndexModel : PageModel
         foreach (var r in results)
         {
             Stats[r.env.Id] = r.stats;
+            if (_hostUpdates.Get(r.env.Id) is { Report: { Error: null } host } && (host.DockerTarget is not null || host.SecurityCount > 0))
+            {
+                HostUpdates++;
+            }
+
             var running = r.containers.Count(c => c.IsRunning);
             RunningCounts[r.env.Id] = running;
             RunningContainersTotal += running;

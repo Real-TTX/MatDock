@@ -104,6 +104,7 @@ builder.Services.AddHostedService<ScheduleRunnerService>();
 builder.Services.AddHostedService<EnvironmentHealthMonitor>();
 builder.Services.AddHostedService<ContainerAlertMonitor>();
 builder.Services.AddHostedService<UpdateAutomationService>();
+builder.Services.AddHostedService<HostUpdateMonitor>();
 builder.Services.AddHostedService<HostMetricsSampler>();
 builder.Services.AddHostedService<SelfHandoverCompletion>();
 

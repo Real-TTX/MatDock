@@ -61,11 +61,11 @@
         @if (User.IsInRole(nameof(MatDock.Core.Entities.UserRole.Admin)))
         {
             <a class="mat-card md-stat" href="/Updates">
-                <span class="md-stat__icon @(Model.UpdatesAvailable > 0 ? "md-stat__icon--warn" : "")"><icon name="arrow-up" /></span>
+                <span class="md-stat__icon @(Model.UpdatesAvailable + Model.HostUpdates > 0 ? "md-stat__icon--warn" : "")"><icon name="arrow-up" /></span>
                 <span class="mat-stat">
                     <span class="mat-stat__value">@Model.UpdatesAvailable</span>
                     <span class="mat-stat__label">Updates available</span>
-                    <span class="mat-stat__delta">@(Model.UpdatesChecked == 0 ? "not looked at yet" : $"{Model.UpdatesChecked} stacks looked at")</span>
+                    <span class="mat-stat__delta">@(Model.UpdatesChecked == 0 ? "not looked at yet" : $"{Model.UpdatesChecked} stacks looked at")@(Model.HostUpdates > 0 ? $" · {Model.HostUpdates} host(s) with Docker or security updates" : string.Empty)</span>
                 </span>
             </a>
         }
