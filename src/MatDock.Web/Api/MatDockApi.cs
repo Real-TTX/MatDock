@@ -13,8 +13,8 @@ namespace MatDock.Web.Api;
 public static class MatDockApi
 {
     /// <summary>Version of the API; raised when endpoints are added, so Mattiverse knows what it may call (2: environments, containers, images, volumes,
-    /// networks, events, update rules; named keys).</summary>
-    public const int ApiVersion = 2;
+    /// networks, events, update rules; named keys. 3: SSH environments created and tested by the API).</summary>
+    public const int ApiVersion = 3;
 
     public const string BasePath = "/api/v1";
 
@@ -32,6 +32,7 @@ public static class MatDockApi
         BackupsApi.Map(api);
         DockerApi.Map(api);
         UpdateRulesApi.Map(api);
+        EnvironmentsApi.Map(api);
 
     }
 

@@ -341,7 +341,7 @@ public sealed class EngineApiUnchangedTests
         var response = await site.Api(MatDockFactory.EngineKey).GetAsync("/api/v1/status");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            $"{{\"ok\":true,\"app\":\"matdock\",\"version\":\"{AppVersion.Informational}\",\"apiVersion\":2,\"environments\":[]}}",
+            $"{{\"ok\":true,\"app\":\"matdock\",\"version\":\"{AppVersion.Informational}\",\"apiVersion\":3,\"environments\":[]}}",
             await response.Content.ReadAsStringAsync());
 
         // The platform key is not the engine key: /api/v1 keeps its own guard.

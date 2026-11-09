@@ -408,6 +408,8 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 | `GET /api/v1/events?hours=24&type=&container=` | the events of the engine |
 | `GET /api/v1/update-rules`, `GET`/`PUT /api/v1/update-rules/{global/0, environment/{id}, stack/{id}}` | the update rules `{mode, strategy, windowStartHour, windowEndHour, checkEveryHours, preBackup, rollback, notifyAvailable, notifyResult, serviceStrategies}`; `null` = as the wider rule says |
 | `PUT /api/v1/environments/local` | ensure the Local environment `local` → `{id, name, created}`; `409` without a Docker socket |
+| `PUT /api/v1/environments/ssh/{name}` | create or change an SSH environment `{host, port, username, description, baseUrl, privateKeyPem, generateKey}` → `{id, name, created, publicKey, connected, status, dockerVersion, message}`; without a key MatDock generates one and answers only its public key for `authorized_keys` |
+| `POST /api/v1/environments/{id or name}/test` | connect again and store status, Docker version and, the first time, the host key → `{connected, status, dockerVersion, access, hostKey, message}` |
 | `GET /api/v1/stacks?managedBy=` | managed and discovered stacks with `state` (`running/stopped/partial/unhealthy/missing`) and containers |
 | `GET /api/v1/stacks/{name}` | the same plus `composeYaml` and `envContent` |
 | `PUT /api/v1/stacks/{name}` | upsert `{composeYaml, envContent, managedBy, deploy, pull}`; `200 {stack}` or with `deploy` `202 {stack, operationId}` |
