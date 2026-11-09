@@ -4,7 +4,8 @@ namespace MatDock.Web.Infrastructure;
 /// The headers that keep the browser on MatDock's side, on every answer: no framing (a page that controls Docker hosts must not be clicked through
 /// from another site), no type sniffing, no referrer to other sites, a content security policy that allows only MatDock's own scripts, styles,
 /// connections and WebSockets (images may come from elsewhere: the icons of the apps), and no camera, microphone or position.
-/// HSTS is added by <c>UseHsts</c> over HTTPS outside development.
+/// HSTS is added by <c>UseHsts</c> over HTTPS outside development. When <c>MAT_FRAME_ANCESTORS</c> names origins (Mattiverse), MatPlatform's
+/// <c>MatFrameAncestors</c> (registered by <c>AddMatPlatform</c>) has the last word: <c>frame-ancestors 'self' &lt;origins&gt;</c> and no <c>X-Frame-Options</c>.
 /// </summary>
 public sealed class SecurityHeadersMiddleware
 {
