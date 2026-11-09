@@ -282,7 +282,7 @@ public sealed class FakeHostSessionFactory : IHostSessionFactory
 
         public int? ExitStatus => fails ? 1 : 0;
 
-        public string Error => fails ? "simulated failure" : string.Empty;
+        public string Error => fails ? (string.IsNullOrEmpty(result) ? "simulated failure" : result) : string.Empty;
 
         public string Result => fails ? string.Empty : result;
 

@@ -19,7 +19,25 @@ public sealed class UpdateAutomationState
     public void Checked(long stackId, DateTime utc) => _checked[stackId] = utc;
 
     public void Forget(long stackId) => _checked.TryRemove(stackId, out _);
+
+    // Discovered projects (no row of their own): by "environment/project", and what was seen of their images by "environment/project/service/digest".
+    private readonly ConcurrentDictionary<string, DateTime> _projectChecked = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ProjectNotice> _projectNotices = new(StringComparer.Ordinal);
+
+    public DateTime? LastCheck(string project) => _projectChecked.TryGetValue(project, out var at) ? at : null;
+
+    public void Checked(string project, DateTime utc) => _projectChecked[project] = utc;
+
+    public void Forget(string project) => _projectChecked.TryRemove(project, out _);
+
+    /// <summary>What is known of a new image of a discovered project (first seen, said, failed); null = not seen yet.</summary>
+    public ProjectNotice? Notice(string key) => _projectNotices.TryGetValue(key, out var n) ? n : null;
+
+    public void Note(string key, ProjectNotice notice) => _projectNotices[key] = notice;
 }
+
+/// <summary>A new image of a discovered project as the automation saw it: since when, whether it was said, whether applying it failed.</summary>
+public sealed record ProjectNotice(DateTime FirstSeenUtc, bool Notified, bool Failed);
 
 /// <summary>What one run of the automation did.</summary>
 public sealed record UpdateAutomationReport(int Looked, int Announced, int Applied, int Failed, IReadOnlyList<string> Lines);
@@ -106,11 +124,70 @@ public sealed class UpdateAutomation
             }
         }
 
+        // The compose projects MatDock did not deploy, under the rule of their environment: moved tags, updated in place with their own files.
+        foreach (var env in envs.Values.Where(e => e.ConnectionType != ConnectionType.Bridge).OrderBy(e => e.Id))
+        {
+            ct.ThrowIfCancellationRequested();
+            var policy = policies.Inherited(UpdatePolicyScope.Stack, env.Id);
+            if (policy.Mode == UpdateMode.Off)
+            {
+                continue;
+            }
+
+            IReadOnlyList<string> projects;
+            try
+            {
+                projects = await _updates.DiscoveredProjectsAsync(env, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lines.Add($"{env.Name}: {ex.Message}");
+                continue;
+            }
+
+            var unapplied = new List<string>();
+            foreach (var project in projects)
+            {
+                var key = $"{env.Id}/{project}";
+                if (_state.LastCheck(key) is { } last && utcNow - last < TimeSpan.FromHours(policy.CheckEveryHours))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var result = await HandleProjectAsync(env, project, key, policy, utcNow, localNow, ct);
+                    looked++;
+                    announced += result.Announced;
+                    applied += result.Applied;
+                    failed += result.Failed;
+                    lines.AddRange(result.Lines);
+                    if (result.Unapplied is { } line)
+                    {
+                        unapplied.Add(line);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Update automation for project {Project} on {Environment} failed.", project, env.Name);
+                    lines.Add($"{project} on {env.Name}: {ex.Message}");
+                }
+            }
+
+            if (unapplied.Count > 0)
+            {
+                await NotifyAsync($"Updates available that MatDock does not apply: {env.Name}",
+                    "New images for stacks MatDock did not deploy and cannot update in place (update them where they are managed):\n"
+                    + string.Join("\n", unapplied.Select(u => "- " + u)), ct);
+            }
+        }
+
         await ForgetOldNoticesAsync(utcNow, ct);
         return new UpdateAutomationReport(looked, announced, applied, failed, lines);
     }
 
-    private sealed record StackResult(int Announced, int Applied, int Failed, IReadOnlyList<string> Lines);
+    /// <param name="Unapplied">A discovered project with new images MatDock cannot apply by itself, as one line of the message for its environment.</param>
+    private sealed record StackResult(int Announced, int Applied, int Failed, IReadOnlyList<string> Lines, string? Unapplied = null);
 
     private async Task<StackResult> HandleAsync(DockerEnvironment env, long stackId, EffectiveUpdatePolicy policy, DateTime utcNow, DateTime localNow, CancellationToken ct)
     {
@@ -256,6 +333,123 @@ public sealed class UpdateAutomation
         }
 
         return new StackResult(announced, applied, failed, lines);
+    }
+
+    /// <summary>
+    /// A discovered project: its images with a moved tag (a project MatDock did not deploy has no image overrides, so a newer version tag stays a hint on the
+    /// update page). Announced once; in Auto within the window updated in place (<see cref="UpdateService.RunProjectUpdateAsync"/>). One MatDock cannot
+    /// update by itself (its compose files are not on the host) is said once as available, with the reason, and not tried again for the same image.
+    /// </summary>
+    private async Task<StackResult> HandleProjectAsync(DockerEnvironment env, string project, string key, EffectiveUpdatePolicy policy,
+        DateTime utcNow, DateTime localNow, CancellationToken ct)
+    {
+        var report = await _updates.CheckStackAsync(env, project, ct);
+        if (report.Error is not null)
+        {
+            return new StackResult(0, 0, 0, [$"{project} on {env.Name}: {report.Error}"]);
+        }
+
+        _state.Checked(key, utcNow);
+        var items = report.Images
+            .Where(i => i.UpdateAvailable && !i.Pinned && policy.StrategyOf(i.Service) != UpdateStrategy.Pinned)
+            .Select(i => (Status: i, Key: $"{key}/{i.Service}/{i.RegistryDigest}"))
+            .ToList();
+        if (items.Count == 0)
+        {
+            return new StackResult(0, 0, 0, []);
+        }
+
+        foreach (var (_, noticeKey) in items.Where(i => _state.Notice(i.Key) is null))
+        {
+            _state.Note(noticeKey, new ProjectNotice(utcNow, Notified: false, Failed: false));
+        }
+
+        ProjectNotice Notice(string noticeKey) => _state.Notice(noticeKey)!;
+        PlannedUpdate Planned(ImageUpdateStatus s) => new(s.Service, s.Image, UpdateService.ShortDigest(s.RegistryDigest), PlannedKind.Digest);
+        var lines = new List<string>();
+        var name = $"{project} on {env.Name}";
+
+        var applicable = items.Where(i => !Notice(i.Key).Failed).ToList();
+        if (policy.Mode == UpdateMode.Auto && policy.MinAgeHours > 0)
+        {
+            var minAge = TimeSpan.FromHours(policy.MinAgeHours);
+            var waiting = applicable.Where(i => utcNow - Notice(i.Key).FirstSeenUtc < minAge).ToList();
+            applicable = applicable.Except(waiting).ToList();
+            if (waiting.Count > 0)
+            {
+                lines.Add($"{name}: {waiting.Count} new image(s) wait for their minimum age of {policy.MinAgeHours} h.");
+            }
+        }
+
+        var unannounced = items.Where(i => !Notice(i.Key).Notified).ToList();
+        void Said(IEnumerable<(ImageUpdateStatus Status, string Key)> which, bool? failed = null)
+        {
+            foreach (var (_, noticeKey) in which)
+            {
+                var n = Notice(noticeKey);
+                _state.Note(noticeKey, n with { Notified = true, Failed = failed ?? n.Failed });
+            }
+        }
+
+        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(localNow) && applicable.Count > 0;
+        if (!willApply)
+        {
+            var announced = 0;
+            if (unannounced.Count > 0 && policy.NotifyAvailable)
+            {
+                await NotifyAsync($"Update available: {name}", Describe(items.Select(i => Planned(i.Status)), "New images"), ct);
+                announced = unannounced.Count;
+                lines.Add($"{name}: {unannounced.Count} new image(s) announced.");
+            }
+
+            Said(unannounced);
+            return new StackResult(announced, 0, 0, lines);
+        }
+
+        var services = applicable.Select(i => i.Status.Service).Distinct(StringComparer.Ordinal).ToList();
+        var outcome = await _updates.RunProjectUpdateAsync(env, project, services, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct);
+        if (outcome.Transient)
+        {
+            lines.Add($"{name}: {outcome.Message}");
+            return new StackResult(0, 0, 0, lines);
+        }
+
+        if (!outcome.Applicable)
+        {
+            // Nothing was touched: said once as available (gathered per environment, one message for all), and not tried again for these images.
+            string? unapplied = null;
+            if (unannounced.Count > 0 && policy.NotifyAvailable)
+            {
+                unapplied = $"{project}: {string.Join(", ", items.Select(i => i.Status.Service).Distinct(StringComparer.Ordinal))} — {outcome.Message}";
+            }
+
+            Said(items, failed: true);
+            lines.Add($"{name}: not updated by MatDock: {outcome.Message}");
+            return new StackResult(unapplied is null ? 0 : unannounced.Count, 0, 0, lines, unapplied);
+        }
+
+        Said(applicable, failed: !outcome.Ok);
+        _state.Forget(key); // looked at again after the update
+        var tried = applicable.Select(i => Planned(i.Status)).ToList();
+        if (outcome.Ok)
+        {
+            lines.Add($"{name}: updated {services.Count} service(s).");
+            if (policy.NotifyResult)
+            {
+                await NotifyAsync($"Updated: {name}", Describe(tried, "Updated") + (outcome.Changed ? string.Empty : "\nNo container needed to change."), ct);
+            }
+
+            return new StackResult(0, applicable.Count, 0, lines);
+        }
+
+        lines.Add($"{name}: update failed{(outcome.RolledBack ? " and was rolled back" : string.Empty)}.");
+        if (policy.NotifyResult)
+        {
+            await NotifyAsync($"Update failed: {name}",
+                Describe(tried, "Tried") + $"\n{(outcome.RolledBack ? "The old images were put back.\n" : string.Empty)}{LastLines(outcome.Message)}", ct);
+        }
+
+        return new StackResult(0, 0, applicable.Count, lines);
     }
 
     /// <summary>Applies the planned updates: the versions by an image override, then the update itself (pull and redeploy, with the backup and the gate of the rule).

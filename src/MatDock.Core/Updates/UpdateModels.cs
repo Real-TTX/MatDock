@@ -30,6 +30,17 @@ public sealed record StackUpdateOutcome(bool Ok, string Message, bool Changed, b
     public static StackUpdateOutcome NotStartedWith(string message) => new(false, message, false, NotStarted: true);
 }
 
+/// <summary>
+/// What an update of a discovered project (one MatDock did not deploy) came to. <paramref name="Applicable"/> false: MatDock cannot update it by itself (no
+/// compose files on the host …) and touched nothing. <paramref name="Transient"/>: it did not start for a passing reason (Docker did not answer, the backup failed).
+/// </summary>
+public sealed record ProjectUpdateResult(bool Ok, bool Applicable, bool Changed, bool RolledBack, string Message, bool Transient = false)
+{
+    public static ProjectUpdateResult NotApplicable(string message) => new(false, false, false, false, message);
+
+    public static ProjectUpdateResult Retry(string message) => new(false, true, false, false, message, Transient: true);
+}
+
 /// <summary>How a planned update comes about.</summary>
 public enum PlannedKind
 {

@@ -214,7 +214,7 @@ public sealed class UpdateService
         return plan;
     }
 
-    private static string ShortDigest(string? digest)
+    internal static string ShortDigest(string? digest)
         => string.IsNullOrEmpty(digest) ? "new" : (digest.StartsWith("sha256:", StringComparison.Ordinal) ? digest[7..] : digest) is var h && h.Length > 12 ? "sha256:" + h[..12] : digest;
 
     private async Task<IReadOnlyList<string>> TagsAsync(ImageRef iref, CancellationToken ct)
@@ -489,6 +489,187 @@ public sealed class UpdateService
         return deployed && errors.Count == 0
             ? "Rolled back to the images from before the update."
             : $"The rollback did not complete: {string.Join("; ", errors.Append(deployed ? string.Empty : output.Trim()).Where(e => e.Length > 0))}";
+    }
+
+    /// <summary>How long the helper of a discovered project may pull and start (big images, slow hosts).</summary>
+    private static readonly TimeSpan ProjectHelperTimeout = TimeSpan.FromMinutes(20);
+
+    /// <summary>The compose projects that run on <paramref name="env"/> and are no managed stack (discovered ones), sorted.</summary>
+    public async Task<IReadOnlyList<string>> DiscoveredProjectsAsync(DockerEnvironment env, CancellationToken ct = default)
+    {
+        var managed = (await _stacks.GetAllAsync(ct)).Where(s => s.EnvironmentId == env.Id).Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+        return (await _containers.ListAsync(env, ct, includeStats: false))
+            .Select(c => c.Project)
+            .OfType<string>()
+            .Where(p => p.Length > 0 && !managed.Contains(p) && StackCommands.IsValidName(p))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(p => p, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Updates services of a project MatDock did not deploy, in place with its own compose files (<see cref="ProjectUpdateCommands"/>): the backup and the gate
+    /// and rollback of <paramref name="safety"/> as for a managed stack. Not applicable (nothing touched) when compose named no files, the files are not on the
+    /// host, Docker is reached over TCP, the project is a managed stack or MatDock itself.
+    /// </summary>
+    public async Task<ProjectUpdateResult> RunProjectUpdateAsync(DockerEnvironment env, string project, IReadOnlyList<string> services, bool preBackup,
+        UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null)
+    {
+        if (!StackCommands.IsValidName(project) || services.Count == 0 || !services.All(StackCommands.IsValidServiceName))
+        {
+            return ProjectUpdateResult.NotApplicable("Invalid project or service name.");
+        }
+
+        if (await _stacks.GetByNameAsync(env.Id, project, ct) is not null)
+        {
+            return ProjectUpdateResult.NotApplicable("A managed stack: its own update applies.");
+        }
+
+        if (await _stacks.IsSelfProjectAsync(env, project, ct))
+        {
+            return ProjectUpdateResult.NotApplicable("MatDock itself is updated with its own stack.");
+        }
+
+        IReadOnlyList<DockerContainer> containers;
+        try
+        {
+            containers = await _containers.ListByProjectAsync(env, project, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ProjectUpdateResult.Retry(ex.Message);
+        }
+
+        // The files compose named; when the containers of one project came from different folders, the most used first.
+        var candidates = containers.Select(c => ComposeProjectFiles.FromLabels(c.Labels)).OfType<ComposeProjectFiles>()
+            .GroupBy(f => $"{f.WorkingDir}|{string.Join(',', f.ConfigFiles)}|{string.Join(',', f.EnvFiles)}", StringComparer.Ordinal)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.First())
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            return ProjectUpdateResult.NotApplicable("Compose named no files for this project (another tool started it over the Docker API).");
+        }
+
+        var settings = _environments.BuildSettings(env);
+        if (ProjectUpdateCommands.Run(candidates[0], project, services, pull: true, "docker", settings.DockerHost, "probe") is null)
+        {
+            return ProjectUpdateResult.NotApplicable("Docker is reached over TCP on this host; a helper container could not reach it.");
+        }
+
+        if (preBackup)
+        {
+            log?.Invoke("==> Bundle backup before the update");
+            var (backupOk, backupMsg, _) = await _bundle.CreateBundleAsync(env, project, target: null, stopContainers: false,
+                StackBackupKind.PreUpdate, "Before update", ct: ct);
+            if (!backupOk)
+            {
+                return ProjectUpdateResult.Retry($"Pre-update backup failed, update aborted: {backupMsg}");
+            }
+
+            log?.Invoke(backupMsg);
+        }
+
+        var kept = safety is { Rollback: true } ? await KeepImagesAsync(env, project, ct) : null;
+        var before = await ContainerIdsAsync(env, project, ct);
+        var missing = new List<string>();
+        ComposeProjectFiles? used = null;
+        var output = string.Empty;
+        foreach (var files in candidates)
+        {
+            log?.Invoke($"==> docker compose pull && up -d --no-deps {string.Join(' ', services)} (files in {files.WorkingDir})");
+            var (ok, text) = await _containers.RunAsync(env,
+                head => ProjectUpdateCommands.Run(files, project, services, pull: true, head, settings.DockerHost, ProjectUpdateCommands.HelperName(project))!,
+                ct, ProjectHelperTimeout);
+            output = text.Trim();
+            if (ok)
+            {
+                used = files;
+                break;
+            }
+
+            if (text.Contains(ProjectUpdateCommands.MissingFolder, StringComparison.Ordinal))
+            {
+                missing.Add(files.WorkingDir);
+                continue;
+            }
+
+            // Compose itself failed (a pull, or the start): when containers changed on the way, put the old images back.
+            var now = await ContainerIdsAsync(env, project, ct);
+            if (kept is { Count: > 0 } && before is not null && now is not null && !before.SetEquals(now))
+            {
+                var undone = await RollbackProjectAsync(env, files, project, services, kept, settings.DockerHost, ct);
+                await ForgetKeptAsync(env, kept, ct);
+                return new ProjectUpdateResult(false, true, false, true, $"{output}\n{undone}");
+            }
+
+            await ForgetKeptAsync(env, kept, ct);
+            return new ProjectUpdateResult(false, true, false, false, output);
+        }
+
+        if (used is null)
+        {
+            await ForgetKeptAsync(env, kept, ct);
+            return ProjectUpdateResult.NotApplicable(
+                $"The compose files of this project are not on the host ({string.Join(", ", missing)}): another tool keeps them in its container, or they are gone.");
+        }
+
+        _cache.Clear(env.Id, project);
+        var after = await ContainerIdsAsync(env, project, ct);
+        var changed = before is null || after is null || !before.SetEquals(after);
+        if (safety is null || !changed)
+        {
+            await ForgetKeptAsync(env, kept, ct);
+            return new ProjectUpdateResult(true, true, changed, false, output);
+        }
+
+        log?.Invoke($"==> Waiting up to {(int)safety.Grace.TotalSeconds} s for the containers to be up and healthy");
+        var (health, reason) = await GateAsync(env, project, safety.Grace, ct);
+        if (health == StackHealth.Healthy)
+        {
+            await ForgetKeptAsync(env, kept, ct);
+            return new ProjectUpdateResult(true, true, true, false, output + "\nThe containers are up and healthy.");
+        }
+
+        reason ??= $"The containers were not up and healthy within {(int)safety.Grace.TotalSeconds} s.";
+        if (!safety.Rollback || kept is null || kept.Count == 0)
+        {
+            return new ProjectUpdateResult(false, true, true, false, $"{output}\nUpdated, but: {reason}");
+        }
+
+        log?.Invoke("==> Rolling back to the images from before the update");
+        var rolledBack = await RollbackProjectAsync(env, used, project, services, kept, settings.DockerHost, ct);
+        await ForgetKeptAsync(env, kept, ct);
+        return new ProjectUpdateResult(false, true, true, true, $"{output}\nUpdated, but: {reason} {rolledBack}");
+    }
+
+    /// <summary>Puts the old images back under their tags and starts the services again with the project's files (no pull).</summary>
+    private async Task<string> RollbackProjectAsync(DockerEnvironment env, ComposeProjectFiles files, string project, IReadOnlyList<string> services,
+        IReadOnlyList<(string Reference, string Kept)> kept, string? dockerHost, CancellationToken ct)
+    {
+        var errors = new List<string>();
+        foreach (var (reference, backup) in kept)
+        {
+            try
+            {
+                var (ok, text) = await _containers.RunAsync(env, head => ImageCommands.Tag(backup, reference, head), ct);
+                if (!ok)
+                {
+                    errors.Add($"{reference}: {text.Trim()}");
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                errors.Add($"{reference}: {ex.Message}");
+            }
+        }
+
+        var (started, output) = await _containers.RunAsync(env,
+            head => ProjectUpdateCommands.Run(files, project, services, pull: false, head, dockerHost, ProjectUpdateCommands.HelperName(project))!,
+            ct, ProjectHelperTimeout);
+        return started && errors.Count == 0
+            ? "Rolled back to the images from before the update."
+            : $"The rollback did not complete: {string.Join("; ", errors.Append(started ? string.Empty : output.Trim()).Where(e => e.Length > 0))}";
     }
 
     private async Task<IReadOnlyList<(string Service, string Reference, string ImageId)>?> ImagesAsync(DockerEnvironment env, string project, CancellationToken ct)
