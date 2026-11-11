@@ -20,6 +20,10 @@ public static partial class ContainerCommands
     public static string Stats(string dockerHead)
         => VolumeCommands.PathPrefix + dockerHead + " stats --no-stream --format '{{json .}}'";
 
+    /// <summary><see cref="Stats"/> and then the engine's CPU count as <c>NCPU=8</c> (Docker's CPU % is of one core; this makes it a share of the host).</summary>
+    public static string StatsWithCores(string dockerHead)
+        => Stats(dockerHead) + "; " + dockerHead + " info --format 'NCPU={{.NCPU}}' 2>/dev/null";
+
     /// <summary>Containers that mount the given (validated) volume. <paramref name="runningOnly"/> false = include stopped.</summary>
     public static string ListByVolume(string dockerHead, string volume, bool runningOnly)
     {

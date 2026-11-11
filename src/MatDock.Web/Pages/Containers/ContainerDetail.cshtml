@@ -175,7 +175,7 @@ else if (c is not null)
                     <dt>Ports</dt>
                     <dd><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@(Model.Environment is null ? null : MatDock.Web.Support.OpenUrls.PortLinkHost(Model.Environment))" /></dd>
                     <dt>CPU</dt>
-                    <dd>@(c.CpuPercent is { } cpu ? $"{cpu:0.0}%" : "–")</dd>
+                    <dd>@(c.CpuOfHost is { } cpu ? $"{cpu:0.0}%" + (c.HostCores is { } hostCores ? $" of {hostCores} cores ({c.CpuPercent / 100:0.##} cores busy)" : string.Empty) : "–")</dd>
                     <dt>RAM</dt>
                     <dd>@(string.IsNullOrEmpty(c.MemUsage) ? "–" : c.MemUsage)</dd>
                     @if (i is not null)

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace MatDock.Core.Docker;
 
-/// <summary>One reading of a host: CPU (load per core), memory and disk in percent.</summary>
+/// <summary>One reading of a host: CPU (busy share), memory and disk in percent.</summary>
 public sealed record HostSample(DateTime TimeUtc, double Cpu, double Mem, double Disk);
 
 /// <summary>

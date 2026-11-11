@@ -107,29 +107,49 @@ public sealed class ContainerService
             return containers;
         }
 
-        // Best-effort live usage on the same connection (shared for <see cref="StatsFor"/>); never fail the listing if stats are unavailable.
-        var statsKey = "docker-stats:" + environment.Id;
-        if (_cache is not null && _cache.TryGetValue(statsKey, out string? recent) && recent is not null)
+        // Best-effort live usage, never failing the listing. Shared for StatsFor; older readings are still shown while a new one is taken in the
+        // background, so a host whose Docker answers `docker stats` slowly (seconds with many containers) does not hold up the page each time.
+        if (_cache is null)
         {
-            ApplyStats(containers, recent);
+            try
+            {
+                var statsResult = await RunCommandAsync(client, ContainerCommands.StatsWithCores(head), ct);
+                if (statsResult.ExitStatus == 0)
+                {
+                    ApplyStats(containers, statsResult.StdOut);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+            }
+
             return containers;
         }
 
-        try
+        var stats = await StaleCache.GetAsync(_cache, "docker-stats:" + environment.Id, StatsFor, StatsKeep, StatsWait,
+            loadCt => ReadStatsAsync(settings, head, loadCt), _logger, ct);
+        if (stats is not null)
         {
-            var statsResult = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
-            if (statsResult.ExitStatus == 0)
-            {
-                ApplyStats(containers, statsResult.StdOut);
-                _cache?.Set(statsKey, statsResult.StdOut, StatsFor);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+            ApplyStats(containers, stats);
         }
 
         return containers;
+    }
+
+    /// <summary>How long an old <c>docker stats</c> is still shown while a new one is read.</summary>
+    public static readonly TimeSpan StatsKeep = TimeSpan.FromMinutes(10);
+
+    /// <summary>How long a page waits for the first <c>docker stats</c> of a host before it shows the list without.</summary>
+    public static readonly TimeSpan StatsWait = TimeSpan.FromSeconds(2);
+
+    /// <summary>One <c>docker stats</c> of a host on its own connection (it may outlive the page that asked).</summary>
+    private async Task<string> ReadStatsAsync(SshConnectionSettings settings, string head, CancellationToken ct)
+    {
+        using var client = _hostSessionFactory.Create(settings);
+        await ConnectAsync(client, settings, ct);
+        var result = await RunCommandAsync(client, ContainerCommands.StatsWithCores(head), ct, TimeSpan.FromSeconds(Math.Max(30, _options.SshTimeoutSeconds)));
+        return result.ExitStatus == 0 ? result.StdOut : throw new InvalidOperationException(DockerErrorMessages.InterpretDockerError(result.StdErr, result.StdOut));
     }
 
     /// <summary>Containers that mount the given volume on this host (running and stopped). Empty on failure.</summary>
@@ -796,7 +816,15 @@ public sealed class ContainerService
 
     /// <summary>Merges <c>docker stats --format json</c> output into the matching containers (by id).</summary>
     public static void ApplyStats(IReadOnlyList<DockerContainer> containers, string statsOutput)
-        => MergeStats(containers, ParseStats(statsOutput));
+    {
+        MergeStats(containers, ParseStats(statsOutput));
+        var cores = statsOutput.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.StartsWith("NCPU=", StringComparison.Ordinal)) is { } line
+                    && int.TryParse(line[5..], out var n) && n > 0 ? n : (int?)null;
+        foreach (var c in containers)
+        {
+            c.HostCores = cores;
+        }
+    }
 
     /// <summary>Parses the JSON-lines output of <c>docker events --format '{{json .}}'</c> into events.</summary>
     public static IReadOnlyList<ContainerEvent> ParseEvents(string output)

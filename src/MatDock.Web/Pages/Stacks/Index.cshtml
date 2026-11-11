@@ -31,7 +31,7 @@
         double cpu = 0, mem = 0; bool any = false;
         foreach (var c in r.Containers)
         {
-            if (c.CpuPercent is { } cv) { cpu += cv; any = true; }
+            if (c.CpuOfHost is { } cv) { cpu += cv; any = true; }
             if (c.MemPercent is { } mv) { mem += mv; any = true; }
         }
         return any ? (cpu, mem) : (null, null);
@@ -58,7 +58,7 @@
                     </div>
                     <span class="md-crow__state"><container-status state="@c.State" status="@c.Status" /></span>
                     <container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@r.EnvHost" max="3" />
-                    <span class="md-crow__usage mat-small mat-muted">@(c.CpuPercent is { } cpu ? $"CPU {cpu:0.#} %" : null)@(c.MemPercent is { } mem ? $" · RAM {mem:0.#} %" : null)</span>
+                    <span class="md-crow__usage mat-small mat-muted">@(c.CpuOfHost is { } cpu ? $"CPU {cpu:0.#} %" : null)@(c.MemPercent is { } mem ? $" · RAM {mem:0.#} %" : null)</span>
                     <partial name="_ContainerActions" model="actions" />
                 </li>
             }

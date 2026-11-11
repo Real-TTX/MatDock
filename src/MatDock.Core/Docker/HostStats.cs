@@ -13,13 +13,24 @@ public sealed class HostStats
     public long? DiskUsedBytes { get; init; }
     public int? RunningContainers { get; init; }
 
-    public double CpuPercent => Cores is > 0 && Load1 is { } l ? Math.Clamp(l / Cores.Value * 100.0, 0, 100) : 0;
+    /// <summary>How busy the CPUs were, measured from <c>/proc/stat</c> over half a second (null when the host did not say).</summary>
+    public double? CpuBusy { get; init; }
+
+    /// <summary>
+    /// CPU of the host in percent: the measured busy share. The load per core only stands in where there is no measurement: the load also counts
+    /// processes waiting for a disk or a network share, so on a host with a NAS it is far above what the CPUs do.
+    /// </summary>
+    public double CpuPercent => CpuBusy is { } busy ? Math.Clamp(busy, 0, 100) : Cores is > 0 && Load1 is { } l ? Math.Clamp(l / Cores.Value * 100.0, 0, 100) : 0;
+
+    /// <summary>Whether there is a CPU reading at all.</summary>
+    public bool HasCpu => CpuBusy is not null || (Cores is > 0 && Load1 is not null);
     public double MemPercent => MemTotalBytes is > 0 ? Math.Clamp((MemUsedBytes ?? 0) / (double)MemTotalBytes.Value * 100.0, 0, 100) : 0;
     public double DiskPercent => DiskTotalBytes is > 0 ? Math.Clamp((DiskUsedBytes ?? 0) / (double)DiskTotalBytes.Value * 100.0, 0, 100) : 0;
 
     /// <summary>The exact shell command whose KEY=VALUE output <see cref="Parse"/> understands.</summary>
     public static string BuildCommand(string dockerHead) =>
         MatDock.Core.Volumes.VolumeCommands.PathPrefix +
+        CpuSample +
         "echo CORES=$(nproc 2>/dev/null); " +
         "echo LOAD1=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); " +
         "echo MEMTOTAL=$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null); " +
@@ -35,6 +46,7 @@ public sealed class HostStats
     public static string BuildCommandInContainer(string dockerHead, string helperImage)
     {
         const string inner =
+            CpuSample +
             "echo CORES=$(nproc 2>/dev/null); " +
             "echo LOAD1=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); " +
             "echo MEMTOTAL=$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null); " +
@@ -44,6 +56,35 @@ public sealed class HostStats
         return MatDock.Core.Volumes.VolumeCommands.PathPrefix + dockerHead + " run --rm " + MatDock.Core.Volumes.VolumeFileCommands.ShellQuote(helperImage)
                + " sh -c " + MatDock.Core.Volumes.VolumeFileCommands.ShellQuote(inner) + " 2>/dev/null; "
                + $"echo CONTAINERS=$({dockerHead} ps -q 2>/dev/null | wc -l | tr -d ' ')";
+    }
+
+    /// <summary>The CPU counters of the host twice, half a second apart (busybox and coreutils both sleep fractions).</summary>
+    private const string CpuSample = "echo CPU1=$(head -n1 /proc/stat 2>/dev/null); sleep 0.5; echo CPU2=$(head -n1 /proc/stat 2>/dev/null); ";
+
+    /// <summary>The busy share between two <c>cpu</c> lines of <c>/proc/stat</c> (user nice system idle iowait irq softirq steal …); idle and iowait are not busy.</summary>
+    public static double? Busy(string? first, string? second)
+    {
+        static long[]? Ticks(string? line)
+        {
+            var parts = (line ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 5 || parts[0] != "cpu")
+            {
+                return null;
+            }
+
+            // guest and guest_nice are already inside user and nice.
+            var values = parts.Skip(1).Take(8).Select(p => long.TryParse(p, out var v) ? v : -1).ToArray();
+            return values.Any(v => v < 0) ? null : values;
+        }
+
+        if (Ticks(first) is not { } a || Ticks(second) is not { } b)
+        {
+            return null;
+        }
+
+        var total = b.Sum() - a.Sum();
+        var idle = b[3] - a[3] + (b.Length > 4 && a.Length > 4 ? b[4] - a[4] : 0);
+        return total > 0 ? Math.Clamp((total - idle) * 100.0 / total, 0, 100) : null;
     }
 
     public static HostStats Parse(string output)
@@ -68,6 +109,7 @@ public sealed class HostStats
         {
             Cores = cores,
             Load1 = TryDouble(map, "LOAD1"),
+            CpuBusy = Busy(map.GetValueOrDefault("CPU1"), map.GetValueOrDefault("CPU2")),
             MemTotalBytes = memTotalKb * 1024,
             MemUsedBytes = memTotalKb is { } t && memAvailKb is { } a ? (t - a) * 1024 : null,
             DiskTotalBytes = diskTotalKb * 1024,

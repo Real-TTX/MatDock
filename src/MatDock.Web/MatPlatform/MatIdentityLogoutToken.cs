@@ -1,4 +1,4 @@
-// MatPlatform 1.4.0 – a copy from MatDesign, do not edit here
+// MatPlatform 1.5.0 – a copy from MatDesign, do not edit here
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;

@@ -354,6 +354,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build    
 | `MatDock__TrustedProxies` | – | Comma list of the reverse proxies (addresses or networks, `172.18.0.0/16`) whose `X-Forwarded-For`/`-Proto` count. Unset = every sender is believed (as before); set it when MatDock can be reached without the proxy |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Standard ASP.NET Core environment |
 | `MAT_API_KEY` | – | The key of the platform API (`/api/state`, `/api/configure`, `/api/actions`, see [Platform API](#platform-api-and-sign-in-through-matidentity)); Mattiverse sets it. Unset = the engine key `MatDock__Api__Key` is the key there too; neither = only a token of MatIdentity |
+| `MAT_FRAME_ANCESTORS` | – | The addresses (origins) that may show MatDock in a frame, separated by spaces, such as `http://localhost:8030 https://mattiverse.example.com`: Mattiverse sets its own, so it can open MatDock in the window of its home screen. With it, answers carry `frame-ancestors 'self' <origins>` instead of `X-Frame-Options`; anything that is not an origin (a path, `*`) is left out. Not set: nobody may frame MatDock. |
 | `MATIDENTITY_AUTHORITY` | – | Address of MatIdentity (`https://id.example.com`). Set = sign-in through MatIdentity; unset = only the local sign-in, as before |
 | `MATIDENTITY_CLIENT_ID` | `matdock` | The client of MatDock in MatIdentity (also the audience of the tokens accepted on `/api`) |
 | `MATIDENTITY_CLIENT_SECRET` | – | Its secret |

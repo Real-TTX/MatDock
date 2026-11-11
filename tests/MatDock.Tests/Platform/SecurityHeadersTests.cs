@@ -1,3 +1,5 @@
+using MatPlatform;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -24,6 +26,39 @@ public sealed class SecurityHeadersTests(MatDockFactory site) : IClassFixture<Ma
         Assert.Contains("connect-src 'self' ws://localhost wss://localhost", csp); // the log and terminal WebSockets of this host
         Assert.DoesNotContain("'unsafe-eval'", csp);
         Assert.DoesNotContain("script-src 'self' 'unsafe-inline'", csp);
+    }
+}
+
+/// <summary>MatDock with MAT_FRAME_ANCESTORS, as Mattiverse sets it (MatDesign docs/PLATFORM.md "Shown inside another app").</summary>
+public sealed class FramedMatDockFactory : MatDockFactory
+{
+    public const string Mattiverse = "http://localhost:8030";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.UseSetting(MatFrameAncestors.Variable, Mattiverse);
+    }
+}
+
+/// <summary>Mattiverse may show MatDock in its window: the origins of MAT_FRAME_ANCESTORS replace the DENY, the rest of the headers stays.</summary>
+public sealed class FrameAncestorsTests(FramedMatDockFactory site) : IClassFixture<FramedMatDockFactory>
+{
+    [Theory]
+    [InlineData("/Account/Login")]
+    [InlineData("/robots.txt")]
+    [InlineData("/api/health")]
+    public async Task Mattiverse_may_frame_every_answer(string path)
+    {
+        var response = await site.Browser().GetAsync(path);
+
+        Assert.False(response.Headers.Contains("X-Frame-Options"));
+        var csp = response.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.EndsWith("; frame-ancestors 'self' http://localhost:8030", csp);
+        Assert.DoesNotContain("frame-ancestors 'none'", csp);
+        Assert.Contains("script-src 'self'", csp);
+        Assert.Contains("object-src 'none'", csp);
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
     }
 }
 
