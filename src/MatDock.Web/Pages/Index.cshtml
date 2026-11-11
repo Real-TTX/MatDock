@@ -157,11 +157,11 @@
                                     <td data-label="Environment" class="mat-muted">@t.EnvName</td>
                                 }
                                 <td data-label="CPU" class="mat-num">
-                                    @if (c.CpuPercent is not null)
+                                    @if (c.CpuOfHost is not null)
                                     {
                                         <div class="md-usage-cell">
-                                            <span>@($"{c.CpuPercent:0.0}")%</span>
-                                            <div class="mat-meter mat-meter--sm"><div class="mat-meter__fill" data-value="@EnvironmentView.Percent(c.CpuPercent)"></div></div>
+                                            <span>@($"{c.CpuOfHost:0.0}")%</span>
+                                            <div class="mat-meter mat-meter--sm"><div class="mat-meter__fill" data-value="@EnvironmentView.Percent(c.CpuOfHost)"></div></div>
                                         </div>
                                     }
                                     else { <span class="mat-muted">–</span> }

@@ -16,35 +16,31 @@ public class IndexModel : PageModel
 {
     // Short TTLs so the landing page stays fresh but repeated visits / refreshes don't re-open SSH each time.
     private static readonly TimeSpan StatsTtl = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan EventsTtl = TimeSpan.FromSeconds(60);
 
     private readonly EnvironmentService _environmentService;
-    private readonly IEnvironmentConnectionService _connectionService;
     private readonly ContainerService _containerService;
     private readonly ScheduleService _scheduleService;
     private readonly BundleBackupService _bundleService;
     private readonly VolumeBackupService _volumeBackupService;
     private readonly AppLaunchpadService _launchpad;
     private readonly IMemoryCache _cache;
-    private readonly HostMetricsHistory _history;
+    private readonly HostReadings _readings;
     private readonly MatDock.Core.Updates.UpdateCheckCache _updates;
 
     public IndexModel(
         EnvironmentService environmentService,
-        IEnvironmentConnectionService connectionService,
         ContainerService containerService,
         ScheduleService scheduleService,
         BundleBackupService bundleService,
         VolumeBackupService volumeBackupService,
         AppLaunchpadService launchpad,
         IMemoryCache cache,
-        HostMetricsHistory history,
+        HostReadings readings,
         MatDock.Core.Updates.UpdateCheckCache updates)
     {
-        _history = history;
+        _readings = readings;
         _updates = updates;
         _environmentService = environmentService;
-        _connectionService = connectionService;
         _containerService = containerService;
         _scheduleService = scheduleService;
         _bundleService = bundleService;
@@ -126,52 +122,14 @@ public class IndexModel : PageModel
 
     private async Task LoadHostDataAsync(IReadOnlyList<DockerEnvironment> environments, CancellationToken ct)
     {
-        using var gate = new SemaphoreSlim(4);
-
+        // Every host at once, and per host its three readings at once: the page takes as long as the slowest single answer, not their sum. Load and
+        // events come from the last reading while a new one is taken (HostReadings), so a slow host only delays its container list.
         var tasks = environments.Select(async env =>
         {
-            // Serve from cache where possible; only take a gate slot when we actually hit the host.
-            _cache.TryGetValue($"hoststats:{env.Id}", out HostStats? stats);
-            _cache.TryGetValue($"dash:containers:{env.Id}", out IReadOnlyList<DockerContainer>? containers);
-            _cache.TryGetValue($"dash:events:{env.Id}", out IReadOnlyList<ContainerEvent>? events);
-
-            if (stats is null || containers is null || events is null)
-            {
-                await gate.WaitAsync(ct);
-                try
-                {
-                    if (stats is null)
-                    {
-                        try { stats = await _connectionService.GetHostStatsAsync(_environmentService.BuildSettings(env), ct); }
-                        catch { stats = new HostStats(); }
-                        _cache.Set($"hoststats:{env.Id}", stats, StatsTtl);
-                        _history.Add(env.Id, stats);
-                    }
-
-                    if (containers is null)
-                    {
-                        try { containers = await _containerService.ListAsync(env, ct, includeStats: true); }
-                        catch { containers = Array.Empty<DockerContainer>(); }
-                        _cache.Set($"dash:containers:{env.Id}", containers, StatsTtl);
-                    }
-
-                    if (events is null)
-                    {
-                        events = await _containerService.ListEventsAsync(env, 24, ct); // best-effort inside
-                        _cache.Set($"dash:events:{env.Id}", events, EventsTtl);
-                    }
-                }
-                finally
-                {
-                    gate.Release();
-                }
-            }
-
-            return (
-                env,
-                stats: stats ?? new HostStats(),
-                containers: containers ?? Array.Empty<DockerContainer>(),
-                events: events ?? Array.Empty<ContainerEvent>());
+            var statsTask = _readings.StatsAsync(env, ct);
+            var eventsTask = _readings.EventsAsync(env, ct);
+            var containersTask = ContainersAsync(env, ct);
+            return (env, stats: await statsTask, containers: await containersTask, events: await eventsTask);
         });
 
         var results = await Task.WhenAll(tasks);
@@ -215,7 +173,7 @@ public class IndexModel : PageModel
         }
 
         TopContainers = topAll
-            .OrderByDescending(t => t.Container.CpuPercent ?? -1)
+            .OrderByDescending(t => t.Container.CpuOfHost ?? -1)
             .ThenByDescending(t => t.Container.MemPercent ?? -1)
             .Take(6)
             .ToList();
@@ -224,6 +182,20 @@ public class IndexModel : PageModel
             .OrderByDescending(e => e.Event.TimeUtc)
             .Take(12)
             .ToList();
+    }
+
+    private async Task<IReadOnlyList<DockerContainer>> ContainersAsync(DockerEnvironment env, CancellationToken ct)
+    {
+        if (_cache.TryGetValue($"dash:containers:{env.Id}", out IReadOnlyList<DockerContainer>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        IReadOnlyList<DockerContainer> containers;
+        try { containers = await _containerService.ListAsync(env, ct, includeStats: true); }
+        catch { containers = Array.Empty<DockerContainer>(); }
+        _cache.Set($"dash:containers:{env.Id}", containers, StatsTtl);
+        return containers;
     }
 
     private async Task LoadBackupStatusAsync(long? selected, CancellationToken ct)

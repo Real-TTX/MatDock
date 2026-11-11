@@ -9,7 +9,7 @@
     var st = Model.Stats;
     var isAdmin = User.IsInRole("Admin");
     string Fb(long b) => MatDock.Core.Volumes.VolumeMigrationResult.FormatBytes(b);
-    var cpuText = st.Cores is null ? "–" : Model.OnDashboard ? $"{EnvironmentView.Percent(st.CpuPercent)}%" : $"Load {st.Load1:0.00}/{st.Cores}";
+    var cpuText = !st.HasCpu ? "–" : Model.OnDashboard ? $"{EnvironmentView.Percent(st.CpuPercent)}%" : $"{EnvironmentView.Percent(st.CpuPercent)}% of {st.Cores} cores";
     var memText = st.MemTotalBytes is null ? "–" : $"{Fb(st.MemUsedBytes ?? 0)}/{Fb(st.MemTotalBytes.Value)}";
     var diskText = st.DiskTotalBytes is null ? "–" : $"{Fb(st.DiskUsedBytes ?? 0)}/{Fb(st.DiskTotalBytes.Value)}";
     var gauges = new[]

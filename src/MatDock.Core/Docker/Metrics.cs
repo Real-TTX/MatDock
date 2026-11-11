@@ -193,7 +193,7 @@ public static class PrometheusText
         }
 
         var hosts = readings.Where(r => r.Host.Cores is not null || r.Host.MemTotalBytes is not null).ToList();
-        Help("matdock_host_cpu_percent", "CPU of the host (load of the last minute per core), percent.");
+        Help("matdock_host_cpu_percent", "CPU of the host (busy share of all cores over half a second), percent.");
         hosts.ForEach(r => Line("matdock_host_cpu_percent", Env(r.Environment), r.Host.CpuPercent));
         Help("matdock_host_memory_percent", "Memory of the host in use, percent.");
         hosts.ForEach(r => Line("matdock_host_memory_percent", Env(r.Environment), r.Host.MemPercent));

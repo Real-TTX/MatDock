@@ -98,7 +98,7 @@
                         var usage = new[]
                         {
                             ("RAM", st.MemPercent, st.MemTotalBytes is not null, $"RAM: {Fb(st.MemUsedBytes ?? 0)} / {Fb(st.MemTotalBytes ?? 0)}"),
-                            ("CPU", st.CpuPercent, st.Cores is not null, $"CPU: load {st.Load1?.ToString("0.00") ?? "?"} / {st.Cores?.ToString() ?? "?"} cores"),
+                            ("CPU", st.CpuPercent, st.HasCpu, $"CPU: {st.CpuPercent:0}% busy of {st.Cores?.ToString() ?? "?"} cores (load {st.Load1?.ToString("0.00") ?? "?"})"),
                             ("Disk", st.DiskPercent, st.DiskTotalBytes is not null, $"Disk: {Fb(st.DiskUsedBytes ?? 0)} / {Fb(st.DiskTotalBytes ?? 0)}"),
                         };
                         <tr>

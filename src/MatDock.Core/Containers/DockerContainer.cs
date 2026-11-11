@@ -29,7 +29,14 @@ public sealed class DockerContainer
     public string? OpenUrlOverride { get; init; }
 
     // Live usage, merged from `docker stats` (only present for running containers).
+    /// <summary>CPU as Docker reports it: percent of ONE core (a container busy on two cores of eight is 200).</summary>
     public double? CpuPercent { get; set; }
+
+    /// <summary>The CPUs of the engine the container runs on, when known.</summary>
+    public int? HostCores { get; set; }
+
+    /// <summary>CPU as a share of the whole host (<see cref="CpuPercent"/> over the cores): what the meters and the stack sums show.</summary>
+    public double? CpuOfHost => CpuPercent is { } cpu && HostCores is > 0 ? cpu / HostCores.Value : CpuPercent;
     public double? MemPercent { get; set; }
     public string? MemUsage { get; set; }  // e.g. "100MiB / 7.8GiB"
 

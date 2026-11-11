@@ -30,7 +30,7 @@ public sealed class HostLimitWatch
         var messages = new List<string>();
         lock (_gate)
         {
-            Evaluate(messages, environment, "CPU", stats.CpuPercent, limits.Cpu, readings: 2, valid: stats.Cores is > 0 && stats.Load1 is not null);
+            Evaluate(messages, environment, "CPU", stats.CpuPercent, limits.Cpu, readings: 2, valid: stats.HasCpu);
             Evaluate(messages, environment, "Memory", stats.MemPercent, limits.Mem, readings: 2, valid: stats.MemTotalBytes is > 0);
             Evaluate(messages, environment, "Disk", stats.DiskPercent, limits.Disk, readings: 1, valid: stats.DiskTotalBytes is > 0);
         }

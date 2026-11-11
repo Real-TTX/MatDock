@@ -107,7 +107,7 @@
                             <container-status state="@c.State" status="@c.Status" />
                         </div>
                         <div class="mat-card__body">
-                            <usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" large="true" />
+                            <usage mem="@c.MemPercent" cpu="@c.CpuOfHost" mem-text="@c.MemUsage" large="true" />
                         </div>
                         <div class="mat-card__foot md-tile__foot">
                             <span class="mat-tag"><icon name="server" /> @env.Name</span>
@@ -162,7 +162,7 @@
                                 </td>
                                 <td data-label="Status"><container-status state="@c.State" status="@c.Status" /></td>
                                 <td data-label="Ports"><container-ports ports="@c.Ports" urls="@MatDock.Core.Containers.ProxyUrls.From(c.Labels)" host="@MatDock.Web.Support.OpenUrls.PortLinkHost(env)" max="3" /></td>
-                                <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuPercent" mem-text="@c.MemUsage" /></td>
+                                <td data-label="Resources"><usage mem="@c.MemPercent" cpu="@c.CpuOfHost" mem-text="@c.MemUsage" /></td>
                                 <td class="mat-table__cell-actions">
                                     <partial name="_ContainerActions" model="Acts(r)" />
                                 </td>

@@ -69,7 +69,7 @@ The dynamic inline styles (gauge widths) and the own stylesheet are gone since t
 | Hosts over socket and SSH | ✅ | Agentless SSH is MatDock's point; host keys verified |
 | Hosts over TCP/TLS | ✅ | Docker API with TLS client certificates (or plain TCP, with a warning) |
 | Hosts with an agent | — | Not wanted: MatDock exists to need nothing on the hosts |
-| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself, a line of the last 24 h; CPU is load per core |
+| Per-host dashboard: live CPU, memory, disk | ✅ | Refreshes itself, a line of the last 24 h; CPU is the busy share measured from `/proc/stat` (the load only stands in), a container's CPU is a share of its host |
 | Cron schedules: prune, updates, cleanup, backups | ✅ | |
 | restic backups (backup, restore, check, prune) | ✅ | A backup target kind: every backup file is a snapshot (S3, B2, Azure, GCS, REST server, path); retention forgets, the schedule *Maintain restic repositories* prunes and checks |
 | Alerts by e-mail/webhook on container events, health, updates | ✅ | Also to Discord, Slack, Teams, Telegram, ntfy and Gotify; host limits (CPU, memory, disk) and restart loops; *Container died*, *Container unhealthy*, updates available, vulnerable images, offline/deploy/backup/sync; mail through MatSMTP when Mattiverse sets it |

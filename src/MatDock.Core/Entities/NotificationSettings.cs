@@ -28,7 +28,7 @@ public class NotificationSettings : AuditableEntity
 
     // --- Alerts (published as events; a schedule "Send a notification" on the event delivers them) ---
 
-    /// <summary>A host whose CPU (load per core) stays above this percentage for two readings is reported (null = no limit).</summary>
+    /// <summary>A host whose CPU (busy share) stays above this percentage for two readings is reported (null = no limit).</summary>
     public int? HostCpuLimit { get; set; }
 
     /// <summary>A host whose memory stays above this percentage for two readings is reported (null = no limit).</summary>

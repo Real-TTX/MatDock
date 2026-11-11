@@ -12,17 +12,14 @@ public class IndexModel : PageModel
 {
     private const int PageSize = 15;
     private static readonly StringComparison Ic = StringComparison.OrdinalIgnoreCase;
-    private static readonly TimeSpan StatsTtl = TimeSpan.FromSeconds(30);
 
     private readonly EnvironmentService _environmentService;
-    private readonly IEnvironmentConnectionService _connectionService;
-    private readonly IMemoryCache _cache;
+    private readonly MatDock.Web.Support.HostReadings _readings;
 
-    public IndexModel(EnvironmentService environmentService, IEnvironmentConnectionService connectionService, IMemoryCache cache)
+    public IndexModel(EnvironmentService environmentService, MatDock.Web.Support.HostReadings readings)
     {
         _environmentService = environmentService;
-        _connectionService = connectionService;
-        _cache = cache;
+        _readings = readings;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -91,38 +88,8 @@ public class IndexModel : PageModel
 
     private async Task LoadStatsAsync(IReadOnlyList<DockerEnvironment> environments)
     {
-        using var gate = new SemaphoreSlim(4);
-        // Never open SSH to a deactivated host — its card renders with muted gauges instead.
-        var tasks = environments.Where(e => e.IsEnabled).Select(async env =>
-        {
-            var cacheKey = $"hoststats:{env.Id}";
-            if (_cache.TryGetValue(cacheKey, out HostStats? cached) && cached is not null)
-            {
-                return (env.Id, cached);
-            }
-
-            await gate.WaitAsync(HttpContext.RequestAborted);
-            try
-            {
-                HostStats stats;
-                try
-                {
-                    stats = await _connectionService.GetHostStatsAsync(_environmentService.BuildSettings(env), HttpContext.RequestAborted);
-                }
-                catch
-                {
-                    stats = new HostStats(); // unreachable → empty gauges
-                }
-
-                _cache.Set(cacheKey, stats, StatsTtl);
-                return (env.Id, stats);
-            }
-            finally
-            {
-                gate.Release();
-            }
-        });
-
+        // Never open SSH to a deactivated host — its card renders with muted gauges instead. The last reading is shown while a new one is taken.
+        var tasks = environments.Where(e => e.IsEnabled).Select(async env => (env.Id, await _readings.StatsAsync(env, HttpContext.RequestAborted)));
         foreach (var (id, stats) in await Task.WhenAll(tasks))
         {
             Stats[id] = stats;
