@@ -136,7 +136,7 @@
                             </td>
                             <td data-label="Containers" class="mat-num">@(st.RunningContainers?.ToString() ?? "–")</td>
                             <td data-label="Docker" class="mat-muted">@(env.DockerVersion ?? "–")</td>
-                            <td data-label="Last checked" class="mat-muted mat-nowrap">@(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td data-label="Last checked" class="mat-muted mat-nowrap">@(env.LastCheckedAt?.ToUserTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="mat-table__cell-actions">
                                 <div class="mat-table__actions">
                                     @if (env.IsEnabled)

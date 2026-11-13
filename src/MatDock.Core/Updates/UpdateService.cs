@@ -80,7 +80,8 @@ public sealed class UpdateService
     /// Checks each image of a running stack for a newer registry digest (moving tags). Pinned services are reported as pinned and never
     /// as an update. With <paramref name="newerTags"/> a plain version tag (<c>1.2.3</c>) also gets a hint when the registry has a newer one.
     /// </summary>
-    public async Task<StackUpdateReport> CheckStackAsync(DockerEnvironment env, string projectName, CancellationToken ct = default, bool newerTags = false)
+    public async Task<StackUpdateReport> CheckStackAsync(DockerEnvironment env, string projectName, CancellationToken ct = default, bool newerTags = false,
+        UpdateCheckBatch? batch = null)
     {
         var pinned = (await _stacks.GetByNameAsync(env.Id, projectName, ct)) is { } managed
             ? StackService.PinnedOf(managed).ToHashSet(StringComparer.Ordinal)
@@ -90,12 +91,7 @@ public sealed class UpdateService
         Dictionary<string, string?> localDigests;
         try
         {
-            containers = await _containers.ListByProjectAsync(env, projectName, ct);
-            var settings = _environments.BuildSettings(env);
-            var images = await _connection.ListImagesAsync(settings, ct);
-            localDigests = images
-                .GroupBy(i => $"{i.Repository}:{i.Tag}", StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Digest, StringComparer.OrdinalIgnoreCase);
+            (containers, localDigests) = await ReadHostAsync(env, projectName, batch, ct);
         }
         catch (Exception ex)
         {
@@ -104,7 +100,7 @@ public sealed class UpdateService
 
         var statuses = new List<ImageUpdateStatus>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var registryDigests = new Dictionary<string, string?>(StringComparer.Ordinal); // one registry call per image, not per service
+        var registryDigests = batch?.RegistryDigests ?? new Dictionary<string, string?>(StringComparer.Ordinal); // one registry call per image, not per service
         foreach (var c in containers)
         {
             var image = c.Image?.Trim() ?? string.Empty;
@@ -150,14 +146,14 @@ public sealed class UpdateService
 
             // A plain version tag (1.2.3): say so when the registry has a newer one. Informational — nothing changes by itself.
             var newer = newerTags && TagVersion.TryParse(iref.Tag) is not null
-                ? TagVersion.Newest(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct), include, exclude))
+                ? TagVersion.Newest(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct, batch), include, exclude))
                 : null;
 
             statuses.Add(new ImageUpdateStatus(service, image, localDigest, registryDigest, available, note, NewerTag: newer,
                 TagInclude: include, TagExclude: exclude, Changelog: UpdateLabels.Changelog(c.Labels)));
         }
 
-        var report = new StackUpdateReport(statuses, null);
+        var report = new StackUpdateReport(statuses, null, newerTags);
         _cache.Set(env.Id, projectName, report);
         return report;
     }
@@ -166,9 +162,17 @@ public sealed class UpdateService
     /// What the rule of a stack would update now: per service its strategy decides (a moved tag, the newest version of the series, or nothing). A service that is
     /// pinned or has no newer image is not in the plan.
     /// </summary>
-    public async Task<StackUpdatePlan> PlanStackAsync(DockerEnvironment env, Stack stack, EffectiveUpdatePolicy policy, CancellationToken ct = default)
+    public async Task<StackUpdatePlan> PlanStackAsync(DockerEnvironment env, Stack stack, EffectiveUpdatePolicy policy, CancellationToken ct = default,
+        UpdateCheckBatch? batch = null, bool newerTags = false)
     {
-        var report = await CheckStackAsync(env, stack.Name, ct);
+        batch ??= new UpdateCheckBatch { WholeHost = false }; // the report and the plan ask for the same tags
+        return await PlanAsync(env, stack, policy, await CheckStackAsync(env, stack.Name, ct, newerTags, batch), batch, ct);
+    }
+
+    /// <summary><see cref="PlanStackAsync"/> from a look that was already taken (<paramref name="report"/>): only the registry is asked, for the version tags.</summary>
+    public async Task<StackUpdatePlan> PlanAsync(DockerEnvironment env, Stack stack, EffectiveUpdatePolicy policy, StackUpdateReport report,
+        UpdateCheckBatch? batch = null, CancellationToken ct = default)
+    {
         if (report.Error is not null)
         {
             return new StackUpdatePlan(Array.Empty<PlannedUpdate>(), report.Error);
@@ -202,7 +206,7 @@ public sealed class UpdateService
                 continue;
             }
 
-            var target = TagVersion.Pick(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct), image.TagInclude, image.TagExclude), sameMajor: strategy == UpdateStrategy.Minor);
+            var target = TagVersion.Pick(iref.Tag, UpdateLabels.Filter(await TagsAsync(iref, ct, batch), image.TagInclude, image.TagExclude), sameMajor: strategy == UpdateStrategy.Minor);
             if (target is not null && ImageRef.WithTag(image.Image, target) is { } targetImage && ImageCommands.IsValidImageRef(targetImage))
             {
                 items.Add(new PlannedUpdate(image.Service, image.Image, targetImage, PlannedKind.Version, targetImage));
@@ -217,14 +221,71 @@ public sealed class UpdateService
     internal static string ShortDigest(string? digest)
         => string.IsNullOrEmpty(digest) ? "new" : (digest.StartsWith("sha256:", StringComparison.Ordinal) ? digest[7..] : digest) is var h && h.Length > 12 ? "sha256:" + h[..12] : digest;
 
-    private async Task<IReadOnlyList<string>> TagsAsync(ImageRef iref, CancellationToken ct)
+    private async Task<IReadOnlyList<string>> TagsAsync(ImageRef iref, CancellationToken ct, UpdateCheckBatch? batch = null)
     {
-        try { return await _registries.ListTagsForImageAsync(iref.Host, iref.Repository, ct); }
+        var key = iref.Host + "/" + iref.Repository;
+        if (batch is not null && batch.Tags.TryGetValue(key, out var known))
+        {
+            return known;
+        }
+
+        IReadOnlyList<string> tags;
+        try
+        {
+            tags = await _registries.ListTagsForImageAsync(iref.Host, iref.Repository, ct);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Listing the tags of {Repository} failed.", iref.Repository);
-            return Array.Empty<string>();
+            tags = Array.Empty<string>();
         }
+
+        if (batch is not null)
+        {
+            batch.Tags[key] = tags;
+        }
+
+        return tags;
+    }
+
+    /// <summary>
+    /// The containers of a project and the digests of the host's images by <c>repository:tag</c>. With a <paramref name="batch"/> over many stacks the
+    /// host is asked once for all of them (one <c>docker ps</c>, one <c>docker images</c>), never for the usage (<c>docker stats</c> takes seconds).
+    /// </summary>
+    private async Task<(IReadOnlyList<DockerContainer> Containers, Dictionary<string, string?> LocalDigests)> ReadHostAsync(
+        DockerEnvironment env, string projectName, UpdateCheckBatch? batch, CancellationToken ct)
+    {
+        IReadOnlyList<DockerContainer> containers;
+        if (batch is { WholeHost: true })
+        {
+            if (!batch.Containers.TryGetValue(env.Id, out var all))
+            {
+                all = await _containers.ListAsync(env, ct, includeStats: false);
+                batch.Containers[env.Id] = all;
+            }
+
+            containers = all.Where(c => string.Equals(c.Project, projectName, StringComparison.Ordinal)).ToList();
+        }
+        else
+        {
+            containers = await _containers.ListByProjectAsync(env, projectName, ct);
+        }
+
+        if (batch is { WholeHost: true } && batch.LocalDigests.TryGetValue(env.Id, out var digests))
+        {
+            return (containers, digests);
+        }
+
+        var images = await _connection.ListImagesAsync(_environments.BuildSettings(env), ct);
+        digests = images
+            .GroupBy(i => $"{i.Repository}:{i.Tag}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Digest, StringComparer.OrdinalIgnoreCase);
+        if (batch is { WholeHost: true })
+        {
+            batch.LocalDigests[env.Id] = digests;
+        }
+
+        return (containers, digests);
     }
 
     /// <summary>Runs a manual update of a managed stack: optional pre-update backup, then pull + redeploy.</summary>

@@ -2,6 +2,26 @@
 (function () {
     "use strict";
 
+    /* ---------------- The user's time zone ----------------
+       The server writes the times of a page (a container runs in UTC: a check at 00:31 stood there as 23:31). The browser names its zone in the
+       cookie md-tz and the server uses it from the next page on (UserClock). <meta name="md-time-zone"> says which zone this page is in: when it
+       is another one than the browser's, the page is read once more, unless it carries a message that would be lost or a form was just filled. */
+    (function () {
+        try {
+            var zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            var meta = document.querySelector('meta[name="md-time-zone"]');
+            if (!zone || !meta || meta.content === zone) { return; }
+            var wanted = "md-tz=" + encodeURIComponent(zone);
+            var had = document.cookie.split("; ").indexOf(wanted) >= 0;
+            document.cookie = wanted + "; path=/; max-age=31536000; samesite=lax";
+            // Already named and the server did not take it (it does not know the zone): nothing more to do. A cookie that did not stick: neither.
+            if (had || document.cookie.split("; ").indexOf(wanted) < 0) { return; }
+            if (document.querySelector("[data-toast], .mat-alert, .input-validation-error") || window.sessionStorage.getItem("md-tz-read")) { return; }
+            window.sessionStorage.setItem("md-tz-read", "1");
+            window.location.reload();
+        } catch (e) { /* no Intl or no storage: the server's zone stays */ }
+    })();
+
     /* ---------------- Toolbar auto-submit ----------------
        Forms marked .js-autosubmit submit on select change and on debounced text input. Their fields may stand
        elsewhere on the page (form="id", e.g. in a .mat-toolbar), so form.elements is used. */

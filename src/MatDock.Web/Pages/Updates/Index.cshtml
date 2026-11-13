@@ -21,13 +21,17 @@
     }
 }
 
-@* The background run (checking or updating many stacks) refreshes itself every 5 s while it runs. *@
-<section id="live-run" class="mat-card" data-live="@(Model.Running is { IsFinished: false } ? "2" : null)" hidden="@(Model.Running is null ? "hidden" : null)">
+@* The background run (checking or updating many stacks) refreshes itself every 2 s while it runs, and with it the hosts and the rows below, so each
+   result shows as soon as it is there; at its end the page is read once more (the buttons count what can be updated). *@
+@{ var live = Model.Running is { IsFinished: false } ? "2" : null; }
+<section id="live-run" class="mat-card" data-live="@live" data-live-done="reload" hidden="@(Model.Running is null ? "hidden" : null)">
     @if (Model.Running is { } op)
     {
         <div class="mat-card__head">
             <icon name="@(op.IsFinished ? (op.Error is null ? "check-circle" : "alert") : "refresh")" />
-            <h2 class="mat-card__title">@(op.Kind switch { "updates-check" => "Checking", "host-upgrade" => $"Updating Docker on {op.Target}", _ => "Updating" })@(op.IsFinished ? string.Empty : "…")</h2>
+            <h2 class="mat-card__title">@(op.IsFinished
+                ? op.Kind switch { "updates-check" => "Checked", "host-upgrade" => op.Error is null ? $"Docker updated on {op.Target}" : $"Docker update failed on {op.Target}", _ => op.Error is null ? "Updated" : "Update failed" }
+                : op.Kind switch { "updates-check" => "Checking…", "host-upgrade" => $"Updating Docker on {op.Target}…", _ => "Updating…" })</h2>
         </div>
         <div class="mat-card__body mat-stack">
             <partial name="_RunSteps" model="op" />
@@ -38,7 +42,7 @@
 @* The hosts: Docker Engine and the system's packages (apt), looked at by a throwaway container on each host. *@
 @if (Model.HostRows.Count > 0)
 {
-    <section class="mat-card" id="hosts">
+    <section class="mat-card" id="hosts" data-live="@live">
         <div class="mat-card__head"><icon name="server" /><h2 class="mat-card__title">Hosts</h2></div>
         <div class="mat-table-wrap">
             <table class="mat-table">
@@ -106,14 +110,14 @@
                             <td data-label="Package lists" class="mat-nowrap">
                                 @if (report?.ListsUpdatedUtc is { } lists)
                                 {
-                                    <span class="@(report.ListsStale(DateTime.UtcNow) ? "mat-pill mat-pill--warn" : "mat-muted")" title="When the host last fetched its package lists">@lists.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    <span class="@(report.ListsStale(DateTime.UtcNow) ? "mat-pill mat-pill--warn" : "mat-muted")" title="When the host last fetched its package lists">@lists.ToUserTime().ToString("dd.MM.yyyy HH:mm")</span>
                                 }
                                 else
                                 {
                                     <span class="mat-muted">–</span>
                                 }
                             </td>
-                            <td data-label="Checked" class="mat-nowrap mat-muted">@(host.CheckedUtc is { } at ? at.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
+                            <td data-label="Checked" class="mat-nowrap mat-muted">@(host.CheckedUtc is { } at ? at.ToUserTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
                             <td class="mat-table__cell-actions">
                                 <div class="mat-table__actions">
                                     <form method="post" asp-page-handler="CheckHost">
@@ -146,7 +150,7 @@
 }
 else
 {
-    <div class="mat-table-wrap">
+    <div class="mat-table-wrap" id="live-update-rows" data-live="@live">
         <table class="mat-table">
             <thead>
                 <tr><th>Environment</th><th>Stack</th><th>Rule</th><th>Updates</th><th>Checked</th><th><span class="mat-sr-only">Actions</span></th></tr>
@@ -191,7 +195,7 @@ else
                                 }
                             }
                         </td>
-                        <td data-label="Checked" class="mat-nowrap mat-muted">@(row.CheckedUtc is { } at ? at.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
+                        <td data-label="Checked" class="mat-nowrap mat-muted">@(row.CheckedUtc is { } at ? at.ToUserTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
                         <td class="mat-table__cell-actions">
                             <div class="mat-table__actions">
                                 <form method="post" asp-page-handler="CheckOne">

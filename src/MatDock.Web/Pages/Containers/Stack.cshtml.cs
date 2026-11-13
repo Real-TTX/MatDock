@@ -53,7 +53,7 @@ public class StackModel : PageModel
 
         try
         {
-            Containers = await _containerService.ListByProjectAsync(Environment, Project, HttpContext.RequestAborted);
+            Containers = await _containerService.ListByProjectAsync(Environment, Project, HttpContext.RequestAborted, includeStats: true);
             Managed = await _stacks.GetByNameAsync(Environment.Id, Project, HttpContext.RequestAborted);
             if (Containers.Count == 0)
             {

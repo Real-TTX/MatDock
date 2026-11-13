@@ -80,7 +80,7 @@
                                 {
                                     <td class="mat-nowrap" data-label="Environment">@row.Env.Name</td>
                                 }
-                                <td class="mat-muted mat-nowrap" data-label="Time">@e.TimeUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                <td class="mat-muted mat-nowrap" data-label="Time">@e.TimeUtc.ToUserTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
                                 <td class="mat-nowrap" data-label="Type"><icon name="@TypeIcon(e.Type)" /> @e.Type</td>
                                 <td data-label="Action"><span class="mat-pill @Pill(e)">@e.Label</span></td>
                                 <td class="mat-mono mat-text-break" data-label="Object">

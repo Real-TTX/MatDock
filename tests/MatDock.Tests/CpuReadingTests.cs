@@ -122,8 +122,30 @@ public class CpuReadingTests
         var calls = 0;
         Task<string> Load(CancellationToken ct) => ++calls == 1 ? throw new InvalidOperationException("host down") : Task.FromResult("up");
 
-        Assert.Null(await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), Load));
-        Assert.Equal("up", await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), Load));
+        Assert.Null(await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), Load, retryAfter: TimeSpan.Zero));
+        Assert.Equal("up", await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), Load, retryAfter: TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task A_host_that_does_not_answer_is_left_alone_for_a_while_and_costs_the_next_pages_nothing()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var key = "t:" + Guid.NewGuid();
+        var calls = 0;
+        Task<string> Down(CancellationToken ct) { calls++; throw new InvalidOperationException("host down"); }
+
+        Assert.Null(await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), Down));
+
+        // The next pages: no new reading and no wait (the load would hang, the wait is long: both would fail the test's time).
+        var hang = new TaskCompletionSource<string>();
+        var started = DateTime.UtcNow;
+        Assert.Null(await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(30), _ => { calls++; return hang.Task; }));
+        Assert.Equal(1, calls);
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(5));
+
+        // Once the pause is over (forgotten here) it is asked again.
+        StaleCache.Forget(cache, key);
+        Assert.Equal("up", await StaleCache.GetAsync(cache, key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(5), _ => Task.FromResult("up")));
     }
 
     private static async Task WaitUntil(Func<bool> condition)

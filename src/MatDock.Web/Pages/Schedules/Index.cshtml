@@ -100,10 +100,10 @@
                                     <span class="mat-pill @tone" title="@title">@label</span>
                                     @if (run is null && t.LastRunAt is { } last)
                                     {
-                                        <small class="mat-muted" title="@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
+                                        <small class="mat-muted" title="@last.ToUserTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
                                     }
                                 </td>
-                                <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(t.Trigger == ScheduleTrigger.Cron && t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
+                                <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToUserTime().ToString("dd.MM.yyyy HH:mm")">@(t.Trigger == ScheduleTrigger.Cron && t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
                                 <td class="mat-table__cell-actions">
                                     <div class="mat-table__actions md-acts">
                                         @if (run is not null)

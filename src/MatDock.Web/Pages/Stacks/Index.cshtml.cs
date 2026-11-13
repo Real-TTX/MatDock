@@ -124,9 +124,10 @@ public class IndexModel : PageModel
         using var gate = new SemaphoreSlim(4);
         var scans = enabled.Select(async env =>
         {
-            // Serve container+stats from the cache shared with the Dashboard so aggregated stack
-            // resources are available without re-sampling on every visit.
-            if (_cache.TryGetValue($"dash:containers:{env.Id}", out IReadOnlyList<DockerContainer>? cached) && cached is not null)
+            // The list is kept for 30 s, so paging and filtering do not ask the host each time. The key is of the state after MatDock's last change
+            // (HostChanges): right after a stop or a deploy the host is asked again, and the list does not show the stack as it was before.
+            var key = MatDock.Core.Execution.HostChanges.Key("stacks:containers", env.Id);
+            if (_cache.TryGetValue(key, out IReadOnlyList<DockerContainer>? cached) && cached is not null)
             {
                 return (env, cached, error: (string?)null);
             }
@@ -135,7 +136,7 @@ public class IndexModel : PageModel
             try
             {
                 var containers = await _containerService.ListAsync(env, HttpContext.RequestAborted, includeStats: true);
-                _cache.Set($"dash:containers:{env.Id}", containers, TimeSpan.FromSeconds(30));
+                _cache.Set(key, containers, TimeSpan.FromSeconds(30));
                 return (env, containers, error: (string?)null);
             }
             catch (Exception ex)

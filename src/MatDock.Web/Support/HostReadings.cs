@@ -33,6 +33,21 @@ public sealed class HostReadings(IServiceScopeFactory scopes, IMemoryCache cache
             return stats;
         }, logger, ct) ?? new HostStats();
 
+    /// <summary>How long a page waits for the first container list of a host (after a change by MatDock it is a first one again).</summary>
+    public static readonly TimeSpan ContainersWait = TimeSpan.FromSeconds(8);
+
+    /// <summary>
+    /// The containers of <paramref name="env"/> with their usage, for the pages that give an overview (the dashboard, the app tiles): the last list is
+    /// shown while a new one is read, so the dashboard does not wait for <c>docker ps</c> of every host on each visit. After something MatDock changed
+    /// (<see cref="HostChanges"/>) the list is read anew. Empty while the first one is on its way or the host does not answer.
+    /// </summary>
+    public async Task<IReadOnlyList<DockerContainer>> ContainersAsync(DockerEnvironment env, CancellationToken ct)
+        => await StaleCache.GetAsync<IReadOnlyList<DockerContainer>>(cache, HostChanges.Key("hostcontainers", env.Id), StatsFresh, Keep, ContainersWait, async loadCt =>
+        {
+            using var scope = scopes.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<ContainerService>().ListAsync(env, loadCt, includeStats: true);
+        }, logger, ct) ?? [];
+
     /// <summary>The container events of the last day on <paramref name="env"/> (empty while the first reading is on its way).</summary>
     public async Task<IReadOnlyList<ContainerEvent>> EventsAsync(DockerEnvironment env, CancellationToken ct)
         => await StaleCache.GetAsync(cache, "hostevents:" + env.Id, EventsFresh, Keep, FirstWait, async loadCt =>

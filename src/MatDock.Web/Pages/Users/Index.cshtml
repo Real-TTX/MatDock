@@ -64,7 +64,7 @@
                                     <span class="mat-pill mat-pill--plain"><span>Inactive</span></span>
                                 }
                             </td>
-                            <td class="mat-muted mat-nowrap" data-label="Last login">@(u.LastLoginAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="mat-muted mat-nowrap" data-label="Last login">@(u.LastLoginAt?.ToUserTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                         </tr>
                     }
                 </tbody>

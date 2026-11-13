@@ -42,7 +42,7 @@
 @* Everything below the head is read again every 30 s while the page is visible (data-live, matdock.js). *@
 <div id="live-dashboard" data-live="30" class="mat-stack mat-stack--lg">
     @* ---- Key figures (clickable) ---- *@
-    <div class="mat-grid">
+    <div class="mat-grid md-stats">
         <a class="mat-card md-stat" href="/Environments">
             <span class="md-stat__icon @(Model.AttentionCount > 0 ? "md-stat__icon--warn" : "md-stat__icon--ok")"><icon name="server" /></span>
             <span class="mat-stat">

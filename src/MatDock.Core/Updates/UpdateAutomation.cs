@@ -454,7 +454,8 @@ public sealed class UpdateAutomation
 
     /// <summary>Applies the planned updates: the versions by an image override, then the update itself (pull and redeploy, with the backup and the gate of the rule).
     /// An update that did not happen (the backup or the pull failed) or was rolled back also takes the overrides back; one that brought up unhealthy containers without a rollback keeps them (the stack runs what they say).</summary>
-    public async Task<StackUpdateOutcome> ApplyAsync(Stack stack, IReadOnlyList<PlannedUpdate> items, EffectiveUpdatePolicy policy, CancellationToken ct, string trigger = "auto")
+    public async Task<StackUpdateOutcome> ApplyAsync(Stack stack, IReadOnlyList<PlannedUpdate> items, EffectiveUpdatePolicy policy, CancellationToken ct, string trigger = "auto",
+        Action<string>? log = null)
     {
         var before = stack.ImageOverridesJson;
         foreach (var item in items.Where(i => i.Kind == PlannedKind.Version))
@@ -467,7 +468,7 @@ public sealed class UpdateAutomation
             }
         }
 
-        var outcome = await _updates.RunUpdateAsync(stack.Id, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, trigger: trigger);
+        var outcome = await _updates.RunUpdateAsync(stack.Id, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, log, trigger);
         if (!outcome.Ok && (outcome.RolledBack || !outcome.Deployed))
         {
             await _stacks.RestoreImageOverridesAsync(stack.Id, before, ct);
@@ -483,6 +484,7 @@ public sealed class UpdateAutomation
     public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null)
     {
         var policies = await _policies.LoadAsync(ct);
+        var batch = new UpdateCheckBatch(); // one docker ps and one docker images per host, one question per image to its registry
         var pending = 0;
         foreach (var listed in stacks)
         {
@@ -497,7 +499,7 @@ public sealed class UpdateAutomation
                 continue;
             }
 
-            var plan = await _updates.PlanStackAsync(env, listed, policies.For(listed), ct);
+            var plan = await _updates.PlanStackAsync(env, listed, policies.For(listed), ct, batch, newerTags: true);
             if (plan.Error is not null)
             {
                 log($"{listed.Name} on {env.Name}: {plan.Error}");
@@ -511,7 +513,7 @@ public sealed class UpdateAutomation
             else
             {
                 pending++;
-                log($"{listed.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
+                log($"{listed.Name} on {env.Name}: {plan.Items.Count} update(s) ({string.Join(", ", plan.Items.Select(i => i.Service))}).");
                 steps?.Set(key, Operations.StepState.Done, $"{plan.Items.Count} update(s): {string.Join(", ", plan.Items.Select(i => i.Service))}");
             }
         }

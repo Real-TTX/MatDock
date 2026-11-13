@@ -67,7 +67,7 @@
                             </td>
                             <td data-label="Type">@(a.IsBundle ? "Bundle" : "Volume")</td>
                             <td class="mat-num" data-label="Size">@Fmt(a.SizeBytes)</td>
-                            <td class="mat-muted mat-nowrap" data-label="Modified">@(a.ModifiedUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                            <td class="mat-muted mat-nowrap" data-label="Modified">@(a.ModifiedUtc?.ToUserTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                             <td class="mat-table__cell-actions">
                                 <div class="mat-table__actions">
                                     <button type="button" class="mat-btn mat-btn--sm mat-btn--secondary" data-dialog-open="restore-@i" aria-haspopup="dialog"><icon name="restore" /><span>Restore</span></button>

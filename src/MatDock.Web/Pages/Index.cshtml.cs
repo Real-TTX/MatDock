@@ -14,28 +14,21 @@ namespace MatDock.Web.Pages;
 
 public class IndexModel : PageModel
 {
-    // Short TTLs so the landing page stays fresh but repeated visits / refreshes don't re-open SSH each time.
-    private static readonly TimeSpan StatsTtl = TimeSpan.FromSeconds(30);
-
     private readonly EnvironmentService _environmentService;
-    private readonly ContainerService _containerService;
     private readonly ScheduleService _scheduleService;
     private readonly BundleBackupService _bundleService;
     private readonly VolumeBackupService _volumeBackupService;
     private readonly AppLaunchpadService _launchpad;
-    private readonly IMemoryCache _cache;
     private readonly HostReadings _readings;
     private readonly MatDock.Core.Updates.UpdateCheckCache _updates;
     private readonly MatDock.Core.Updates.HostUpdateCache _hostUpdates;
 
     public IndexModel(
         EnvironmentService environmentService,
-        ContainerService containerService,
         ScheduleService scheduleService,
         BundleBackupService bundleService,
         VolumeBackupService volumeBackupService,
         AppLaunchpadService launchpad,
-        IMemoryCache cache,
         HostReadings readings,
         MatDock.Core.Updates.UpdateCheckCache updates,
         MatDock.Core.Updates.HostUpdateCache hostUpdates)
@@ -44,12 +37,10 @@ public class IndexModel : PageModel
         _readings = readings;
         _updates = updates;
         _environmentService = environmentService;
-        _containerService = containerService;
         _scheduleService = scheduleService;
         _bundleService = bundleService;
         _volumeBackupService = volumeBackupService;
         _launchpad = launchpad;
-        _cache = cache;
     }
 
     public long? SelectedEnvId { get; private set; }
@@ -195,19 +186,8 @@ public class IndexModel : PageModel
             .ToList();
     }
 
-    private async Task<IReadOnlyList<DockerContainer>> ContainersAsync(DockerEnvironment env, CancellationToken ct)
-    {
-        if (_cache.TryGetValue($"dash:containers:{env.Id}", out IReadOnlyList<DockerContainer>? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        IReadOnlyList<DockerContainer> containers;
-        try { containers = await _containerService.ListAsync(env, ct, includeStats: true); }
-        catch { containers = Array.Empty<DockerContainer>(); }
-        _cache.Set($"dash:containers:{env.Id}", containers, StatsTtl);
-        return containers;
-    }
+    /// <summary>The last container list of the host while a new one is read (<see cref="HostReadings.ContainersAsync"/>).</summary>
+    private Task<IReadOnlyList<DockerContainer>> ContainersAsync(DockerEnvironment env, CancellationToken ct) => _readings.ContainersAsync(env, ct);
 
     private async Task LoadBackupStatusAsync(long? selected, CancellationToken ct)
     {

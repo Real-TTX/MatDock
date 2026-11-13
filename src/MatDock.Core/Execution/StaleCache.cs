@@ -5,38 +5,53 @@ using Microsoft.Extensions.Logging;
 namespace MatDock.Core.Execution;
 
 /// <summary>
-/// A reading of a host that a page shows but need not wait for (docker stats, host load, events): within <c>fresh</c> it is used as it is; older,
-/// it is still shown while one new reading is taken in the background; with none at all the page waits for the first one at most <c>wait</c>. So a
-/// slow host (a busy Docker answers <c>docker stats</c> in seconds) no longer holds up every page after the cache ran out, and several pages and the
-/// samplers asking at once share one reading.
+/// A reading of a host that a page shows but need not wait for (docker stats, host load, events, the containers of the dashboard): within
+/// <c>fresh</c> it is used as it is; older, it is still shown while one new reading is taken in the background; with none at all the page waits for
+/// the first one at most <c>wait</c>. So a slow host (a busy Docker answers <c>docker stats</c> in seconds) no longer holds up every page after the
+/// cache ran out, and several pages and the samplers asking at once share one reading. A reading that failed (the host does not answer) is not
+/// asked for again for <see cref="RetryAfter"/>: a host that is down costs the pages one wait, not one on every visit.
 /// </summary>
 public static class StaleCache
 {
     /// <summary>How long a reading of a background load may take (it does not end with the page that asked).</summary>
     private static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(60);
 
+    /// <summary>How long a failed reading is left alone before the next ask tries again.</summary>
+    public static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(30);
+
     private static readonly ConcurrentDictionary<string, Task> Loading = new(StringComparer.Ordinal);
 
     private sealed record Entry<T>(T Value, DateTime AtUtc);
+
+    /// <summary>The marker of a reading that just failed (kept for the retry pause).</summary>
+    private static string FailedKey(string key) => key + "\u0001failed";
 
     /// <summary>
     /// The value of <paramref name="key"/>: fresh, or stale with a new reading started, or the first reading if it comes within <paramref name="wait"/>;
     /// otherwise <c>default</c> (the reading goes on and is there next time). <paramref name="load"/> must not use anything of the request (it outlives it).
     /// </summary>
+    /// <param name="retryAfter">How long after a failed reading the next one is tried (default <see cref="RetryAfter"/>).</param>
     public static async Task<T?> GetAsync<T>(IMemoryCache cache, string key, TimeSpan fresh, TimeSpan keep, TimeSpan wait,
-        Func<CancellationToken, Task<T>> load, ILogger? logger = null, CancellationToken ct = default)
+        Func<CancellationToken, Task<T>> load, ILogger? logger = null, CancellationToken ct = default, TimeSpan? retryAfter = null)
     {
+        var pause = retryAfter ?? RetryAfter;
+        var failedLately = cache.TryGetValue(FailedKey(key), out _);
         if (cache.TryGetValue(key, out Entry<T>? entry) && entry is not null)
         {
-            if (DateTime.UtcNow - entry.AtUtc >= fresh)
+            if (DateTime.UtcNow - entry.AtUtc >= fresh && !failedLately)
             {
-                _ = Start(cache, key, keep, load, logger);
+                _ = Start(cache, key, keep, pause, load, logger);
             }
 
             return entry.Value;
         }
 
-        var task = Start(cache, key, keep, load, logger);
+        if (failedLately)
+        {
+            return default; // the host did not answer a moment ago: do not make this page wait for it again
+        }
+
+        var task = Start(cache, key, keep, pause, load, logger);
         try
         {
             await task.WaitAsync(wait, ct);
@@ -47,17 +62,21 @@ public static class StaleCache
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            return default; // a failed reading: nothing to show, the next ask tries again
+            return default; // a failed reading: nothing to show, a later ask tries again
         }
 
         return cache.TryGetValue(key, out entry) && entry is not null ? entry.Value : default;
     }
 
     /// <summary>Forgets <paramref name="key"/> (after a change that the next page must see).</summary>
-    public static void Forget(IMemoryCache cache, string key) => cache.Remove(key);
+    public static void Forget(IMemoryCache cache, string key)
+    {
+        cache.Remove(key);
+        cache.Remove(FailedKey(key));
+    }
 
     /// <summary>One reading per key at a time: a second ask while one runs gets the same.</summary>
-    private static Task Start<T>(IMemoryCache cache, string key, TimeSpan keep, Func<CancellationToken, Task<T>> load, ILogger? logger)
+    private static Task Start<T>(IMemoryCache cache, string key, TimeSpan keep, TimeSpan retryAfter, Func<CancellationToken, Task<T>> load, ILogger? logger)
     {
         var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var running = Loading.GetOrAdd(key, mine.Task);
@@ -73,12 +92,18 @@ public static class StaleCache
                 using var timeout = new CancellationTokenSource(LoadTimeout);
                 var value = await load(timeout.Token);
                 cache.Set(key, new Entry<T>(value, DateTime.UtcNow), keep);
+                cache.Remove(FailedKey(key));
                 Loading.TryRemove(new KeyValuePair<string, Task>(key, mine.Task));
                 mine.SetResult();
             }
             catch (Exception ex)
             {
                 logger?.LogDebug(ex, "Reading {Key} failed.", key);
+                if (retryAfter > TimeSpan.Zero)
+                {
+                    cache.Set(FailedKey(key), true, retryAfter);
+                }
+
                 Loading.TryRemove(new KeyValuePair<string, Task>(key, mine.Task));
                 mine.SetException(ex);
                 _ = mine.Task.Exception; // observed: a failed background reading is not an error of anyone

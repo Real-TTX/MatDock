@@ -80,7 +80,7 @@
                     <li>
                         <icon name="smartphone" />
                         <span>@d.Name</span>
-                        <small class="mat-muted">@(d.LastUsedAt is { } used ? "last reached " + used.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "added " + d.CreateDate.ToLocalTime().ToString("dd.MM.yyyy"))</small>
+                        <small class="mat-muted">@(d.LastUsedAt is { } used ? "last reached " + used.ToUserTime().ToString("dd.MM.yyyy HH:mm") : "added " + d.CreateDate.ToUserTime().ToString("dd.MM.yyyy"))</small>
                         <button type="button" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-push-remove="@d.Id" aria-label="Remove @d.Name" data-tip="Remove"><icon name="trash" /></button>
                     </li>
                 }

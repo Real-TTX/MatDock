@@ -17,7 +17,7 @@
         }
         else
         {
-            var from = Model.Points[0].TimeUtc.ToLocalTime();
+            var from = Model.Points[0].TimeUtc.ToUserTime();
             @foreach (var s in Model.All())
             {
                 var line = MatDock.Core.Docker.HostMetricsHistory.Sparkline(s.Values, 600, 64);

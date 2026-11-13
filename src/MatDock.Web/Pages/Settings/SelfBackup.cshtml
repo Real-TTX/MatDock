@@ -63,7 +63,7 @@
                         <dd>
                             @if (s.LastRunAt is { } last)
                             {
-                                <span class="mat-pill @(s.LastRunOk == false ? "mat-pill--error" : "mat-pill--ok")" title="@s.LastStatus">@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                <span class="mat-pill @(s.LastRunOk == false ? "mat-pill--error" : "mat-pill--ok")" title="@s.LastStatus">@last.ToUserTime().ToString("dd.MM.yyyy HH:mm")</span>
                             }
                             else
                             {

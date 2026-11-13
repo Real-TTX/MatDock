@@ -253,4 +253,25 @@ public sealed class StackServiceActionTests : IClassFixture<StackServiceActionTe
         Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
         Assert.True(_site.App.Db(db => db.Stacks.Any(s => s.Name == "shop-copy" && s.EnvironmentId == _site.EnvId)));
     }
+
+    [Fact]
+    public async Task The_list_asks_the_host_again_right_after_a_stack_was_stopped()
+    {
+        var browser = await SignInAsync();
+        var hosts = _site.App.Hosts;
+        int Lists() { lock (hosts.Commands) { return hosts.Commands.Count(c => c.Contains(" ps -a --format", StringComparison.Ordinal)); } }
+
+        var page = await (await browser.GetAsync("/Stacks")).Content.ReadAsStringAsync(); // the list is kept for 30 s from here
+        var before = Lists();
+
+        var stop = await browser.PostAsync("/Stacks?handler=Stop", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["id"] = _site.StackId.ToString(),
+            ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(page),
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, stop.StatusCode);
+
+        await browser.GetAsync("/Stacks");
+        Assert.True(Lists() > before); // not the list from before the stop: the stack stood there as running for half a minute
+    }
 }

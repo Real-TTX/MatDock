@@ -3,7 +3,6 @@ using MatDock.Core.Containers;
 using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Stacks;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace MatDock.Web.Support;
 
@@ -17,21 +16,19 @@ public sealed record AppTile(
 
 /// <summary>
 /// Builds the app launchpad tiles (managed stacks with app metadata + their live container status),
-/// shared by the Launchpad page and the Dashboard. Reuses the Dashboard/Stacks container cache.
+/// shared by the Launchpad page and the Dashboard. Reads the containers as the dashboard does (<see cref="HostReadings"/>).
 /// </summary>
 public sealed class AppLaunchpadService
 {
     private readonly StackService _stacks;
     private readonly EnvironmentService _environments;
-    private readonly ContainerService _containers;
-    private readonly IMemoryCache _cache;
+    private readonly HostReadings _readings;
 
-    public AppLaunchpadService(StackService stacks, EnvironmentService environments, ContainerService containers, IMemoryCache cache)
+    public AppLaunchpadService(StackService stacks, EnvironmentService environments, HostReadings readings)
     {
         _stacks = stacks;
         _environments = environments;
-        _containers = containers;
-        _cache = cache;
+        _readings = readings;
     }
 
     /// <summary>Tiles for apps in scope (<paramref name="envId"/> null/0 = all environments).</summary>
@@ -51,31 +48,11 @@ public sealed class AppLaunchpadService
         }
 
         var containersByEnv = new Dictionary<long, IReadOnlyList<DockerContainer>>();
-        using var gate = new SemaphoreSlim(4);
         var envIds = managed.Select(s => s.EnvironmentId).Distinct()
             .Where(id => envById.TryGetValue(id, out var e) && e.IsEnabled);
 
-        var scans = envIds.Select(async id =>
-        {
-            if (_cache.TryGetValue($"dash:containers:{id}", out IReadOnlyList<DockerContainer>? cached) && cached is not null)
-            {
-                return (id, cached);
-            }
-
-            await gate.WaitAsync(ct);
-            try
-            {
-                IReadOnlyList<DockerContainer> list;
-                try { list = await _containers.ListAsync(envById[id], ct, includeStats: false); }
-                catch { list = Array.Empty<DockerContainer>(); }
-                _cache.Set($"dash:containers:{id}", list, TimeSpan.FromSeconds(30));
-                return (id, list);
-            }
-            finally
-            {
-                gate.Release();
-            }
-        });
+        // The list the dashboard reads too: the last one while a new one is taken, so the tiles do not wait for every host.
+        var scans = envIds.Select(async id => (id, await _readings.ContainersAsync(envById[id], ct)));
 
         foreach (var (id, list) in await Task.WhenAll(scans))
         {

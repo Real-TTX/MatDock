@@ -41,10 +41,10 @@
                                         <span class="mat-pill @tone" title="@title">@label</span>
                                         @if (run is null && t.LastRunAt is { } last)
                                         {
-                                            <small class="mat-muted" title="@last.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
+                                            <small class="mat-muted" title="@last.ToUserTime().ToString("dd.MM.yyyy HH:mm")">@MatDock.Web.Support.ScheduleView.Relative(last)</small>
                                         }
                                     </td>
-                                    <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@(t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
+                                    <td class="mat-muted mat-nowrap" data-label="Next run" title="@t.NextRunAt?.ToUserTime().ToString("dd.MM.yyyy HH:mm")">@(t.Enabled ? MatDock.Web.Support.ScheduleView.Relative(t.NextRunAt) : "–")</td>
                                     <td class="mat-table__cell-actions">
                                         <div class="mat-table__actions md-acts">
                                             @if (run is not null)
@@ -111,17 +111,17 @@
                                     <td data-label="Target"><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
                                     <td class="mat-num" data-label="Volumes">@b.VolumeCount</td>
                                     <td class="mat-num" data-label="Size">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
-                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")</td>
                                     <td class="mat-table__cell-actions">
                                         <div class="mat-table__actions">
                                             @if (b.Status == StackBackupStatus.Succeeded)
                                             {
-                                                <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first.">
+                                                <form method="post" asp-page-handler="RestoreBundle" data-confirm="Restore stack '@b.StackName' from @b.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")? The current state is backed up first.">
                                                     <input type="hidden" name="id" value="@b.Id" />
                                                     <button type="submit" class="mat-btn mat-btn--sm mat-btn--secondary"><icon name="restore" /><span>Restore</span></button>
                                                 </form>
                                             }
-                                            <form method="post" asp-page-handler="DeleteBundle" data-confirm-danger data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?">
+                                            <form method="post" asp-page-handler="DeleteBundle" data-confirm-danger data-confirm="Delete the stack backup of '@b.StackName' from @b.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm") (manifest and volume archives)?">
                                                 <input type="hidden" name="id" value="@b.Id" />
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Delete" aria-label="Delete"><icon name="trash" /></button>
                                             </form>
@@ -191,11 +191,11 @@
                                     <td data-label="Volume"><strong>@b.VolumeName</strong></td>
                                     <td data-label="Target"><span class="mat-tag">@(b.BackupTargetName ?? "Local")</span></td>
                                     <td class="mat-num" data-label="Size">@VolumeMigrationResult.FormatBytes(b.SizeBytes)</td>
-                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="mat-muted mat-nowrap" data-label="Created">@b.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")</td>
                                     <td class="mat-table__cell-actions">
                                         <div class="mat-table__actions">
                                             <a class="mat-btn mat-btn--sm mat-btn--secondary" href="/Backups/Restore?id=@b.Id"><icon name="restore" /><span>Restore</span></a>
-                                            <form method="post" asp-page-handler="Delete" data-confirm-danger data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")?">
+                                            <form method="post" asp-page-handler="Delete" data-confirm-danger data-confirm="Delete backup '@b.VolumeName' from @b.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")?">
                                                 <input type="hidden" name="id" value="@b.Id" />
                                                 <button type="submit" class="mat-btn mat-btn--sm mat-btn--ghost mat-btn--icon" title="Delete" aria-label="Delete"><icon name="trash" /></button>
                                             </form>

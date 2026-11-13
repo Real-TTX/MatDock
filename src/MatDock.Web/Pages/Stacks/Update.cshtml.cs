@@ -13,10 +13,18 @@ public class UpdateModel : PageModel
     private readonly StackService _stacks;
     private readonly EnvironmentService _environments;
     private readonly MatDock.Core.Operations.OperationRegistry _operations;
+    private readonly UpdatePolicyService _policies;
+    private readonly UpdateCheckCache _cache;
 
-    public UpdateModel(UpdateService updates, StackService stacks, EnvironmentService environments, MatDock.Core.Operations.OperationRegistry operations)
+    /// <summary>How old the last look may be to be shown as it is; an older one is taken again when the page opens ("Re-check" always takes a new one).</summary>
+    public static readonly TimeSpan LookFor = TimeSpan.FromHours(6);
+
+    public UpdateModel(UpdateService updates, StackService stacks, EnvironmentService environments, MatDock.Core.Operations.OperationRegistry operations,
+        UpdatePolicyService policies, UpdateCheckCache cache)
     {
         _operations = operations;
+        _policies = policies;
+        _cache = cache;
         _updates = updates;
         _stacks = stacks;
         _environments = environments;
@@ -39,6 +47,14 @@ public class UpdateModel : PageModel
     public Stack? Stack { get; private set; }
     public string? EnvName { get; private set; }
     public StackUpdateReport? Report { get; private set; }
+
+    /// <summary>What the rule of the stack makes of the look: the services an update would change, and to what (the same the overview shows).</summary>
+    public StackUpdatePlan? Plan { get; private set; }
+
+    /// <summary>When the look on the page was taken.</summary>
+    public DateTime? CheckedUtc { get; private set; }
+
+    public EffectiveUpdatePolicy Policy { get; private set; } = EffectiveUpdatePolicy.Default;
     public IReadOnlyList<StackUpdateRun> History { get; private set; } = Array.Empty<StackUpdateRun>();
 
     /// <summary>The image each service has in the compose file, and the ones MatDock runs instead.</summary>
@@ -71,9 +87,68 @@ public class UpdateModel : PageModel
 
         ComposeImages = ImageOverrides.ComposeImages(Stack.ComposeYaml);
         Overrides = ImageOverrides.Of(Stack);
-        Report = await _updates.CheckStackAsync(env, Stack.Name, ct, newerTags: true);
+        Policy = (await _policies.LoadAsync(ct)).For(Stack);
+        if (HttpMethods.IsGet(Request.Method))
+        {
+            // What the rule says, as the start of the two boxes; the user may still choose otherwise for this run.
+            PreBackup = Policy.PreBackup;
+            HealthGate = Policy.Rollback;
+        }
+
+        // The last look (of "Check all", the automation or this page) is shown at once: asking the host and the registries takes seconds, and a
+        // tab that is only opened should not cost them each time. "Re-check" takes a new one.
+        if (_cache.Report(env.Id, Stack.Name) is { Report.NewerTags: true } last && DateTime.UtcNow - last.CheckedUtc < LookFor)
+        {
+            (Report, CheckedUtc) = last;
+            Plan = _cache.Plan(env.Id, Stack.Name)?.Plan ?? await _updates.PlanAsync(env, Stack, Policy, Report, null, ct);
+        }
+        else
+        {
+            await LookAsync(env, ct);
+        }
+
         History = await _updates.GetHistoryAsync(Stack.Id, 10, ct);
         return Page();
+    }
+
+    /// <summary>Asks the host and the registries now: the report of the images and what the rule makes of it.</summary>
+    private async Task LookAsync(DockerEnvironment env, CancellationToken ct)
+    {
+        var batch = UpdateCheckBatch.ForOneStack();
+        Report = await _updates.CheckStackAsync(env, Stack!.Name, ct, newerTags: true, batch);
+        Plan = await _updates.PlanAsync(env, Stack, Policy, Report, batch, ct);
+        CheckedUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>Looks for updates again now ("Re-check").</summary>
+    public async Task<IActionResult> OnPostCheckAsync()
+    {
+        var ct = HttpContext.RequestAborted;
+        Stack = await _stacks.GetAsync(Id, ct);
+        if (Stack is null || await _environments.GetAsync(Stack.EnvironmentId, ct) is not { } env)
+        {
+            return RedirectToPage("Index");
+        }
+
+        Policy = (await _policies.LoadAsync(ct)).For(Stack);
+        await LookAsync(env, ct);
+        if (Report?.Error is null)
+        {
+            var count = Plan?.Items.Count ?? 0;
+            StatusMessage = count == 0 ? "Up to date." : $"{count} update(s) available.";
+            IsError = false;
+        }
+
+        return RedirectToPage(new { Id });
+    }
+
+    /// <summary>A pin or another image changes what an update would do: the last look no longer says it.</summary>
+    private async Task ForgetLookAsync()
+    {
+        if (await _stacks.GetAsync(Id, HttpContext.RequestAborted) is { } stack)
+        {
+            _cache.Clear(stack.EnvironmentId, stack.Name);
+        }
     }
 
     /// <summary>The address a CI calls to redeploy this stack, or null when the webhook is off.</summary>
@@ -92,6 +167,7 @@ public class UpdateModel : PageModel
     public async Task<IActionResult> OnPostPinAsync(string service, bool pin)
     {
         var (ok, message) = await _stacks.SetPinnedAsync(Id, service, pin, HttpContext.RequestAborted);
+        await ForgetLookAsync();
         StatusMessage = message;
         IsError = !ok;
         return RedirectToPage(new { Id });
@@ -101,6 +177,7 @@ public class UpdateModel : PageModel
     public async Task<IActionResult> OnPostImageAsync(string service, string? image, bool reset)
     {
         var (ok, message) = await _stacks.SetImageOverrideAsync(Id, service, reset ? null : image, HttpContext.RequestAborted);
+        await ForgetLookAsync();
         StatusMessage = message;
         IsError = !ok;
         return RedirectToPage(new { Id });
@@ -122,6 +199,7 @@ public class UpdateModel : PageModel
         var operation = _operations.Start("update", stack.Name, MatDock.Web.Api.StackOperations.LockKey(stack.EnvironmentId, stack.Name), async ctx =>
         {
             var steps = ctx.Operation.Steps;
+            steps.Add("plan", "New images");
             if (pre)
             {
                 steps.Add("backup", "Backup of the volumes");
@@ -145,14 +223,43 @@ public class UpdateModel : PageModel
                 steps.Set(key, MatDock.Core.Operations.StepState.Running, detail);
             }
 
-            var outcome = await ctx.Services.GetRequiredService<UpdateService>().RunUpdateAsync(id, pre, safety, ctx.CancellationToken, line =>
+            void Log(string line)
             {
                 ctx.Log(line);
                 if (line.StartsWith("==> Bundle backup", StringComparison.Ordinal)) { Next("backup", "Backing up"); }
                 else if (line.StartsWith("==> docker compose", StringComparison.Ordinal)) { Next("update", "Pulling the new images"); }
                 else if (line.StartsWith("==> Waiting", StringComparison.Ordinal)) { Next("health", "Waiting for the containers to be healthy"); }
                 else if (line.StartsWith("==> Rolling back", StringComparison.Ordinal) && current is not null) { steps.Set(current, MatDock.Core.Operations.StepState.Failed, "Not healthy: rolling back to the old images"); current = null; }
-            });
+            }
+
+            // The same update the overview runs: what the rule of the stack makes of a new look (a moved tag is pulled, a newer version is set as the
+            // image MatDock runs), with the backup and the health check chosen on the page.
+            var ct = ctx.CancellationToken;
+            var updates = ctx.Services.GetRequiredService<UpdateService>();
+            var fresh = await ctx.Services.GetRequiredService<StackService>().GetAsync(id, ct);
+            var env = fresh is null ? null : await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(fresh.EnvironmentId, ct);
+            StackUpdateOutcome outcome;
+            if (fresh is null || env is null)
+            {
+                steps.Set("plan", MatDock.Core.Operations.StepState.Skipped);
+                outcome = await updates.RunUpdateAsync(id, pre, safety, ct, Log); // says what is missing
+            }
+            else
+            {
+                steps.Set("plan", MatDock.Core.Operations.StepState.Running, "Asking the registry");
+                var policy = (await ctx.Services.GetRequiredService<UpdatePolicyService>().LoadAsync(ct)).For(fresh) with { PreBackup = pre, Rollback = safety is not null };
+                var plan = await updates.PlanStackAsync(env, fresh, policy, ct);
+                foreach (var item in plan.Items)
+                {
+                    ctx.Log($"{item.Service}: {item.Current} → {item.Target}");
+                }
+
+                steps.Set("plan", plan.Error is null ? MatDock.Core.Operations.StepState.Done : MatDock.Core.Operations.StepState.Skipped,
+                    plan.Error ?? (plan.Items.Count == 0
+                        ? "Nothing new known, pulling anyway"
+                        : string.Join(", ", plan.Items.Select(i => i.Kind == PlannedKind.Version ? $"{i.Service} → {i.Target}" : $"{i.Service}: new image"))));
+                outcome = await ctx.Services.GetRequiredService<UpdateAutomation>().ApplyAsync(fresh, plan.Items, policy, ct, "manual", Log);
+            }
 
             var last = outcome.Message.Split('\n', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim();
             if (current is not null)

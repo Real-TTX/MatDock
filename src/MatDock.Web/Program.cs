@@ -275,6 +275,27 @@ app.UseWebSockets(new WebSocketOptions
     KeepAliveTimeout = TimeSpan.FromSeconds(30),
 });
 app.UseRouting();
+// Whatever is not a read may have changed a host: the lists that are kept for a moment are read anew afterwards (HostChanges).
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next(context);
+    }
+    finally
+    {
+        if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method))
+        {
+            MatDock.Core.Execution.HostChanges.Note();
+        }
+    }
+});
+// The times on a page are those of the user's clock: the browser names its time zone in a cookie (matdock.js, UserClock).
+app.Use((context, next) =>
+{
+    MatDock.Web.Support.UserClock.Use(context.Request.Cookies[MatDock.Web.Support.UserClock.CookieName]);
+    return next(context);
+});
 // The rate limit of the anonymous platform endpoints /api and /api/health.
 app.UseRateLimiter();
 app.UseAuthentication();

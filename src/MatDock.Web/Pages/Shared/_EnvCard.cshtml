@@ -52,8 +52,8 @@
         var memLine = MatDock.Core.Docker.HostMetricsHistory.Sparkline(samples.Select(x => x.Mem).ToList(), 200, 32);
         if (cpuLine is not null && memLine is not null)
         {
-            <svg class="md-spark" viewBox="0 0 200 32" preserveAspectRatio="none" role="img" aria-label="CPU and RAM since @samples[0].TimeUtc.ToLocalTime().ToString("HH:mm")">
-                <title>CPU (accent) and RAM (green) since @samples[0].TimeUtc.ToLocalTime().ToString("dd.MM. HH:mm")</title>
+            <svg class="md-spark" viewBox="0 0 200 32" preserveAspectRatio="none" role="img" aria-label="CPU and RAM since @samples[0].TimeUtc.ToUserTime().ToString("HH:mm")">
+                <title>CPU (accent) and RAM (green) since @samples[0].TimeUtc.ToUserTime().ToString("dd.MM. HH:mm")</title>
                 <polyline class="md-spark__mem" points="@memLine" />
                 <polyline class="md-spark__cpu" points="@cpuLine" />
             </svg>
@@ -68,7 +68,7 @@
             {
                 <span class="mat-small mat-muted">Docker @env.DockerVersion</span>
             }
-            <span class="mat-small mat-muted">checked @(env.LastCheckedAt?.ToLocalTime().ToString("dd.MM. HH:mm") ?? "never")</span>
+            <span class="mat-small mat-muted">checked @(env.LastCheckedAt?.ToUserTime().ToString("dd.MM. HH:mm") ?? "never")</span>
         }
         <span class="mat-flex-grow"></span>
         @if (env.IsEnabled)

@@ -155,6 +155,7 @@ public sealed class OperationRegistry : IDisposable
         }
 
         operation.Complete(outcome, _time.GetUtcNow().UtcDateTime);
+        Execution.HostChanges.Note(); // what the lists keep for a moment is from before this run
     }
 
     /// <summary>Lets the next work of the key run, and forgets the key when nothing waits behind this one.</summary>

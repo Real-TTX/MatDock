@@ -43,11 +43,11 @@
                                     <td data-label="Name">@k.Name</td>
                                     <td data-label="Key" class="mat-mono mat-muted">@k.Prefix…</td>
                                     <td data-label="May"><span class="mat-pill @(k.Scope switch { ApiKeyScope.Full => "mat-pill--warn", ApiKeyScope.Bridge => "mat-pill--error", _ => "mat-pill--plain" })" title="@(k.Scope == ApiKeyScope.Bridge ? "Another MatDock runs Docker commands on the environments here" : null)">@(k.Scope switch { ApiKeyScope.Full => "Everything", ApiKeyScope.Bridge => "Bridge", _ => "Read" })</span></td>
-                                    <td data-label="Last used" class="mat-nowrap">@(k.LastUsedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
+                                    <td data-label="Last used" class="mat-nowrap">@(k.LastUsedAt?.ToUserTime().ToString("dd.MM.yyyy HH:mm") ?? "–")</td>
                                     <td data-label="Expires" class="mat-nowrap">
                                         @if (k.ExpiresAt is { } e)
                                         {
-                                            <span class="@(expired ? "mat-pill mat-pill--error" : string.Empty)">@e.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                            <span class="@(expired ? "mat-pill mat-pill--error" : string.Empty)">@e.ToUserTime().ToString("dd.MM.yyyy")</span>
                                         }
                                         else
                                         {

@@ -29,6 +29,9 @@ public sealed class UpdateCheckCache
         }
     }
 
+    /// <summary>Forget every plan (a rule changed: what it makes of the last look is no longer what the plans say). The looks themselves stay.</summary>
+    public void ClearPlans() => _plans.Clear();
+
     /// <summary>Forget a stack (after it was updated: its next check decides again).</summary>
     public void Clear(long environmentId, string project)
     {
@@ -41,6 +44,10 @@ public sealed class UpdateCheckCache
         => _reports.TryGetValue((environmentId, project), out var entry)
             ? entry.Report.Images.Where(i => i.UpdateAvailable).ToList()
             : Array.Empty<ImageUpdateStatus>();
+
+    /// <summary>The last look at the stack and when it was taken; null when it was never looked at (or updated since).</summary>
+    public (StackUpdateReport Report, DateTime CheckedUtc)? Report(long environmentId, string project)
+        => _reports.TryGetValue((environmentId, project), out var entry) ? entry : null;
 
     /// <summary>The plan of the last look at the stack and when it was made; null when it was never looked at (or updated since).</summary>
     public (StackUpdatePlan Plan, DateTime CheckedUtc)? Plan(long environmentId, string project)

@@ -107,8 +107,18 @@ public sealed class ContainerService
             return containers;
         }
 
-        // Best-effort live usage, never failing the listing. Shared for StatsFor; older readings are still shown while a new one is taken in the
-        // background, so a host whose Docker answers `docker stats` slowly (seconds with many containers) does not hold up the page each time.
+        await AddStatsAsync(environment, settings, head, client, containers, ct);
+        return containers;
+    }
+
+    /// <summary>
+    /// The live usage of <paramref name="containers"/> (CPU, memory), best effort: it never fails a listing. One <c>docker stats</c> of the host is shared
+    /// for StatsFor by every page that shows usage (the lists, a stack, one container); an older reading is still shown while a new one is taken in the
+    /// background, so a host whose Docker answers <c>docker stats</c> slowly (seconds with many containers) does not hold up each of these pages.
+    /// </summary>
+    private async Task AddStatsAsync(DockerEnvironment environment, SshConnectionSettings settings, string head, IHostSession client,
+        IReadOnlyList<DockerContainer> containers, CancellationToken ct)
+    {
         if (_cache is null)
         {
             try
@@ -124,7 +134,7 @@ public sealed class ContainerService
                 _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
             }
 
-            return containers;
+            return;
         }
 
         var stats = await StaleCache.GetAsync(_cache, "docker-stats:" + environment.Id, StatsFor, StatsKeep, StatsWait,
@@ -133,8 +143,6 @@ public sealed class ContainerService
         {
             ApplyStats(containers, stats);
         }
-
-        return containers;
     }
 
     /// <summary>How long an old <c>docker stats</c> is still shown while a new one is read.</summary>
@@ -177,8 +185,13 @@ public sealed class ContainerService
         }
     }
 
-    /// <summary>All containers of a compose project (stack), with live stats merged. Empty on failure.</summary>
-    public async Task<IReadOnlyList<DockerContainer>> ListByProjectAsync(DockerEnvironment environment, string project, CancellationToken ct = default)
+    /// <summary>
+    /// All containers of a compose project (stack). Empty on failure. Only with <paramref name="includeStats"/> their live usage is merged (the page
+    /// of a stack shows it); a check for updates, a backup or the health gate of an update only needs the containers and must not wait for
+    /// <c>docker stats</c>.
+    /// </summary>
+    public async Task<IReadOnlyList<DockerContainer>> ListByProjectAsync(DockerEnvironment environment, string project, CancellationToken ct = default,
+        bool includeStats = false)
     {
         if (!ContainerCommands.IsValidId(project))
         {
@@ -199,17 +212,9 @@ public sealed class ContainerService
             }
 
             var containers = ParseContainers(result.StdOut);
-            try
+            if (includeStats)
             {
-                var stats = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
-                if (stats.ExitStatus == 0)
-                {
-                    ApplyStats(containers, stats.StdOut);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
+                await AddStatsAsync(environment, settings, head, client, containers, ct);
             }
 
             return containers;
@@ -332,18 +337,7 @@ public sealed class ContainerService
             return (null, Array.Empty<ContainerMount>());
         }
 
-        try
-        {
-            var stats = await RunCommandAsync(client, ContainerCommands.Stats(head), ct);
-            if (stats.ExitStatus == 0)
-            {
-                ApplyStats(new[] { container }, stats.StdOut);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "docker stats unavailable for env {Env}.", environment.Id);
-        }
+        await AddStatsAsync(environment, settings, head, client, new[] { container }, ct);
 
         IReadOnlyList<ContainerMount> mounts = Array.Empty<ContainerMount>();
         try

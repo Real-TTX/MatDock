@@ -9,7 +9,13 @@ public sealed class UpdatePolicyService
 {
     private readonly MatDockDbContext _db;
 
-    public UpdatePolicyService(MatDockDbContext db) => _db = db;
+    private readonly UpdateCheckCache? _cache;
+
+    public UpdatePolicyService(MatDockDbContext db, UpdateCheckCache? cache = null)
+    {
+        _db = db;
+        _cache = cache;
+    }
 
     /// <summary>The rule of one scope, or null when it sets nothing.</summary>
     public Task<UpdatePolicy?> GetAsync(UpdatePolicyScope scope, long scopeId, CancellationToken ct = default)
@@ -32,11 +38,13 @@ public sealed class UpdatePolicyService
         }
 
         var existing = await _db.UpdatePolicies.FirstOrDefaultAsync(p => p.Scope == input.Scope && p.ScopeId == input.ScopeId, ct);
+        var strategyBefore = (existing?.Strategy, existing?.ServiceStrategiesJson ?? string.Empty);
         if (UpdatePolicies.IsEmpty(input))
         {
             if (existing is not null)
             {
                 _db.UpdatePolicies.Remove(existing); // soft delete
+                ForgetPlans(strategyBefore, (null, string.Empty));
                 await _db.SaveChangesAsync(ct);
             }
 
@@ -62,7 +70,17 @@ public sealed class UpdatePolicyService
         existing.VulnerabilityGate = input.VulnerabilityGate;
         existing.ServiceStrategiesJson = UpdatePolicies.SerializeServiceStrategies(UpdatePolicies.ServiceStrategies(input.ServiceStrategiesJson));
         await _db.SaveChangesAsync(ct);
+        ForgetPlans(strategyBefore, (existing.Strategy, existing.ServiceStrategiesJson ?? string.Empty));
         return (true, "Rule saved.");
+    }
+
+    /// <summary>Another strategy makes something else of the last look: what the overview shows as "would update" is looked up again.</summary>
+    private void ForgetPlans((UpdateStrategy?, string) before, (UpdateStrategy?, string) after)
+    {
+        if (before != after)
+        {
+            _cache?.ClearPlans();
+        }
     }
 }
 

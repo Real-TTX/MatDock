@@ -43,6 +43,7 @@ internal sealed class UpdateRig : IDisposable
     public FakeConnectionService Connection { get; } = new();
     public RecordingNotifications Notes { get; } = new();
     public UpdateAutomationState State { get; } = new();
+    public UpdateCheckCache Cache { get; } = new();
 
     /// <summary>What the registry lists for <c>localhost:5000/app</c>, and the digest it answers for any tag (null = none).</summary>
     public List<string> Tags { get; } = ["1.2.0", "1.3.0", "2.0.0", "latest"];
@@ -68,7 +69,7 @@ internal sealed class UpdateRig : IDisposable
             new MatDock.Core.Git.GitRepositoryService(NullLogger<MatDock.Core.Git.GitRepositoryService>.Instance), registries,
             new NoopScheduleEventBus(), options, NullLogger<StackService>.Instance);
         var containers = new ContainerService(Hosts, environments, options, NullLogger<ContainerService>.Instance);
-        Updates = new UpdateService(containers, Connection, environments, registries, Stacks, null!, new UpdateCheckCache(), Db.Context, NullLogger<UpdateService>.Instance);
+        Updates = new UpdateService(containers, Connection, environments, registries, Stacks, null!, Cache, Db.Context, NullLogger<UpdateService>.Instance);
         Policies = new UpdatePolicyService(Db.Context);
         Automation = new UpdateAutomation(environments, Stacks, Updates, Policies, Notes, State, Db.Context, NullLogger<UpdateAutomation>.Instance);
 

@@ -8,6 +8,8 @@
 .md-section-title .mat-icon { color: var(--mat-accent-text); }
 
 /* Key figures on the dashboard: a tinted icon beside a MatUi stat; the whole card is a link. */
+/* The key figures of the dashboard stand in one row where there is room for them (four of them left one alone in a second row). */
+.mat-grid.md-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
 .mat-card.md-stat { display: flex; align-items: center; gap: var(--mat-space-4); padding: var(--mat-space-4) var(--mat-space-5); }
 .md-stat__icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--mat-radius); background: var(--mat-accent-soft); color: var(--mat-accent-text); font-size: 1.3rem; }
 .md-stat__icon--ok { background: var(--mat-success-bg); color: var(--mat-success-text); }

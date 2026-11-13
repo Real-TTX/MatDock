@@ -149,7 +149,57 @@ public sealed class UpdatesPageTests : IClassFixture<UpdatesPageTests.Site>
         Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
         Assert.Contains("op=", SignIn.Path(post));
         var followed = await (await browser.GetAsync(SignIn.Path(post))).Content.ReadAsStringAsync();
-        Assert.Contains("Checking", followed);
+        Assert.Matches("mat-card__title\">Check(ing|ed)", followed); // still at it, or already through
+        Assert.Contains("data-live-done=\"reload\"", followed); // at its end the page reads itself again: the rows and the buttons are of now
+    }
+
+    [Fact]
+    public async Task The_page_of_a_stack_shows_the_last_look_at_once_and_looks_again_only_when_asked()
+    {
+        var browser = await AdminAsync();
+        var hosts = _site.App.Hosts;
+        int Looks() { lock (hosts.Commands) { return hosts.Commands.Count(c => c.Contains("com.docker.compose.project='shop'", StringComparison.Ordinal)); } }
+        int Usage() { lock (hosts.Commands) { return hosts.Commands.Count(c => c.Contains(" stats ", StringComparison.Ordinal)); } }
+        var usageBefore = Usage();
+        var page = await (await browser.GetAsync($"/Stacks/Update?id={_site.StackId}")).Content.ReadAsStringAsync();
+        var running = "{\"ID\":\"c0ffee000001\",\"Names\":\"shop-web-1\",\"Image\":\"localhost:1/app:1.2.0\",\"State\":\"running\",\"Status\":\"Up 3 hours\","
+                      + "\"Labels\":\"com.docker.compose.project=shop,com.docker.compose.service=web\",\"Ports\":\"\"}";
+        lock (hosts.Commands) { hosts.Containers.Add(running); }
+        try
+        {
+            await LooksAsync(browser, page, hosts, Looks, Usage, usageBefore);
+        }
+        finally
+        {
+            lock (hosts.Commands) { hosts.Containers.Remove(running); }
+        }
+    }
+
+    private async Task LooksAsync(HttpClient browser, string page, FakeHostSessionFactory hosts, Func<int> Looks, Func<int> Usage, int usageBefore)
+    {
+        // Whatever was known before (another test may have checked): "Re-check" takes a look now, with the container that runs.
+        await browser.PostAsync($"/Stacks/Update?id={_site.StackId}&handler=Check", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(page),
+        }));
+        var looks = Looks();
+        Assert.True(looks > 0);
+
+        var first = await (await browser.GetAsync($"/Stacks/Update?id={_site.StackId}")).Content.ReadAsStringAsync();
+        Assert.Contains("Checked ", first);
+        Assert.Equal(looks, Looks()); // the page shows that look: no host and no registry
+
+        var second = await (await browser.GetAsync($"/Stacks/Update?id={_site.StackId}")).Content.ReadAsStringAsync();
+        Assert.Equal(looks, Looks()); // opened again: the last look, no host and no registry
+        Assert.Contains("Checked ", second);
+
+        var recheck = await browser.PostAsync($"/Stacks/Update?id={_site.StackId}&handler=Check", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(second),
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, recheck.StatusCode);
+        Assert.True(Looks() > looks); // "Re-check" asks again
+        Assert.Equal(usageBefore, Usage()); // and none of it waits for docker stats
     }
 
     [Fact]

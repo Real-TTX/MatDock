@@ -37,7 +37,7 @@ public static class ScheduleView
     {
         if (run is not null)
         {
-            return ("mat-pill--busy", run.Cancelling ? "cancelling…" : $"running {Since(run.StartedUtc)}", $"Started {run.StartedUtc.ToLocalTime():dd.MM.yyyy HH:mm:ss}");
+            return ("mat-pill--busy", run.Cancelling ? "cancelling…" : $"running {Since(run.StartedUtc)}", $"Started {run.StartedUtc.ToUserTime():dd.MM.yyyy HH:mm:ss}");
         }
 
         if (task.LastRunAt is null)

@@ -27,7 +27,7 @@
 }
 @if (Model.Running is { } updating)
 {
-    <section id="live-update" class="mat-card" data-live="@(updating.IsFinished ? null : "2")">
+    <section id="live-update" class="mat-card" data-live="@(updating.IsFinished ? null : "2")" data-live-done="reload">
         <div class="mat-card__head">
             <icon name="@(updating.IsFinished ? (updating.Error is null ? "check-circle" : "alert") : "refresh")" />
             <h2 class="mat-card__title">@(updating.IsFinished ? (updating.Error is null ? "Updated" : "Update failed") : "Updating…")</h2>
@@ -45,7 +45,9 @@
 
 @if (Model.Report is not null && Model.Report.Error is null)
 {
-    var updates = Model.Report.UpdatesAvailable;
+    // What an update would change: what the rule of the stack makes of the look (a newer version too), the same the overview shows.
+    var planned = (Model.Plan?.Items ?? []).GroupBy(i => i.Service).ToDictionary(g => g.Key, g => g.First());
+    var updates = Model.Report.Images.Count(i => i.UpdateAvailable || planned.ContainsKey(i.Service));
     if (Model.Report.Images.Count == 0)
     {
         <div class="mat-empty mat-empty--framed"><div class="mat-empty__icon"><icon name="image" /></div><p>No running images found for this stack.</p></div>
@@ -54,7 +56,13 @@
     {
         <div class="mat-alert @(updates > 0 ? "mat-alert--warning" : "mat-alert--success")">
             <icon name="@(updates > 0 ? "alert" : "check-circle")" />
-            <div class="mat-alert__body">@(updates > 0 ? $"{updates} update(s) available." : "All images are up to date.")</div>
+            <div class="mat-alert__body">
+                @(updates > 0 ? $"{updates} update(s) available." : "Up to date.")
+                @if (Model.CheckedUtc is { } at)
+                {
+                    <span class="mat-muted">Checked @at.ToUserTime().ToString("dd.MM.yyyy HH:mm")</span>
+                }
+            </div>
         </div>
 
         <div class="mat-table-wrap">
@@ -93,9 +101,13 @@
                                 {
                                     <span class="mat-pill mat-pill--plain"><icon name="lock" /> Pinned</span>
                                 }
+                                else if (planned.GetValueOrDefault(img.Service) is { Kind: MatDock.Core.Updates.PlannedKind.Version } version)
+                                {
+                                    <span class="mat-pill mat-pill--warn" title="@version.Target">Update → @(MatDock.Core.Updates.ImageRef.TryParse(version.Target)?.Tag ?? version.Target)</span>
+                                }
                                 else if (img.UpdateAvailable)
                                 {
-                                    <span class="mat-pill mat-pill--warn">Update</span>
+                                    <span class="mat-pill mat-pill--warn" title="The registry has a newer image under this tag.">Update</span>
                                 }
                                 else if (img.Note is not null)
                                 {
@@ -109,7 +121,7 @@
                                 {
                                     <span class="mat-pill mat-pill--info" title="MatDock runs another image than the compose file names.">Override</span>
                                 }
-                                @if (img.NewerTag is not null)
+                                @if (img.NewerTag is not null && planned.GetValueOrDefault(img.Service) is not { Kind: MatDock.Core.Updates.PlannedKind.Version })
                                 {
                                     <span class="mat-pill mat-pill--info" title="A newer version tag exists. Enter it in the image field to run it.">Newer: @img.NewerTag</span>
                                 }
@@ -147,7 +159,7 @@
         <div class="mat-card__head"><icon name="refresh" /><h2 class="mat-card__title">Run update</h2></div>
         <div class="mat-card__body">
             <form method="post" asp-page-handler="Update" class="mat-form" data-confirm="Update stack '@Model.Stack?.Name' now?">
-                <p class="mat-hint">Pulls the new images and redeploys.</p>
+                <p class="mat-hint">@(planned.Values.Any(i => i.Kind == MatDock.Core.Updates.PlannedKind.Version) ? "Sets the new versions, pulls the images and redeploys." : "Pulls the new images and redeploys.")</p>
                 <input type="hidden" asp-for="Id" />
                 <label class="mat-check">
                     <input asp-for="PreBackup" type="checkbox" />
@@ -187,7 +199,7 @@
                     {
                         var changes = MatDock.Core.Updates.UpdateService.ChangesOf(run);
                         <tr>
-                            <td class="mat-nowrap" data-label="When">@run.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="mat-nowrap" data-label="When">@run.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")</td>
                             <td data-label="By">@run.Trigger</td>
                             <td data-label="Result">
                                 <span class="mat-pill @OutcomePill(run.Outcome)" title="@run.Message">@run.Outcome</span>
@@ -254,5 +266,8 @@
 @section Actions {
     <a href="/Stacks/Copy?id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="copy" /><span>Copy</span></a>
     <a href="/Updates/Rules?scope=Stack&id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Rule</span></a>
-    <a href="/Stacks/Update?id=@Model.Id" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Re-check</span></a>
+    <form method="post" asp-page-handler="Check" class="md-inline-form">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <button type="submit" class="mat-btn mat-btn--secondary"><icon name="refresh" /><span>Re-check</span></button>
+    </form>
 }

@@ -36,7 +36,7 @@
                     @foreach (var e in Model.Items)
                     {
                         <tr>
-                            <td class="mat-muted mat-nowrap" data-label="Time">@e.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td class="mat-muted mat-nowrap" data-label="Time">@e.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
                             <td class="mat-nowrap" data-label="User">@e.Actor@if (e.Source is "api" or "mcp") { <span class="mat-pill mat-pill--plain">@e.Source.ToUpperInvariant()</span> }</td>
                             <td data-label="Action">@e.Action</td>
                             <td class="mat-mono mat-text-wrap" data-label="Target">@(e.Target ?? "–")</td>

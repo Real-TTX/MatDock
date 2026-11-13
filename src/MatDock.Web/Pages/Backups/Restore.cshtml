@@ -39,7 +39,7 @@ else
                         <dt>Volume</dt><dd><strong>@Model.Backup.VolumeName</strong></dd>
                         <dt>From</dt><dd>@Model.Backup.SourceEnvironmentName</dd>
                         <dt>Size</dt><dd>@VolumeMigrationResult.FormatBytes(Model.Backup.SizeBytes)</dd>
-                        <dt>Created</dt><dd>@Model.Backup.CreateDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+                        <dt>Created</dt><dd>@Model.Backup.CreateDate.ToUserTime().ToString("dd.MM.yyyy HH:mm")</dd>
                     </dl>
                 </div>
             </div>

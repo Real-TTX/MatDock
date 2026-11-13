@@ -58,7 +58,8 @@ public sealed record PlannedUpdate(string Service, string Current, string Target
 public sealed record StackUpdatePlan(IReadOnlyList<PlannedUpdate> Items, string? Error);
 
 /// <summary>Per-stack update check result.</summary>
-public sealed record StackUpdateReport(IReadOnlyList<ImageUpdateStatus> Images, string? Error)
+/// <param name="NewerTags">The look also asked for newer version tags (<see cref="ImageUpdateStatus.NewerTag"/> is filled where there is one).</param>
+public sealed record StackUpdateReport(IReadOnlyList<ImageUpdateStatus> Images, string? Error, bool NewerTags = false)
 {
     public int UpdatesAvailable => Images.Count(i => i.UpdateAvailable);
 
