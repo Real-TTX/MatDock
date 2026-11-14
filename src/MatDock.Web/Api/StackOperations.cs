@@ -45,8 +45,10 @@ public static class StackOperations
         });
 
     /// <summary>
-    /// <c>update</c>: report the registry digests, then the UpdateService run (optional bundle backup, pull, re-create only what changed). The result is
-    /// <c>{"changed": bool}</c>.
+    /// <c>update</c>, as the update rule of the stack says and as its page does it: a look at the registries, a newer version its strategy takes is set
+    /// as the image MatDock runs, then the pull and the redeploy (also when nothing new is known: re-creating only what changed), and with the rule's
+    /// rollback the health check, which puts the old images back when the containers do not come up healthy. The bundle backup is the caller's choice
+    /// (<paramref name="backupFirst"/>), not the rule's. The result is <c>{"changed": bool, "rolledBack": bool}</c>.
     /// </summary>
     public static Operation Update(OperationRegistry operations, long environmentId, long stackId, string name, bool backupFirst, string trigger)
         => operations.Start("update", name, LockKey(environmentId, name), async ctx =>
@@ -54,32 +56,37 @@ public static class StackOperations
             var ct = ctx.CancellationToken;
             var updates = ctx.Services.GetRequiredService<UpdateService>();
             var env = await ctx.Services.GetRequiredService<EnvironmentService>().GetAsync(environmentId, ct);
-            if (env is null)
+            var stack = await ctx.Services.GetRequiredService<StackService>().GetAsync(stackId, ct);
+            if (env is null || stack is null)
             {
-                return OperationOutcome.Failure("Environment not found.", new { changed = false });
+                return OperationOutcome.Failure(env is null ? "Environment not found." : "Stack not found.", new { changed = false, rolledBack = false });
             }
 
             ctx.Log("==> Checking the registries for newer images");
-            var report = await updates.CheckStackAsync(env, name, ct);
-            if (report.Error is not null)
+            var policy = (await ctx.Services.GetRequiredService<UpdatePolicyService>().LoadAsync(ct)).For(stack) with { PreBackup = backupFirst };
+            var plan = await updates.PlanStackAsync(env, stack, policy, ct);
+            if (plan.Error is not null)
             {
-                ctx.Log($"    (check failed: {report.Error})");
+                ctx.Log($"    (check failed: {plan.Error})");
             }
 
-            foreach (var image in report.Images)
+            var planned = plan.Items.ToDictionary(i => i.Service, StringComparer.Ordinal);
+            foreach (var image in ctx.Services.GetRequiredService<UpdateCheckCache>().Report(env.Id, name)?.Report.Images ?? [])
             {
-                var state = image.UpdateAvailable ? "newer image available" : image.Note ?? "up to date";
+                var state = planned.TryGetValue(image.Service, out var item)
+                    ? item.Kind == PlannedKind.Version ? $"→ {item.Target}" : "newer image available"
+                    : image.Note ?? "up to date";
                 ctx.Log($"    {image.Service}: {image.Image} ({state})");
             }
 
-            var outcome = await updates.RunUpdateAsync(stackId, backupFirst, null, ct, ctx.Log, trigger: trigger);
+            var outcome = await ctx.Services.GetRequiredService<UpdateAutomation>().ApplyAsync(stack, plan.Items, policy, ct, trigger, ctx.Log);
             if (!outcome.Ok)
             {
-                return OperationOutcome.Failure(LastLine(outcome.Message), new { changed = false });
+                return OperationOutcome.Failure(LastLine(outcome.Message), new { changed = false, rolledBack = outcome.RolledBack });
             }
 
             ctx.Log(outcome.Changed ? "Containers were re-created with newer images." : "Nothing changed.");
-            return OperationOutcome.Success(new { changed = outcome.Changed });
+            return OperationOutcome.Success(new { changed = outcome.Changed, rolledBack = false });
         });
 
     /// <summary>start, stop, restart, pull or redeploy of a managed stack (update has its own, <see cref="Update"/>).</summary>

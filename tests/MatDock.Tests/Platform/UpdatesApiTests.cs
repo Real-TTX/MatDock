@@ -32,10 +32,10 @@ public sealed class UpdatesApiTests : IClassFixture<UpdatesApiTests.Site>
             ReadKey = scope.ServiceProvider.GetRequiredService<ApiKeyService>().CreateAsync("updates-read", ApiKeyScope.Read, null).GetAwaiter().GetResult().Key!;
         }
 
-        private static string Container(string project, string image, string labels = "")
+        public static string Container(string project, string image, string labels = "", string id = "00000001", string status = "Up 3 hours")
             => JsonSerializer.Serialize(new
             {
-                ID = project + "00000001", Names = project + "-web-1", Image = image, State = "running", Status = "Up 3 hours",
+                ID = project + id, Names = project + "-web-1", Image = image, State = "running", Status = status,
                 Labels = $"com.docker.compose.project={project},com.docker.compose.service=web{labels}", Ports = string.Empty,
             });
 
@@ -161,6 +161,64 @@ public sealed class UpdatesApiTests : IClassFixture<UpdatesApiTests.Site>
         Assert.Equal(HttpStatusCode.Conflict, pull.StatusCode);
         Assert.Contains("only start, stop, restart and update are possible", await pull.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.NotFound, (await Full.PostAsync("/api/v1/stacks/nothing/actions/update", null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_update_of_a_managed_stack_follows_its_rule_with_the_health_check_and_the_rollback()
+    {
+        var hosts = _site.App.Hosts;
+        var stackId = _site.App.Db(db => db.Stacks.Single(s => s.Name == "shop").Id);
+        bool Seen(string fragment)
+        {
+            lock (hosts.Commands) { return hosts.Commands.Any(c => c.Contains(fragment, StringComparison.Ordinal)); }
+        }
+
+        // The update brings up a new container that is not healthy.
+        hosts.Respond = command =>
+        {
+            var updated = Seen("up -d");
+            if (command.Contains(" ps -a", StringComparison.Ordinal))
+            {
+                var others = hosts.Containers.Where(c => !c.Contains("project=shop", StringComparison.Ordinal));
+                return string.Join("\n", others.Prepend(Site.Container("shop", "localhost:1/app:1.2.0", id: updated ? "00000002" : "00000001",
+                    status: updated ? "Up 2 seconds (unhealthy)" : "Up 3 hours")));
+            }
+
+            return command.Contains("inspect --format", StringComparison.Ordinal)
+                ? $"web localhost:1/app:1.2.0 sha256:{(updated ? "bbbbbbbbbbbb" : "aaaaaaaaaaaa")}\n"
+                : null;
+        };
+        var poll = UpdateService.GatePoll;
+        UpdateService.GatePoll = TimeSpan.FromMilliseconds(5);
+        try
+        {
+            lock (hosts.Commands) { hosts.Commands.Clear(); }
+            var end = await EndAsync(await Full.PostAsync("/api/v1/stacks/shop/actions/update", null));
+
+            // The default rule rolls back: the old image was kept under a name of its own and put back.
+            Assert.Equal("failed", end.GetProperty("status").GetString());
+            Assert.Contains("shop-web-1 is unhealthy", end.GetProperty("error").GetString());
+            Assert.Equal((false, true), (end.GetProperty("result").GetProperty("changed").GetBoolean(), end.GetProperty("result").GetProperty("rolledBack").GetBoolean()));
+            Assert.True(Seen("image tag 'sha256:aaaaaaaaaaaa' 'localhost:1/app:matdock-rollback-1.2.0'"));
+            Assert.Contains("Rolling back", end.GetProperty("output").GetString());
+
+            // A rule without the rollback: the same update as before, no health check.
+            var rule = await Full.PutAsync($"/api/v1/update-rules/stack/{stackId}", new StringContent("""{"rollback":false}"""));
+            Assert.Equal(HttpStatusCode.OK, rule.StatusCode);
+            lock (hosts.Commands) { hosts.Commands.Clear(); }
+            end = await EndAsync(await Full.PostAsync("/api/v1/stacks/shop/actions/update", null));
+
+            Assert.Equal("succeeded", end.GetProperty("status").GetString());
+            Assert.Equal((true, false), (end.GetProperty("result").GetProperty("changed").GetBoolean(), end.GetProperty("result").GetProperty("rolledBack").GetBoolean()));
+            Assert.False(Seen("matdock-rollback"));
+            Assert.DoesNotContain("Bundle backup", end.GetProperty("output").GetString()); // the backup is the choice of the caller (backupFirst), whatever the rule says
+        }
+        finally
+        {
+            UpdateService.GatePoll = poll;
+            hosts.Respond = null;
+            await Full.PutAsync($"/api/v1/update-rules/stack/{stackId}", new StringContent("{}"));
+        }
     }
 
     [Fact]
