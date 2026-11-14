@@ -567,8 +567,9 @@ public sealed class UpdateAutomation
     /// pulled in place with its own compose files, with the backup and the health gate of that rule. One MatDock cannot update by itself (its files are
     /// not on the host …) counts as failed with the reason and is not touched.
     /// </summary>
+    /// <param name="backupFirst">Take the bundle backup first even when the rule does not ask for one.</param>
     public async Task<(int Updated, int Failed)> UpdateProjectsAsync(IEnumerable<(DockerEnvironment Env, string Project)> projects, Action<string> log,
-        CancellationToken ct = default, Operations.OperationSteps? steps = null)
+        CancellationToken ct = default, Operations.OperationSteps? steps = null, bool backupFirst = false)
     {
         var policies = await _policies.LoadAsync(ct);
         int updated = 0, failed = 0;
@@ -597,7 +598,7 @@ public sealed class UpdateAutomation
             var services = plan.Items.Select(i => i.Service).Distinct(StringComparer.Ordinal).ToList();
             log($"==> {project} on {env.Name}: {string.Join(", ", services)}");
             steps?.Set(key, Operations.StepState.Running, $"Updating {string.Join(", ", services)}");
-            var outcome = await _updates.RunProjectUpdateAsync(env, project, services, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, log);
+            var outcome = await _updates.RunProjectUpdateAsync(env, project, services, backupFirst || policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, log);
             _state.Forget($"{env.Id}/{project}"); // the automation looks at it again
             if (outcome.Ok)
             {
@@ -626,7 +627,9 @@ public sealed class UpdateAutomation
     /// Updates the given stacks now, one after the other, whatever their mode: each is looked at again and gets what its rule makes of it, with the backup and the
     /// health gate of that rule. A stack with nothing to update is skipped. With <paramref name="steps"/> every stack is an entry of it (key: its id).
     /// </summary>
-    public async Task<(int Updated, int Failed)> UpdateStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null)
+    /// <param name="trigger">Who started it, for the history of each stack: "manual", "api" or "mcp".</param>
+    public async Task<(int Updated, int Failed)> UpdateStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null,
+        string trigger = "manual")
     {
         var policies = await _policies.LoadAsync(ct);
         int updated = 0, failed = 0;
@@ -663,7 +666,7 @@ public sealed class UpdateAutomation
 
             log($"==> {stack.Name} on {env.Name}: {string.Join(", ", plan.Items.Select(i => i.Service))}");
             steps?.Set(key, Operations.StepState.Running, $"Updating {string.Join(", ", plan.Items.Select(i => i.Service))}");
-            var outcome = await ApplyAsync(stack, plan.Items, policy, ct, trigger: "manual");
+            var outcome = await ApplyAsync(stack, plan.Items, policy, ct, trigger);
             if (outcome.Ok)
             {
                 updated++;

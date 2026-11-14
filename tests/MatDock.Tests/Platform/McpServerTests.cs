@@ -223,12 +223,12 @@ public sealed class McpServerTests : IClassFixture<McpServerTests.Site>
         var all = McpToolCatalog.All;
         Assert.True(all.Count >= 40, $"{all.Count} tools");
         Assert.All(all.Keys, name => Assert.Matches("^[a-z]+(_[a-z]+)*$", name));
-        foreach (var write in new[] { "container_action", "remove_container", "run_container", "exec_in_container", "deploy_stack", "stack_action", "remove_stack", "remove_volume", "restore_backup", "cleanup_engine", "set_update_rule", "run_schedule" })
+        foreach (var write in new[] { "container_action", "remove_container", "run_container", "exec_in_container", "deploy_stack", "stack_action", "remove_stack", "remove_volume", "restore_backup", "cleanup_engine", "set_update_rule", "run_schedule", "apply_updates" })
         {
             Assert.False(McpToolCatalog.IsReadOnly(write), write);
         }
 
-        foreach (var read in new[] { "get_status", "list_containers", "inspect_container", "container_logs", "list_stacks", "get_stack", "list_events", "get_metrics", "get_operation", "list_activity" })
+        foreach (var read in new[] { "get_status", "list_containers", "inspect_container", "container_logs", "list_stacks", "get_stack", "list_events", "get_metrics", "get_operation", "list_activity", "list_updates", "check_updates", "check_stack_updates" })
         {
             Assert.True(McpToolCatalog.IsReadOnly(read), read);
         }

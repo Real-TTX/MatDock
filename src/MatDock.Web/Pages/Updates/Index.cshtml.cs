@@ -3,35 +3,32 @@ using MatDock.Core.Environments;
 using MatDock.Core.Operations;
 using MatDock.Core.Stacks;
 using MatDock.Core.Updates;
+using MatDock.Web.Api;
 using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MatDock.Web.Pages.Updates;
 
-/// <summary>All managed stacks with their update rule and what the rule would update, from the last look; checking and updating many at once.</summary>
+/// <summary>
+/// All stacks (managed and discovered) with their update rule and what the rule would update, from the last look; checking and updating many at once.
+/// The rows and the runs are those of the API and the MCP tools (<see cref="UpdateOverview"/>, <see cref="UpdateOperations"/>).
+/// </summary>
 public class IndexModel : PageModel
 {
     private static readonly IReadOnlyList<SortChoice<UpdateRow>> SortChoices = ListView.Sorts<UpdateRow>(
         ("Environment", r => r.EnvName), ("Stack", r => r.Name), ("Updates", r => r.Pending), ("Checked", r => r.CheckedUtc));
 
     private readonly EnvironmentService _environments;
-    private readonly StackService _stacks;
-    private readonly UpdatePolicyService _policies;
-    private readonly UpdateCheckCache _cache;
+    private readonly UpdateOverview _overview;
     private readonly OperationRegistry _operations;
     private readonly HostUpdateCache _hostCache;
-    private readonly HostReadings _readings;
 
-    public IndexModel(EnvironmentService environments, StackService stacks, UpdatePolicyService policies, UpdateCheckCache cache, OperationRegistry operations,
-        HostUpdateCache hostCache, HostReadings readings)
+    public IndexModel(EnvironmentService environments, UpdateOverview overview, OperationRegistry operations, HostUpdateCache hostCache)
     {
         _hostCache = hostCache;
-        _readings = readings;
         _environments = environments;
-        _stacks = stacks;
-        _policies = policies;
-        _cache = cache;
+        _overview = overview;
         _operations = operations;
     }
 
@@ -81,69 +78,31 @@ public class IndexModel : PageModel
         await LoadAsync();
     }
 
-    private async Task<List<(Stack Stack, DockerEnvironment Env)>> VisibleStacksAsync()
-    {
-        var ct = HttpContext.RequestAborted;
-        var selected = EnvSelection.Current(HttpContext);
-        var envs = (await _environments.GetEnabledAsync(ct)).ToDictionary(e => e.Id);
-        EnvId = selected is { } id && envs.ContainsKey(id) ? id : 0;
-        EnvName = EnvId > 0 ? envs[EnvId].Name : null;
-        return (await _stacks.GetAllAsync(ct))
-            .Where(s => envs.ContainsKey(s.EnvironmentId) && (EnvId == 0 || s.EnvironmentId == EnvId))
-            .OrderBy(s => envs[s.EnvironmentId].Name, StringComparer.OrdinalIgnoreCase).ThenBy(s => s.Name, StringComparer.Ordinal)
-            .Select(s => (s, envs[s.EnvironmentId]))
-            .ToList();
-    }
-
-    /// <summary>The environments shown whose compose projects MatDock can look at itself (a bridge looks at its own).</summary>
-    private async Task<List<DockerEnvironment>> ProjectEnvironmentsAsync()
+    /// <summary>The environments shown: the sidebar choice when it is one, else every enabled one.</summary>
+    private async Task<List<DockerEnvironment>> VisibleEnvironmentsAsync()
     {
         var envs = await _environments.GetEnabledAsync(HttpContext.RequestAborted);
-        var selected = EnvSelection.Current(HttpContext) is { } id && envs.Any(e => e.Id == id) ? id : 0;
-        return envs
-            .Where(e => e.ConnectionType != ConnectionType.Bridge && (selected == 0 || e.Id == selected))
-            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var chosen = EnvSelection.Current(HttpContext) is { } id ? envs.FirstOrDefault(e => e.Id == id) : null;
+        EnvId = chosen?.Id ?? 0;
+        EnvName = chosen?.Name;
+        return chosen is null ? envs : [chosen];
     }
 
-    /// <summary>
-    /// The compose projects on the hosts shown that MatDock did not deploy. From the container list the dashboard reads too (the last one while a new
-    /// one is taken), so the overview does not wait for every host; a host that does not answer has none here.
-    /// </summary>
-    private async Task<List<(DockerEnvironment Env, string Project)>> VisibleProjectsAsync(IEnumerable<(Stack Stack, DockerEnvironment Env)> stacks)
-    {
-        var ct = HttpContext.RequestAborted;
-        var managed = stacks.ToLookup(x => x.Env.Id, x => x.Stack.Name);
-        var lists = await Task.WhenAll((await ProjectEnvironmentsAsync()).Select(async env => (env, containers: await _readings.ContainersAsync(env, ct))));
-        return lists
-            .SelectMany(l => UpdateService.DiscoveredProjects(l.containers, managed[l.env.Id].ToHashSet(StringComparer.Ordinal)).Select(project => (l.env, project)))
-            .ToList();
-    }
+    private async Task<List<(Stack Stack, DockerEnvironment Env)>> VisibleStacksAsync()
+        => await _overview.StacksAsync(await VisibleEnvironmentsAsync(), HttpContext.RequestAborted);
 
     /// <summary>One discovered project of the hosts shown by its environment and name, or null (not there, a managed stack, a bridge).</summary>
     private async Task<(DockerEnvironment Env, string Project)?> VisibleProjectAsync(long envId, string? project)
     {
-        var found = (await VisibleProjectsAsync(await VisibleStacksAsync())).FirstOrDefault(p => p.Env.Id == envId && string.Equals(p.Project, project, StringComparison.Ordinal));
+        var found = (await _overview.ProjectsAsync(await VisibleEnvironmentsAsync(), HttpContext.RequestAborted))
+            .FirstOrDefault(p => p.Env.Id == envId && string.Equals(p.Project, project, StringComparison.Ordinal));
         return found.Env is null ? null : found;
     }
 
     private async Task LoadAsync()
     {
-        var policies = await _policies.LoadAsync(HttpContext.RequestAborted);
-        var stacks = await VisibleStacksAsync();
-        var all = stacks
-            .Select(x =>
-            {
-                var cached = _cache.Plan(x.Env.Id, x.Stack.Name);
-                return new UpdateRow(x.Stack, x.Env.Id, x.Stack.Name, x.Env.Name, policies.For(x.Stack), cached?.Plan, cached?.CheckedUtc, Hints(x.Env.Id, x.Stack.Name, cached?.Plan));
-            })
-            .Concat((await VisibleProjectsAsync(stacks)).Select(p =>
-            {
-                var cached = _cache.Plan(p.Env.Id, p.Project);
-                return new UpdateRow(null, p.Env.Id, p.Project, p.Env.Name, policies.Inherited(UpdatePolicyScope.Stack, p.Env.Id), cached?.Plan, cached?.CheckedUtc,
-                    Hints(p.Env.Id, p.Project, cached?.Plan), _cache.Blocked(p.Env.Id, p.Project));
-            }))
-            .OrderBy(r => r.EnvName, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Name, StringComparer.Ordinal)
+        var all = (await _overview.RowsAsync(await VisibleEnvironmentsAsync(), HttpContext.RequestAborted))
+            .Select(r => new UpdateRow(r.Stack, r.Environment.Id, r.Name, r.Environment.Name, r.Policy, r.Plan, r.CheckedUtc, r.Hints, r.Blocked))
             .ToList();
         Total = all.Count;
         PendingStacks = all.Count(r => r.Pending > 0 && r.Blocked is null); // what "Update all" would run: not what MatDock cannot update by itself
@@ -156,86 +115,23 @@ public class IndexModel : PageModel
             .ToList();
     }
 
-    /// <summary>The newer versions the last look found that the plan does not take: said beside the row, nothing happens by itself.</summary>
-    private IReadOnlyList<(string Service, string Tag)> Hints(long envId, string project, StackUpdatePlan? plan)
-        => plan is null || _cache.Report(envId, project) is not { } look
-            ? []
-            : look.Report.Images
-                .Where(i => i.NewerTag is not null && plan.Items.All(p => p.Service != i.Service))
-                .Select(i => (i.Service, i.NewerTag!))
-                .ToList();
-
     /// <summary>The environments shown (the sidebar choice, or all) whose host MatDock can look at.</summary>
     private async Task<List<DockerEnvironment>> VisibleHostsAsync()
-    {
-        var envs = await _environments.GetEnabledAsync(HttpContext.RequestAborted);
-        var selected = EnvSelection.Current(HttpContext) is { } id && envs.Any(e => e.Id == id) ? id : 0;
-        return envs
-            .Where(e => HostUpdateService.Supports(e) && (selected == 0 || e.Id == selected))
-            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
+        => (await VisibleEnvironmentsAsync()).Where(HostUpdateService.Supports).OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
     /// <summary>Looks for updates in every stack (the discovered ones too) and on every host shown (in the background: one after the other).</summary>
     public async Task<IActionResult> OnPostCheckAsync()
     {
-        var stacks = (await VisibleStacksAsync()).Select(x => x.Stack.Id).ToList();
-        var hosts = (await VisibleHostsAsync()).Select(e => e.Id).ToList();
-        var projectHosts = (await ProjectEnvironmentsAsync()).Select(e => e.Id).ToList();
+        var envs = await VisibleEnvironmentsAsync();
+        var stacks = (await _overview.StacksAsync(envs, HttpContext.RequestAborted)).Select(x => x.Stack.Id).ToList();
+        var hosts = envs.Where(HostUpdateService.Supports).OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).Select(e => e.Id).ToList();
+        var projectHosts = UpdateOverview.ProjectEnvironments(envs).Select(e => e.Id).ToList();
         if (stacks.Count == 0 && hosts.Count == 0 && projectHosts.Count == 0)
         {
             return RedirectToPage(new { Q, SortKey });
         }
 
-        var operation = _operations.Start("updates-check", "all", "updates", async ctx =>
-        {
-            var ct = ctx.CancellationToken;
-            var automation = ctx.Services.GetRequiredService<UpdateAutomation>();
-            var updates = ctx.Services.GetRequiredService<UpdateService>();
-            var environments = ctx.Services.GetRequiredService<EnvironmentService>();
-            var all = ctx.Services.GetRequiredService<StackService>();
-            var batch = new UpdateCheckBatch(); // every host is asked once for all its stacks, the managed and the discovered ones
-            var list = new List<Stack>();
-            foreach (var id in stacks)
-            {
-                if (await all.GetAsync(id, ct) is { } stack)
-                {
-                    list.Add(stack);
-                    ctx.Operation.Steps.Add(stack.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stack.Name);
-                }
-            }
-
-            // The projects MatDock did not deploy, as they run on the hosts right now.
-            var projects = new List<(DockerEnvironment Env, string Project)>();
-            foreach (var id in projectHosts)
-            {
-                if (await environments.GetAsync(id, ct) is not { IsEnabled: true } env)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    foreach (var project in await updates.DiscoveredProjectsAsync(env, ct, batch))
-                    {
-                        projects.Add((env, project));
-                        ctx.Operation.Steps.Add(UpdateAutomation.ProjectStepKey(env.Id, project), project);
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    ctx.Log($"{env.Name}: {ex.Message}");
-                }
-            }
-
-            var envs = await HostEnvironmentsAsync(ctx, hosts);
-            var pending = list.Count == 0 ? 0 : await automation.CheckStacksAsync(list, ctx.Log, ct, ctx.Operation.Steps, batch);
-            pending += projects.Count == 0 ? 0 : await automation.CheckProjectsAsync(projects, ctx.Log, ct, ctx.Operation.Steps, batch);
-            ctx.Log(pending == 0 ? "No stack to update." : $"{pending} stack(s) can be updated.");
-            await CheckHostsAsync(ctx, envs);
-            return OperationOutcome.Success();
-        });
-        return RedirectToPage(new { op = operation.Id, Q, SortKey });
+        return RedirectToPage(new { op = UpdateOperations.Check(_operations, stacks, projectHosts, hosts).Id, Q, SortKey });
     }
 
     /// <summary>Looks at one host again (refreshing its package lists; in the background, it may take a minute).</summary>
@@ -249,7 +145,7 @@ public class IndexModel : PageModel
 
         var operation = _operations.Start("updates-check", env.Name, $"host-update:{env.Id}", async ctx =>
         {
-            await CheckHostsAsync(ctx, await HostEnvironmentsAsync(ctx, [env.Id]));
+            await UpdateOperations.CheckHostsAsync(ctx, await UpdateOperations.HostEnvironmentsAsync(ctx, [env.Id]));
             return OperationOutcome.Success();
         });
         return RedirectToPage(new { op = operation.Id, Q, SortKey });
@@ -359,49 +255,11 @@ public class IndexModel : PageModel
         return (null, log);
     }
 
-    private static async Task<List<DockerEnvironment>> HostEnvironmentsAsync(OperationContext ctx, IEnumerable<long> ids)
-    {
-        var environments = ctx.Services.GetRequiredService<EnvironmentService>();
-        var list = new List<DockerEnvironment>();
-        foreach (var id in ids)
-        {
-            if (await environments.GetAsync(id, ctx.CancellationToken) is { IsEnabled: true } env)
-            {
-                list.Add(env);
-                ctx.Operation.Steps.Add($"host:{env.Id}", $"{env.Name} (host)");
-            }
-        }
-
-        return list;
-    }
-
-    private static async Task CheckHostsAsync(OperationContext ctx, IReadOnlyList<DockerEnvironment> envs)
-    {
-        var hosts = ctx.Services.GetRequiredService<HostUpdateService>();
-        foreach (var env in envs)
-        {
-            var key = $"host:{env.Id}";
-            ctx.Operation.Steps.Set(key, StepState.Running, "Refreshing the package lists");
-            var report = await hosts.CheckAsync(env, refresh: true, ctx.CancellationToken);
-            var summary = report.Summary(env.DockerVersion);
-            ctx.Operation.Steps.Set(key, report.Error is null ? StepState.Done : StepState.Failed, summary);
-            ctx.Log($"{env.Name} (host): {summary}");
-        }
-    }
-
     /// <summary>Updates the stacks shown that have something to update, one after the other, each with the backup and the health gate of its rule.</summary>
     public async Task<IActionResult> OnPostUpdateAllAsync()
     {
-        var stacks = await VisibleStacksAsync();
-        var ids = stacks
-            .Where(x => _cache.Plan(x.Env.Id, x.Stack.Name) is { Plan.Items.Count: > 0 })
-            .Select(x => x.Stack.Id)
-            .ToList();
-        var projects = (await VisibleProjectsAsync(stacks))
-            .Where(p => _cache.Plan(p.Env.Id, p.Project) is { Plan.Items.Count: > 0 } && _cache.Blocked(p.Env.Id, p.Project) is null)
-            .Select(p => (p.Env.Id, p.Project))
-            .ToList();
-        return ids.Count == 0 && projects.Count == 0 ? RedirectToPage(new { Q, SortKey }) : StartUpdate(ids, projects, "all");
+        var (operation, _) = await UpdatesApi.StartApplyAsync(_operations, _overview, await VisibleEnvironmentsAsync(), "manual", HttpContext.RequestAborted);
+        return operation is null ? RedirectToPage(new { Q, SortKey }) : RedirectToPage(new { op = operation.Id, Q, SortKey });
     }
 
     /// <summary>Updates one stack the same way.</summary>
@@ -447,44 +305,5 @@ public class IndexModel : PageModel
     }
 
     private IActionResult StartUpdate(List<long> ids, List<(long EnvId, string Project)> projects, string target)
-    {
-        var operation = _operations.Start("updates", target, "updates", async ctx =>
-        {
-            var ct = ctx.CancellationToken;
-            var automation = ctx.Services.GetRequiredService<UpdateAutomation>();
-            var environments = ctx.Services.GetRequiredService<EnvironmentService>();
-            var all = ctx.Services.GetRequiredService<StackService>();
-            var list = new List<Stack>();
-            foreach (var id in ids)
-            {
-                if (await all.GetAsync(id, ct) is { } stack)
-                {
-                    list.Add(stack);
-                    ctx.Operation.Steps.Add(stack.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stack.Name);
-                }
-            }
-
-            var discovered = new List<(DockerEnvironment Env, string Project)>();
-            foreach (var (envId, project) in projects)
-            {
-                if (await environments.GetAsync(envId, ct) is { IsEnabled: true } env)
-                {
-                    discovered.Add((env, project));
-                    ctx.Operation.Steps.Add(UpdateAutomation.ProjectStepKey(env.Id, project), project);
-                }
-            }
-
-            var (updated, failed) = list.Count == 0 ? (0, 0) : await automation.UpdateStacksAsync(list, ctx.Log, ct, ctx.Operation.Steps);
-            if (discovered.Count > 0)
-            {
-                var (projectsUpdated, projectsFailed) = await automation.UpdateProjectsAsync(discovered, ctx.Log, ct, ctx.Operation.Steps);
-                updated += projectsUpdated;
-                failed += projectsFailed;
-            }
-
-            ctx.Log($"{updated} updated, {failed} failed.");
-            return failed == 0 ? OperationOutcome.Success() : OperationOutcome.Failure($"{failed} stack(s) failed.");
-        });
-        return RedirectToPage(new { op = operation.Id, Q, SortKey });
-    }
+        => RedirectToPage(new { op = UpdateOperations.Update(_operations, ids, projects, target).Id, Q, SortKey });
 }

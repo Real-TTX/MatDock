@@ -106,7 +106,8 @@ public static class McpServerSetup
         "MatDock manages Docker hosts (environments): containers, compose stacks, images, volumes, networks, backups, updates and schedules. " +
         "Start with get_status to see the environments. Every tool that works on a host takes 'environment' (its id or name); it may be left out when " +
         "there is only one. Long actions (deploy, stack actions, backups, restores) wait up to waitSeconds and answer the output; when still running " +
-        "they answer an operation id to follow with get_operation. Removing something and exec_in_container cannot be undone: say what you are about to do first.";
+        "they answer an operation id to follow with get_operation. Updates: list_updates shows what the last look found for every stack, check_updates looks " +
+        "again, apply_updates updates all of them as their rules say (one stack: stack_action with update). Removing something and exec_in_container cannot be undone: say what you are about to do first.";
 
     private static ApiCaller Caller(IServiceProvider? services)
         => services?.GetService<IHttpContextAccessor>()?.HttpContext is { } http ? ApiCaller.Of(http) : new ApiCaller(null, false);

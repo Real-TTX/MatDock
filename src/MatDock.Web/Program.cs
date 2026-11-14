@@ -82,6 +82,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddMatDockCore();
 builder.Services.AddScoped<MatDock.Web.Support.AppLaunchpadService>();
 builder.Services.AddSingleton<MatDock.Web.Support.HostReadings>();
+builder.Services.AddScoped<MatDock.Web.Api.UpdateOverview>();
 builder.Services.AddScoped<MatDock.Web.Search.GlobalSearch>();
 // MatDock as an MCP server (/mcp) for an AI client, with the keys of the API (a read key sees only the tools that change nothing).
 builder.Services.AddMatDockMcp();

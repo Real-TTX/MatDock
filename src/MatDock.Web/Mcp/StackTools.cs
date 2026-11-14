@@ -118,7 +118,7 @@ public static class StackTools
         return new { stack = name, created, deploy = await McpScope.WaitAsync(operations, operation, waitSeconds, ct) };
     }
 
-    [McpServerTool(Name = "stack_action", ReadOnly = false), Description("start, stop, restart, pull, redeploy or update a stack. update asks the registries, pulls and re-creates only what changed (optionally after a bundle backup), with the health check and rollback of its update rule. A stack MatDock does not manage can only be started, stopped and restarted.")]
+    [McpServerTool(Name = "stack_action", ReadOnly = false), Description("start, stop, restart, pull, redeploy or update a stack. update asks the registries, pulls and re-creates only what changed (optionally after a bundle backup), with the health check and rollback of its update rule. A stack MatDock does not manage can be started, stopped, restarted and updated: update pulls the tags the registry moved and starts those services again in place with the stack's own compose files, as the rule of its environment says; when MatDock cannot (its files are not on the Docker host) it fails with the reason and touches nothing.")]
     public static async Task<object> StackAction(EnvironmentService environments, StackService stacks, ContainerService containers, OperationRegistry operations, IHttpContextAccessor http,
         [Description(StackHelp)] string name,
         [Description("start, stop, restart, pull, redeploy or update.")] string action,
@@ -143,12 +143,14 @@ public static class StackTools
                 throw new McpException($"Stack '{name}' not found on {env.Name}.");
             }
 
-            if (action is not ("start" or "stop" or "restart"))
+            if (!StackOperations.ProjectActions.Contains(action))
             {
-                throw new McpException($"Stack '{name}' is not managed by MatDock; only start, stop and restart are possible.");
+                throw new McpException(StackOperations.NotManaged(name));
             }
 
-            operation = StackOperations.ProjectAction(operations, env.Id, name, action);
+            operation = action == "update"
+                ? UpdateOperations.ProjectUpdate(operations, env.Id, name, backupFirst)
+                : StackOperations.ProjectAction(operations, env.Id, name, action);
         }
         else
         {

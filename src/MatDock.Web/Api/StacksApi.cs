@@ -279,19 +279,21 @@ public static class StacksApi
         var stack = await stacks.GetByNameAsync(envId, name, http.RequestAborted);
         if (stack is null)
         {
-            // A discovered (not managed) compose project can still be started/stopped by its label.
+            // A discovered (not managed) compose project can still be started/stopped by its label, and updated in place with its own files.
             var live = await ProjectContainersAsync(containers, env, name, http.RequestAborted);
             if (live is not { Count: > 0 })
             {
                 return ApiResults.NotFound($"Stack '{name}' not found.");
             }
 
-            if (action is not ("start" or "stop" or "restart"))
+            if (!StackOperations.ProjectActions.Contains(action))
             {
-                return ApiResults.Conflict($"Stack '{name}' is not managed by MatDock; only start, stop and restart are possible.");
+                return ApiResults.Conflict(StackOperations.NotManaged(name));
             }
 
-            var projectOp = StackOperations.ProjectAction(operations, envId, name, action);
+            var projectOp = action == "update"
+                ? UpdateOperations.ProjectUpdate(operations, envId, name, body?.BackupFirst ?? false)
+                : StackOperations.ProjectAction(operations, envId, name, action);
             return ApiResults.Accepted(new { operationId = projectOp.Id });
         }
 

@@ -399,7 +399,7 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 
 | Method and path | |
 |---|---|
-| `GET /api/v1/status` | `ok`, `app`, `version`, `apiVersion` (2), `environments` |
+| `GET /api/v1/status` | `ok`, `app`, `version`, `apiVersion` (4), `environments` |
 | `GET /api/v1/environments` | every environment with type, host, status, Docker version and its last reading (CPU, memory, disk, running containers) |
 | `GET /api/v1/containers` | the containers with state, stack, service, ports, CPU and memory |
 | `GET /api/v1/containers/{name}` | the inspect: state, restart policy, environment (secrets masked), labels, networks, mounts |
@@ -411,13 +411,16 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 | `GET /api/v1/networks`, `DELETE /api/v1/networks/{name}` | networks with `predefined` and `inUse` |
 | `GET /api/v1/events?hours=24&type=&container=` | the events of the engine |
 | `GET /api/v1/update-rules`, `GET`/`PUT /api/v1/update-rules/{global/0, environment/{id}, stack/{id}}` | the update rules `{mode, strategy, windowStartHour, windowEndHour, windowTimeZone, checkEveryHours, preBackup, rollback, notifyAvailable, notifyResult, serviceStrategies}`; `null` = as the wider rule says |
+| `GET /api/v1/updates?pending=` | the update overview from the last look: every stack, managed or only found on the host, `{environment, environmentId, stack, managed, mode, strategy, checkedAt, updates[{service, current, target, kind}], newerVersions[{service, tag}], blocked, error}`; `updates: null` = never looked at, `blocked` = why MatDock cannot update it. Asks no registry. Without `?environment=` **every enabled environment** |
+| `POST /api/v1/updates/check` | look for updates in all of them now (each host asked once, each registry once per image) → `202`, result `{pending}` |
+| `POST /api/v1/updates/apply` | update every stack the last look found something for, one after the other, each as its rule says (strategy, backup, health check, rollback); a stack with `blocked` is left out → `202 {operationId, stacks}`, result `{updated, failed}`; `200 {stacks: 0}` when there is none |
 | `PUT /api/v1/environments/local` | ensure the Local environment `local` → `{id, name, created}`; `409` without a Docker socket |
 | `PUT /api/v1/environments/ssh/{name}` | create or change an SSH environment `{host, port, username, description, baseUrl, privateKeyPem, generateKey}` → `{id, name, created, publicKey, connected, status, dockerVersion, message}`; without a key MatDock generates one and answers only its public key for `authorized_keys` |
 | `POST /api/v1/environments/{id or name}/test` | connect again and store status, Docker version and, the first time, the host key → `{connected, status, dockerVersion, access, hostKey, message}` |
 | `GET /api/v1/stacks?managedBy=` | managed and discovered stacks with `state` (`running/stopped/partial/unhealthy/missing`) and containers |
 | `GET /api/v1/stacks/{name}` | the same plus `composeYaml` and `envContent` |
 | `PUT /api/v1/stacks/{name}` | upsert `{composeYaml, envContent, managedBy, deploy, pull}`; `200 {stack}` or with `deploy` `202 {stack, operationId}` |
-| `POST /api/v1/stacks/{name}/actions/{action}` | `start`, `stop`, `restart`, `pull`, `redeploy`, `update` (`{backupFirst}`; result `{changed}`) → `202` |
+| `POST /api/v1/stacks/{name}/actions/{action}` | `start`, `stop`, `restart`, `pull`, `redeploy`, `update` (`{backupFirst}`; result `{changed}`) → `202`. A stack MatDock did not deploy takes `start`, `stop`, `restart` and `update`: its moved tags are pulled in place with its own compose files, as the rule of its environment says; when MatDock cannot (the files are not on the Docker host) the operation fails with the reason and nothing is touched |
 | `PUT /api/v1/stacks/{name}/images/{service}` | run another image than the compose file names `{image}` (empty = the compose file's again), applied by the next deploy or update; `imageOverrides` in the stack detail |
 | `DELETE /api/v1/stacks/{name}?volumes=false` | `compose down` (`--volumes`), then the stack is removed from MatDock → `202` |
 | `GET /api/v1/stacks/{name}/logs?service=&tail=300` | `{text}` |
@@ -457,6 +460,9 @@ claude mcp add --transport http matdock https://matdock.example.com/mcp --header
   several it has to be named, so nothing lands on the wrong host.
 - **Long actions** (deploy, stack actions, backups, restores) wait up to `waitSeconds` (default 120) and answer the output; one that still runs
   answers an operation id for `get_operation`.
+- **Updates:** `list_updates` is the overview of the Updates page (every stack, also those MatDock did not deploy, with what the last look found),
+  `check_updates` looks again and `apply_updates` updates all that have something, each as its rule says. Without `environment` these three work
+  on every enabled environment. One stack: `stack_action` with `update`, for a stack MatDock did not deploy too.
 - **Secrets:** environment variables of containers are masked as on the pages; the `.env` of a stack reaches only a full key (the REST API
   `GET /api/v1/stacks/{name}` keeps it from a read key too).
 - Serve it over **HTTPS** (a reverse proxy): the key travels in a header.
@@ -466,7 +472,7 @@ claude mcp add --transport http matdock https://matdock.example.com/mcp --header
 | `get_status`, `get_engine_info`, `list_events`, `get_metrics`, `test_environment` | `set_environment_enabled`, `cleanup_engine` (never volumes) |
 | `list_containers`, `inspect_container`, `container_logs`, `container_processes` | `container_action` (start, stop, restart, pause, unpause, kill), `remove_container`, `run_container`, `update_container`, `recreate_container`, `exec_in_container` |
 | `list_images`, `list_volumes`, `list_networks` | `pull_image`, `remove_image`, `create_volume`, `remove_volume` (not while in use), `create_network`, `remove_network`, `connect_network` |
-| `list_stacks`, `get_stack`, `stack_logs`, `check_stack_updates` | `deploy_stack`, `stack_action` (start, stop, restart, pull, redeploy, update), `stack_service_action` (incl. scale), `set_stack_image`, `remove_stack` |
+| `list_stacks`, `get_stack`, `stack_logs`, `check_stack_updates`, `list_updates`, `check_updates` | `deploy_stack`, `stack_action` (start, stop, restart, pull, redeploy, update), `stack_service_action` (incl. scale), `set_stack_image`, `remove_stack`, `apply_updates` |
 | `get_operation`, `list_backups`, `list_schedules`, `list_update_rules`, `list_activity` | `backup_stack`, `restore_backup`, `run_schedule`, `set_update_rule` |
 
 ## Platform API and sign-in through MatIdentity

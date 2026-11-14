@@ -153,3 +153,14 @@ würde, wie viele Systempakete ausstehen (davon Sicherheits-Updates), wie alt di
 - **Hinweis auf neuere Versionen:** Wo die Regel einer neueren Version nicht folgt (Strategie *Tag*, oder ein entdeckter Stack), steht sie grau unter dem Ergebnis („web: 1.31-alpine available“).
 - **Zeitfenster:** Eine Regel merkt sich die Zeitzone, in der ihr Fenster gesetzt wurde (`UpdatePolicy.WindowTimeZone`, IANA-Name; im Formular die des Browsers, über API und MCP `windowTimeZone`). „02 bis 04 Uhr“ ist damit 02 bis 04 Uhr auf der eigenen Uhr, im Sommer wie im Winter. Regeln von früher (ohne Zone) laufen weiter in Serverzeit, bis ihr Fenster neu gesetzt wird; das Formular nennt die Uhr, die gilt.
 - **Suche und Sortierung bleiben:** Nach „Check“ oder „Update“ einer Zeile steht die Übersicht wieder mit demselben Suchbegriff da.
+
+## 17. Die Übersicht über API und MCP (November 2026)
+
+Was die Seite `/Updates` kann, geht auch von außen; alle drei Wege teilen sich eine Schicht (`UpdateOverview` für die Zeilen, `UpdateOperations` für die Läufe).
+
+- **Übersicht:** `GET /api/v1/updates` bzw. das MCP-Tool `list_updates` liefern jede Zeile der Seite: verwaltete und entdeckte Stacks (`managed`), Regel, was die letzte Prüfung fand (`updates`), neuere Versionen, denen die Regel nicht folgt (`newerVersions`), Zeitpunkt (`checkedAt`) und den Grund, wenn MatDock es nicht selbst kann (`blocked`). Keine Registry wird gefragt.
+- **Check all:** `POST /api/v1/updates/check` bzw. `check_updates` starten denselben Lauf wie der Knopf (ohne den Blick auf die Host-Pakete). Über MCP darf das auch ein Read-Schlüssel, weil auf den Hosts nichts geändert wird; über REST braucht jedes `POST` einen vollen Schlüssel.
+- **Update all:** `POST /api/v1/updates/apply` bzw. `apply_updates` aktualisieren alles, wofür die letzte Prüfung etwas fand, nach der jeweiligen Regel. Entdeckte Stacks mit `blocked` bleiben außen vor.
+- **Ein entdeckter Stack:** `POST /api/v1/stacks/{name}/actions/update` und `stack_action` mit `update` gelten jetzt auch für Stacks, die MatDock nicht deployt hat (vorher `409`). `backupFirst` erzwingt das Bundle-Backup auch dann, wenn die Regel keins verlangt.
+- **Umgebung:** Diese drei Endpunkte und Tools arbeiten ohne `environment` auf allen aktivierten Umgebungen (wie die Seite ohne Auswahl in der Seitenleiste), anders als der Rest der API (dort: die lokale).
+- `apiVersion` ist 4.

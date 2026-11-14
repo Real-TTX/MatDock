@@ -16,6 +16,12 @@ public static class StackOperations
     /// <summary>The lifecycle actions of a managed stack.</summary>
     public static readonly string[] Actions = ["start", "stop", "restart", "pull", "redeploy", "update"];
 
+    /// <summary>What a compose project MatDock does not manage can do: by its label, and an update in place with its own compose files.</summary>
+    public static readonly string[] ProjectActions = ["start", "stop", "restart", "update"];
+
+    /// <summary>The answer to an action a project MatDock does not manage cannot do.</summary>
+    public static string NotManaged(string name) => $"Stack '{name}' is not managed by MatDock; only {string.Join(", ", ProjectActions[..^1])} and {ProjectActions[^1]} are possible.";
+
     /// <summary>A delete waits for a running deploy of the same stack, and so on.</summary>
     public static string LockKey(long environmentId, string name) => $"stack:{environmentId}:{name}";
 
