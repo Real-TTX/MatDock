@@ -61,6 +61,7 @@ public sealed class UpdatePolicyService
         existing.Strategy = input.Strategy;
         existing.WindowStartHour = input.WindowStartHour;
         existing.WindowEndHour = input.WindowEndHour;
+        existing.WindowTimeZone = input.WindowStartHour is null || string.IsNullOrWhiteSpace(input.WindowTimeZone) ? null : input.WindowTimeZone.Trim();
         existing.CheckEveryHours = input.CheckEveryHours;
         existing.PreBackup = input.PreBackup;
         existing.Rollback = input.Rollback;

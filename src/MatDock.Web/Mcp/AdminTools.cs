@@ -111,7 +111,7 @@ public static class AdminTools
         => (await db.UpdatePolicies.AsNoTracking().ToListAsync(ct)).OrderBy(p => p.Scope).ThenBy(p => p.ScopeId).Select(p => new
         {
             scope = p.Scope.ToString().ToLowerInvariant(), id = p.ScopeId, mode = p.Mode?.ToString().ToLowerInvariant(), strategy = p.Strategy?.ToString().ToLowerInvariant(),
-            p.WindowStartHour, p.WindowEndHour, p.CheckEveryHours, p.PreBackup, p.Rollback, p.NotifyAvailable, p.NotifyResult,
+            p.WindowStartHour, p.WindowEndHour, p.WindowTimeZone, p.CheckEveryHours, p.PreBackup, p.Rollback, p.NotifyAvailable, p.NotifyResult,
             serviceStrategies = UpdatePolicies.ServiceStrategies(p.ServiceStrategiesJson).ToDictionary(s => s.Key, s => s.Value.ToString().ToLowerInvariant()),
         });
 
@@ -121,8 +121,9 @@ public static class AdminTools
         [Description("0 for global, else the id of the environment or stack.")] long id,
         [Description("off, notify or auto.")] string? mode = null,
         [Description("tag, minor, latest or pinned.")] string? strategy = null,
-        [Description("Auto updates only from this hour (0-23, server time).")] int? windowStartHour = null,
+        [Description("Auto updates only from this hour (0-23, in windowTimeZone).")] int? windowStartHour = null,
         [Description("… until this hour.")] int? windowEndHour = null,
+        [Description("The time zone of the two hours, such as Europe/Berlin; left out = the server's time.")] string? windowTimeZone = null,
         [Description("Look for updates every so many hours (1-168).")] int? checkEveryHours = null,
         [Description("A bundle backup before an automatic update.")] bool? preBackup = null,
         [Description("Put the old images back when the containers are not healthy after an update.")] bool? rollback = null,
@@ -142,7 +143,7 @@ public static class AdminTools
         var policy = new UpdatePolicy
         {
             Scope = s, ScopeId = id, Mode = Parse<UpdateMode>(mode, "mode"), Strategy = Parse<UpdateStrategy>(strategy, "strategy"),
-            WindowStartHour = windowStartHour, WindowEndHour = windowEndHour, CheckEveryHours = checkEveryHours,
+            WindowStartHour = windowStartHour, WindowEndHour = windowEndHour, WindowTimeZone = windowTimeZone, CheckEveryHours = checkEveryHours,
             PreBackup = preBackup, Rollback = rollback, NotifyAvailable = notifyAvailable, NotifyResult = notifyResult,
             MinAgeHours = minAgeHours, VulnerabilityGate = Parse<VulnerabilityGate>(vulnerabilityGate, "vulnerabilityGate"),
         };

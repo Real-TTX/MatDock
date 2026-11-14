@@ -175,6 +175,51 @@ public sealed class UpdatesPageTests : IClassFixture<UpdatesPageTests.Site>
         }
     }
 
+    [Fact]
+    public async Task The_overview_lists_a_stack_MatDock_did_not_deploy_under_the_rule_of_its_environment()
+    {
+        var browser = await AdminAsync();
+        var hosts = _site.App.Hosts;
+        var running = "{\"ID\":\"b10600000001\",\"Names\":\"blog-web-1\",\"Image\":\"localhost:1/blog:latest\",\"State\":\"running\",\"Status\":\"Up 3 hours\","
+                      + "\"Labels\":\"com.docker.compose.project=blog,com.docker.compose.service=web\",\"Ports\":\"\"}";
+        lock (hosts.Commands) { hosts.Containers.Add(running); }
+        MatDock.Core.Execution.HostChanges.Note(); // the container list the overview reads is of before
+        try
+        {
+            var html = await (await browser.GetAsync("/Updates")).Content.ReadAsStringAsync();
+
+            Assert.Contains($"/Containers/Stack?envId={_site.EnvId}&project=blog", html); // no page of its own in MatDock: its containers
+            Assert.Contains(">External</span>", html);
+            Assert.Contains($"/Updates/Rules?scope=Environment&id={_site.EnvId}\" class=\"mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm\" data-tip=\"Rule of rules-host", html);
+            Assert.Contains($"/Stacks/Update?id={_site.StackId}", html); // the managed one beside it, as before
+
+            // Looked at by hand: the answer names the project, and the look is kept for the overview.
+            var check = await browser.PostAsync("/Updates?handler=CheckProject", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["envId"] = _site.EnvId.ToString(),
+                ["project"] = "blog",
+                ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(html),
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, check.StatusCode);
+            var after = await (await browser.GetAsync("/Updates")).Content.ReadAsStringAsync();
+            Assert.Contains("blog on rules-host: up to date.", after);
+
+            // A managed stack is not reached through the handlers of a discovered one.
+            var managed = await browser.PostAsync("/Updates?handler=UpdateProject", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["envId"] = _site.EnvId.ToString(),
+                ["project"] = "shop",
+                ["__RequestVerificationToken"] = SignIn.AntiforgeryToken(after),
+            }));
+            Assert.DoesNotContain("op=", SignIn.Path(managed));
+        }
+        finally
+        {
+            lock (hosts.Commands) { hosts.Containers.Remove(running); }
+            MatDock.Core.Execution.HostChanges.Note();
+        }
+    }
+
     private async Task LooksAsync(HttpClient browser, string page, FakeHostSessionFactory hosts, Func<int> Looks, Func<int> Usage, int usageBefore)
     {
         // Whatever was known before (another test may have checked): "Re-check" takes a look now, with the container that runs.

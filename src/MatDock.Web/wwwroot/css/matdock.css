@@ -368,3 +368,6 @@ a.md-port-link:hover { background: var(--mat-accent-soft-strong); }
 .md-devices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .md-devices > li { display: flex; align-items: center; gap: var(--mat-space-2); padding: var(--mat-space-2) 0; border-top: 1px solid var(--mat-border); }
 .md-devices > li > small { margin-left: auto; }
+.md-update-blocked { font-family: var(--mat-font); white-space: normal; }
+/* A pill that carries its own icon (Used, OK, Active …) does not draw the dot as well: one sign per state. */
+.mat-pill:has(> .mat-icon)::before { content: none; }

@@ -15,6 +15,9 @@ public static class UserClock
     /// <summary>The zone of this request: the browser's, else the server's.</summary>
     public static TimeZoneInfo Zone => Current.Value ?? TimeZoneInfo.Local;
 
+    /// <summary>The id of the zone the browser named (such as <c>Europe/Berlin</c>), or null when it named none: then a time is the server's.</summary>
+    public static string? BrowserZoneId => Current.Value?.Id;
+
     /// <summary>Takes the zone the browser named for the rest of the request; an unknown id leaves the server's zone.</summary>
     public static void Use(string? zoneId) => Current.Value = Find(zoneId);
 

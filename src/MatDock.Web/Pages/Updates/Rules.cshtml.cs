@@ -2,6 +2,7 @@ using MatDock.Core.Entities;
 using MatDock.Core.Environments;
 using MatDock.Core.Stacks;
 using MatDock.Core.Updates;
+using MatDock.Web.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -43,6 +44,9 @@ public class RulesModel : PageModel
         public string? Strategy { get; set; }
         public string? WindowStartHour { get; set; }
         public string? WindowEndHour { get; set; }
+
+        /// <summary>The time zone the hours are in: the one the rule has, or the browser's for a window that is set now.</summary>
+        public string? WindowTimeZone { get; set; }
         public int? CheckEveryHours { get; set; }
         public string? PreBackup { get; set; }
         public string? Rollback { get; set; }
@@ -69,6 +73,7 @@ public class RulesModel : PageModel
                 Strategy = row.Strategy?.ToString(),
                 WindowStartHour = row.WindowStartHour?.ToString(),
                 WindowEndHour = row.WindowEndHour?.ToString(),
+                WindowTimeZone = row.WindowStartHour is null ? UserClock.BrowserZoneId : row.WindowTimeZone,
                 CheckEveryHours = row.CheckEveryHours,
                 PreBackup = Flag(row.PreBackup),
                 Rollback = Flag(row.Rollback),
@@ -98,6 +103,7 @@ public class RulesModel : PageModel
             Strategy = Enum<UpdateStrategy>(Input.Strategy),
             WindowStartHour = Hour(Input.WindowStartHour),
             WindowEndHour = Hour(Input.WindowEndHour),
+            WindowTimeZone = await WindowZoneAsync(),
             CheckEveryHours = Input.CheckEveryHours,
             PreBackup = Bool(Input.PreBackup),
             Rollback = Bool(Input.Rollback),
@@ -124,6 +130,21 @@ public class RulesModel : PageModel
         StatusMessage = message;
         IsError = false;
         return RedirectToPage("Index");
+    }
+
+    /// <summary>
+    /// The zone of the window that is saved: the one the form was shown with (the rule's, or the browser's for a new window). A window from before
+    /// the zones (server time) keeps its meaning as long as its hours stay; set anew, its hours are those of the user's clock.
+    /// </summary>
+    private async Task<string?> WindowZoneAsync()
+    {
+        var before = await _policies.GetAsync(Scope, ScopeId);
+        if (before is { WindowStartHour: not null, WindowTimeZone: null } && before.WindowStartHour == Hour(Input.WindowStartHour) && before.WindowEndHour == Hour(Input.WindowEndHour))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(Input.WindowTimeZone) ? UserClock.BrowserZoneId : Input.WindowTimeZone;
     }
 
     private long ScopeId => Scope == UpdatePolicyScope.Global ? 0 : Id;

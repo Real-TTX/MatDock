@@ -16,7 +16,8 @@ public sealed record EffectiveUpdatePolicy(
     bool NotifyAvailable,
     bool NotifyResult,
     int MinAgeHours = 0,
-    VulnerabilityGate VulnerabilityGate = VulnerabilityGate.Off)
+    VulnerabilityGate VulnerabilityGate = VulnerabilityGate.Off,
+    string? WindowTimeZone = null)
 {
     /// <summary>What a stack gets when no rule says anything: nothing happens by itself, and what MatDock does is careful.</summary>
     public static readonly EffectiveUpdatePolicy Default = new(
@@ -26,7 +27,14 @@ public sealed record EffectiveUpdatePolicy(
     /// <summary>The strategy of a service: its own entry in the stack's rule, else the strategy of the rule.</summary>
     public UpdateStrategy StrategyOf(string service) => ServiceStrategies.TryGetValue(service, out var s) ? s : Strategy;
 
-    /// <summary>Whether MatDock may apply an update by itself at this (server) time.</summary>
+    /// <summary>
+    /// Whether MatDock may apply an update by itself now: the hours of the window are in its time zone (<see cref="WindowTimeZone"/>), or in the
+    /// server's time (<paramref name="serverNow"/>) when the rule names none or one this system does not know.
+    /// </summary>
+    public bool InWindow(DateTime utcNow, DateTime serverNow)
+        => InWindow(UpdatePolicies.Zone(WindowTimeZone) is { } zone ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcNow, DateTimeKind.Utc), zone) : serverNow);
+
+    /// <summary>Whether MatDock may apply an update by itself at this time of the window's clock.</summary>
     public bool InWindow(DateTime localNow)
     {
         if (WindowStartHour is not { } start || WindowEndHour is not { } end || start == end)
@@ -41,6 +49,10 @@ public sealed record EffectiveUpdatePolicy(
 
 public static class UpdatePolicies
 {
+    /// <summary>The time zone of an id, or null (none given, or unknown here).</summary>
+    public static TimeZoneInfo? Zone(string? id)
+        => !string.IsNullOrWhiteSpace(id) && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone) ? zone : null;
+
     public const int MinCheckHours = 1;
     public const int MaxCheckHours = 168;
     public const int MaxAgeHours = 720;
@@ -71,7 +83,8 @@ public static class UpdatePolicies
             Pick(p => p.NotifyAvailable, d.NotifyAvailable),
             Pick(p => p.NotifyResult, d.NotifyResult),
             Math.Clamp(Pick(p => p.MinAgeHours, d.MinAgeHours), 0, MaxAgeHours),
-            Pick(p => p.VulnerabilityGate, d.VulnerabilityGate));
+            Pick(p => p.VulnerabilityGate, d.VulnerabilityGate),
+            window?.WindowTimeZone);
     }
 
     /// <summary>The per-service strategies of a stack rule (entries with a bad name or value are left out).</summary>
@@ -117,6 +130,11 @@ public static class UpdatePolicies
         if (policy.WindowStartHour is { } s && s is < 0 or > 23 || policy.WindowEndHour is { } e && e is < 0 or > 23)
         {
             return "The hours of the time window are 0 to 23.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(policy.WindowTimeZone) && (policy.WindowTimeZone.Length > 64 || Zone(policy.WindowTimeZone) is null))
+        {
+            return $"The time zone '{policy.WindowTimeZone}' is not known (a name such as Europe/Berlin).";
         }
 
         if (policy.CheckEveryHours is { } h && h is < MinCheckHours or > MaxCheckHours)

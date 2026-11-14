@@ -140,7 +140,9 @@ and **scheduled, restorable backups** – single volumes or whole stacks.
   stays as it is; an image override runs another image). A rule per scope (default, environment, stack) sets the mode (off, notify,
   automatic), the strategy (the same tag with a new digest, the newest minor or latest version of the series, or pinned; per service
   too), a time window, how often to look, a backup before, rollback and notifications. A new version is announced once; in automatic
-  mode it is applied within the window and a failed update is not tried again. **Updates** lists all stacks with Check all and Update all.
+  mode it is applied within the window (its hours are those of the time zone it was set in) and a failed update is not tried again.
+  **Updates** lists all stacks with Check all and Update all, also the ones MatDock did not deploy: for those the rule of their
+  environment applies and a moved tag is pulled in place with their own compose files (where MatDock cannot, the row says why).
   An automatic update can wait a **minimum age** of a new image and **hold back a new image with vulnerabilities** (scanned with Trivy
   before the pull); labels `matdock.tag.include` / `.exclude` (also `dockhand.*`, `wud.*`) narrow the version tags, and the update page
   links the **release notes** (`org.opencontainers.image.source`)
@@ -224,7 +226,8 @@ lines, and search with highlighting and next/previous.
 ![Updates of every stack: the rule (Notify or Auto in a window 03–05 h), the result of the last check and when it was checked](docs/images/updates.png)
 
 Which stacks have newer images, under which rule (off, notify, automatic in a time window, with backup and rollback),
-checked per stack or all at once; *Update all* takes every stack with a pending update.
+checked per stack or all at once; *Update all* takes every stack with a pending update. Stacks MatDock did not deploy are in the
+same list (marked *External*).
 
 ### Schedules and the activity log
 
@@ -407,7 +410,7 @@ MatDock stacks and uses MatDock's backups and schedules, so everything stays vis
 | `GET /api/v1/volumes`, `DELETE /api/v1/volumes/{name}` | volumes with `inUse`; one in use is never removed (`409`) |
 | `GET /api/v1/networks`, `DELETE /api/v1/networks/{name}` | networks with `predefined` and `inUse` |
 | `GET /api/v1/events?hours=24&type=&container=` | the events of the engine |
-| `GET /api/v1/update-rules`, `GET`/`PUT /api/v1/update-rules/{global/0, environment/{id}, stack/{id}}` | the update rules `{mode, strategy, windowStartHour, windowEndHour, checkEveryHours, preBackup, rollback, notifyAvailable, notifyResult, serviceStrategies}`; `null` = as the wider rule says |
+| `GET /api/v1/update-rules`, `GET`/`PUT /api/v1/update-rules/{global/0, environment/{id}, stack/{id}}` | the update rules `{mode, strategy, windowStartHour, windowEndHour, windowTimeZone, checkEveryHours, preBackup, rollback, notifyAvailable, notifyResult, serviceStrategies}`; `null` = as the wider rule says |
 | `PUT /api/v1/environments/local` | ensure the Local environment `local` → `{id, name, created}`; `409` without a Docker socket |
 | `PUT /api/v1/environments/ssh/{name}` | create or change an SSH environment `{host, port, username, description, baseUrl, privateKeyPem, generateKey}` → `{id, name, created, publicKey, connected, status, dockerVersion, message}`; without a key MatDock generates one and answers only its public key for `authorized_keys` |
 | `POST /api/v1/environments/{id or name}/test` | connect again and store status, Docker version and, the first time, the host key → `{connected, status, dockerVersion, access, hostKey, message}` |

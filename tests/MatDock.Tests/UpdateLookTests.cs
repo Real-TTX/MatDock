@@ -130,18 +130,30 @@ public class UpdateLookTests
         var stored = new DateTime(2026, 11, 13, 23, 31, 0); // as the database gives it back: UTC, the kind not said
         try
         {
-            UserClock.Use("Europe/Berlin");
-            Assert.Equal(new DateTime(2026, 11, 14, 0, 31, 0), stored.ToUserTime());
-            Assert.Equal(new DateTime(2026, 7, 1, 14, 0, 0), new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc).ToUserTime()); // summer time
-            Assert.Equal(TimeSpan.FromHours(1), new DateTimeOffset(stored, TimeSpan.Zero).ToUserTime().Offset);
-
-            UserClock.Use("Europe%2FBerlin"); // as the browser writes it into the cookie
-            Assert.Equal(new DateTime(2026, 11, 14, 0, 31, 0), stored.ToUserTime());
-
+            // A zone this system does not know, or no zone: the server's clock, and no zone to save with a rule.
             UserClock.Use("Not/AZone");
             Assert.Equal(TimeZoneInfo.Local, UserClock.Zone);
+            Assert.Null(UserClock.BrowserZoneId);
             UserClock.Use(new string('x', 200));
             Assert.Equal(TimeZoneInfo.Local, UserClock.Zone);
+            Assert.Equal(stored.ToLocalTime(), stored.ToUserTime());
+
+            // Tokyo has no summer time and is no test machine's own zone: the result cannot come from the server's clock by chance.
+            if (!TimeZoneInfo.TryFindSystemTimeZoneById("Asia/Tokyo", out _))
+            {
+                return; // no zone data (Windows with invariant globalization); the Linux run and the image have it
+            }
+
+            UserClock.Use("Asia/Tokyo");
+            Assert.Equal("Asia/Tokyo", UserClock.BrowserZoneId);
+            Assert.Equal(new DateTime(2026, 11, 14, 8, 31, 0), stored.ToUserTime());
+            Assert.Equal(TimeSpan.FromHours(9), new DateTimeOffset(stored, TimeSpan.Zero).ToUserTime().Offset);
+
+            UserClock.Use("Asia%2FTokyo"); // as the browser writes it into the cookie
+            Assert.Equal(new DateTime(2026, 11, 14, 8, 31, 0), stored.ToUserTime());
+
+            UserClock.Use("Europe/Berlin");
+            Assert.Equal(new DateTime(2026, 7, 1, 14, 0, 0), new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc).ToUserTime()); // summer time
         }
         finally
         {

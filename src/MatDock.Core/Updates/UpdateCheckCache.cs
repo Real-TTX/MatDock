@@ -11,6 +11,7 @@ public sealed class UpdateCheckCache
 {
     private readonly ConcurrentDictionary<(long EnvironmentId, string Project), (StackUpdateReport Report, DateTime CheckedUtc)> _reports = new();
     private readonly ConcurrentDictionary<(long EnvironmentId, string Project), (StackUpdatePlan Plan, DateTime CheckedUtc)> _plans = new();
+    private readonly ConcurrentDictionary<(long EnvironmentId, string Project), string> _blocked = new();
 
     public void Set(long environmentId, string project, StackUpdateReport report)
     {
@@ -29,6 +30,22 @@ public sealed class UpdateCheckCache
         }
     }
 
+    /// <summary>Why MatDock could not update a discovered project the last time it tried (its compose files are not on the host …); null when it could or never tried.</summary>
+    public string? Blocked(long environmentId, string project) => _blocked.GetValueOrDefault((environmentId, project));
+
+    /// <summary>Notes why a discovered project could not be updated by MatDock (null: it could).</summary>
+    public void SetBlocked(long environmentId, string project, string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            _blocked.TryRemove((environmentId, project), out _);
+        }
+        else
+        {
+            _blocked[(environmentId, project)] = reason;
+        }
+    }
+
     /// <summary>Forget every plan (a rule changed: what it makes of the last look is no longer what the plans say). The looks themselves stay.</summary>
     public void ClearPlans() => _plans.Clear();
 
@@ -37,6 +54,7 @@ public sealed class UpdateCheckCache
     {
         _reports.TryRemove((environmentId, project), out _);
         _plans.TryRemove((environmentId, project), out _);
+        _blocked.TryRemove((environmentId, project), out _);
     }
 
     /// <summary>The images of the stack with a newer version at the last check; empty when none or never checked.</summary>

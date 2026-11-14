@@ -83,6 +83,11 @@ public class UpdatePolicy : AuditableEntity
 
     public int? WindowEndHour { get; set; }
 
+    /// <summary>The time zone the hours of the window are in (an IANA id such as <c>Europe/Berlin</c>: the zone of whoever set the window). Null = the server's
+    /// time, as rules from before had it: in a container that is UTC, so "02 to 04" was 03 to 05 on the wall in winter and 04 to 06 in summer.</summary>
+    [System.ComponentModel.DataAnnotations.MaxLength(64)]
+    public string? WindowTimeZone { get; set; }
+
     /// <summary>How often MatDock looks for updates (hours, 1-168).</summary>
     public int? CheckEveryHours { get; set; }
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MatDock.Core.Containers;
 using MatDock.Core.Docker;
 using MatDock.Core.Entities;
 using MatDock.Core.Updates;
@@ -208,5 +209,84 @@ public class DiscoveredUpdatesTests
         Assert.Throws<ArgumentException>(() => ProjectUpdateCommands.Run(files, "app", ["web;rm -rf /"], pull: true, "docker", null, "h"));
         Assert.Throws<ArgumentException>(() => ProjectUpdateCommands.Run(files, "app", [], pull: true, "docker", null, "h"));
         Assert.StartsWith("matdock-update-app-", ProjectUpdateCommands.HelperName("app"));
+    }
+
+    [Fact]
+    public async Task A_look_keeps_what_would_be_updated_for_the_overview_and_an_update_by_hand_runs_it()
+    {
+        using var rig = Rig(); // no rule: mode Off, nothing happens by itself
+        var lines = new List<string>();
+
+        Assert.Equal(1, await rig.Automation.CheckProjectsAsync([(rig.Env, "blog")], lines.Add));
+
+        Assert.Equal("web", Assert.Single(rig.Cache.Plan(rig.Env.Id, "blog")!.Value.Plan.Items).Service);
+        Assert.Contains(lines, l => l.StartsWith("blog on rig: 1 update(s) (web)", StringComparison.Ordinal));
+        Assert.Empty(Helpers(rig)); // looked at only
+        Assert.Equal(0, rig.Count(" stats "));
+
+        await rig.SetRuleAsync(p => { p.PreBackup = false; p.Rollback = false; });
+        Assert.Equal((1, 0), await rig.Automation.UpdateProjectsAsync([(rig.Env, "blog")], lines.Add));
+
+        Assert.Single(Helpers(rig));
+        Assert.Null(rig.Cache.Plan(rig.Env.Id, "blog")); // looked at again after the update
+        Assert.Null(rig.Cache.Blocked(rig.Env.Id, "blog"));
+    }
+
+    [Fact]
+    public async Task The_pass_of_the_automation_keeps_the_plan_of_a_discovered_project_too()
+    {
+        using var rig = Rig();
+        await rig.SetRuleAsync(p => { p.Mode = UpdateMode.Notify; });
+
+        await rig.RunAsync(T0);
+
+        Assert.Single(rig.Cache.Plan(rig.Env.Id, "blog")!.Value.Plan.Items); // the dashboard and the overview count it
+    }
+
+    [Fact]
+    public async Task What_MatDock_cannot_update_by_itself_is_kept_with_its_reason()
+    {
+        using var rig = Rig(labels: string.Empty); // compose named no files: another tool started the project
+        await rig.SetRuleAsync(p => { p.PreBackup = false; p.Rollback = false; });
+        var lines = new List<string>();
+
+        Assert.Equal((0, 1), await rig.Automation.UpdateProjectsAsync([(rig.Env, "blog")], lines.Add));
+
+        Assert.Empty(Helpers(rig)); // nothing was touched
+        Assert.Contains("Compose named no files", rig.Cache.Blocked(rig.Env.Id, "blog"));
+        Assert.Contains(lines, l => l.StartsWith("blog: not updated by MatDock", StringComparison.Ordinal));
+        Assert.Single(rig.Cache.Plan(rig.Env.Id, "blog")!.Value.Plan.Items); // the update is still there to see
+    }
+
+    [Fact]
+    public void A_pinned_strategy_and_a_pinned_service_are_not_in_the_plan_of_a_project()
+    {
+        var report = new StackUpdateReport(
+        [
+            new ImageUpdateStatus("web", "app:latest", "sha256:a", "sha256:b", UpdateAvailable: true, Note: null),
+            new ImageUpdateStatus("db", "db:16", "sha256:a", "sha256:b", UpdateAvailable: true, Note: null, Pinned: true),
+            new ImageUpdateStatus("cache", "redis:7", "sha256:a", "sha256:a", UpdateAvailable: false, Note: null, NewerTag: "8"),
+        ], null);
+
+        Assert.Equal(["web"], UpdateService.ProjectPlan(report, EffectiveUpdatePolicy.Default).Items.Select(i => i.Service));
+        Assert.Empty(UpdateService.ProjectPlan(report, EffectiveUpdatePolicy.Default with { Strategy = UpdateStrategy.Pinned }).Items);
+        Assert.Equal(["blog"], UpdateService.DiscoveredProjects(
+            [new() { Project = "blog" }, new() { Project = "shop" }, new() { Project = null }, new() { Project = "bad name" }, new() { Project = "blog" }],
+            new HashSet<string> { "shop" }));
+    }
+
+    [Fact]
+    public async Task Files_at_a_path_of_a_desktop_are_named_as_the_reason()
+    {
+        // Started with Docker Desktop from Windows: compose names its files, but where the Docker host has no such path.
+        using var rig = Rig(labels: @"com.docker.compose.project.working_dir=C:\Users\me\blog,com.docker.compose.project.config_files=C:\Users\me\blog\compose.yaml");
+        await rig.SetRuleAsync(p => { p.PreBackup = false; p.Rollback = false; });
+
+        Assert.Equal((0, 1), await rig.Automation.UpdateProjectsAsync([(rig.Env, "blog")], _ => { }));
+
+        Assert.Empty(Helpers(rig));
+        var reason = rig.Cache.Blocked(rig.Env.Id, "blog");
+        Assert.Contains("not at a path on the Docker host", reason);
+        Assert.Contains(@"C:\Users\me\blog", reason);
     }
 }

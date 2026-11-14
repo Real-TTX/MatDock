@@ -120,13 +120,13 @@
                             <td data-label="Checked" class="mat-nowrap mat-muted">@(host.CheckedUtc is { } at ? at.ToUserTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
                             <td class="mat-table__cell-actions">
                                 <div class="mat-table__actions">
-                                    <form method="post" asp-page-handler="CheckHost">
+                                    <form method="post" asp-page-handler="CheckHost" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey">
                                         <input type="hidden" name="id" value="@host.Env.Id" />
                                         <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Look at the host (refreshes its package lists)" aria-label="Look at the host of @host.Env.Name"><icon name="search" /></button>
                                     </form>
                                     @if (host.DockerPending)
                                     {
-                                        <form method="post" asp-page-handler="UpgradeDocker" data-confirm="Update Docker on @host.Env.Name to @report!.DockerTarget? Docker restarts at the end, and with it every container on this host.">
+                                        <form method="post" asp-page-handler="UpgradeDocker" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey" data-confirm="Update Docker on @host.Env.Name to @report!.DockerTarget? Docker restarts at the end, and with it every container on this host.">
                                             <input type="hidden" name="id" value="@host.Env.Id" />
                                             <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Update Docker" aria-label="Update Docker on @host.Env.Name"><icon name="arrow-up" /></button>
                                         </form>
@@ -146,7 +146,7 @@
 <mat-table-body>
 @if (Model.Rows.Count == 0)
 {
-    <div class="mat-empty"><div class="mat-empty__icon"><icon name="layers" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No stack is managed by MatDock yet." : "No stacks found.")</p></div>
+    <div class="mat-empty"><div class="mat-empty__icon"><icon name="layers" /></div><p class="mat-empty__title">@(Model.Total == 0 ? "No stacks." : "No stacks found.")</p></div>
 }
 else
 {
@@ -160,7 +160,17 @@ else
                 {
                     <tr>
                         <td data-label="Environment">@row.EnvName</td>
-                        <td data-label="Stack"><a href="/Stacks/Update?id=@row.Stack.Id">@row.Stack.Name</a></td>
+                        <td data-label="Stack" class="mat-table__primary">
+                            @if (row.Stack is { } managed)
+                            {
+                                <a href="/Stacks/Update?id=@managed.Id">@row.Name</a>
+                            }
+                            else
+                            {
+                                <a href="/Containers/Stack?envId=@row.EnvId&project=@row.Name">@row.Name</a>
+                                <span class="mat-tag" title="Running on the host, not managed by MatDock: the rule of its environment applies, and a moved tag is updated in place with its own compose files">External</span>
+                            }
+                        </td>
                         <td data-label="Rule">
                             <span class="mat-pill @ModePill(row.Policy.Mode)">@row.Policy.Mode</span>
                             @if (row.Policy.Mode != UpdateMode.Off)
@@ -194,22 +204,48 @@ else
                                     </div>
                                 }
                             }
+                            @foreach (var (service, tag) in row.Hints)
+                            {
+                                <div class="mat-muted" title="A newer version exists. The rule does not take it by itself.">@service: @tag available</div>
+                            }
+                            @if (row.Blocked is { } reason && row.Pending > 0)
+                            {
+                                <div class="mat-muted md-update-blocked"><icon name="alert" /> @reason</div>
+                            }
                         </td>
                         <td data-label="Checked" class="mat-nowrap mat-muted">@(row.CheckedUtc is { } at ? at.ToUserTime().ToString("dd.MM.yyyy HH:mm") : "–")</td>
                         <td class="mat-table__cell-actions">
                             <div class="mat-table__actions">
-                                <form method="post" asp-page-handler="CheckOne">
-                                    <input type="hidden" name="id" value="@row.Stack.Id" />
-                                    <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Look for updates" aria-label="Look for updates in @row.Stack.Name"><icon name="search" /></button>
-                                </form>
-                                @if (row.Pending > 0)
+                                @if (row.Stack is { } stack)
                                 {
-                                    <form method="post" asp-page-handler="UpdateOne" data-confirm="Update stack '@row.Stack.Name' now?">
-                                        <input type="hidden" name="id" value="@row.Stack.Id" />
-                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Update now" aria-label="Update @row.Stack.Name"><icon name="arrow-up" /></button>
+                                    <form method="post" asp-page-handler="CheckOne" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey">
+                                        <input type="hidden" name="id" value="@stack.Id" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Check" aria-label="Look for updates in @row.Name"><icon name="search" /></button>
                                     </form>
+                                    @if (row.Pending > 0)
+                                    {
+                                        <form method="post" asp-page-handler="UpdateOne" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey" data-confirm="Update stack '@row.Name' now?">
+                                            <input type="hidden" name="id" value="@stack.Id" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Update" aria-label="Update @row.Name"><icon name="arrow-up" /></button>
+                                        </form>
+                                    }
+                                    <a href="/Updates/Rules?scope=Stack&id=@stack.Id" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Rule" aria-label="Rule of @row.Name"><icon name="sliders" /></a>
                                 }
-                                <a href="/Updates/Rules?scope=Stack&id=@row.Stack.Id" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" title="Rule of this stack" aria-label="Rule of @row.Stack.Name"><icon name="sliders" /></a>
+                                else
+                                {
+                                    <form method="post" asp-page-handler="CheckProject" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey">
+                                        <input type="hidden" name="envId" value="@row.EnvId" /><input type="hidden" name="project" value="@row.Name" />
+                                        <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Check" aria-label="Look for updates in @row.Name"><icon name="search" /></button>
+                                    </form>
+                                    @if (row.Pending > 0)
+                                    {
+                                        <form method="post" asp-page-handler="UpdateProject" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey" data-confirm="Update '@row.Name' on @row.EnvName now? MatDock pulls the new images and starts these services again with the project's own compose files.">
+                                            <input type="hidden" name="envId" value="@row.EnvId" /><input type="hidden" name="project" value="@row.Name" />
+                                            <button type="submit" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Update" aria-label="Update @row.Name"><icon name="arrow-up" /></button>
+                                        </form>
+                                    }
+                                    <a href="/Updates/Rules?scope=Environment&id=@row.EnvId" class="mat-btn mat-btn--ghost mat-btn--icon mat-btn--sm" data-tip="Rule of @row.EnvName" aria-label="Rule of @row.EnvName"><icon name="sliders" /></a>
+                                }
                             </div>
                         </td>
                     </tr>
@@ -222,11 +258,11 @@ else
 <mat-table-actions>
     @if (Model.PendingStacks > 0)
     {
-        <form method="post" asp-page-handler="UpdateAll" class="md-inline-form" data-confirm="Update @Model.PendingStacks stack(s) now? Each gets the backup and the health check of its rule.">
+        <form method="post" asp-page-handler="UpdateAll" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey" class="md-inline-form" data-confirm="Update @Model.PendingStacks stack(s) now? Each gets the backup and the health check of its rule.">
             <button type="submit" class="mat-btn mat-btn--primary"><icon name="arrow-up" /><span>Update all (@Model.PendingStacks)</span></button>
         </form>
     }
-    <form method="post" asp-page-handler="Check" class="md-inline-form">
+    <form method="post" asp-page-handler="Check" asp-route-Q="@Model.Q" asp-route-SortKey="@Model.SortKey" class="md-inline-form">
         <button type="submit" class="mat-btn mat-btn--secondary"><icon name="search" /><span>Check all</span></button>
     </form>
     <a href="/Updates/Rules?scope=Global" class="mat-btn mat-btn--secondary"><icon name="sliders" /><span>Default rule</span></a>

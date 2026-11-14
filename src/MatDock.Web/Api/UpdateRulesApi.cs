@@ -11,6 +11,9 @@ public sealed class UpdateRuleBody
     public UpdateStrategy? Strategy { get; set; }
     public int? WindowStartHour { get; set; }
     public int? WindowEndHour { get; set; }
+
+    /// <summary>The time zone of the window's hours (such as <c>Europe/Berlin</c>); null or left out = the server's time.</summary>
+    public string? WindowTimeZone { get; set; }
     public int? CheckEveryHours { get; set; }
     public bool? PreBackup { get; set; }
     public bool? Rollback { get; set; }
@@ -45,6 +48,7 @@ public static class UpdateRulesApi
         strategy = p.Strategy,
         p.WindowStartHour,
         p.WindowEndHour,
+        p.WindowTimeZone,
         p.CheckEveryHours,
         p.PreBackup,
         p.Rollback,
@@ -86,7 +90,7 @@ public static class UpdateRulesApi
 
         var (ok, message) = await rules.SaveAsync(new UpdatePolicy
         {
-            Scope = s, ScopeId = id, Mode = body.Mode, Strategy = body.Strategy, WindowStartHour = body.WindowStartHour, WindowEndHour = body.WindowEndHour,
+            Scope = s, ScopeId = id, Mode = body.Mode, Strategy = body.Strategy, WindowStartHour = body.WindowStartHour, WindowEndHour = body.WindowEndHour, WindowTimeZone = body.WindowTimeZone,
             CheckEveryHours = body.CheckEveryHours, PreBackup = body.PreBackup, Rollback = body.Rollback, NotifyAvailable = body.NotifyAvailable, NotifyResult = body.NotifyResult,
             MinAgeHours = body.MinAgeHours, VulnerabilityGate = body.VulnerabilityGate,
             ServiceStrategiesJson = body.ServiceStrategies is { Count: > 0 } map && s == UpdatePolicyScope.Stack ? UpdatePolicies.SerializeServiceStrategies(map) : null,

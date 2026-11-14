@@ -230,7 +230,7 @@ public sealed class UpdateAutomation
             }
         }
 
-        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(localNow) && applicable.Count > 0;
+        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(utcNow, localNow) && applicable.Count > 0;
         if (willApply && policy.VulnerabilityGate != VulnerabilityGate.Off && _scans is not null)
         {
             // The new images are scanned before they are pulled; one that fails the check is held back (and not tried again until a newer one comes).
@@ -343,7 +343,7 @@ public sealed class UpdateAutomation
     private async Task<StackResult> HandleProjectAsync(DockerEnvironment env, string project, string key, EffectiveUpdatePolicy policy,
         DateTime utcNow, DateTime localNow, CancellationToken ct)
     {
-        var report = await _updates.CheckStackAsync(env, project, ct);
+        var (report, _) = await _updates.PlanProjectAsync(env, project, policy, ct); // the plan is kept for the overview and the dashboard
         if (report.Error is not null)
         {
             return new StackResult(0, 0, 0, [$"{project} on {env.Name}: {report.Error}"]);
@@ -391,7 +391,7 @@ public sealed class UpdateAutomation
             }
         }
 
-        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(localNow) && applicable.Count > 0;
+        var willApply = policy.Mode == UpdateMode.Auto && policy.InWindow(utcNow, localNow) && applicable.Count > 0;
         if (!willApply)
         {
             var announced = 0;
@@ -481,10 +481,11 @@ public sealed class UpdateAutomation
     /// Looks for updates in the given stacks now (what their rules would update), whatever their mode, and keeps the result for the overview. Answers how many
     /// have some. With <paramref name="steps"/> every stack is an entry of it (key: its id) that runs and ends with its result.
     /// </summary>
-    public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null)
+    public async Task<int> CheckStacksAsync(IEnumerable<Stack> stacks, Action<string> log, CancellationToken ct = default, Operations.OperationSteps? steps = null,
+        UpdateCheckBatch? batch = null)
     {
         var policies = await _policies.LoadAsync(ct);
-        var batch = new UpdateCheckBatch(); // one docker ps and one docker images per host, one question per image to its registry
+        batch ??= new UpdateCheckBatch(); // one docker ps and one docker images per host, one question per image to its registry
         var pending = 0;
         foreach (var listed in stacks)
         {
@@ -519,6 +520,106 @@ public sealed class UpdateAutomation
         }
 
         return pending;
+    }
+
+    /// <summary>The key of a discovered project in the steps of a run (a managed stack has its id).</summary>
+    public static string ProjectStepKey(long environmentId, string project) => $"p:{environmentId}:{project}";
+
+    /// <summary>
+    /// Looks for updates in discovered projects now (what the rule of their environment would update: moved tags), whatever its mode, and keeps the
+    /// result for the overview. Answers how many have some. With <paramref name="steps"/> every project is an entry (<see cref="ProjectStepKey"/>).
+    /// </summary>
+    public async Task<int> CheckProjectsAsync(IEnumerable<(DockerEnvironment Env, string Project)> projects, Action<string> log, CancellationToken ct = default,
+        Operations.OperationSteps? steps = null, UpdateCheckBatch? batch = null)
+    {
+        var policies = await _policies.LoadAsync(ct);
+        batch ??= new UpdateCheckBatch();
+        var pending = 0;
+        foreach (var (env, project) in projects)
+        {
+            ct.ThrowIfCancellationRequested();
+            var key = ProjectStepKey(env.Id, project);
+            steps?.Set(key, Operations.StepState.Running, "Asking the registry");
+            var (_, plan) = await _updates.PlanProjectAsync(env, project, policies.Inherited(UpdatePolicyScope.Stack, env.Id), ct, batch, newerTags: true);
+            if (plan.Error is not null)
+            {
+                log($"{project} on {env.Name}: {plan.Error}");
+                steps?.Set(key, Operations.StepState.Failed, plan.Error);
+            }
+            else if (plan.Items.Count == 0)
+            {
+                log($"{project} on {env.Name}: up to date.");
+                steps?.Set(key, Operations.StepState.Done, "Up to date");
+            }
+            else
+            {
+                pending++;
+                log($"{project} on {env.Name}: {plan.Items.Count} update(s) ({string.Join(", ", plan.Items.Select(i => i.Service))}).");
+                steps?.Set(key, Operations.StepState.Done, $"{plan.Items.Count} update(s): {string.Join(", ", plan.Items.Select(i => i.Service))}");
+            }
+        }
+
+        return pending;
+    }
+
+    /// <summary>
+    /// Updates discovered projects now, one after the other, whatever the mode of their environment's rule: each is looked at again and its moved tags are
+    /// pulled in place with its own compose files, with the backup and the health gate of that rule. One MatDock cannot update by itself (its files are
+    /// not on the host …) counts as failed with the reason and is not touched.
+    /// </summary>
+    public async Task<(int Updated, int Failed)> UpdateProjectsAsync(IEnumerable<(DockerEnvironment Env, string Project)> projects, Action<string> log,
+        CancellationToken ct = default, Operations.OperationSteps? steps = null)
+    {
+        var policies = await _policies.LoadAsync(ct);
+        int updated = 0, failed = 0;
+        foreach (var (env, project) in projects)
+        {
+            ct.ThrowIfCancellationRequested();
+            var key = ProjectStepKey(env.Id, project);
+            steps?.Set(key, Operations.StepState.Running, "Looking for the new images");
+            var policy = policies.Inherited(UpdatePolicyScope.Stack, env.Id);
+            var (_, plan) = await _updates.PlanProjectAsync(env, project, policy, ct);
+            if (plan.Error is not null)
+            {
+                failed++;
+                log($"{project} on {env.Name}: {plan.Error}");
+                steps?.Set(key, Operations.StepState.Failed, plan.Error);
+                continue;
+            }
+
+            if (plan.Items.Count == 0)
+            {
+                log($"{project} on {env.Name}: up to date.");
+                steps?.Set(key, Operations.StepState.Skipped, "Up to date");
+                continue;
+            }
+
+            var services = plan.Items.Select(i => i.Service).Distinct(StringComparer.Ordinal).ToList();
+            log($"==> {project} on {env.Name}: {string.Join(", ", services)}");
+            steps?.Set(key, Operations.StepState.Running, $"Updating {string.Join(", ", services)}");
+            var outcome = await _updates.RunProjectUpdateAsync(env, project, services, policy.PreBackup, policy.Rollback ? UpdateSafety.Default : null, ct, log);
+            _state.Forget($"{env.Id}/{project}"); // the automation looks at it again
+            if (outcome.Ok)
+            {
+                updated++;
+                log($"{project}: updated.");
+                steps?.Set(key, Operations.StepState.Done, outcome.Changed ? $"Updated: {string.Join(", ", services)}" : "Nothing changed");
+            }
+            else if (!outcome.Applicable)
+            {
+                failed++;
+                log($"{project}: not updated by MatDock: {outcome.Message}");
+                steps?.Set(key, Operations.StepState.Failed, "Not by MatDock: " + outcome.Message);
+            }
+            else
+            {
+                failed++;
+                log($"{project}: failed{(outcome.RolledBack ? " and rolled back" : string.Empty)}: {LastLines(outcome.Message)}");
+                steps?.Set(key, Operations.StepState.Failed, (outcome.RolledBack ? "Rolled back: " : string.Empty) + LastLines(outcome.Message));
+            }
+        }
+
+        return (updated, failed);
     }
 
     /// <summary>

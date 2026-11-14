@@ -224,4 +224,34 @@ public class UpdateRulesTests
         var inherited = set.Inherited(UpdatePolicyScope.Stack, environmentId: 1);
         Assert.Equal((UpdateMode.Auto, UpdateStrategy.Minor), (inherited.Mode, inherited.Strategy));
     }
+
+    [Fact]
+    public async Task The_hours_of_the_window_are_those_of_its_time_zone_and_of_the_server_without_one()
+    {
+        // 01:30 UTC in winter is 02:30 in Berlin: inside "02 to 04" on the wall there, outside on a server that runs in UTC.
+        var utc = new DateTime(2026, 11, 14, 1, 30, 0, DateTimeKind.Utc);
+        var berlin = UpdatePolicies.Resolve(Rule(UpdatePolicyScope.Global, 0, p => { p.WindowStartHour = 2; p.WindowEndHour = 4; p.WindowTimeZone = "Europe/Berlin"; }), null, null);
+        var server = UpdatePolicies.Resolve(Rule(UpdatePolicyScope.Global, 0, p => { p.WindowStartHour = 2; p.WindowEndHour = 4; }), null, null);
+
+        Assert.Contains("not known", UpdatePolicies.Problem(Rule(UpdatePolicyScope.Global, 0, p => { p.WindowStartHour = 2; p.WindowEndHour = 4; p.WindowTimeZone = "Not/AZone"; })));
+        Assert.False(server.InWindow(utc, serverNow: utc));
+        Assert.True(server.InWindow(utc, serverNow: utc.AddHours(1))); // no zone: the clock of the server
+        if (UpdatePolicies.Zone("Europe/Berlin") is null)
+        {
+            return; // no zone data (Windows with invariant globalization); the Linux run and the image have it
+        }
+
+        Assert.True(berlin.InWindow(utc, serverNow: utc));
+        Assert.False(server.InWindow(utc, serverNow: utc));
+        Assert.True(berlin.InWindow(new DateTime(2026, 7, 1, 0, 30, 0, DateTimeKind.Utc), serverNow: utc)); // summer time: 02:30 there
+
+        Assert.Contains("not known", UpdatePolicies.Problem(Rule(UpdatePolicyScope.Global, 0, p => { p.WindowStartHour = 2; p.WindowEndHour = 4; p.WindowTimeZone = "Not/AZone"; })));
+
+        using var db = new TestDatabase();
+        var service = new UpdatePolicyService(db.Context);
+        await service.SaveAsync(Rule(UpdatePolicyScope.Global, 0, p => { p.Mode = UpdateMode.Auto; p.WindowStartHour = 2; p.WindowEndHour = 4; p.WindowTimeZone = "Europe/Berlin"; }));
+        Assert.Equal("Europe/Berlin", (await service.GetAsync(UpdatePolicyScope.Global, 0))!.WindowTimeZone);
+        await service.SaveAsync(Rule(UpdatePolicyScope.Global, 0, p => { p.Mode = UpdateMode.Auto; p.WindowTimeZone = "Europe/Berlin"; })); // no window: no zone
+        Assert.Null((await service.GetAsync(UpdatePolicyScope.Global, 0))!.WindowTimeZone);
+    }
 }

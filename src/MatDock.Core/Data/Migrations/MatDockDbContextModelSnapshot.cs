@@ -1637,6 +1637,10 @@ namespace MatDock.Core.Data.Migrations
                     b.Property<int?>("WindowStartHour")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("WindowTimeZone")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Scope", "ScopeId")

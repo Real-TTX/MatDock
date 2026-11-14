@@ -556,16 +556,51 @@ public sealed class UpdateService
     private static readonly TimeSpan ProjectHelperTimeout = TimeSpan.FromMinutes(20);
 
     /// <summary>The compose projects that run on <paramref name="env"/> and are no managed stack (discovered ones), sorted.</summary>
-    public async Task<IReadOnlyList<string>> DiscoveredProjectsAsync(DockerEnvironment env, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> DiscoveredProjectsAsync(DockerEnvironment env, CancellationToken ct = default, UpdateCheckBatch? batch = null)
     {
         var managed = (await _stacks.GetAllAsync(ct)).Where(s => s.EnvironmentId == env.Id).Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
-        return (await _containers.ListAsync(env, ct, includeStats: false))
+        if (batch is not { WholeHost: true } || !batch.Containers.TryGetValue(env.Id, out var containers))
+        {
+            containers = await _containers.ListAsync(env, ct, includeStats: false);
+            if (batch is { WholeHost: true })
+            {
+                batch.Containers[env.Id] = containers; // the looks at these projects read the same list
+            }
+        }
+
+        return DiscoveredProjects(containers, managed);
+    }
+
+    /// <summary>The compose projects among <paramref name="containers"/> that are none of the <paramref name="managed"/> stacks of their environment, sorted.</summary>
+    public static IReadOnlyList<string> DiscoveredProjects(IEnumerable<DockerContainer> containers, IReadOnlySet<string> managed)
+        => containers
             .Select(c => c.Project)
             .OfType<string>()
             .Where(p => p.Length > 0 && !managed.Contains(p) && StackCommands.IsValidName(p))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(p => p, StringComparer.Ordinal)
             .ToList();
+
+    /// <summary>
+    /// What the rule of its environment makes of a look at a discovered project: the services whose tag the registry moved. A project MatDock did not
+    /// deploy has no image overrides, so a newer version stays a hint (<see cref="ImageUpdateStatus.NewerTag"/>); a pinned strategy leaves it alone.
+    /// </summary>
+    public static StackUpdatePlan ProjectPlan(StackUpdateReport report, EffectiveUpdatePolicy policy)
+        => report.Error is not null
+            ? new StackUpdatePlan(Array.Empty<PlannedUpdate>(), report.Error)
+            : new StackUpdatePlan(report.Images
+                .Where(i => i.UpdateAvailable && !i.Pinned && policy.StrategyOf(i.Service) != UpdateStrategy.Pinned)
+                .Select(i => new PlannedUpdate(i.Service, i.Image, ShortDigest(i.RegistryDigest), PlannedKind.Digest))
+                .ToList(), null);
+
+    /// <summary>Looks at a discovered project and keeps what its rule would update, for the overview and the dashboard as for a managed stack.</summary>
+    public async Task<(StackUpdateReport Report, StackUpdatePlan Plan)> PlanProjectAsync(DockerEnvironment env, string project, EffectiveUpdatePolicy policy,
+        CancellationToken ct = default, UpdateCheckBatch? batch = null, bool newerTags = false)
+    {
+        var report = await CheckStackAsync(env, project, ct, newerTags, batch);
+        var plan = ProjectPlan(report, policy);
+        _cache.SetPlan(env.Id, project, plan);
+        return (report, plan);
     }
 
     /// <summary>
@@ -575,6 +610,19 @@ public sealed class UpdateService
     /// </summary>
     public async Task<ProjectUpdateResult> RunProjectUpdateAsync(DockerEnvironment env, string project, IReadOnlyList<string> services, bool preBackup,
         UpdateSafety? safety, CancellationToken ct = default, Action<string>? log = null)
+    {
+        var result = await RunProjectUpdateCoreAsync(env, project, services, preBackup, safety, ct, log);
+        if (!result.Transient)
+        {
+            // The overview says why MatDock cannot update this one, instead of offering the same update again without a word.
+            _cache.SetBlocked(env.Id, project, result.Applicable ? null : result.Message);
+        }
+
+        return result;
+    }
+
+    private async Task<ProjectUpdateResult> RunProjectUpdateCoreAsync(DockerEnvironment env, string project, IReadOnlyList<string> services, bool preBackup,
+        UpdateSafety? safety, CancellationToken ct, Action<string>? log)
     {
         if (!StackCommands.IsValidName(project) || services.Count == 0 || !services.All(StackCommands.IsValidServiceName))
         {
@@ -609,7 +657,12 @@ public sealed class UpdateService
             .ToList();
         if (candidates.Count == 0)
         {
-            return ProjectUpdateResult.NotApplicable("Compose named no files for this project (another tool started it over the Docker API).");
+            // Files were named, but not at a path MatDock can hand to a helper on the Docker host (started from a Windows or macOS desktop: C:\…, or a path with
+            // characters that are refused): say that, not that there were none.
+            var named = containers.Select(c => c.Labels.GetValueOrDefault(ComposeProjectFiles.WorkingDirLabel)).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d));
+            return ProjectUpdateResult.NotApplicable(named is null
+                ? "Compose named no files for this project (another tool started it over the Docker API)."
+                : $"Its compose files are not at a path on the Docker host that MatDock can use ({named}). Update it where it was started.");
         }
 
         var settings = _environments.BuildSettings(env);

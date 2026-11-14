@@ -10,7 +10,9 @@
     string Wider(string value) => Model.Scope == UpdatePolicyScope.Global ? $"Not set ({value})" : $"As the wider rule ({value})";
     string YesNo(bool value) => value ? "yes" : "no";
     var inherited = Model.Inherited;
-    var window = inherited.WindowStartHour is { } s && inherited.WindowEndHour is { } e && s != e ? $"{s:00}:00–{e:00}:00" : "any time";
+    var window = inherited.WindowStartHour is { } s && inherited.WindowEndHour is { } e && s != e ? $"{s:00}:00–{e:00}:00 ({inherited.WindowTimeZone ?? "server time"})" : "any time";
+    // The clock the two hours of this rule are on: the one it was saved with, the browser's for a new window, the server's for a rule from before.
+    var zone = Model.Input.WindowTimeZone ?? (string.IsNullOrEmpty(Model.Input.WindowStartHour) ? UserClock.BrowserZoneId : null) ?? "server time";
     var strategies = new[] { UpdateStrategy.Tag, UpdateStrategy.Minor, UpdateStrategy.Latest, UpdateStrategy.Pinned };
     string StrategyText(UpdateStrategy st) => st switch
     {
@@ -46,7 +48,8 @@
                     </select>
                 </mat-field>
 
-                <mat-field label="Update only from (server time)" asp-for="Input.WindowStartHour" hint="With the end hour: when MatDock may update by itself. Now: @window.">
+                <input type="hidden" asp-for="Input.WindowTimeZone" />
+                <mat-field label="Update only from (@zone)" asp-for="Input.WindowStartHour" hint="With the end hour: when MatDock may update by itself. Now: @window.">
                     <select asp-for="Input.WindowStartHour" class="mat-select">
                         <option value="">Any time</option>
                         @for (var h = 0; h < 24; h++)
